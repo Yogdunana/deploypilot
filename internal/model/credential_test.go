@@ -188,3 +188,126 @@ func TestCredentialRoundTrip(t *testing.T) {
 		t.Error("should fail after delete in round-trip")
 	}
 }
+
+func TestUpdateCredentialNotFound(t *testing.T) {
+	encKey, cleanup := setupCredDB(t)
+	defer cleanup()
+
+	_, err := UpdateCredential(encKey, "nonexistent-id", "new-value")
+	if err == nil {
+		t.Error("UpdateCredential() should fail for nonexistent ID")
+	}
+}
+
+func TestGenerateUUID(t *testing.T) {
+	uuid := generateUUID()
+	if uuid == "" {
+		t.Error("generateUUID() should return non-empty string")
+	}
+	if len(uuid) != 32 {
+		t.Errorf("generateUUID() length = %d, want 32", len(uuid))
+	}
+}
+
+func TestGenerateUUIDUnique(t *testing.T) {
+	uuid1 := generateUUID()
+	uuid2 := generateUUID()
+	if uuid1 == uuid2 {
+		t.Error("generateUUID() should return unique values")
+	}
+}
+
+func TestGetDBPanic(t *testing.T) {
+	defer func() {
+		r := recover()
+		if r == nil {
+			t.Error("getDB() should panic when db is not initialized")
+		}
+		msg, ok := r.(string)
+		if !ok {
+			t.Errorf("panic value should be string, got %T", r)
+		}
+		if msg != "model: database not initialized, call InitDB() first" {
+			t.Errorf("panic message = %q", msg)
+		}
+	}()
+
+	// Reset dbHolder to trigger panic
+	dbHolder.db = nil
+	getDB()
+}
+
+func TestGetEncKeyPanic(t *testing.T) {
+	defer func() {
+		r := recover()
+		if r == nil {
+			t.Error("getEncKey() should panic when encKey is not initialized")
+		}
+		msg, ok := r.(string)
+		if !ok {
+			t.Errorf("panic value should be string, got %T", r)
+		}
+		if msg != "model: encryption key not initialized, call InitDB() first" {
+			t.Errorf("panic message = %q", msg)
+		}
+	}()
+
+	// Reset encKey to trigger panic
+	dbHolder.encKey = nil
+	getEncKey()
+}
+
+func TestCredentialWithPlainStruct(t *testing.T) {
+	cwp := &CredentialWithPlain{
+		Credential: Credential{
+			ID:             "cred-001",
+			TenantID:       "tenant-001",
+			Name:           "test-cred",
+			Type:           "ssh",
+			EncryptedValue: "encrypted",
+		},
+		PlainValue: "plain-text-value",
+	}
+
+	if cwp.ID != "cred-001" {
+		t.Errorf("ID = %q", cwp.ID)
+	}
+	if cwp.PlainValue != "plain-text-value" {
+		t.Errorf("PlainValue = %q", cwp.PlainValue)
+	}
+	if cwp.Name != "test-cred" {
+		t.Errorf("Name = %q", cwp.Name)
+	}
+}
+
+func TestCreateCredentialDifferentTypes(t *testing.T) {
+	encKey, cleanup := setupCredDB(t)
+	defer cleanup()
+
+	types := []string{"ssh", "api_key", "token"}
+	for _, credType := range types {
+		t.Run(credType, func(t *testing.T) {
+			cred, err := CreateCredential(encKey, "tenant-default", "cred-"+credType, credType, "value")
+			if err != nil {
+				t.Fatalf("CreateCredential(%s) error = %v", credType, err)
+			}
+			if cred.Type != credType {
+				t.Errorf("Type = %q, want %q", cred.Type, credType)
+			}
+		})
+	}
+}
+
+func TestListCredentialsEmpty(t *testing.T) {
+	_, cleanup := setupCredDB(t)
+	defer cleanup()
+
+	// List for a tenant with no credentials
+	creds, err := ListCredentials("tenant-nonexistent")
+	if err != nil {
+		t.Fatalf("ListCredentials() error = %v", err)
+	}
+	if len(creds) != 0 {
+		t.Errorf("count = %d, want 0", len(creds))
+	}
+}
