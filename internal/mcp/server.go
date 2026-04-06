@@ -50,6 +50,7 @@ type Deployer interface {
 	BatchDeploy(ctx context.Context, apps []map[string]interface{}) (interface{}, error)
 	BatchBackup(ctx context.Context, appIDs []string) (interface{}, error)
 	BatchDNS(ctx context.Context, records []map[string]interface{}) (interface{}, error)
+	CheckSystemUpdate(ctx context.Context) (interface{}, error)
 }
 
 // DeployConfig mirrors deployer.DeployConfig to avoid circular imports.
@@ -550,6 +551,14 @@ func NewServer(deployer Deployer) *server.MCPServer {
 	)
 	s.AddTool(batchDNSTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return handleBatchDNS(ctx, deployer, request)
+	})
+
+	// Register check_system_update
+	checkSysUpdateTool := mcp.NewTool("check_system_update",
+		mcp.WithDescription("Check if a newer version of DeployPilot is available"),
+	)
+	s.AddTool(checkSysUpdateTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleCheckSystemUpdate(ctx, deployer, request)
 	})
 
 	return s
@@ -1348,6 +1357,16 @@ func handleBatchDNS(ctx context.Context, deployer Deployer, request mcp.CallTool
 		return mcp.NewToolResultError(fmt.Sprintf("batch DNS failed: %v", err)), nil
 	}
 	result := map[string]interface{}{"status": "success", "batch": res}
+	data, _ := json.MarshalIndent(result, "", "  ")
+	return mcp.NewToolResultText(string(data)), nil
+}
+
+func handleCheckSystemUpdate(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	update, err := deployer.CheckSystemUpdate(ctx)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("check update failed: %v", err)), nil
+	}
+	result := map[string]interface{}{"status": "success", "update": update}
 	data, _ := json.MarshalIndent(result, "", "  ")
 	return mcp.NewToolResultText(string(data)), nil
 }

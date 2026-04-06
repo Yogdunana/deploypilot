@@ -48,6 +48,7 @@ type mockDeployer struct {
 	batchDeployFn  func(ctx context.Context, apps []map[string]interface{}) (interface{}, error)
 	batchBackupFn  func(ctx context.Context, appIDs []string) (interface{}, error)
 	batchDNSFn     func(ctx context.Context, records []map[string]interface{}) (interface{}, error)
+	checkSysUpdateFn func(ctx context.Context) (interface{}, error)
 }
 
 func (m *mockDeployer) Deploy(ctx context.Context, cfg DeployConfig) (*ContainerStatus, error) {
@@ -336,6 +337,18 @@ func (m *mockDeployer) BatchDNS(ctx context.Context, records []map[string]interf
 		return m.batchDNSFn(ctx, records)
 	}
 	return map[string]interface{}{"total": len(records), "succeeded": len(records), "failed": 0}, nil
+}
+
+func (m *mockDeployer) CheckSystemUpdate(ctx context.Context) (interface{}, error) {
+	if m.checkSysUpdateFn != nil {
+		return m.checkSysUpdateFn(ctx)
+	}
+	return map[string]interface{}{
+		"current_version": "0.5.0",
+		"latest_version":  "0.6.0",
+		"update_available": true,
+		"release_notes": "Added Web Dashboard",
+	}, nil
 }
 
 // extractText gets the text content from a CallToolResult.
@@ -1793,6 +1806,41 @@ func TestBatchDNSFailure(t *testing.T) {
 	result, _ := handleBatchDNS(context.Background(), mock, newRequest(map[string]interface{}{
 		"records": "[]",
 	}))
+	if !result.IsError {
+		t.Error("should return error on failure")
+	}
+}
+
+// ========== check_system_update ==========
+
+func TestCheckSystemUpdateSuccess(t *testing.T) {
+	mock := &mockDeployer{}
+	result, _ := handleCheckSystemUpdate(context.Background(), mock, newRequest(map[string]interface{}{}))
+
+	text, err := extractText(result)
+	if err != nil {
+		t.Fatalf("extractText error = %v", err)
+	}
+
+	var parsed map[string]interface{}
+	json.Unmarshal([]byte(text), &parsed)
+
+	if parsed["status"] != "success" {
+		t.Errorf("status = %v, want success", parsed["status"])
+	}
+	info := parsed["update"].(map[string]interface{})
+	if info["update_available"] != true {
+		t.Errorf("update_available = %v, want true", info["update_available"])
+	}
+}
+
+func TestCheckSystemUpdateFailure(t *testing.T) {
+	mock := &mockDeployer{
+		checkSysUpdateFn: func(_ context.Context) (interface{}, error) {
+			return nil, fmt.Errorf("network error")
+		},
+	}
+	result, _ := handleCheckSystemUpdate(context.Background(), mock, newRequest(map[string]interface{}{}))
 	if !result.IsError {
 		t.Error("should return error on failure")
 	}
