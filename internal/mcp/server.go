@@ -211,7 +211,7 @@ func NewServer(deployer Deployer) *server.MCPServer {
 	})
 
 	// Register rollback tool
-	rollbackTool := mcp.NewTool("rollback",
+	rollbackTool := mcp.NewTool("rollback_app",
 		mcp.WithDescription("Rollback a container to a previous image version"),
 		mcp.WithString("container_name",
 			mcp.Required(),
@@ -270,7 +270,7 @@ func NewServer(deployer Deployer) *server.MCPServer {
 	})
 
 	// Register detect_env tool
-	detectEnvTool := mcp.NewTool("detect_env",
+	detectEnvTool := mcp.NewTool("detect_environment",
 		mcp.WithDescription("Detect server environment (OS, Docker, ports, services)"),
 		mcp.WithString("level",
 			mcp.Description("Detection level: 1=OS, 2=+Docker, 3=+Ports, 4=+Services (default: 2)"),
@@ -316,7 +316,7 @@ func NewServer(deployer Deployer) *server.MCPServer {
 	})
 
 	// Register remove_server tool
-	removeServerTool := mcp.NewTool("remove_server",
+	removeServerTool := mcp.NewTool("delete_server",
 		mcp.WithDescription("Remove a registered server"),
 		mcp.WithString("server_id", mcp.Required(), mcp.Description("Server ID to remove")),
 	)
@@ -334,7 +334,7 @@ func NewServer(deployer Deployer) *server.MCPServer {
 	})
 
 	// Register create_credential tool
-	createCredTool := mcp.NewTool("create_credential",
+	createCredTool := mcp.NewTool("add_credential",
 		mcp.WithDescription("Create an encrypted credential for a tenant"),
 		mcp.WithString("tenant_id", mcp.Required(), mcp.Description("Tenant ID")),
 		mcp.WithString("name", mcp.Required(), mcp.Description("Credential name")),
@@ -364,7 +364,7 @@ func NewServer(deployer Deployer) *server.MCPServer {
 	})
 
 	// Register dns_create_record tool
-	dnsCreateTool := mcp.NewTool("dns_create_record",
+	dnsCreateTool := mcp.NewTool("add_dns_record",
 		mcp.WithDescription("Create a DNS record"),
 		mcp.WithString("domain", mcp.Required(), mcp.Description("Domain name (e.g. example.com)")),
 		mcp.WithString("type", mcp.Required(), mcp.Description("Record type: A, AAAA, CNAME, TXT, MX")),
@@ -376,7 +376,7 @@ func NewServer(deployer Deployer) *server.MCPServer {
 	})
 
 	// Register dns_delete_record tool
-	dnsDeleteTool := mcp.NewTool("dns_delete_record",
+	dnsDeleteTool := mcp.NewTool("delete_dns_record",
 		mcp.WithDescription("Delete a DNS record"),
 		mcp.WithString("record_id", mcp.Required(), mcp.Description("DNS record ID to delete")),
 	)
@@ -385,7 +385,7 @@ func NewServer(deployer Deployer) *server.MCPServer {
 	})
 
 	// Register dns_list_records tool
-	dnsListTool := mcp.NewTool("dns_list_records",
+	dnsListTool := mcp.NewTool("list_dns_records",
 		mcp.WithDescription("List DNS records for a domain"),
 		mcp.WithString("domain", mcp.Required(), mcp.Description("Domain name")),
 	)
