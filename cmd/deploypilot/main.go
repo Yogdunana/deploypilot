@@ -3,15 +3,31 @@ package main
 import (
 	"fmt"
 	"os"
+
+	"github.com/spf13/cobra"
 )
 
 // version is set via -ldflags at build time.
 var version = "dev"
 
-func main() {
-	if len(os.Args) > 1 && os.Args[1] == "version" {
-		fmt.Printf("deploypilot version %s\n", version)
-		return
+var rootCmd = &cobra.Command{
+	Use:   "deploypilot",
+	Short: "DeployPilot - AI-powered deployment automation",
+	Long:  "DeployPilot is an MCP-based deployment tool that automates container deployment, health checking, and rollback.",
+}
+
+func init() {
+	rootCmd.PersistentFlags().StringP("config", "c", "", "config file path")
+	rootCmd.PersistentFlags().String("format", "text", "output format: text, json")
+}
+
+func Execute() {
+	if err := rootCmd.Execute(); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
 	}
-	fmt.Printf("deploypilot %s\n", version)
+}
+
+func main() {
+	Execute()
 }
