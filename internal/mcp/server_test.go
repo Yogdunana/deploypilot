@@ -22,6 +22,8 @@ type mockDeployer struct {
 	backupFn       func(ctx context.Context, appID string) (string, error)
 	restoreFn      func(ctx context.Context, backupID string) (*ContainerStatus, error)
 	getLogsFn      func(ctx context.Context, name string, tail int) (string, error)
+	detectEnvFn    func(ctx context.Context, level int, ports []int, services []string) (interface{}, error)
+	healthCheckFn  func(ctx context.Context, target, healthType string) (interface{}, error)
 }
 
 func (m *mockDeployer) Deploy(ctx context.Context, cfg DeployConfig) (*ContainerStatus, error) {
@@ -101,6 +103,29 @@ func (m *mockDeployer) GetContainerLogs(ctx context.Context, name string, tail i
 		return m.getLogsFn(ctx, name, tail)
 	}
 	return "mock log line 1\nmock log line 2", nil
+}
+
+func (m *mockDeployer) DetectEnv(ctx context.Context, level int, ports []int, services []string) (interface{}, error) {
+	if m.detectEnvFn != nil {
+		return m.detectEnvFn(ctx, level, ports, services)
+	}
+	return map[string]interface{}{
+		"os":     map[string]string{"goos": "linux", "arch": "amd64"},
+		"docker": map[string]interface{}{"installed": true, "running": true},
+		"level":  level,
+	}, nil
+}
+
+func (m *mockDeployer) HealthCheck(ctx context.Context, target, healthType string) (interface{}, error) {
+	if m.healthCheckFn != nil {
+		return m.healthCheckFn(ctx, target, healthType)
+	}
+	return map[string]interface{}{
+		"healthy":  true,
+		"target":   target,
+		"type":     healthType,
+		"attempts": 1,
+	}, nil
 }
 
 // extractText gets the text content from a CallToolResult.
@@ -515,6 +540,119 @@ func TestGetAppLogsFailure(t *testing.T) {
 	}))
 	if !result.IsError {
 		t.Error("should return error on failure")
+	}
+}
+
+// ========== detect_env ==========
+
+func TestDetectEnvSuccess(t *testing.T) {
+	mock := &mockDeployer{}
+	result, _ := handleDetectEnv(context.Background(), mock, newRequest(map[string]interface{}{
+		"level": "2",
+	}))
+
+	text, err := extractText(result)
+	if err != nil {
+		t.Fatalf("extractText error = %v", err)
+	}
+
+	var parsed map[string]interface{}
+	json.Unmarshal([]byte(text), &parsed)
+
+	if parsed["status"] != "success" {
+		t.Errorf("status = %v, want success", parsed["status"])
+	}
+	if parsed["environment"] == nil {
+		t.Error("environment should not be nil")
+	}
+}
+
+func TestDetectEnvWithPorts(t *testing.T) {
+	mock := &mockDeployer{}
+	result, _ := handleDetectEnv(context.Background(), mock, newRequest(map[string]interface{}{
+		"level": "3",
+		"ports": "8080,3000",
+	}))
+
+	text, _ := extractText(result)
+	if !strings.Contains(text, "success") {
+		t.Errorf("unexpected output: %s", text)
+	}
+}
+
+func TestDetectEnvFailure(t *testing.T) {
+	mock := &mockDeployer{
+		detectEnvFn: func(_ context.Context, _ int, _ []int, _ []string) (interface{}, error) {
+			return nil, fmt.Errorf("detection failed")
+		},
+	}
+	result, _ := handleDetectEnv(context.Background(), mock, newRequest(map[string]interface{}{
+		"level": "1",
+	}))
+	if !result.IsError {
+		t.Error("should return error on failure")
+	}
+}
+
+// ========== health_check ==========
+
+func TestHealthCheckSuccess(t *testing.T) {
+	mock := &mockDeployer{}
+	result, _ := handleHealthCheck(context.Background(), mock, newRequest(map[string]interface{}{
+		"target": "http://localhost:8080/health",
+		"type":   "http",
+	}))
+
+	text, err := extractText(result)
+	if err != nil {
+		t.Fatalf("extractText error = %v", err)
+	}
+
+	var parsed map[string]interface{}
+	json.Unmarshal([]byte(text), &parsed)
+
+	if parsed["status"] != "success" {
+		t.Errorf("status = %v, want success", parsed["status"])
+	}
+	health := parsed["health"].(map[string]interface{})
+	if health["healthy"] != true {
+		t.Errorf("healthy = %v, want true", health["healthy"])
+	}
+}
+
+func TestHealthCheckMissingTarget(t *testing.T) {
+	mock := &mockDeployer{}
+	result, _ := handleHealthCheck(context.Background(), mock, newRequest(map[string]interface{}{}))
+	if !result.IsError {
+		t.Error("should return error when target is missing")
+	}
+}
+
+func TestHealthCheckFailure(t *testing.T) {
+	mock := &mockDeployer{
+		healthCheckFn: func(_ context.Context, _, _ string) (interface{}, error) {
+			return nil, fmt.Errorf("health check failed")
+		},
+	}
+	result, _ := handleHealthCheck(context.Background(), mock, newRequest(map[string]interface{}{
+		"target": "http://localhost:9999/health",
+		"type":   "http",
+	}))
+	if !result.IsError {
+		t.Error("should return error on failure")
+	}
+}
+
+func TestHealthCheckTCP(t *testing.T) {
+	mock := &mockDeployer{}
+	result, _ := handleHealthCheck(context.Background(), mock, newRequest(map[string]interface{}{
+		"target": "tcp://localhost:3306",
+		"type":   "tcp",
+	}))
+
+	text, _ := extractText(result)
+	if !strings.Contains(text, "success") {
+		t.Errorf("unexpected output: %s", text)
 	}
 }
 

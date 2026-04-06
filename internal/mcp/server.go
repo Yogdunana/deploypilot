@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
@@ -23,6 +24,8 @@ type Deployer interface {
 	Rollback(ctx context.Context, containerName, previousImage string) (*ContainerStatus, error)
 	Backup(ctx context.Context, appID string) (string, error)
 	Restore(ctx context.Context, backupID string) (*ContainerStatus, error)
+	DetectEnv(ctx context.Context, level int, ports []int, services []string) (interface{}, error)
+	HealthCheck(ctx context.Context, target, healthType string) (interface{}, error)
 }
 
 // DeployConfig mirrors deployer.DeployConfig to avoid circular imports.
@@ -252,6 +255,40 @@ func NewServer(deployer Deployer) *server.MCPServer {
 
 	s.AddTool(getLogsTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return handleGetAppLogs(ctx, deployer, request)
+	})
+
+	// Register detect_env tool
+	detectEnvTool := mcp.NewTool("detect_env",
+		mcp.WithDescription("Detect server environment (OS, Docker, ports, services)"),
+		mcp.WithString("level",
+			mcp.Description("Detection level: 1=OS, 2=+Docker, 3=+Ports, 4=+Services (default: 2)"),
+		),
+		mcp.WithString("ports",
+			mcp.Description("Comma-separated port list to check (e.g. 8080,3000)"),
+		),
+		mcp.WithString("services",
+			mcp.Description("Comma-separated service URLs to check (e.g. tcp://localhost:3306)"),
+		),
+	)
+
+	s.AddTool(detectEnvTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleDetectEnv(ctx, deployer, request)
+	})
+
+	// Register health_check tool
+	healthCheckTool := mcp.NewTool("health_check",
+		mcp.WithDescription("Check health of a deployed service"),
+		mcp.WithString("target",
+			mcp.Required(),
+			mcp.Description("Health check target URL (e.g. http://localhost:8080/health or tcp://localhost:3306)"),
+		),
+		mcp.WithString("type",
+			mcp.Description("Health check type: http or tcp (default: http)"),
+		),
+	)
+
+	s.AddTool(healthCheckTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleHealthCheck(ctx, deployer, request)
 	})
 
 	return s
@@ -522,6 +559,67 @@ func handleGetAppLogs(ctx context.Context, deployer Deployer, request mcp.CallTo
 		"container_name": containerName,
 		"tail":  tail,
 		"logs":  logs,
+	}
+
+	data, _ := json.MarshalIndent(result, "", "  ")
+	return mcp.NewToolResultText(string(data)), nil
+}
+
+func handleDetectEnv(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	level := 2
+	if l := request.GetString("level", "2"); l != "" {
+		fmt.Sscanf(l, "%d", &level)
+	}
+
+	var ports []int
+	if p := request.GetString("ports", ""); p != "" {
+		for _, ps := range strings.Split(p, ",") {
+			ps = strings.TrimSpace(ps)
+			var port int
+			if _, err := fmt.Sscanf(ps, "%d", &port); err == nil {
+				ports = append(ports, port)
+			}
+		}
+	}
+
+	var services []string
+	if s := request.GetString("services", ""); s != "" {
+		services = strings.Split(s, ",")
+		for i := range services {
+			services[i] = strings.TrimSpace(services[i])
+		}
+	}
+
+	env, err := deployer.DetectEnv(ctx, level, ports, services)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("environment detection failed: %v", err)), nil
+	}
+
+	result := map[string]interface{}{
+		"status":      "success",
+		"environment": env,
+	}
+
+	data, _ := json.MarshalIndent(result, "", "  ")
+	return mcp.NewToolResultText(string(data)), nil
+}
+
+func handleHealthCheck(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	target, err := request.RequireString("target")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	healthType := request.GetString("type", "http")
+
+	health, err := deployer.HealthCheck(ctx, target, healthType)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("health check failed: %v", err)), nil
+	}
+
+	result := map[string]interface{}{
+		"status": "success",
+		"health": health,
 	}
 
 	data, _ := json.MarshalIndent(result, "", "  ")
