@@ -24,6 +24,12 @@ type mockDeployer struct {
 	getLogsFn      func(ctx context.Context, name string, tail int) (string, error)
 	detectEnvFn    func(ctx context.Context, level int, ports []int, services []string) (interface{}, error)
 	healthCheckFn  func(ctx context.Context, target, healthType string) (interface{}, error)
+	addServerFn    func(ctx context.Context, name, host string, port int, user string) (*ServerInfo, error)
+	removeServerFn func(ctx context.Context, serverID string) error
+	testServerFn   func(ctx context.Context, serverID string) (interface{}, error)
+	createCredFn   func(ctx context.Context, tenantID, name, credType, plainValue string) (interface{}, error)
+	listCredsFn    func(ctx context.Context, tenantID string) (interface{}, error)
+	deleteCredFn   func(ctx context.Context, credID string) error
 }
 
 func (m *mockDeployer) Deploy(ctx context.Context, cfg DeployConfig) (*ContainerStatus, error) {
@@ -126,6 +132,51 @@ func (m *mockDeployer) HealthCheck(ctx context.Context, target, healthType strin
 		"type":     healthType,
 		"attempts": 1,
 	}, nil
+}
+
+func (m *mockDeployer) AddServer(ctx context.Context, name, host string, port int, user string) (*ServerInfo, error) {
+	if m.addServerFn != nil {
+		return m.addServerFn(ctx, name, host, port, user)
+	}
+	return &ServerInfo{ID: "srv-new-001", Name: name, Host: host, Port: port, Status: "added"}, nil
+}
+
+func (m *mockDeployer) RemoveServer(ctx context.Context, serverID string) error {
+	if m.removeServerFn != nil {
+		return m.removeServerFn(ctx, serverID)
+	}
+	return nil
+}
+
+func (m *mockDeployer) TestServer(ctx context.Context, serverID string) (interface{}, error) {
+	if m.testServerFn != nil {
+		return m.testServerFn(ctx, serverID)
+	}
+	return map[string]interface{}{"server_id": serverID, "reachable": true, "latency": "15ms"}, nil
+}
+
+func (m *mockDeployer) CreateCredential(ctx context.Context, tenantID, name, credType, plainValue string) (interface{}, error) {
+	if m.createCredFn != nil {
+		return m.createCredFn(ctx, tenantID, name, credType, plainValue)
+	}
+	return map[string]interface{}{"id": "cred-new-001", "name": name, "type": credType}, nil
+}
+
+func (m *mockDeployer) ListCredentials(ctx context.Context, tenantID string) (interface{}, error) {
+	if m.listCredsFn != nil {
+		return m.listCredsFn(ctx, tenantID)
+	}
+	return []map[string]interface{}{
+		{"id": "cred-001", "name": "ssh-key", "type": "ssh"},
+		{"id": "cred-002", "name": "api-token", "type": "api_key"},
+	}, nil
+}
+
+func (m *mockDeployer) DeleteCredential(ctx context.Context, credID string) error {
+	if m.deleteCredFn != nil {
+		return m.deleteCredFn(ctx, credID)
+	}
+	return nil
 }
 
 // extractText gets the text content from a CallToolResult.
@@ -653,6 +704,236 @@ func TestHealthCheckTCP(t *testing.T) {
 	text, _ := extractText(result)
 	if !strings.Contains(text, "success") {
 		t.Errorf("unexpected output: %s", text)
+	}
+}
+
+// ========== manage_servers ==========
+
+func TestAddServerSuccess(t *testing.T) {
+	mock := &mockDeployer{}
+	result, _ := handleAddServer(context.Background(), mock, newRequest(map[string]interface{}{
+		"name": "prod-server",
+		"host": "1.2.3.4",
+		"port": "22",
+		"user": "root",
+	}))
+
+	text, err := extractText(result)
+	if err != nil {
+		t.Fatalf("extractText error = %v", err)
+	}
+
+	var parsed map[string]interface{}
+	json.Unmarshal([]byte(text), &parsed)
+
+	if parsed["status"] != "success" {
+		t.Errorf("status = %v, want success", parsed["status"])
+	}
+	server := parsed["server"].(map[string]interface{})
+	if server["name"] != "prod-server" {
+		t.Errorf("server.name = %v", server["name"])
+	}
+}
+
+func TestAddServerMissingName(t *testing.T) {
+	mock := &mockDeployer{}
+	result, _ := handleAddServer(context.Background(), mock, newRequest(map[string]interface{}{
+		"host": "1.2.3.4",
+	}))
+	if !result.IsError {
+		t.Error("should return error when name is missing")
+	}
+}
+
+func TestAddServerFailure(t *testing.T) {
+	mock := &mockDeployer{
+		addServerFn: func(_ context.Context, _, _ string, _ int, _ string) (*ServerInfo, error) {
+			return nil, fmt.Errorf("server already exists")
+		},
+	}
+	result, _ := handleAddServer(context.Background(), mock, newRequest(map[string]interface{}{
+		"name": "dup",
+		"host": "1.1.1.1",
+	}))
+	if !result.IsError {
+		t.Error("should return error on failure")
+	}
+}
+
+func TestRemoveServerSuccess(t *testing.T) {
+	mock := &mockDeployer{}
+	result, _ := handleRemoveServer(context.Background(), mock, newRequest(map[string]interface{}{
+		"server_id": "srv-001",
+	}))
+
+	text, _ := extractText(result)
+	if !strings.Contains(text, "success") {
+		t.Errorf("unexpected output: %s", text)
+	}
+}
+
+func TestRemoveServerMissingID(t *testing.T) {
+	mock := &mockDeployer{}
+	result, _ := handleRemoveServer(context.Background(), mock, newRequest(map[string]interface{}{}))
+	if !result.IsError {
+		t.Error("should return error when server_id is missing")
+	}
+}
+
+func TestTestServerSuccess(t *testing.T) {
+	mock := &mockDeployer{}
+	result, _ := handleTestServer(context.Background(), mock, newRequest(map[string]interface{}{
+		"server_id": "srv-001",
+	}))
+
+	text, err := extractText(result)
+	if err != nil {
+		t.Fatalf("extractText error = %v", err)
+	}
+
+	var parsed map[string]interface{}
+	json.Unmarshal([]byte(text), &parsed)
+
+	if parsed["status"] != "success" {
+		t.Errorf("status = %v, want success", parsed["status"])
+	}
+}
+
+func TestTestServerFailure(t *testing.T) {
+	mock := &mockDeployer{
+		testServerFn: func(_ context.Context, _ string) (interface{}, error) {
+			return nil, fmt.Errorf("connection refused")
+		},
+	}
+	result, _ := handleTestServer(context.Background(), mock, newRequest(map[string]interface{}{
+		"server_id": "srv-001",
+	}))
+	if !result.IsError {
+		t.Error("should return error on failure")
+	}
+}
+
+// ========== manage_credentials ==========
+
+func TestCreateCredentialSuccess(t *testing.T) {
+	mock := &mockDeployer{}
+	result, _ := handleCreateCredential(context.Background(), mock, newRequest(map[string]interface{}{
+		"tenant_id": "tenant-default",
+		"name":      "my-ssh-key",
+		"type":      "ssh",
+		"value":     "ssh-rsa AAAA...",
+	}))
+
+	text, err := extractText(result)
+	if err != nil {
+		t.Fatalf("extractText error = %v", err)
+	}
+
+	var parsed map[string]interface{}
+	json.Unmarshal([]byte(text), &parsed)
+
+	if parsed["status"] != "success" {
+		t.Errorf("status = %v, want success", parsed["status"])
+	}
+	cred := parsed["credential"].(map[string]interface{})
+	if cred["name"] != "my-ssh-key" {
+		t.Errorf("credential.name = %v", cred["name"])
+	}
+}
+
+func TestCreateCredentialMissingName(t *testing.T) {
+	mock := &mockDeployer{}
+	result, _ := handleCreateCredential(context.Background(), mock, newRequest(map[string]interface{}{
+		"tenant_id": "tenant-default",
+		"type":      "ssh",
+		"value":     "secret",
+	}))
+	if !result.IsError {
+		t.Error("should return error when name is missing")
+	}
+}
+
+func TestCreateCredentialFailure(t *testing.T) {
+	mock := &mockDeployer{
+		createCredFn: func(_ context.Context, _, _, _, _ string) (interface{}, error) {
+			return nil, fmt.Errorf("encryption failed")
+		},
+	}
+	result, _ := handleCreateCredential(context.Background(), mock, newRequest(map[string]interface{}{
+		"tenant_id": "tenant-default",
+		"name":      "my-key",
+		"type":      "ssh",
+		"value":     "secret",
+	}))
+	if !result.IsError {
+		t.Error("should return error on failure")
+	}
+}
+
+func TestListCredentialsSuccess(t *testing.T) {
+	mock := &mockDeployer{}
+	result, _ := handleListCredentials(context.Background(), mock, newRequest(map[string]interface{}{
+		"tenant_id": "tenant-default",
+	}))
+
+	text, err := extractText(result)
+	if err != nil {
+		t.Fatalf("extractText error = %v", err)
+	}
+
+	var parsed map[string]interface{}
+	json.Unmarshal([]byte(text), &parsed)
+
+	if parsed["status"] != "success" {
+		t.Errorf("status = %v, want success", parsed["status"])
+	}
+}
+
+func TestListCredentialsFailure(t *testing.T) {
+	mock := &mockDeployer{
+		listCredsFn: func(_ context.Context, _ string) (interface{}, error) {
+			return nil, fmt.Errorf("database error")
+		},
+	}
+	result, _ := handleListCredentials(context.Background(), mock, newRequest(map[string]interface{}{
+		"tenant_id": "tenant-default",
+	}))
+	if !result.IsError {
+		t.Error("should return error on failure")
+	}
+}
+
+func TestDeleteCredentialSuccess(t *testing.T) {
+	mock := &mockDeployer{}
+	result, _ := handleDeleteCredential(context.Background(), mock, newRequest(map[string]interface{}{
+		"credential_id": "cred-001",
+	}))
+
+	text, _ := extractText(result)
+	if !strings.Contains(text, "success") {
+		t.Errorf("unexpected output: %s", text)
+	}
+}
+
+func TestDeleteCredentialMissingID(t *testing.T) {
+	mock := &mockDeployer{}
+	result, _ := handleDeleteCredential(context.Background(), mock, newRequest(map[string]interface{}{}))
+	if !result.IsError {
+		t.Error("should return error when credential_id is missing")
+	}
+}
+
+func TestDeleteCredentialFailure(t *testing.T) {
+	mock := &mockDeployer{
+		deleteCredFn: func(_ context.Context, _ string) error {
+			return fmt.Errorf("credential not found")
+		},
+	}
+	result, _ := handleDeleteCredential(context.Background(), mock, newRequest(map[string]interface{}{
+		"credential_id": "nonexistent",
+	}))
+	if !result.IsError {
+		t.Error("should return error on failure")
 	}
 }
 

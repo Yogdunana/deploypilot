@@ -26,6 +26,12 @@ type Deployer interface {
 	Restore(ctx context.Context, backupID string) (*ContainerStatus, error)
 	DetectEnv(ctx context.Context, level int, ports []int, services []string) (interface{}, error)
 	HealthCheck(ctx context.Context, target, healthType string) (interface{}, error)
+	AddServer(ctx context.Context, name, host string, port int, user string) (*ServerInfo, error)
+	RemoveServer(ctx context.Context, serverID string) error
+	TestServer(ctx context.Context, serverID string) (interface{}, error)
+	CreateCredential(ctx context.Context, tenantID, name, credType, plainValue string) (interface{}, error)
+	ListCredentials(ctx context.Context, tenantID string) (interface{}, error)
+	DeleteCredential(ctx context.Context, credID string) error
 }
 
 // DeployConfig mirrors deployer.DeployConfig to avoid circular imports.
@@ -289,6 +295,66 @@ func NewServer(deployer Deployer) *server.MCPServer {
 
 	s.AddTool(healthCheckTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return handleHealthCheck(ctx, deployer, request)
+	})
+
+	// Register add_server tool
+	addServerTool := mcp.NewTool("add_server",
+		mcp.WithDescription("Register a new server for deployment"),
+		mcp.WithString("name", mcp.Required(), mcp.Description("Server name")),
+		mcp.WithString("host", mcp.Required(), mcp.Description("Server hostname or IP")),
+		mcp.WithString("port", mcp.Description("SSH port (default: 22)")),
+		mcp.WithString("user", mcp.Description("SSH username (default: root)")),
+	)
+	s.AddTool(addServerTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleAddServer(ctx, deployer, request)
+	})
+
+	// Register remove_server tool
+	removeServerTool := mcp.NewTool("remove_server",
+		mcp.WithDescription("Remove a registered server"),
+		mcp.WithString("server_id", mcp.Required(), mcp.Description("Server ID to remove")),
+	)
+	s.AddTool(removeServerTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleRemoveServer(ctx, deployer, request)
+	})
+
+	// Register test_server tool
+	testServerTool := mcp.NewTool("test_server",
+		mcp.WithDescription("Test connectivity to a registered server"),
+		mcp.WithString("server_id", mcp.Required(), mcp.Description("Server ID to test")),
+	)
+	s.AddTool(testServerTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleTestServer(ctx, deployer, request)
+	})
+
+	// Register create_credential tool
+	createCredTool := mcp.NewTool("create_credential",
+		mcp.WithDescription("Create an encrypted credential for a tenant"),
+		mcp.WithString("tenant_id", mcp.Required(), mcp.Description("Tenant ID")),
+		mcp.WithString("name", mcp.Required(), mcp.Description("Credential name")),
+		mcp.WithString("type", mcp.Required(), mcp.Description("Credential type: ssh, api_key, token, password")),
+		mcp.WithString("value", mcp.Required(), mcp.Description("Plain credential value (will be encrypted)")),
+	)
+	s.AddTool(createCredTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleCreateCredential(ctx, deployer, request)
+	})
+
+	// Register list_credentials tool
+	listCredsTool := mcp.NewTool("list_credentials",
+		mcp.WithDescription("List all credentials for a tenant"),
+		mcp.WithString("tenant_id", mcp.Required(), mcp.Description("Tenant ID")),
+	)
+	s.AddTool(listCredsTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleListCredentials(ctx, deployer, request)
+	})
+
+	// Register delete_credential tool
+	deleteCredTool := mcp.NewTool("delete_credential",
+		mcp.WithDescription("Delete a credential"),
+		mcp.WithString("credential_id", mcp.Required(), mcp.Description("Credential ID to delete")),
+	)
+	s.AddTool(deleteCredTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleDeleteCredential(ctx, deployer, request)
 	})
 
 	return s
@@ -622,6 +688,148 @@ func handleHealthCheck(ctx context.Context, deployer Deployer, request mcp.CallT
 		"health": health,
 	}
 
+	data, _ := json.MarshalIndent(result, "", "  ")
+	return mcp.NewToolResultText(string(data)), nil
+}
+
+func handleAddServer(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	name, err := request.RequireString("name")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+	host, err := request.RequireString("host")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	port := 22
+	if p := request.GetString("port", "22"); p != "" {
+		fmt.Sscanf(p, "%d", &port)
+	}
+	user := request.GetString("user", "root")
+
+	srv, err := deployer.AddServer(ctx, name, host, port, user)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("failed to add server: %v", err)), nil
+	}
+
+	result := map[string]interface{}{
+		"status":  "success",
+		"message": fmt.Sprintf("Server %s added successfully", name),
+		"server": map[string]interface{}{
+			"id":     srv.ID,
+			"name":   srv.Name,
+			"host":   srv.Host,
+			"port":   srv.Port,
+			"status": srv.Status,
+		},
+	}
+	data, _ := json.MarshalIndent(result, "", "  ")
+	return mcp.NewToolResultText(string(data)), nil
+}
+
+func handleRemoveServer(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	serverID, err := request.RequireString("server_id")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	if err := deployer.RemoveServer(ctx, serverID); err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("failed to remove server: %v", err)), nil
+	}
+
+	result := map[string]interface{}{
+		"status":  "success",
+		"message": fmt.Sprintf("Server %s removed successfully", serverID),
+	}
+	data, _ := json.MarshalIndent(result, "", "  ")
+	return mcp.NewToolResultText(string(data)), nil
+}
+
+func handleTestServer(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	serverID, err := request.RequireString("server_id")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	testResult, err := deployer.TestServer(ctx, serverID)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("server test failed: %v", err)), nil
+	}
+
+	result := map[string]interface{}{
+		"status": "success",
+		"test":   testResult,
+	}
+	data, _ := json.MarshalIndent(result, "", "  ")
+	return mcp.NewToolResultText(string(data)), nil
+}
+
+func handleCreateCredential(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	tenantID, err := request.RequireString("tenant_id")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+	name, err := request.RequireString("name")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+	credType, err := request.RequireString("type")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+	value, err := request.RequireString("value")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	cred, err := deployer.CreateCredential(ctx, tenantID, name, credType, value)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("failed to create credential: %v", err)), nil
+	}
+
+	result := map[string]interface{}{
+		"status":     "success",
+		"message":    fmt.Sprintf("Credential %s created successfully", name),
+		"credential": cred,
+	}
+	data, _ := json.MarshalIndent(result, "", "  ")
+	return mcp.NewToolResultText(string(data)), nil
+}
+
+func handleListCredentials(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	tenantID, err := request.RequireString("tenant_id")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	creds, err := deployer.ListCredentials(ctx, tenantID)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("failed to list credentials: %v", err)), nil
+	}
+
+	result := map[string]interface{}{
+		"status":      "success",
+		"credentials": creds,
+	}
+	data, _ := json.MarshalIndent(result, "", "  ")
+	return mcp.NewToolResultText(string(data)), nil
+}
+
+func handleDeleteCredential(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	credID, err := request.RequireString("credential_id")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	if err := deployer.DeleteCredential(ctx, credID); err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("failed to delete credential: %v", err)), nil
+	}
+
+	result := map[string]interface{}{
+		"status":  "success",
+		"message": fmt.Sprintf("Credential %s deleted successfully", credID),
+	}
 	data, _ := json.MarshalIndent(result, "", "  ")
 	return mcp.NewToolResultText(string(data)), nil
 }
