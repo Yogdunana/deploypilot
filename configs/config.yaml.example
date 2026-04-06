@@ -1,0 +1,35 @@
+# DeployPilot Configuration
+# Copy this file to config.yaml and modify as needed
+
+server:
+  host: "0.0.0.0"
+  port: 8080
+  mode: "release" # debug | release | test
+
+database:
+  driver: "sqlite" # sqlite | postgres
+  dsn: "data/deploypilot.db"
+  # postgres example:
+  # driver: "postgres"
+  # dsn: "host=172.17.0.1 port=5432 user=deploypilot password=changeme dbname=deploypilot sslmode=disable"
+
+auth:
+  jwt_secret: "change-me-in-production"
+  token_expiry: "24h"
+
+deploy:
+  default_docker_socket: "/var/run/docker.sock"
+  max_concurrent_deploys: 5
+  health_check_timeout: "120s"
+  rollback_on_failure: true
+
+log:
+  level: "info" # debug | info | warn | error
+  format: "json" # json | console
+  output: "stdout" # stdout | file
+  file_path: "logs/deploypilot.log"
+
+monitor:
+  enabled: true
+  metrics_path: "/metrics"
+  collect_interval: "15s"
