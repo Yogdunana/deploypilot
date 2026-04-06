@@ -32,6 +32,12 @@ type Deployer interface {
 	CreateCredential(ctx context.Context, tenantID, name, credType, plainValue string) (interface{}, error)
 	ListCredentials(ctx context.Context, tenantID string) (interface{}, error)
 	DeleteCredential(ctx context.Context, credID string) error
+	DNSCreateRecord(ctx context.Context, domain, recordType, name, value string) (interface{}, error)
+	DNSDeleteRecord(ctx context.Context, recordID string) error
+	DNSListRecords(ctx context.Context, domain string) (interface{}, error)
+	SendNotification(ctx context.Context, nType, appName, server, status, message string) (interface{}, error)
+	ListTemplates(ctx context.Context) (interface{}, error)
+	GetTemplate(ctx context.Context, tmplType string) (interface{}, error)
 }
 
 // DeployConfig mirrors deployer.DeployConfig to avoid circular imports.
@@ -355,6 +361,66 @@ func NewServer(deployer Deployer) *server.MCPServer {
 	)
 	s.AddTool(deleteCredTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return handleDeleteCredential(ctx, deployer, request)
+	})
+
+	// Register dns_create_record tool
+	dnsCreateTool := mcp.NewTool("dns_create_record",
+		mcp.WithDescription("Create a DNS record"),
+		mcp.WithString("domain", mcp.Required(), mcp.Description("Domain name (e.g. example.com)")),
+		mcp.WithString("type", mcp.Required(), mcp.Description("Record type: A, AAAA, CNAME, TXT, MX")),
+		mcp.WithString("name", mcp.Required(), mcp.Description("Record name (e.g. @ or subdomain)")),
+		mcp.WithString("value", mcp.Required(), mcp.Description("Record value (e.g. IP address)")),
+	)
+	s.AddTool(dnsCreateTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleDNSCreateRecord(ctx, deployer, request)
+	})
+
+	// Register dns_delete_record tool
+	dnsDeleteTool := mcp.NewTool("dns_delete_record",
+		mcp.WithDescription("Delete a DNS record"),
+		mcp.WithString("record_id", mcp.Required(), mcp.Description("DNS record ID to delete")),
+	)
+	s.AddTool(dnsDeleteTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleDNSDeleteRecord(ctx, deployer, request)
+	})
+
+	// Register dns_list_records tool
+	dnsListTool := mcp.NewTool("dns_list_records",
+		mcp.WithDescription("List DNS records for a domain"),
+		mcp.WithString("domain", mcp.Required(), mcp.Description("Domain name")),
+	)
+	s.AddTool(dnsListTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleDNSListRecords(ctx, deployer, request)
+	})
+
+	// Register send_notification tool
+	sendNotifyTool := mcp.NewTool("send_notification",
+		mcp.WithDescription("Send a deployment notification"),
+		mcp.WithString("type", mcp.Required(), mcp.Description("Notification type: deploy_success, deploy_failed, health_check, rollback")),
+		mcp.WithString("app", mcp.Required(), mcp.Description("Application name")),
+		mcp.WithString("server", mcp.Required(), mcp.Description("Target server")),
+		mcp.WithString("status", mcp.Required(), mcp.Description("Status: success, failed, warning")),
+		mcp.WithString("message", mcp.Description("Notification message")),
+	)
+	s.AddTool(sendNotifyTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleSendNotification(ctx, deployer, request)
+	})
+
+	// Register list_templates tool
+	listTmplTool := mcp.NewTool("list_templates",
+		mcp.WithDescription("List all available application templates"),
+	)
+	s.AddTool(listTmplTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleListTemplates(ctx, deployer, request)
+	})
+
+	// Register get_template tool
+	getTmplTool := mcp.NewTool("get_template",
+		mcp.WithDescription("Get details of a specific application template"),
+		mcp.WithString("type", mcp.Required(), mcp.Description("Template type: node, python, go, java, php, ruby, rust, static, docker")),
+	)
+	s.AddTool(getTmplTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleGetTemplate(ctx, deployer, request)
 	})
 
 	return s
@@ -830,6 +896,104 @@ func handleDeleteCredential(ctx context.Context, deployer Deployer, request mcp.
 		"status":  "success",
 		"message": fmt.Sprintf("Credential %s deleted successfully", credID),
 	}
+	data, _ := json.MarshalIndent(result, "", "  ")
+	return mcp.NewToolResultText(string(data)), nil
+}
+
+func handleDNSCreateRecord(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	domain, _ := request.RequireString("domain")
+	recordType, _ := request.RequireString("type")
+	name, _ := request.RequireString("name")
+	value, _ := request.RequireString("value")
+
+	if domain == "" || recordType == "" || name == "" || value == "" {
+		return mcp.NewToolResultError("domain, type, name, and value are required"), nil
+	}
+
+	record, err := deployer.DNSCreateRecord(ctx, domain, recordType, name, value)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("DNS create failed: %v", err)), nil
+	}
+
+	result := map[string]interface{}{"status": "success", "record": record}
+	data, _ := json.MarshalIndent(result, "", "  ")
+	return mcp.NewToolResultText(string(data)), nil
+}
+
+func handleDNSDeleteRecord(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	recordID, err := request.RequireString("record_id")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	if err := deployer.DNSDeleteRecord(ctx, recordID); err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("DNS delete failed: %v", err)), nil
+	}
+
+	result := map[string]interface{}{"status": "success", "message": fmt.Sprintf("Record %s deleted", recordID)}
+	data, _ := json.MarshalIndent(result, "", "  ")
+	return mcp.NewToolResultText(string(data)), nil
+}
+
+func handleDNSListRecords(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	domain, err := request.RequireString("domain")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	records, err := deployer.DNSListRecords(ctx, domain)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("DNS list failed: %v", err)), nil
+	}
+
+	result := map[string]interface{}{"status": "success", "records": records}
+	data, _ := json.MarshalIndent(result, "", "  ")
+	return mcp.NewToolResultText(string(data)), nil
+}
+
+func handleSendNotification(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	nType, err := request.RequireString("type")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+	appName, _ := request.RequireString("app")
+	server, _ := request.RequireString("server")
+	status, _ := request.RequireString("status")
+	message := request.GetString("message", "")
+
+	result, err := deployer.SendNotification(ctx, nType, appName, server, status, message)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("notification failed: %v", err)), nil
+	}
+
+	resp := map[string]interface{}{"status": "success", "notification": result}
+	data, _ := json.MarshalIndent(resp, "", "  ")
+	return mcp.NewToolResultText(string(data)), nil
+}
+
+func handleListTemplates(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	templates, err := deployer.ListTemplates(ctx)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("list templates failed: %v", err)), nil
+	}
+
+	result := map[string]interface{}{"status": "success", "templates": templates}
+	data, _ := json.MarshalIndent(result, "", "  ")
+	return mcp.NewToolResultText(string(data)), nil
+}
+
+func handleGetTemplate(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	tmplType, err := request.RequireString("type")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	tmpl, err := deployer.GetTemplate(ctx, tmplType)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("get template failed: %v", err)), nil
+	}
+
+	result := map[string]interface{}{"status": "success", "template": tmpl}
 	data, _ := json.MarshalIndent(result, "", "  ")
 	return mcp.NewToolResultText(string(data)), nil
 }

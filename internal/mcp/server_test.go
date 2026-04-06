@@ -30,6 +30,12 @@ type mockDeployer struct {
 	createCredFn   func(ctx context.Context, tenantID, name, credType, plainValue string) (interface{}, error)
 	listCredsFn    func(ctx context.Context, tenantID string) (interface{}, error)
 	deleteCredFn   func(ctx context.Context, credID string) error
+	dnsCreateFn    func(ctx context.Context, domain, recordType, name, value string) (interface{}, error)
+	dnsDeleteFn    func(ctx context.Context, recordID string) error
+	dnsListFn      func(ctx context.Context, domain string) (interface{}, error)
+	notifySendFn   func(ctx context.Context, nType, appName, server, status, message string) (interface{}, error)
+	templateListFn func(ctx context.Context) (interface{}, error)
+	templateGetFn  func(ctx context.Context, tmplType string) (interface{}, error)
 }
 
 func (m *mockDeployer) Deploy(ctx context.Context, cfg DeployConfig) (*ContainerStatus, error) {
@@ -177,6 +183,54 @@ func (m *mockDeployer) DeleteCredential(ctx context.Context, credID string) erro
 		return m.deleteCredFn(ctx, credID)
 	}
 	return nil
+}
+
+func (m *mockDeployer) DNSCreateRecord(ctx context.Context, domain, recordType, name, value string) (interface{}, error) {
+	if m.dnsCreateFn != nil {
+		return m.dnsCreateFn(ctx, domain, recordType, name, value)
+	}
+	return map[string]interface{}{"id": "rec-001", "domain": domain, "type": recordType, "name": name, "value": value}, nil
+}
+
+func (m *mockDeployer) DNSDeleteRecord(ctx context.Context, recordID string) error {
+	if m.dnsDeleteFn != nil {
+		return m.dnsDeleteFn(ctx, recordID)
+	}
+	return nil
+}
+
+func (m *mockDeployer) DNSListRecords(ctx context.Context, domain string) (interface{}, error) {
+	if m.dnsListFn != nil {
+		return m.dnsListFn(ctx, domain)
+	}
+	return []map[string]interface{}{
+		{"id": "rec-001", "type": "A", "name": "@", "value": "1.2.3.4"},
+	}, nil
+}
+
+func (m *mockDeployer) SendNotification(ctx context.Context, nType, appName, server, status, message string) (interface{}, error) {
+	if m.notifySendFn != nil {
+		return m.notifySendFn(ctx, nType, appName, server, status, message)
+	}
+	return map[string]interface{}{"sent": true, "type": nType, "app": appName}, nil
+}
+
+func (m *mockDeployer) ListTemplates(ctx context.Context) (interface{}, error) {
+	if m.templateListFn != nil {
+		return m.templateListFn(ctx)
+	}
+	return []map[string]interface{}{
+		{"type": "node", "name": "Node.js"},
+		{"type": "python", "name": "Python"},
+		{"type": "go", "name": "Go"},
+	}, nil
+}
+
+func (m *mockDeployer) GetTemplate(ctx context.Context, tmplType string) (interface{}, error) {
+	if m.templateGetFn != nil {
+		return m.templateGetFn(ctx, tmplType)
+	}
+	return map[string]interface{}{"type": tmplType, "name": "Node.js", "port": 3000, "image": "node:18-alpine"}, nil
 }
 
 // extractText gets the text content from a CallToolResult.
@@ -931,6 +985,233 @@ func TestDeleteCredentialFailure(t *testing.T) {
 	}
 	result, _ := handleDeleteCredential(context.Background(), mock, newRequest(map[string]interface{}{
 		"credential_id": "nonexistent",
+	}))
+	if !result.IsError {
+		t.Error("should return error on failure")
+	}
+}
+
+// ========== dns_create_record ==========
+
+func TestDNSCreateRecordSuccess(t *testing.T) {
+	mock := &mockDeployer{}
+	result, _ := handleDNSCreateRecord(context.Background(), mock, newRequest(map[string]interface{}{
+		"domain":   "example.com",
+		"type":     "A",
+		"name":     "@",
+		"value":    "1.2.3.4",
+	}))
+
+	text, err := extractText(result)
+	if err != nil {
+		t.Fatalf("extractText error = %v", err)
+	}
+
+	var parsed map[string]interface{}
+	json.Unmarshal([]byte(text), &parsed)
+
+	if parsed["status"] != "success" {
+		t.Errorf("status = %v, want success", parsed["status"])
+	}
+}
+
+func TestDNSCreateRecordMissingDomain(t *testing.T) {
+	mock := &mockDeployer{}
+	result, _ := handleDNSCreateRecord(context.Background(), mock, newRequest(map[string]interface{}{
+		"type": "A",
+	}))
+	if !result.IsError {
+		t.Error("should return error when domain is missing")
+	}
+}
+
+func TestDNSCreateRecordFailure(t *testing.T) {
+	mock := &mockDeployer{
+		dnsCreateFn: func(_ context.Context, _, _, _, _ string) (interface{}, error) {
+			return nil, fmt.Errorf("DNS API error")
+		},
+	}
+	result, _ := handleDNSCreateRecord(context.Background(), mock, newRequest(map[string]interface{}{
+		"domain": "example.com", "type": "A", "name": "@", "value": "1.2.3.4",
+	}))
+	if !result.IsError {
+		t.Error("should return error on failure")
+	}
+}
+
+// ========== dns_delete_record ==========
+
+func TestDNSDeleteRecordSuccess(t *testing.T) {
+	mock := &mockDeployer{}
+	result, _ := handleDNSDeleteRecord(context.Background(), mock, newRequest(map[string]interface{}{
+		"record_id": "rec-001",
+	}))
+	text, _ := extractText(result)
+	if !strings.Contains(text, "success") {
+		t.Errorf("unexpected output: %s", text)
+	}
+}
+
+func TestDNSDeleteRecordMissingID(t *testing.T) {
+	mock := &mockDeployer{}
+	result, _ := handleDNSDeleteRecord(context.Background(), mock, newRequest(map[string]interface{}{}))
+	if !result.IsError {
+		t.Error("should return error when record_id is missing")
+	}
+}
+
+// ========== dns_list_records ==========
+
+func TestDNSListRecordsSuccess(t *testing.T) {
+	mock := &mockDeployer{}
+	result, _ := handleDNSListRecords(context.Background(), mock, newRequest(map[string]interface{}{
+		"domain": "example.com",
+	}))
+
+	text, err := extractText(result)
+	if err != nil {
+		t.Fatalf("extractText error = %v", err)
+	}
+
+	var parsed map[string]interface{}
+	json.Unmarshal([]byte(text), &parsed)
+
+	if parsed["status"] != "success" {
+		t.Errorf("status = %v, want success", parsed["status"])
+	}
+}
+
+func TestDNSListRecordsFailure(t *testing.T) {
+	mock := &mockDeployer{
+		dnsListFn: func(_ context.Context, _ string) (interface{}, error) {
+			return nil, fmt.Errorf("API error")
+		},
+	}
+	result, _ := handleDNSListRecords(context.Background(), mock, newRequest(map[string]interface{}{
+		"domain": "example.com",
+	}))
+	if !result.IsError {
+		t.Error("should return error on failure")
+	}
+}
+
+// ========== send_notification ==========
+
+func TestSendNotificationSuccess(t *testing.T) {
+	mock := &mockDeployer{}
+	result, _ := handleSendNotification(context.Background(), mock, newRequest(map[string]interface{}{
+		"type":    "deploy_success",
+		"app":     "my-app",
+		"server":  "prod",
+		"status":  "success",
+		"message": "deployed nginx:latest",
+	}))
+
+	text, err := extractText(result)
+	if err != nil {
+		t.Fatalf("extractText error = %v", err)
+	}
+
+	var parsed map[string]interface{}
+	json.Unmarshal([]byte(text), &parsed)
+
+	if parsed["status"] != "success" {
+		t.Errorf("status = %v, want success", parsed["status"])
+	}
+}
+
+func TestSendNotificationMissingType(t *testing.T) {
+	mock := &mockDeployer{}
+	result, _ := handleSendNotification(context.Background(), mock, newRequest(map[string]interface{}{
+		"app": "my-app",
+	}))
+	if !result.IsError {
+		t.Error("should return error when type is missing")
+	}
+}
+
+func TestSendNotificationFailure(t *testing.T) {
+	mock := &mockDeployer{
+		notifySendFn: func(_ context.Context, _, _, _, _, _ string) (interface{}, error) {
+			return nil, fmt.Errorf("send failed")
+		},
+	}
+	result, _ := handleSendNotification(context.Background(), mock, newRequest(map[string]interface{}{
+		"type": "deploy_failed", "app": "my-app", "server": "prod", "status": "failed", "message": "error",
+	}))
+	if !result.IsError {
+		t.Error("should return error on failure")
+	}
+}
+
+// ========== list_templates ==========
+
+func TestListTemplatesSuccess(t *testing.T) {
+	mock := &mockDeployer{}
+	result, _ := handleListTemplates(context.Background(), mock, newRequest(map[string]interface{}{}))
+
+	text, err := extractText(result)
+	if err != nil {
+		t.Fatalf("extractText error = %v", err)
+	}
+
+	var parsed map[string]interface{}
+	json.Unmarshal([]byte(text), &parsed)
+
+	if parsed["status"] != "success" {
+		t.Errorf("status = %v, want success", parsed["status"])
+	}
+}
+
+func TestListTemplatesFailure(t *testing.T) {
+	mock := &mockDeployer{
+		templateListFn: func(_ context.Context) (interface{}, error) {
+			return nil, fmt.Errorf("template error")
+		},
+	}
+	result, _ := handleListTemplates(context.Background(), mock, newRequest(map[string]interface{}{}))
+	if !result.IsError {
+		t.Error("should return error on failure")
+	}
+}
+
+// ========== get_template ==========
+
+func TestGetTemplateSuccess(t *testing.T) {
+	mock := &mockDeployer{}
+	result, _ := handleGetTemplate(context.Background(), mock, newRequest(map[string]interface{}{
+		"type": "node",
+	}))
+
+	text, err := extractText(result)
+	if err != nil {
+		t.Fatalf("extractText error = %v", err)
+	}
+
+	var parsed map[string]interface{}
+	json.Unmarshal([]byte(text), &parsed)
+
+	if parsed["status"] != "success" {
+		t.Errorf("status = %v, want success", parsed["status"])
+	}
+}
+
+func TestGetTemplateMissingType(t *testing.T) {
+	mock := &mockDeployer{}
+	result, _ := handleGetTemplate(context.Background(), mock, newRequest(map[string]interface{}{}))
+	if !result.IsError {
+		t.Error("should return error when type is missing")
+	}
+}
+
+func TestGetTemplateFailure(t *testing.T) {
+	mock := &mockDeployer{
+		templateGetFn: func(_ context.Context, _ string) (interface{}, error) {
+			return nil, fmt.Errorf("template not found")
+		},
+	}
+	result, _ := handleGetTemplate(context.Background(), mock, newRequest(map[string]interface{}{
+		"type": "nonexistent",
 	}))
 	if !result.IsError {
 		t.Error("should return error on failure")
