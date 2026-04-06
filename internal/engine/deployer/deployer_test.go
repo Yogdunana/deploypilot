@@ -349,6 +349,54 @@ func TestHealthCheckHTTPFailure(t *testing.T) {
 	}
 }
 
+func TestHealthCheckTCP(t *testing.T) {
+	mock := newMockExecutor()
+	mock.responses["timeout"] = "ok"
+
+	d := New(mock)
+	err := d.HealthCheck(context.Background(), HealthCheckConfig{
+		Type:     "tcp",
+		Target:   "tcp://localhost:8080",
+		Timeout:  3 * time.Second,
+		Retries:  1,
+		Interval: 10 * time.Millisecond,
+	})
+	if err != nil {
+		t.Fatalf("HealthCheck(tcp) error = %v", err)
+	}
+}
+
+func TestBuildHealthCheckCommandHTTP(t *testing.T) {
+	mock := newMockExecutor()
+	d := New(mock)
+
+	cmd := d.buildHealthCheckCommand(HealthCheckConfig{
+		Type:    "http",
+		Target:  "http://localhost:8080/health",
+		Timeout: 5 * time.Second,
+	})
+	if !strings.Contains(cmd, "curl") {
+		t.Errorf("HTTP health check should use curl, got: %s", cmd)
+	}
+	if !strings.Contains(cmd, "localhost:8080/health") {
+		t.Errorf("missing target URL, got: %s", cmd)
+	}
+}
+
+func TestBuildHealthCheckCommandTCP(t *testing.T) {
+	mock := newMockExecutor()
+	d := New(mock)
+
+	cmd := d.buildHealthCheckCommand(HealthCheckConfig{
+		Type:    "tcp",
+		Target:  "tcp://localhost:3306",
+		Timeout: 3 * time.Second,
+	})
+	if !strings.Contains(cmd, "localhost:3306") {
+		t.Errorf("TCP health check missing target, got: %s", cmd)
+	}
+}
+
 // ========== BuildRunCommand Tests ==========
 
 func TestBuildRunCommandBasic(t *testing.T) {

@@ -287,3 +287,27 @@ func TestClose(t *testing.T) {
 	// Double close should not panic
 	client.Close()
 }
+
+func TestIsConnected(t *testing.T) {
+	port, keyPEM := newTestServer(t)
+	time.Sleep(100 * time.Millisecond)
+
+	client := connectTestClient(t, port, keyPEM)
+	defer client.Close()
+
+	if !client.IsConnected() {
+		t.Error("IsConnected() should return true for active connection")
+	}
+
+	client.Close()
+	if client.IsConnected() {
+		t.Error("IsConnected() should return false after close")
+	}
+}
+
+func TestIsConnectedNil(t *testing.T) {
+	c := &Client{}
+	if c.IsConnected() {
+		t.Error("IsConnected() should return false for nil client")
+	}
+}

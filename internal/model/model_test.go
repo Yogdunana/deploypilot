@@ -151,6 +151,34 @@ func TestTenantModel(t *testing.T) {
 	}
 }
 
+func TestTenantTableName(t *testing.T) {
+	tn := &Tenant{}
+	if tn.TableName() != "tenants" {
+		t.Errorf("Tenant.TableName() = %q, want %q", tn.TableName(), "tenants")
+	}
+}
+
+func TestUserTableName(t *testing.T) {
+	u := &User{}
+	if u.TableName() != "users" {
+		t.Errorf("User.TableName() = %q, want %q", u.TableName(), "users")
+	}
+}
+
+func TestRoleTableName(t *testing.T) {
+	r := &Role{}
+	if r.TableName() != "roles" {
+		t.Errorf("Role.TableName() = %q, want %q", r.TableName(), "roles")
+	}
+}
+
+func TestProviderTableName(t *testing.T) {
+	p := &Provider{}
+	if p.TableName() != "providers" {
+		t.Errorf("Provider.TableName() = %q, want %q", p.TableName(), "providers")
+	}
+}
+
 func TestUserModel(t *testing.T) {
 	u := &User{
 		ID:           "user-001",
