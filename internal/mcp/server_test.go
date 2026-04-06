@@ -40,6 +40,14 @@ type mockDeployer struct {
 	updateAppFn    func(ctx context.Context, appID string, config map[string]interface{}) (interface{}, error)
 	getTaskStatusFn func(ctx context.Context, taskID string) (interface{}, error)
 	listTasksFn    func(ctx context.Context, limit int, statusFilter string) (interface{}, error)
+	searchLogsFn   func(ctx context.Context, appID, keyword string, limit int) (interface{}, error)
+	updateDNSFn    func(ctx context.Context, domain, subdomain, recordType, newValue string) (interface{}, error)
+	updateCredFn   func(ctx context.Context, credID string, value string) (interface{}, error)
+	updateServerFn func(ctx context.Context, serverID string, config map[string]interface{}) (interface{}, error)
+	checkReadinessFn func(ctx context.Context, appConfig map[string]interface{}) (interface{}, error)
+	batchDeployFn  func(ctx context.Context, apps []map[string]interface{}) (interface{}, error)
+	batchBackupFn  func(ctx context.Context, appIDs []string) (interface{}, error)
+	batchDNSFn     func(ctx context.Context, records []map[string]interface{}) (interface{}, error)
 }
 
 func (m *mockDeployer) Deploy(ctx context.Context, cfg DeployConfig) (*ContainerStatus, error) {
@@ -269,6 +277,65 @@ func (m *mockDeployer) ListTasks(ctx context.Context, limit int, statusFilter st
 		{"task_id": "task-001", "status": "completed", "type": "deploy"},
 		{"task_id": "task-002", "status": "running", "type": "backup"},
 	}, nil
+}
+
+func (m *mockDeployer) SearchAppLogs(ctx context.Context, appID, keyword string, limit int) (interface{}, error) {
+	if m.searchLogsFn != nil {
+		return m.searchLogsFn(ctx, appID, keyword, limit)
+	}
+	return map[string]interface{}{"app_id": appID, "keyword": keyword, "matches": 2, "logs": []string{"line1 error", "line2 error"}}, nil
+}
+
+func (m *mockDeployer) UpdateDNSRecord(ctx context.Context, domain, subdomain, recordType, newValue string) (interface{}, error) {
+	if m.updateDNSFn != nil {
+		return m.updateDNSFn(ctx, domain, subdomain, recordType, newValue)
+	}
+	return map[string]interface{}{"domain": domain, "subdomain": subdomain, "type": recordType, "value": newValue, "updated": true}, nil
+}
+
+func (m *mockDeployer) UpdateCredential(ctx context.Context, credID string, value string) (interface{}, error) {
+	if m.updateCredFn != nil {
+		return m.updateCredFn(ctx, credID, value)
+	}
+	return map[string]interface{}{"id": credID, "updated": true}, nil
+}
+
+func (m *mockDeployer) UpdateServer(ctx context.Context, serverID string, config map[string]interface{}) (interface{}, error) {
+	if m.updateServerFn != nil {
+		return m.updateServerFn(ctx, serverID, config)
+	}
+	return map[string]interface{}{"id": serverID, "updated": true, "config": config}, nil
+}
+
+func (m *mockDeployer) CheckDeployReadiness(ctx context.Context, appConfig map[string]interface{}) (interface{}, error) {
+	if m.checkReadinessFn != nil {
+		return m.checkReadinessFn(ctx, appConfig)
+	}
+	return map[string]interface{}{"ready": true, "checks": []map[string]interface{}{
+		{"name": "docker", "passed": true},
+		{"name": "ports", "passed": true},
+	}}, nil
+}
+
+func (m *mockDeployer) BatchDeploy(ctx context.Context, apps []map[string]interface{}) (interface{}, error) {
+	if m.batchDeployFn != nil {
+		return m.batchDeployFn(ctx, apps)
+	}
+	return map[string]interface{}{"total": len(apps), "succeeded": len(apps), "failed": 0}, nil
+}
+
+func (m *mockDeployer) BatchBackup(ctx context.Context, appIDs []string) (interface{}, error) {
+	if m.batchBackupFn != nil {
+		return m.batchBackupFn(ctx, appIDs)
+	}
+	return map[string]interface{}{"total": len(appIDs), "succeeded": len(appIDs), "failed": 0}, nil
+}
+
+func (m *mockDeployer) BatchDNS(ctx context.Context, records []map[string]interface{}) (interface{}, error) {
+	if m.batchDNSFn != nil {
+		return m.batchDNSFn(ctx, records)
+	}
+	return map[string]interface{}{"total": len(records), "succeeded": len(records), "failed": 0}, nil
 }
 
 // extractText gets the text content from a CallToolResult.
@@ -1438,6 +1505,294 @@ func TestListTasksFailure(t *testing.T) {
 		},
 	}
 	result, _ := handleListTasks(context.Background(), mock, newRequest(map[string]interface{}{}))
+	if !result.IsError {
+		t.Error("should return error on failure")
+	}
+}
+
+// ========== search_app_logs ==========
+
+func TestSearchAppLogsSuccess(t *testing.T) {
+	mock := &mockDeployer{}
+	result, _ := handleSearchAppLogs(context.Background(), mock, newRequest(map[string]interface{}{
+		"app_id":  "app-001",
+		"keyword": "error",
+		"limit":   "10",
+	}))
+	text, _ := extractText(result)
+	if !strings.Contains(text, "success") {
+		t.Errorf("unexpected output: %s", text)
+	}
+}
+
+func TestSearchAppLogsMissingAppID(t *testing.T) {
+	mock := &mockDeployer{}
+	result, _ := handleSearchAppLogs(context.Background(), mock, newRequest(map[string]interface{}{
+		"keyword": "error",
+	}))
+	if !result.IsError {
+		t.Error("should return error when app_id is missing")
+	}
+}
+
+func TestSearchAppLogsFailure(t *testing.T) {
+	mock := &mockDeployer{
+		searchLogsFn: func(_ context.Context, _, _ string, _ int) (interface{}, error) {
+			return nil, fmt.Errorf("search failed")
+		},
+	}
+	result, _ := handleSearchAppLogs(context.Background(), mock, newRequest(map[string]interface{}{
+		"app_id": "app-001", "keyword": "error",
+	}))
+	if !result.IsError {
+		t.Error("should return error on failure")
+	}
+}
+
+// ========== update_dns_record ==========
+
+func TestUpdateDNSRecordSuccess(t *testing.T) {
+	mock := &mockDeployer{}
+	result, _ := handleUpdateDNSRecord(context.Background(), mock, newRequest(map[string]interface{}{
+		"domain": "example.com", "subdomain": "www", "type": "A", "new_value": "2.3.4.5",
+	}))
+	text, _ := extractText(result)
+	if !strings.Contains(text, "success") {
+		t.Errorf("unexpected output: %s", text)
+	}
+}
+
+func TestUpdateDNSRecordMissingDomain(t *testing.T) {
+	mock := &mockDeployer{}
+	result, _ := handleUpdateDNSRecord(context.Background(), mock, newRequest(map[string]interface{}{
+		"type": "A", "new_value": "1.2.3.4",
+	}))
+	if !result.IsError {
+		t.Error("should return error when domain is missing")
+	}
+}
+
+func TestUpdateDNSRecordFailure(t *testing.T) {
+	mock := &mockDeployer{
+		updateDNSFn: func(_ context.Context, _, _, _, _ string) (interface{}, error) {
+			return nil, fmt.Errorf("DNS API error")
+		},
+	}
+	result, _ := handleUpdateDNSRecord(context.Background(), mock, newRequest(map[string]interface{}{
+		"domain": "example.com", "subdomain": "www", "type": "A", "new_value": "1.2.3.4",
+	}))
+	if !result.IsError {
+		t.Error("should return error on failure")
+	}
+}
+
+// ========== update_credential ==========
+
+func TestUpdateCredentialSuccess(t *testing.T) {
+	mock := &mockDeployer{}
+	result, _ := handleUpdateCredential(context.Background(), mock, newRequest(map[string]interface{}{
+		"credential_id": "cred-001", "value": "new-secret",
+	}))
+	text, _ := extractText(result)
+	if !strings.Contains(text, "success") {
+		t.Errorf("unexpected output: %s", text)
+	}
+}
+
+func TestUpdateCredentialMissingID(t *testing.T) {
+	mock := &mockDeployer{}
+	result, _ := handleUpdateCredential(context.Background(), mock, newRequest(map[string]interface{}{
+		"value": "secret",
+	}))
+	if !result.IsError {
+		t.Error("should return error when credential_id is missing")
+	}
+}
+
+func TestUpdateCredentialFailure(t *testing.T) {
+	mock := &mockDeployer{
+		updateCredFn: func(_ context.Context, _ string, _ string) (interface{}, error) {
+			return nil, fmt.Errorf("not found")
+		},
+	}
+	result, _ := handleUpdateCredential(context.Background(), mock, newRequest(map[string]interface{}{
+		"credential_id": "nonexistent", "value": "secret",
+	}))
+	if !result.IsError {
+		t.Error("should return error on failure")
+	}
+}
+
+// ========== update_server ==========
+
+func TestUpdateServerSuccess(t *testing.T) {
+	mock := &mockDeployer{}
+	result, _ := handleUpdateServer(context.Background(), mock, newRequest(map[string]interface{}{
+		"server_id": "srv-001", "config": "{\"port\": 2222}",
+	}))
+	text, _ := extractText(result)
+	if !strings.Contains(text, "success") {
+		t.Errorf("unexpected output: %s", text)
+	}
+}
+
+func TestUpdateServerMissingID(t *testing.T) {
+	mock := &mockDeployer{}
+	result, _ := handleUpdateServer(context.Background(), mock, newRequest(map[string]interface{}{
+		"config": "{}",
+	}))
+	if !result.IsError {
+		t.Error("should return error when server_id is missing")
+	}
+}
+
+func TestUpdateServerFailure(t *testing.T) {
+	mock := &mockDeployer{
+		updateServerFn: func(_ context.Context, _ string, _ map[string]interface{}) (interface{}, error) {
+			return nil, fmt.Errorf("server not found")
+		},
+	}
+	result, _ := handleUpdateServer(context.Background(), mock, newRequest(map[string]interface{}{
+		"server_id": "nonexistent", "config": "{}",
+	}))
+	if !result.IsError {
+		t.Error("should return error on failure")
+	}
+}
+
+// ========== check_deploy_readiness ==========
+
+func TestCheckDeployReadinessSuccess(t *testing.T) {
+	mock := &mockDeployer{}
+	result, _ := handleCheckDeployReadiness(context.Background(), mock, newRequest(map[string]interface{}{
+		"app_config": "{\"repo\": \"github.com/user/repo\"}",
+	}))
+	text, _ := extractText(result)
+	if !strings.Contains(text, "success") {
+		t.Errorf("unexpected output: %s", text)
+	}
+}
+
+func TestCheckDeployReadinessFailure(t *testing.T) {
+	mock := &mockDeployer{
+		checkReadinessFn: func(_ context.Context, _ map[string]interface{}) (interface{}, error) {
+			return nil, fmt.Errorf("readiness check failed")
+		},
+	}
+	result, _ := handleCheckDeployReadiness(context.Background(), mock, newRequest(map[string]interface{}{
+		"app_config": "{}",
+	}))
+	if !result.IsError {
+		t.Error("should return error on failure")
+	}
+}
+
+// ========== batch_deploy ==========
+
+func TestBatchDeploySuccess(t *testing.T) {
+	mock := &mockDeployer{}
+	result, _ := handleBatchDeploy(context.Background(), mock, newRequest(map[string]interface{}{
+		"apps": "[{\"repo\":\"github.com/a/b\"},{\"repo\":\"github.com/c/d\"}]",
+	}))
+	text, _ := extractText(result)
+	if !strings.Contains(text, "success") {
+		t.Errorf("unexpected output: %s", text)
+	}
+}
+
+func TestBatchDeployInvalidJSON(t *testing.T) {
+	mock := &mockDeployer{}
+	result, _ := handleBatchDeploy(context.Background(), mock, newRequest(map[string]interface{}{
+		"apps": "invalid json",
+	}))
+	if !result.IsError {
+		t.Error("should return error for invalid JSON")
+	}
+}
+
+func TestBatchDeployFailure(t *testing.T) {
+	mock := &mockDeployer{
+		batchDeployFn: func(_ context.Context, _ []map[string]interface{}) (interface{}, error) {
+			return nil, fmt.Errorf("batch deploy failed")
+		},
+	}
+	result, _ := handleBatchDeploy(context.Background(), mock, newRequest(map[string]interface{}{
+		"apps": "[]",
+	}))
+	if !result.IsError {
+		t.Error("should return error on failure")
+	}
+}
+
+// ========== batch_backup ==========
+
+func TestBatchBackupSuccess(t *testing.T) {
+	mock := &mockDeployer{}
+	result, _ := handleBatchBackup(context.Background(), mock, newRequest(map[string]interface{}{
+		"app_ids": "[\"app-001\",\"app-002\"]",
+	}))
+	text, _ := extractText(result)
+	if !strings.Contains(text, "success") {
+		t.Errorf("unexpected output: %s", text)
+	}
+}
+
+func TestBatchBackupInvalidJSON(t *testing.T) {
+	mock := &mockDeployer{}
+	result, _ := handleBatchBackup(context.Background(), mock, newRequest(map[string]interface{}{
+		"app_ids": "invalid",
+	}))
+	if !result.IsError {
+		t.Error("should return error for invalid JSON")
+	}
+}
+
+func TestBatchBackupFailure(t *testing.T) {
+	mock := &mockDeployer{
+		batchBackupFn: func(_ context.Context, _ []string) (interface{}, error) {
+			return nil, fmt.Errorf("batch backup failed")
+		},
+	}
+	result, _ := handleBatchBackup(context.Background(), mock, newRequest(map[string]interface{}{
+		"app_ids": "[]",
+	}))
+	if !result.IsError {
+		t.Error("should return error on failure")
+	}
+}
+
+// ========== batch_dns ==========
+
+func TestBatchDNSSuccess(t *testing.T) {
+	mock := &mockDeployer{}
+	result, _ := handleBatchDNS(context.Background(), mock, newRequest(map[string]interface{}{
+		"records": "[{\"domain\":\"example.com\",\"type\":\"A\",\"value\":\"1.2.3.4\"}]",
+	}))
+	text, _ := extractText(result)
+	if !strings.Contains(text, "success") {
+		t.Errorf("unexpected output: %s", text)
+	}
+}
+
+func TestBatchDNSInvalidJSON(t *testing.T) {
+	mock := &mockDeployer{}
+	result, _ := handleBatchDNS(context.Background(), mock, newRequest(map[string]interface{}{
+		"records": "invalid",
+	}))
+	if !result.IsError {
+		t.Error("should return error for invalid JSON")
+	}
+}
+
+func TestBatchDNSFailure(t *testing.T) {
+	mock := &mockDeployer{
+		batchDNSFn: func(_ context.Context, _ []map[string]interface{}) (interface{}, error) {
+			return nil, fmt.Errorf("batch DNS failed")
+		},
+	}
+	result, _ := handleBatchDNS(context.Background(), mock, newRequest(map[string]interface{}{
+		"records": "[]",
+	}))
 	if !result.IsError {
 		t.Error("should return error on failure")
 	}

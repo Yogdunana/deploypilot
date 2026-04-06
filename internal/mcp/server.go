@@ -42,6 +42,14 @@ type Deployer interface {
 	UpdateApp(ctx context.Context, appID string, config map[string]interface{}) (interface{}, error)
 	GetTaskStatus(ctx context.Context, taskID string) (interface{}, error)
 	ListTasks(ctx context.Context, limit int, statusFilter string) (interface{}, error)
+	SearchAppLogs(ctx context.Context, appID, keyword string, limit int) (interface{}, error)
+	UpdateDNSRecord(ctx context.Context, domain, subdomain, recordType, newValue string) (interface{}, error)
+	UpdateCredential(ctx context.Context, credID string, value string) (interface{}, error)
+	UpdateServer(ctx context.Context, serverID string, config map[string]interface{}) (interface{}, error)
+	CheckDeployReadiness(ctx context.Context, appConfig map[string]interface{}) (interface{}, error)
+	BatchDeploy(ctx context.Context, apps []map[string]interface{}) (interface{}, error)
+	BatchBackup(ctx context.Context, appIDs []string) (interface{}, error)
+	BatchDNS(ctx context.Context, records []map[string]interface{}) (interface{}, error)
 }
 
 // DeployConfig mirrors deployer.DeployConfig to avoid circular imports.
@@ -463,6 +471,85 @@ func NewServer(deployer Deployer) *server.MCPServer {
 	)
 	s.AddTool(listTasksTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return handleListTasks(ctx, deployer, request)
+	})
+
+	// Register search_app_logs
+	searchLogsTool := mcp.NewTool("search_app_logs",
+		mcp.WithDescription("Search container logs by keyword"),
+		mcp.WithString("app_id", mcp.Required(), mcp.Description("Application ID")),
+		mcp.WithString("keyword", mcp.Required(), mcp.Description("Search keyword")),
+		mcp.WithString("limit", mcp.Description("Max results (default: 50)")),
+	)
+	s.AddTool(searchLogsTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleSearchAppLogs(ctx, deployer, request)
+	})
+
+	// Register update_dns_record
+	updateDNSTool := mcp.NewTool("update_dns_record",
+		mcp.WithDescription("Update a DNS record"),
+		mcp.WithString("domain", mcp.Required(), mcp.Description("Domain name")),
+		mcp.WithString("subdomain", mcp.Required(), mcp.Description("Subdomain")),
+		mcp.WithString("type", mcp.Required(), mcp.Description("Record type: A, AAAA, CNAME, TXT")),
+		mcp.WithString("new_value", mcp.Required(), mcp.Description("New record value")),
+	)
+	s.AddTool(updateDNSTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleUpdateDNSRecord(ctx, deployer, request)
+	})
+
+	// Register update_credential
+	updateCredTool := mcp.NewTool("update_credential",
+		mcp.WithDescription("Update a credential value"),
+		mcp.WithString("credential_id", mcp.Required(), mcp.Description("Credential ID")),
+		mcp.WithString("value", mcp.Required(), mcp.Description("New credential value")),
+	)
+	s.AddTool(updateCredTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleUpdateCredential(ctx, deployer, request)
+	})
+
+	// Register update_server
+	updateSrvTool := mcp.NewTool("update_server",
+		mcp.WithDescription("Update server configuration"),
+		mcp.WithString("server_id", mcp.Required(), mcp.Description("Server ID")),
+		mcp.WithString("config", mcp.Required(), mcp.Description("JSON string of config to update")),
+	)
+	s.AddTool(updateSrvTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleUpdateServer(ctx, deployer, request)
+	})
+
+	// Register check_deploy_readiness
+	checkReadinessTool := mcp.NewTool("check_deploy_readiness",
+		mcp.WithDescription("Check if deployment prerequisites are met"),
+		mcp.WithString("app_config", mcp.Required(), mcp.Description("JSON string of app configuration to validate")),
+	)
+	s.AddTool(checkReadinessTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleCheckDeployReadiness(ctx, deployer, request)
+	})
+
+	// Register batch_deploy
+	batchDeployTool := mcp.NewTool("batch_deploy",
+		mcp.WithDescription("Deploy multiple applications at once"),
+		mcp.WithString("apps", mcp.Required(), mcp.Description("JSON array of app configs: [{repo, branch, domain, stack}]")),
+	)
+	s.AddTool(batchDeployTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleBatchDeploy(ctx, deployer, request)
+	})
+
+	// Register batch_backup
+	batchBackupTool := mcp.NewTool("batch_backup",
+		mcp.WithDescription("Backup multiple applications at once"),
+		mcp.WithString("app_ids", mcp.Required(), mcp.Description("JSON array of app IDs: [\"id1\", \"id2\"]")),
+	)
+	s.AddTool(batchBackupTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleBatchBackup(ctx, deployer, request)
+	})
+
+	// Register batch_dns
+	batchDNSTool := mcp.NewTool("batch_dns",
+		mcp.WithDescription("Add multiple DNS records at once"),
+		mcp.WithString("records", mcp.Required(), mcp.Description("JSON array of DNS records: [{domain, sub, type, value}]")),
+	)
+	s.AddTool(batchDNSTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleBatchDNS(ctx, deployer, request)
 	})
 
 	return s
@@ -1110,6 +1197,157 @@ func handleListTasks(ctx context.Context, deployer Deployer, request mcp.CallToo
 	}
 
 	result := map[string]interface{}{"status": "success", "tasks": tasks}
+	data, _ := json.MarshalIndent(result, "", "  ")
+	return mcp.NewToolResultText(string(data)), nil
+}
+
+func handleSearchAppLogs(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	appID, err := request.RequireString("app_id")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+	keyword, err := request.RequireString("keyword")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+	limit := 50
+	if l := request.GetString("limit", "50"); l != "" {
+		fmt.Sscanf(l, "%d", &limit)
+	}
+	res, err := deployer.SearchAppLogs(ctx, appID, keyword, limit)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("search logs failed: %v", err)), nil
+	}
+	result := map[string]interface{}{"status": "success", "search": res}
+	data, _ := json.MarshalIndent(result, "", "  ")
+	return mcp.NewToolResultText(string(data)), nil
+}
+
+func handleUpdateDNSRecord(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	domain, _ := request.RequireString("domain")
+	subdomain, _ := request.RequireString("subdomain")
+	recordType, _ := request.RequireString("type")
+	newValue, _ := request.RequireString("new_value")
+	if domain == "" || subdomain == "" || recordType == "" || newValue == "" {
+		return mcp.NewToolResultError("domain, subdomain, type, and new_value are required"), nil
+	}
+	res, err := deployer.UpdateDNSRecord(ctx, domain, subdomain, recordType, newValue)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("update DNS failed: %v", err)), nil
+	}
+	result := map[string]interface{}{"status": "success", "record": res}
+	data, _ := json.MarshalIndent(result, "", "  ")
+	return mcp.NewToolResultText(string(data)), nil
+}
+
+func handleUpdateCredential(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	credID, err := request.RequireString("credential_id")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+	value, err := request.RequireString("value")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+	res, err := deployer.UpdateCredential(ctx, credID, value)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("update credential failed: %v", err)), nil
+	}
+	result := map[string]interface{}{"status": "success", "credential": res}
+	data, _ := json.MarshalIndent(result, "", "  ")
+	return mcp.NewToolResultText(string(data)), nil
+}
+
+func handleUpdateServer(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	serverID, err := request.RequireString("server_id")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+	configStr, err := request.RequireString("config")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+	var config map[string]interface{}
+	if err := json.Unmarshal([]byte(configStr), &config); err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("invalid config JSON: %v", err)), nil
+	}
+	res, err := deployer.UpdateServer(ctx, serverID, config)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("update server failed: %v", err)), nil
+	}
+	result := map[string]interface{}{"status": "success", "server": res}
+	data, _ := json.MarshalIndent(result, "", "  ")
+	return mcp.NewToolResultText(string(data)), nil
+}
+
+func handleCheckDeployReadiness(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	configStr, err := request.RequireString("app_config")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+	var appConfig map[string]interface{}
+	if err := json.Unmarshal([]byte(configStr), &appConfig); err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("invalid app_config JSON: %v", err)), nil
+	}
+	res, err := deployer.CheckDeployReadiness(ctx, appConfig)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("readiness check failed: %v", err)), nil
+	}
+	result := map[string]interface{}{"status": "success", "readiness": res}
+	data, _ := json.MarshalIndent(result, "", "  ")
+	return mcp.NewToolResultText(string(data)), nil
+}
+
+func handleBatchDeploy(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	appsStr, err := request.RequireString("apps")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+	var apps []map[string]interface{}
+	if err := json.Unmarshal([]byte(appsStr), &apps); err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("invalid apps JSON: %v", err)), nil
+	}
+	res, err := deployer.BatchDeploy(ctx, apps)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("batch deploy failed: %v", err)), nil
+	}
+	result := map[string]interface{}{"status": "success", "batch": res}
+	data, _ := json.MarshalIndent(result, "", "  ")
+	return mcp.NewToolResultText(string(data)), nil
+}
+
+func handleBatchBackup(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	appIDsStr, err := request.RequireString("app_ids")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+	var appIDs []string
+	if err := json.Unmarshal([]byte(appIDsStr), &appIDs); err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("invalid app_ids JSON: %v", err)), nil
+	}
+	res, err := deployer.BatchBackup(ctx, appIDs)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("batch backup failed: %v", err)), nil
+	}
+	result := map[string]interface{}{"status": "success", "batch": res}
+	data, _ := json.MarshalIndent(result, "", "  ")
+	return mcp.NewToolResultText(string(data)), nil
+}
+
+func handleBatchDNS(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	recordsStr, err := request.RequireString("records")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+	var records []map[string]interface{}
+	if err := json.Unmarshal([]byte(recordsStr), &records); err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("invalid records JSON: %v", err)), nil
+	}
+	res, err := deployer.BatchDNS(ctx, records)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("batch DNS failed: %v", err)), nil
+	}
+	result := map[string]interface{}{"status": "success", "batch": res}
 	data, _ := json.MarshalIndent(result, "", "  ")
 	return mcp.NewToolResultText(string(data)), nil
 }
