@@ -36,6 +36,10 @@ type mockDeployer struct {
 	notifySendFn   func(ctx context.Context, nType, appName, server, status, message string) (interface{}, error)
 	templateListFn func(ctx context.Context) (interface{}, error)
 	templateGetFn  func(ctx context.Context, tmplType string) (interface{}, error)
+	getAppDetailFn func(ctx context.Context, appID string) (interface{}, error)
+	updateAppFn    func(ctx context.Context, appID string, config map[string]interface{}) (interface{}, error)
+	getTaskStatusFn func(ctx context.Context, taskID string) (interface{}, error)
+	listTasksFn    func(ctx context.Context, limit int, statusFilter string) (interface{}, error)
 }
 
 func (m *mockDeployer) Deploy(ctx context.Context, cfg DeployConfig) (*ContainerStatus, error) {
@@ -231,6 +235,40 @@ func (m *mockDeployer) GetTemplate(ctx context.Context, tmplType string) (interf
 		return m.templateGetFn(ctx, tmplType)
 	}
 	return map[string]interface{}{"type": tmplType, "name": "Node.js", "port": 3000, "image": "node:18-alpine"}, nil
+}
+
+func (m *mockDeployer) GetAppDetail(ctx context.Context, appID string) (interface{}, error) {
+	if m.getAppDetailFn != nil {
+		return m.getAppDetailFn(ctx, appID)
+	}
+	return map[string]interface{}{
+		"id": appID, "name": "my-app", "image": "nginx:latest",
+		"status": "running", "port": 8080, "server": "prod-01",
+	}, nil
+}
+
+func (m *mockDeployer) UpdateApp(ctx context.Context, appID string, config map[string]interface{}) (interface{}, error) {
+	if m.updateAppFn != nil {
+		return m.updateAppFn(ctx, appID, config)
+	}
+	return map[string]interface{}{"id": appID, "updated": true, "config": config}, nil
+}
+
+func (m *mockDeployer) GetTaskStatus(ctx context.Context, taskID string) (interface{}, error) {
+	if m.getTaskStatusFn != nil {
+		return m.getTaskStatusFn(ctx, taskID)
+	}
+	return map[string]interface{}{"task_id": taskID, "status": "completed", "progress": 100}, nil
+}
+
+func (m *mockDeployer) ListTasks(ctx context.Context, limit int, statusFilter string) (interface{}, error) {
+	if m.listTasksFn != nil {
+		return m.listTasksFn(ctx, limit, statusFilter)
+	}
+	return []map[string]interface{}{
+		{"task_id": "task-001", "status": "completed", "type": "deploy"},
+		{"task_id": "task-002", "status": "running", "type": "backup"},
+	}, nil
 }
 
 // extractText gets the text content from a CallToolResult.
@@ -1213,6 +1251,193 @@ func TestGetTemplateFailure(t *testing.T) {
 	result, _ := handleGetTemplate(context.Background(), mock, newRequest(map[string]interface{}{
 		"type": "nonexistent",
 	}))
+	if !result.IsError {
+		t.Error("should return error on failure")
+	}
+}
+
+// ========== get_app_detail ==========
+
+func TestGetAppDetailSuccess(t *testing.T) {
+	mock := &mockDeployer{}
+	result, _ := handleGetAppDetail(context.Background(), mock, newRequest(map[string]interface{}{
+		"app_id": "app-001",
+	}))
+
+	text, err := extractText(result)
+	if err != nil {
+		t.Fatalf("extractText error = %v", err)
+	}
+
+	var parsed map[string]interface{}
+	json.Unmarshal([]byte(text), &parsed)
+
+	if parsed["status"] != "success" {
+		t.Errorf("status = %v, want success", parsed["status"])
+	}
+	detail := parsed["app"].(map[string]interface{})
+	if detail["id"] != "app-001" {
+		t.Errorf("app.id = %v, want app-001", detail["id"])
+	}
+}
+
+func TestGetAppDetailMissingID(t *testing.T) {
+	mock := &mockDeployer{}
+	result, _ := handleGetAppDetail(context.Background(), mock, newRequest(map[string]interface{}{}))
+	if !result.IsError {
+		t.Error("should return error when app_id is missing")
+	}
+}
+
+func TestGetAppDetailFailure(t *testing.T) {
+	mock := &mockDeployer{
+		getAppDetailFn: func(_ context.Context, _ string) (interface{}, error) {
+			return nil, fmt.Errorf("app not found")
+		},
+	}
+	result, _ := handleGetAppDetail(context.Background(), mock, newRequest(map[string]interface{}{
+		"app_id": "nonexistent",
+	}))
+	if !result.IsError {
+		t.Error("should return error on failure")
+	}
+}
+
+// ========== update_app ==========
+
+func TestUpdateAppSuccess(t *testing.T) {
+	mock := &mockDeployer{}
+	result, _ := handleUpdateApp(context.Background(), mock, newRequest(map[string]interface{}{
+		"app_id": "app-001",
+		"config": "{\"memory\": \"2GB\"}",
+	}))
+
+	text, err := extractText(result)
+	if err != nil {
+		t.Fatalf("extractText error = %v", err)
+	}
+
+	var parsed map[string]interface{}
+	json.Unmarshal([]byte(text), &parsed)
+
+	if parsed["status"] != "success" {
+		t.Errorf("status = %v, want success", parsed["status"])
+	}
+}
+
+func TestUpdateAppMissingID(t *testing.T) {
+	mock := &mockDeployer{}
+	result, _ := handleUpdateApp(context.Background(), mock, newRequest(map[string]interface{}{
+		"config": "{}",
+	}))
+	if !result.IsError {
+		t.Error("should return error when app_id is missing")
+	}
+}
+
+func TestUpdateAppFailure(t *testing.T) {
+	mock := &mockDeployer{
+		updateAppFn: func(_ context.Context, _ string, _ map[string]interface{}) (interface{}, error) {
+			return nil, fmt.Errorf("update failed")
+		},
+	}
+	result, _ := handleUpdateApp(context.Background(), mock, newRequest(map[string]interface{}{
+		"app_id": "app-001",
+		"config": "{}",
+	}))
+	if !result.IsError {
+		t.Error("should return error on failure")
+	}
+}
+
+// ========== get_task_status ==========
+
+func TestGetTaskStatusSuccess(t *testing.T) {
+	mock := &mockDeployer{}
+	result, _ := handleGetTaskStatus(context.Background(), mock, newRequest(map[string]interface{}{
+		"task_id": "task-001",
+	}))
+
+	text, err := extractText(result)
+	if err != nil {
+		t.Fatalf("extractText error = %v", err)
+	}
+
+	var parsed map[string]interface{}
+	json.Unmarshal([]byte(text), &parsed)
+
+	if parsed["status"] != "success" {
+		t.Errorf("status = %v, want success", parsed["status"])
+	}
+	task := parsed["task"].(map[string]interface{})
+	if task["task_id"] != "task-001" {
+		t.Errorf("task.task_id = %v", task["task_id"])
+	}
+}
+
+func TestGetTaskStatusMissingID(t *testing.T) {
+	mock := &mockDeployer{}
+	result, _ := handleGetTaskStatus(context.Background(), mock, newRequest(map[string]interface{}{}))
+	if !result.IsError {
+		t.Error("should return error when task_id is missing")
+	}
+}
+
+func TestGetTaskStatusFailure(t *testing.T) {
+	mock := &mockDeployer{
+		getTaskStatusFn: func(_ context.Context, _ string) (interface{}, error) {
+			return nil, fmt.Errorf("task not found")
+		},
+	}
+	result, _ := handleGetTaskStatus(context.Background(), mock, newRequest(map[string]interface{}{
+		"task_id": "nonexistent",
+	}))
+	if !result.IsError {
+		t.Error("should return error on failure")
+	}
+}
+
+// ========== list_tasks ==========
+
+func TestListTasksSuccess(t *testing.T) {
+	mock := &mockDeployer{}
+	result, _ := handleListTasks(context.Background(), mock, newRequest(map[string]interface{}{
+		"limit": "10",
+	}))
+
+	text, err := extractText(result)
+	if err != nil {
+		t.Fatalf("extractText error = %v", err)
+	}
+
+	var parsed map[string]interface{}
+	json.Unmarshal([]byte(text), &parsed)
+
+	if parsed["status"] != "success" {
+		t.Errorf("status = %v, want success", parsed["status"])
+	}
+}
+
+func TestListTasksWithFilter(t *testing.T) {
+	mock := &mockDeployer{}
+	result, _ := handleListTasks(context.Background(), mock, newRequest(map[string]interface{}{
+		"limit": "5",
+		"status_filter": "running",
+	}))
+
+	text, _ := extractText(result)
+	if !strings.Contains(text, "success") {
+		t.Errorf("unexpected output: %s", text)
+	}
+}
+
+func TestListTasksFailure(t *testing.T) {
+	mock := &mockDeployer{
+		listTasksFn: func(_ context.Context, _ int, _ string) (interface{}, error) {
+			return nil, fmt.Errorf("database error")
+		},
+	}
+	result, _ := handleListTasks(context.Background(), mock, newRequest(map[string]interface{}{}))
 	if !result.IsError {
 		t.Error("should return error on failure")
 	}

@@ -38,6 +38,10 @@ type Deployer interface {
 	SendNotification(ctx context.Context, nType, appName, server, status, message string) (interface{}, error)
 	ListTemplates(ctx context.Context) (interface{}, error)
 	GetTemplate(ctx context.Context, tmplType string) (interface{}, error)
+	GetAppDetail(ctx context.Context, appID string) (interface{}, error)
+	UpdateApp(ctx context.Context, appID string, config map[string]interface{}) (interface{}, error)
+	GetTaskStatus(ctx context.Context, taskID string) (interface{}, error)
+	ListTasks(ctx context.Context, limit int, statusFilter string) (interface{}, error)
 }
 
 // DeployConfig mirrors deployer.DeployConfig to avoid circular imports.
@@ -228,7 +232,7 @@ func NewServer(deployer Deployer) *server.MCPServer {
 	})
 
 	// Register backup tool
-	backupTool := mcp.NewTool("backup",
+	backupTool := mcp.NewTool("backup_database",
 		mcp.WithDescription("Create a backup of an application"),
 		mcp.WithString("app_id",
 			mcp.Required(),
@@ -241,7 +245,7 @@ func NewServer(deployer Deployer) *server.MCPServer {
 	})
 
 	// Register restore tool
-	restoreTool := mcp.NewTool("restore",
+	restoreTool := mcp.NewTool("restore_database",
 		mcp.WithDescription("Restore an application from a backup"),
 		mcp.WithString("backup_id",
 			mcp.Required(),
@@ -421,6 +425,44 @@ func NewServer(deployer Deployer) *server.MCPServer {
 	)
 	s.AddTool(getTmplTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return handleGetTemplate(ctx, deployer, request)
+	})
+
+	// Register get_app_detail tool
+	getAppDetailTool := mcp.NewTool("get_app_detail",
+		mcp.WithDescription("Get detailed information about a deployed application"),
+		mcp.WithString("app_id", mcp.Required(), mcp.Description("Application ID")),
+	)
+	s.AddTool(getAppDetailTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleGetAppDetail(ctx, deployer, request)
+	})
+
+	// Register update_app tool
+	updateAppTool := mcp.NewTool("update_app",
+		mcp.WithDescription("Update application configuration"),
+		mcp.WithString("app_id", mcp.Required(), mcp.Description("Application ID")),
+		mcp.WithString("config", mcp.Required(), mcp.Description("JSON string of configuration to update")),
+	)
+	s.AddTool(updateAppTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleUpdateApp(ctx, deployer, request)
+	})
+
+	// Register get_task_status tool
+	getTaskStatusTool := mcp.NewTool("get_task_status",
+		mcp.WithDescription("Get status of an async task"),
+		mcp.WithString("task_id", mcp.Required(), mcp.Description("Task ID")),
+	)
+	s.AddTool(getTaskStatusTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleGetTaskStatus(ctx, deployer, request)
+	})
+
+	// Register list_tasks tool
+	listTasksTool := mcp.NewTool("list_tasks",
+		mcp.WithDescription("List recent tasks"),
+		mcp.WithString("limit", mcp.Description("Maximum number of tasks to return (default: 20)")),
+		mcp.WithString("status_filter", mcp.Description("Filter by status: running, completed, failed")),
+	)
+	s.AddTool(listTasksTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleListTasks(ctx, deployer, request)
 	})
 
 	return s
@@ -994,6 +1036,80 @@ func handleGetTemplate(ctx context.Context, deployer Deployer, request mcp.CallT
 	}
 
 	result := map[string]interface{}{"status": "success", "template": tmpl}
+	data, _ := json.MarshalIndent(result, "", "  ")
+	return mcp.NewToolResultText(string(data)), nil
+}
+
+func handleGetAppDetail(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	appID, err := request.RequireString("app_id")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	detail, err := deployer.GetAppDetail(ctx, appID)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("failed to get app detail: %v", err)), nil
+	}
+
+	result := map[string]interface{}{"status": "success", "app": detail}
+	data, _ := json.MarshalIndent(result, "", "  ")
+	return mcp.NewToolResultText(string(data)), nil
+}
+
+func handleUpdateApp(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	appID, err := request.RequireString("app_id")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+	configStr, err := request.RequireString("config")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	var config map[string]interface{}
+	if err := json.Unmarshal([]byte(configStr), &config); err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("invalid config JSON: %v", err)), nil
+	}
+
+	updated, err := deployer.UpdateApp(ctx, appID, config)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("failed to update app: %v", err)), nil
+	}
+
+	result := map[string]interface{}{"status": "success", "message": fmt.Sprintf("App %s updated", appID), "app": updated}
+	data, _ := json.MarshalIndent(result, "", "  ")
+	return mcp.NewToolResultText(string(data)), nil
+}
+
+func handleGetTaskStatus(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	taskID, err := request.RequireString("task_id")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	task, err := deployer.GetTaskStatus(ctx, taskID)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("failed to get task status: %v", err)), nil
+	}
+
+	result := map[string]interface{}{"status": "success", "task": task}
+	data, _ := json.MarshalIndent(result, "", "  ")
+	return mcp.NewToolResultText(string(data)), nil
+}
+
+func handleListTasks(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	limit := 20
+	if l := request.GetString("limit", "20"); l != "" {
+		fmt.Sscanf(l, "%d", &limit)
+	}
+	statusFilter := request.GetString("status_filter", "")
+
+	tasks, err := deployer.ListTasks(ctx, limit, statusFilter)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("failed to list tasks: %v", err)), nil
+	}
+
+	result := map[string]interface{}{"status": "success", "tasks": tasks}
 	data, _ := json.MarshalIndent(result, "", "  ")
 	return mcp.NewToolResultText(string(data)), nil
 }
