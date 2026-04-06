@@ -20,6 +20,9 @@ type Deployer interface {
 	Stop(ctx context.Context, name string) error
 	Remove(ctx context.Context, name string) error
 	GetContainerLogs(ctx context.Context, name string, tail int) (string, error)
+	Rollback(ctx context.Context, containerName, previousImage string) (*ContainerStatus, error)
+	Backup(ctx context.Context, appID string) (string, error)
+	Restore(ctx context.Context, backupID string) (*ContainerStatus, error)
 }
 
 // DeployConfig mirrors deployer.DeployConfig to avoid circular imports.
@@ -192,6 +195,65 @@ func NewServer(deployer Deployer) *server.MCPServer {
 		return handleDeleteApp(ctx, deployer, request)
 	})
 
+	// Register rollback tool
+	rollbackTool := mcp.NewTool("rollback",
+		mcp.WithDescription("Rollback a container to a previous image version"),
+		mcp.WithString("container_name",
+			mcp.Required(),
+			mcp.Description("Name of the container to rollback"),
+		),
+		mcp.WithString("previous_image",
+			mcp.Required(),
+			mcp.Description("Previous Docker image to rollback to"),
+		),
+	)
+
+	s.AddTool(rollbackTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleRollback(ctx, deployer, request)
+	})
+
+	// Register backup tool
+	backupTool := mcp.NewTool("backup",
+		mcp.WithDescription("Create a backup of an application"),
+		mcp.WithString("app_id",
+			mcp.Required(),
+			mcp.Description("ID of the application to backup"),
+		),
+	)
+
+	s.AddTool(backupTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleBackup(ctx, deployer, request)
+	})
+
+	// Register restore tool
+	restoreTool := mcp.NewTool("restore",
+		mcp.WithDescription("Restore an application from a backup"),
+		mcp.WithString("backup_id",
+			mcp.Required(),
+			mcp.Description("ID of the backup to restore from"),
+		),
+	)
+
+	s.AddTool(restoreTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleRestore(ctx, deployer, request)
+	})
+
+	// Register get_app_logs tool
+	getLogsTool := mcp.NewTool("get_app_logs",
+		mcp.WithDescription("Get logs from a deployed container"),
+		mcp.WithString("container_name",
+			mcp.Required(),
+			mcp.Description("Name of the container"),
+		),
+		mcp.WithString("tail",
+			mcp.Description("Number of lines to retrieve (default: 100)"),
+		),
+	)
+
+	s.AddTool(getLogsTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleGetAppLogs(ctx, deployer, request)
+	})
+
 	return s
 }
 
@@ -353,6 +415,113 @@ func handleDeleteApp(ctx context.Context, deployer Deployer, request mcp.CallToo
 	result := map[string]interface{}{
 		"status":  "success",
 		"message": fmt.Sprintf("Application %s deleted successfully", appID),
+	}
+
+	data, _ := json.MarshalIndent(result, "", "  ")
+	return mcp.NewToolResultText(string(data)), nil
+}
+
+func handleRollback(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	containerName, err := request.RequireString("container_name")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	previousImage, err := request.RequireString("previous_image")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	status, err := deployer.Rollback(ctx, containerName, previousImage)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("rollback failed: %v", err)), nil
+	}
+
+	result := map[string]interface{}{
+		"status":  "success",
+		"message": fmt.Sprintf("Container %s rolled back to %s", containerName, previousImage),
+		"container": map[string]string{
+			"id":     status.ID,
+			"name":   status.Name,
+			"image":  status.Image,
+			"status": status.Status,
+		},
+	}
+
+	data, _ := json.MarshalIndent(result, "", "  ")
+	return mcp.NewToolResultText(string(data)), nil
+}
+
+func handleBackup(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	appID, err := request.RequireString("app_id")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	backupID, err := deployer.Backup(ctx, appID)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("backup failed: %v", err)), nil
+	}
+
+	result := map[string]interface{}{
+		"status":  "success",
+		"message": fmt.Sprintf("Backup created for app %s", appID),
+		"backup": map[string]string{
+			"id": backupID,
+		},
+	}
+
+	data, _ := json.MarshalIndent(result, "", "  ")
+	return mcp.NewToolResultText(string(data)), nil
+}
+
+func handleRestore(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	backupID, err := request.RequireString("backup_id")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	status, err := deployer.Restore(ctx, backupID)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("restore failed: %v", err)), nil
+	}
+
+	result := map[string]interface{}{
+		"status":  "success",
+		"message": fmt.Sprintf("Application restored from backup %s", backupID),
+		"container": map[string]string{
+			"id":     status.ID,
+			"name":   status.Name,
+			"image":  status.Image,
+			"status": status.Status,
+		},
+	}
+
+	data, _ := json.MarshalIndent(result, "", "  ")
+	return mcp.NewToolResultText(string(data)), nil
+}
+
+func handleGetAppLogs(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	containerName, err := request.RequireString("container_name")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	tail := 100
+	if t := request.GetString("tail", ""); t != "" {
+		fmt.Sscanf(t, "%d", &tail)
+	}
+
+	logs, err := deployer.GetContainerLogs(ctx, containerName, tail)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("failed to get logs: %v", err)), nil
+	}
+
+	result := map[string]interface{}{
+		"status": "success",
+		"container_name": containerName,
+		"tail":  tail,
+		"logs":  logs,
 	}
 
 	data, _ := json.MarshalIndent(result, "", "  ")

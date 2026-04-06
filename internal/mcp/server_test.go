@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/mark3labs/mcp-go/mcp"
@@ -17,6 +18,10 @@ type mockDeployer struct {
 	listServersFn  func(ctx context.Context) ([]ServerInfo, error)
 	createAppFn    func(ctx context.Context, cfg CreateAppConfig) (string, error)
 	deleteAppFn    func(ctx context.Context, appID string) error
+	rollbackFn     func(ctx context.Context, containerName, previousImage string) (*ContainerStatus, error)
+	backupFn       func(ctx context.Context, appID string) (string, error)
+	restoreFn      func(ctx context.Context, backupID string) (*ContainerStatus, error)
+	getLogsFn      func(ctx context.Context, name string, tail int) (string, error)
 }
 
 func (m *mockDeployer) Deploy(ctx context.Context, cfg DeployConfig) (*ContainerStatus, error) {
@@ -69,8 +74,33 @@ func (m *mockDeployer) DeleteApp(ctx context.Context, appID string) error {
 
 func (m *mockDeployer) Stop(_ context.Context, _ string) error  { return nil }
 func (m *mockDeployer) Remove(_ context.Context, _ string) error { return nil }
-func (m *mockDeployer) GetContainerLogs(_ context.Context, _ string, _ int) (string, error) {
-	return "logs", nil
+
+func (m *mockDeployer) Rollback(ctx context.Context, containerName, previousImage string) (*ContainerStatus, error) {
+	if m.rollbackFn != nil {
+		return m.rollbackFn(ctx, containerName, previousImage)
+	}
+	return &ContainerStatus{ID: "rb-001", Name: containerName, Image: previousImage, Status: "running"}, nil
+}
+
+func (m *mockDeployer) Backup(ctx context.Context, appID string) (string, error) {
+	if m.backupFn != nil {
+		return m.backupFn(ctx, appID)
+	}
+	return "backup-001", nil
+}
+
+func (m *mockDeployer) Restore(ctx context.Context, backupID string) (*ContainerStatus, error) {
+	if m.restoreFn != nil {
+		return m.restoreFn(ctx, backupID)
+	}
+	return &ContainerStatus{ID: "restore-001", Name: "restored-app", Image: "nginx:latest", Status: "running"}, nil
+}
+
+func (m *mockDeployer) GetContainerLogs(ctx context.Context, name string, tail int) (string, error) {
+	if m.getLogsFn != nil {
+		return m.getLogsFn(ctx, name, tail)
+	}
+	return "mock log line 1\nmock log line 2", nil
 }
 
 // extractText gets the text content from a CallToolResult.
@@ -295,6 +325,194 @@ func TestListAppsFailure(t *testing.T) {
 		},
 	}
 	result, _ := handleListApps(context.Background(), mock, newRequest(map[string]interface{}{}))
+	if !result.IsError {
+		t.Error("should return error on failure")
+	}
+}
+
+// ========== rollback ==========
+
+func TestRollbackSuccess(t *testing.T) {
+	mock := &mockDeployer{}
+	result, _ := handleRollback(context.Background(), mock, newRequest(map[string]interface{}{
+		"container_name": "my-app",
+		"previous_image": "nginx:1.24",
+	}))
+
+	text, err := extractText(result)
+	if err != nil {
+		t.Fatalf("extractText error = %v", err)
+	}
+
+	var parsed map[string]interface{}
+	json.Unmarshal([]byte(text), &parsed)
+
+	if parsed["status"] != "success" {
+		t.Errorf("status = %v, want success", parsed["status"])
+	}
+	container := parsed["container"].(map[string]interface{})
+	if container["image"] != "nginx:1.24" {
+		t.Errorf("container.image = %v, want nginx:1.24", container["image"])
+	}
+}
+
+func TestRollbackMissingName(t *testing.T) {
+	mock := &mockDeployer{}
+	result, _ := handleRollback(context.Background(), mock, newRequest(map[string]interface{}{
+		"previous_image": "nginx:1.24",
+	}))
+	if !result.IsError {
+		t.Error("should return error when container_name is missing")
+	}
+}
+
+func TestRollbackFailure(t *testing.T) {
+	mock := &mockDeployer{
+		rollbackFn: func(_ context.Context, _, _ string) (*ContainerStatus, error) {
+			return nil, fmt.Errorf("rollback failed")
+		},
+	}
+	result, _ := handleRollback(context.Background(), mock, newRequest(map[string]interface{}{
+		"container_name": "my-app",
+		"previous_image": "nginx:1.24",
+	}))
+	if !result.IsError {
+		t.Error("should return error on failure")
+	}
+}
+
+// ========== backup ==========
+
+func TestBackupSuccess(t *testing.T) {
+	mock := &mockDeployer{}
+	result, _ := handleBackup(context.Background(), mock, newRequest(map[string]interface{}{
+		"app_id": "app-001",
+	}))
+
+	text, err := extractText(result)
+	if err != nil {
+		t.Fatalf("extractText error = %v", err)
+	}
+
+	var parsed map[string]interface{}
+	json.Unmarshal([]byte(text), &parsed)
+
+	if parsed["status"] != "success" {
+		t.Errorf("status = %v, want success", parsed["status"])
+	}
+	backup := parsed["backup"].(map[string]interface{})
+	if backup["id"] != "backup-001" {
+		t.Errorf("backup.id = %v, want backup-001", backup["id"])
+	}
+}
+
+func TestBackupMissingAppID(t *testing.T) {
+	mock := &mockDeployer{}
+	result, _ := handleBackup(context.Background(), mock, newRequest(map[string]interface{}{}))
+	if !result.IsError {
+		t.Error("should return error when app_id is missing")
+	}
+}
+
+func TestBackupFailure(t *testing.T) {
+	mock := &mockDeployer{
+		backupFn: func(_ context.Context, _ string) (string, error) {
+			return "", fmt.Errorf("backup failed")
+		},
+	}
+	result, _ := handleBackup(context.Background(), mock, newRequest(map[string]interface{}{
+		"app_id": "app-001",
+	}))
+	if !result.IsError {
+		t.Error("should return error on failure")
+	}
+}
+
+// ========== restore ==========
+
+func TestRestoreSuccess(t *testing.T) {
+	mock := &mockDeployer{}
+	result, _ := handleRestore(context.Background(), mock, newRequest(map[string]interface{}{
+		"backup_id": "backup-001",
+	}))
+
+	text, err := extractText(result)
+	if err != nil {
+		t.Fatalf("extractText error = %v", err)
+	}
+
+	var parsed map[string]interface{}
+	json.Unmarshal([]byte(text), &parsed)
+
+	if parsed["status"] != "success" {
+		t.Errorf("status = %v, want success", parsed["status"])
+	}
+}
+
+func TestRestoreMissingBackupID(t *testing.T) {
+	mock := &mockDeployer{}
+	result, _ := handleRestore(context.Background(), mock, newRequest(map[string]interface{}{}))
+	if !result.IsError {
+		t.Error("should return error when backup_id is missing")
+	}
+}
+
+func TestRestoreFailure(t *testing.T) {
+	mock := &mockDeployer{
+		restoreFn: func(_ context.Context, _ string) (*ContainerStatus, error) {
+			return nil, fmt.Errorf("restore failed")
+		},
+	}
+	result, _ := handleRestore(context.Background(), mock, newRequest(map[string]interface{}{
+		"backup_id": "backup-001",
+	}))
+	if !result.IsError {
+		t.Error("should return error on failure")
+	}
+}
+
+// ========== get_app_logs ==========
+
+func TestGetAppLogsSuccess(t *testing.T) {
+	mock := &mockDeployer{}
+	result, _ := handleGetAppLogs(context.Background(), mock, newRequest(map[string]interface{}{
+		"container_name": "my-app",
+	}))
+
+	text, err := extractText(result)
+	if err != nil {
+		t.Fatalf("extractText error = %v", err)
+	}
+
+	var parsed map[string]interface{}
+	json.Unmarshal([]byte(text), &parsed)
+
+	if parsed["status"] != "success" {
+		t.Errorf("status = %v, want success", parsed["status"])
+	}
+	logs := parsed["logs"].(string)
+	if !strings.Contains(logs, "mock log") {
+		t.Errorf("logs = %q, want to contain 'mock log'", logs)
+	}
+}
+
+func TestGetAppLogsMissingName(t *testing.T) {
+	mock := &mockDeployer{}
+	result, _ := handleGetAppLogs(context.Background(), mock, newRequest(map[string]interface{}{}))
+	if !result.IsError {
+		t.Error("should return error when container_name is missing")
+	}
+}
+
+func TestGetAppLogsFailure(t *testing.T) {
+	mock := &mockDeployer{
+		getLogsFn: func(_ context.Context, _ string, _ int) (string, error) {
+			return "", fmt.Errorf("container not found")
+		},
+	}
+	result, _ := handleGetAppLogs(context.Background(), mock, newRequest(map[string]interface{}{
+		"container_name": "nonexistent",
+	}))
 	if !result.IsError {
 		t.Error("should return error on failure")
 	}
