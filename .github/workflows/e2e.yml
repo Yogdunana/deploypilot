@@ -1,0 +1,51 @@
+name: E2E (Real Server)
+
+on:
+  workflow_dispatch:
+    inputs:
+      host:
+        description: "Target server hostname/IP"
+        required: true
+        type: string
+      user:
+        description: "SSH user"
+        required: true
+        default: "root"
+        type: string
+      port:
+        description: "SSH port"
+        required: false
+        default: "22"
+        type: string
+
+jobs:
+  e2e:
+    name: E2E on Real Server
+    runs-on: self-hosted
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.23"
+
+      - name: Build binaries
+        run: |
+          go build -o bin/deploypilot ./cmd/deploypilot/
+          go build -o bin/mcp-server ./cmd/mcp-server/
+
+      - name: Run E2E tests
+        env:
+          E2E_HOST: ${{ github.event.inputs.host }}
+          E2E_USER: ${{ github.event.inputs.user }}
+          E2E_PORT: ${{ github.event.inputs.port }}
+        run: bash scripts/e2e-real-server.sh "$E2E_HOST" "$E2E_USER" "$E2E_PORT"
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-results
+          path: e2e-*.log
+          retention-days: 7
