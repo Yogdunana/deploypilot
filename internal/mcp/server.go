@@ -13,6 +13,8 @@ import (
 type Deployer interface {
 	Deploy(ctx context.Context, cfg DeployConfig) (*ContainerStatus, error)
 	GetContainerStatus(ctx context.Context, name string) (*ContainerStatus, error)
+	ListApps(ctx context.Context) ([]ContainerStatus, error)
+	ListServers(ctx context.Context) ([]ServerInfo, error)
 	Stop(ctx context.Context, name string) error
 	Remove(ctx context.Context, name string) error
 	GetContainerLogs(ctx context.Context, name string, tail int) (string, error)
@@ -41,6 +43,15 @@ type ContainerStatus struct {
 	Ports     string            `json:"ports,omitempty"`
 	CreatedAt string            `json:"created_at,omitempty"`
 	Labels    map[string]string `json:"labels,omitempty"`
+}
+
+// ServerInfo represents a registered server.
+type ServerInfo struct {
+	ID     string `json:"id"`
+	Name   string `json:"name"`
+	Host   string `json:"host"`
+	Port   int    `json:"port"`
+	Status string `json:"status"`
 }
 
 // NewServer creates a new MCP server with deploy tools registered.
@@ -103,6 +114,24 @@ func NewServer(deployer Deployer) *server.MCPServer {
 
 	s.AddTool(statusTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return handleGetDeployStatus(ctx, deployer, request)
+	})
+
+	// Register list_apps tool
+	listAppsTool := mcp.NewTool("list_apps",
+		mcp.WithDescription("List all deployed applications"),
+	)
+
+	s.AddTool(listAppsTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleListApps(ctx, deployer, request)
+	})
+
+	// Register list_servers tool
+	listServersTool := mcp.NewTool("list_servers",
+		mcp.WithDescription("List all registered servers"),
+	)
+
+	s.AddTool(listServersTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleListServers(ctx, deployer, request)
 	})
 
 	return s
@@ -175,6 +204,38 @@ func handleDeployApp(ctx context.Context, deployer Deployer, request mcp.CallToo
 			"image":  status.Image,
 			"status": status.Status,
 		},
+	}
+
+	data, _ := json.MarshalIndent(result, "", "  ")
+	return mcp.NewToolResultText(string(data)), nil
+}
+
+func handleListApps(ctx context.Context, deployer Deployer, _ mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	apps, err := deployer.ListApps(ctx)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("failed to list apps: %v", err)), nil
+	}
+
+	result := map[string]interface{}{
+		"status": "success",
+		"total":  len(apps),
+		"apps":   apps,
+	}
+
+	data, _ := json.MarshalIndent(result, "", "  ")
+	return mcp.NewToolResultText(string(data)), nil
+}
+
+func handleListServers(ctx context.Context, deployer Deployer, _ mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	servers, err := deployer.ListServers(ctx)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("failed to list servers: %v", err)), nil
+	}
+
+	result := map[string]interface{}{
+		"status":  "success",
+		"total":   len(servers),
+		"servers": servers,
 	}
 
 	data, _ := json.MarshalIndent(result, "", "  ")

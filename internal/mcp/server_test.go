@@ -11,8 +11,10 @@ import (
 
 // mockDeployer implements Deployer for testing.
 type mockDeployer struct {
-	deployFn func(ctx context.Context, cfg DeployConfig) (*ContainerStatus, error)
-	statusFn func(ctx context.Context, name string) (*ContainerStatus, error)
+	deployFn       func(ctx context.Context, cfg DeployConfig) (*ContainerStatus, error)
+	statusFn       func(ctx context.Context, name string) (*ContainerStatus, error)
+	listAppsFn     func(ctx context.Context) ([]ContainerStatus, error)
+	listServersFn  func(ctx context.Context) ([]ServerInfo, error)
 }
 
 func (m *mockDeployer) Deploy(ctx context.Context, cfg DeployConfig) (*ContainerStatus, error) {
@@ -27,6 +29,26 @@ func (m *mockDeployer) GetContainerStatus(ctx context.Context, name string) (*Co
 		return m.statusFn(ctx, name)
 	}
 	return &ContainerStatus{ID: "abc123", Name: name, Image: "nginx:latest", Status: "running"}, nil
+}
+
+func (m *mockDeployer) ListApps(ctx context.Context) ([]ContainerStatus, error) {
+	if m.listAppsFn != nil {
+		return m.listAppsFn(ctx)
+	}
+	return []ContainerStatus{
+		{ID: "a1", Name: "web-app", Image: "nginx:latest", Status: "running"},
+		{ID: "a2", Name: "api-app", Image: "node:18", Status: "stopped"},
+	}, nil
+}
+
+func (m *mockDeployer) ListServers(ctx context.Context) ([]ServerInfo, error) {
+	if m.listServersFn != nil {
+		return m.listServersFn(ctx)
+	}
+	return []ServerInfo{
+		{ID: "s1", Name: "prod-server", Host: "1.2.3.4", Status: "reachable"},
+		{ID: "s2", Name: "staging-server", Host: "5.6.7.8", Status: "unknown"},
+	}, nil
 }
 
 func (m *mockDeployer) Stop(_ context.Context, _ string) error  { return nil }
@@ -206,5 +228,111 @@ func TestNewServerNotNil(t *testing.T) {
 	s := NewServer(&mockDeployer{})
 	if s == nil {
 		t.Error("NewServer() returned nil")
+	}
+}
+
+// ========== list_apps ==========
+
+func TestListAppsSuccess(t *testing.T) {
+	mock := &mockDeployer{}
+	result, _ := handleListApps(context.Background(), mock, newRequest(map[string]interface{}{}))
+
+	text, err := extractText(result)
+	if err != nil {
+		t.Fatalf("extractText error = %v", err)
+	}
+
+	var parsed map[string]interface{}
+	json.Unmarshal([]byte(text), &parsed)
+
+	if parsed["status"] != "success" {
+		t.Errorf("status = %v, want success", parsed["status"])
+	}
+	apps := parsed["apps"].([]interface{})
+	if len(apps) != 2 {
+		t.Errorf("apps count = %d, want 2", len(apps))
+	}
+}
+
+func TestListAppsEmpty(t *testing.T) {
+	mock := &mockDeployer{
+		listAppsFn: func(_ context.Context) ([]ContainerStatus, error) {
+			return []ContainerStatus{}, nil
+		},
+	}
+	result, _ := handleListApps(context.Background(), mock, newRequest(map[string]interface{}{}))
+
+	text, _ := extractText(result)
+	var parsed map[string]interface{}
+	json.Unmarshal([]byte(text), &parsed)
+
+	apps := parsed["apps"].([]interface{})
+	if len(apps) != 0 {
+		t.Errorf("apps count = %d, want 0", len(apps))
+	}
+}
+
+func TestListAppsFailure(t *testing.T) {
+	mock := &mockDeployer{
+		listAppsFn: func(_ context.Context) ([]ContainerStatus, error) {
+			return nil, fmt.Errorf("db error")
+		},
+	}
+	result, _ := handleListApps(context.Background(), mock, newRequest(map[string]interface{}{}))
+	if !result.IsError {
+		t.Error("should return error on failure")
+	}
+}
+
+// ========== list_servers ==========
+
+func TestListServersSuccess(t *testing.T) {
+	mock := &mockDeployer{}
+	result, _ := handleListServers(context.Background(), mock, newRequest(map[string]interface{}{}))
+
+	text, err := extractText(result)
+	if err != nil {
+		t.Fatalf("extractText error = %v", err)
+	}
+
+	var parsed map[string]interface{}
+	json.Unmarshal([]byte(text), &parsed)
+
+	if parsed["status"] != "success" {
+		t.Errorf("status = %v, want success", parsed["status"])
+	}
+	servers := parsed["servers"].([]interface{})
+	if len(servers) != 2 {
+		t.Errorf("servers count = %d, want 2", len(servers))
+	}
+}
+
+func TestListServersEmpty(t *testing.T) {
+	mock := &mockDeployer{
+		listServersFn: func(_ context.Context) ([]ServerInfo, error) {
+			return []ServerInfo{}, nil
+		},
+	}
+	result, _ := handleListServers(context.Background(), mock, newRequest(map[string]interface{}{}))
+
+	text, _ := extractText(result)
+	var parsed map[string]interface{}
+	json.Unmarshal([]byte(text), &parsed)
+
+	servers := parsed["servers"].([]interface{})
+	if len(servers) != 0 {
+		t.Errorf("servers count = %d, want 0", len(servers))
+	}
+}
+
+func TestListServersFailure(t *testing.T) {
+	mock := &mockDeployer{
+		listServersFn: func(_ context.Context) ([]ServerInfo, error) {
+			return nil, fmt.Errorf("db error")
+		},
+	}
+	result, _ := handleListServers(context.Background(), mock, newRequest(map[string]interface{}{}))
+	if !result.IsError {
+		t.Error("should return error on failure")
 	}
 }
