@@ -15,6 +15,8 @@ type mockDeployer struct {
 	statusFn       func(ctx context.Context, name string) (*ContainerStatus, error)
 	listAppsFn     func(ctx context.Context) ([]ContainerStatus, error)
 	listServersFn  func(ctx context.Context) ([]ServerInfo, error)
+	createAppFn    func(ctx context.Context, cfg CreateAppConfig) (string, error)
+	deleteAppFn    func(ctx context.Context, appID string) error
 }
 
 func (m *mockDeployer) Deploy(ctx context.Context, cfg DeployConfig) (*ContainerStatus, error) {
@@ -49,6 +51,20 @@ func (m *mockDeployer) ListServers(ctx context.Context) ([]ServerInfo, error) {
 		{ID: "s1", Name: "prod-server", Host: "1.2.3.4", Status: "reachable"},
 		{ID: "s2", Name: "staging-server", Host: "5.6.7.8", Status: "unknown"},
 	}, nil
+}
+
+func (m *mockDeployer) CreateApp(ctx context.Context, cfg CreateAppConfig) (string, error) {
+	if m.createAppFn != nil {
+		return m.createAppFn(ctx, cfg)
+	}
+	return "app-new-001", nil
+}
+
+func (m *mockDeployer) DeleteApp(ctx context.Context, appID string) error {
+	if m.deleteAppFn != nil {
+		return m.deleteAppFn(ctx, appID)
+	}
+	return nil
 }
 
 func (m *mockDeployer) Stop(_ context.Context, _ string) error  { return nil }
@@ -332,6 +348,139 @@ func TestListServersFailure(t *testing.T) {
 		},
 	}
 	result, _ := handleListServers(context.Background(), mock, newRequest(map[string]interface{}{}))
+	if !result.IsError {
+		t.Error("should return error on failure")
+	}
+}
+
+// ========== create_app ==========
+
+func TestCreateAppSuccess(t *testing.T) {
+	mock := &mockDeployer{}
+	result, _ := handleCreateApp(context.Background(), mock, newRequest(map[string]interface{}{
+		"name":     "my-app",
+		"repo_url": "https://github.com/user/repo",
+		"branch":   "main",
+	}))
+
+	text, err := extractText(result)
+	if err != nil {
+		t.Fatalf("extractText error = %v", err)
+	}
+
+	var parsed map[string]interface{}
+	json.Unmarshal([]byte(text), &parsed)
+
+	if parsed["status"] != "success" {
+		t.Errorf("status = %v, want success", parsed["status"])
+	}
+	app := parsed["app"].(map[string]interface{})
+	if app["id"] != "app-new-001" {
+		t.Errorf("app.id = %v, want app-new-001", app["id"])
+	}
+}
+
+func TestCreateAppMissingName(t *testing.T) {
+	mock := &mockDeployer{}
+	result, _ := handleCreateApp(context.Background(), mock, newRequest(map[string]interface{}{
+		"repo_url": "https://github.com/user/repo",
+	}))
+	if !result.IsError {
+		t.Error("should return error when name is missing")
+	}
+}
+
+func TestCreateAppMissingRepoURL(t *testing.T) {
+	mock := &mockDeployer{}
+	result, _ := handleCreateApp(context.Background(), mock, newRequest(map[string]interface{}{
+		"name": "my-app",
+	}))
+	if !result.IsError {
+		t.Error("should return error when repo_url is missing")
+	}
+}
+
+func TestCreateAppCapturesConfig(t *testing.T) {
+	var captured CreateAppConfig
+	mock := &mockDeployer{
+		createAppFn: func(_ context.Context, cfg CreateAppConfig) (string, error) {
+			captured = cfg
+			return "app-001", nil
+		},
+	}
+
+	handleCreateApp(context.Background(), mock, newRequest(map[string]interface{}{
+		"name":       "my-app",
+		"repo_url":   "https://github.com/user/repo",
+		"branch":     "develop",
+		"tech_stack": "docker",
+		"deploy_mode": "api",
+	}))
+
+	if captured.Name != "my-app" {
+		t.Errorf("Name = %q", captured.Name)
+	}
+	if captured.Branch != "develop" {
+		t.Errorf("Branch = %q, want develop", captured.Branch)
+	}
+	if captured.TechStack != "docker" {
+		t.Errorf("TechStack = %q", captured.TechStack)
+	}
+}
+
+func TestCreateAppFailure(t *testing.T) {
+	mock := &mockDeployer{
+		createAppFn: func(_ context.Context, _ CreateAppConfig) (string, error) {
+			return "", fmt.Errorf("duplicate name")
+		},
+	}
+	result, _ := handleCreateApp(context.Background(), mock, newRequest(map[string]interface{}{
+		"name":     "my-app",
+		"repo_url": "https://github.com/user/repo",
+	}))
+	if !result.IsError {
+		t.Error("should return error on failure")
+	}
+}
+
+// ========== delete_app ==========
+
+func TestDeleteAppSuccess(t *testing.T) {
+	mock := &mockDeployer{}
+	result, _ := handleDeleteApp(context.Background(), mock, newRequest(map[string]interface{}{
+		"app_id": "app-001",
+	}))
+
+	text, err := extractText(result)
+	if err != nil {
+		t.Fatalf("extractText error = %v", err)
+	}
+
+	var parsed map[string]interface{}
+	json.Unmarshal([]byte(text), &parsed)
+
+	if parsed["status"] != "success" {
+		t.Errorf("status = %v, want success", parsed["status"])
+	}
+}
+
+func TestDeleteAppMissingID(t *testing.T) {
+	mock := &mockDeployer{}
+	result, _ := handleDeleteApp(context.Background(), mock, newRequest(map[string]interface{}{}))
+	if !result.IsError {
+		t.Error("should return error when app_id is missing")
+	}
+}
+
+func TestDeleteAppFailure(t *testing.T) {
+	mock := &mockDeployer{
+		deleteAppFn: func(_ context.Context, _ string) error {
+			return fmt.Errorf("app not found")
+		},
+	}
+	result, _ := handleDeleteApp(context.Background(), mock, newRequest(map[string]interface{}{
+		"app_id": "nonexistent",
+	}))
 	if !result.IsError {
 		t.Error("should return error on failure")
 	}
