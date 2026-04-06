@@ -1,0 +1,190 @@
+package model
+
+import (
+	"testing"
+
+	"github.com/Yogdunana/deploypilot/internal/crypto"
+	"github.com/Yogdunana/deploypilot/internal/database"
+)
+
+func setupCredDB(t *testing.T) ([]byte, func()) {
+	t.Helper()
+	tmpDir := t.TempDir()
+	db, err := database.Connect("sqlite", tmpDir+"/test.db")
+	if err != nil {
+		t.Fatalf("Connect() error = %v", err)
+	}
+	if err := database.Migrate(db); err != nil {
+		t.Fatalf("Migrate() error = %v", err)
+	}
+	if err := database.Seed(db); err != nil {
+		t.Fatalf("Seed() error = %v", err)
+	}
+	encKey := crypto.NewEncryptionKey()
+	InitDB(db, encKey)
+	cleanup := func() {
+		sqlDB, _ := db.DB()
+		sqlDB.Close()
+	}
+	return encKey, cleanup
+}
+
+func TestCreateCredential(t *testing.T) {
+	encKey, cleanup := setupCredDB(t)
+	defer cleanup()
+
+	cred, err := CreateCredential(encKey, "tenant-default", "my-ssh-key", "ssh", "super-secret-value")
+	if err != nil {
+		t.Fatalf("CreateCredential() error = %v", err)
+	}
+
+	if cred.ID == "" {
+		t.Error("ID should not be empty")
+	}
+	if cred.Name != "my-ssh-key" {
+		t.Errorf("Name = %q, want %q", cred.Name, "my-ssh-key")
+	}
+	if cred.Type != "ssh" {
+		t.Errorf("Type = %q, want %q", cred.Type, "ssh")
+	}
+	if cred.EncryptedValue == "super-secret-value" {
+		t.Error("EncryptedValue should not equal plaintext")
+	}
+	if cred.EncryptedValue == "" {
+		t.Error("EncryptedValue should not be empty")
+	}
+}
+
+func TestGetCredential(t *testing.T) {
+	encKey, cleanup := setupCredDB(t)
+	defer cleanup()
+
+	created, _ := CreateCredential(encKey, "tenant-default", "my-key", "ssh", "secret-value")
+
+	got, err := GetCredential(encKey, created.ID)
+	if err != nil {
+		t.Fatalf("GetCredential() error = %v", err)
+	}
+
+	if got.Name != "my-key" {
+		t.Errorf("Name = %q, want %q", got.Name, "my-key")
+	}
+	if got.PlainValue != "secret-value" {
+		t.Errorf("PlainValue = %q, want %q", got.PlainValue, "secret-value")
+	}
+}
+
+func TestGetCredentialNotFound(t *testing.T) {
+	encKey, cleanup := setupCredDB(t)
+	defer cleanup()
+
+	_, err := GetCredential(encKey, "nonexistent-id")
+	if err == nil {
+		t.Error("GetCredential() should fail for nonexistent ID")
+	}
+}
+
+func TestListCredentials(t *testing.T) {
+	encKey, cleanup := setupCredDB(t)
+	defer cleanup()
+
+	CreateCredential(encKey, "tenant-default", "key-1", "ssh", "val-1")
+	CreateCredential(encKey, "tenant-default", "key-2", "api_key", "val-2")
+
+	creds, err := ListCredentials("tenant-default")
+	if err != nil {
+		t.Fatalf("ListCredentials() error = %v", err)
+	}
+
+	if len(creds) != 2 {
+		t.Errorf("count = %d, want 2", len(creds))
+	}
+}
+
+func TestListCredentialsByTenant(t *testing.T) {
+	encKey, cleanup := setupCredDB(t)
+	defer cleanup()
+
+	CreateCredential(encKey, "tenant-default", "key-a", "ssh", "val-a")
+	CreateCredential(encKey, "tenant-other", "key-b", "ssh", "val-b")
+
+	creds, _ := ListCredentials("tenant-default")
+	if len(creds) != 1 {
+		t.Errorf("count = %d, want 1 (filtered by tenant)", len(creds))
+	}
+}
+
+func TestDeleteCredential(t *testing.T) {
+	encKey, cleanup := setupCredDB(t)
+	defer cleanup()
+
+	created, _ := CreateCredential(encKey, "tenant-default", "to-delete", "ssh", "val")
+
+	err := DeleteCredential(created.ID)
+	if err != nil {
+		t.Fatalf("DeleteCredential() error = %v", err)
+	}
+
+	_, err = GetCredential(encKey, created.ID)
+	if err == nil {
+		t.Error("GetCredential() should fail after delete")
+	}
+}
+
+func TestDeleteCredentialNotFound(t *testing.T) {
+	_, cleanup := setupCredDB(t)
+	defer cleanup()
+
+	err := DeleteCredential("nonexistent-id")
+	if err == nil {
+		t.Error("DeleteCredential() should fail for nonexistent ID")
+	}
+}
+
+func TestUpdateCredential(t *testing.T) {
+	encKey, cleanup := setupCredDB(t)
+	defer cleanup()
+
+	created, _ := CreateCredential(encKey, "tenant-default", "my-key", "ssh", "old-value")
+
+	updated, err := UpdateCredential(encKey, created.ID, "new-secret")
+	if err != nil {
+		t.Fatalf("UpdateCredential() error = %v", err)
+	}
+
+	if updated.PlainValue != "new-secret" {
+		t.Errorf("PlainValue = %q, want %q", updated.PlainValue, "new-secret")
+	}
+}
+
+func TestCredentialRoundTrip(t *testing.T) {
+	encKey, cleanup := setupCredDB(t)
+	defer cleanup()
+
+	// Create
+	cred, _ := CreateCredential(encKey, "tenant-default", "round-trip", "token", "my-api-token-12345")
+
+	// Get and verify
+	got, _ := GetCredential(encKey, cred.ID)
+	if got.PlainValue != "my-api-token-12345" {
+		t.Errorf("round-trip failed: got %q", got.PlainValue)
+	}
+
+	// Update
+	UpdateCredential(encKey, cred.ID, "new-token-67890")
+
+	// Get again
+	got2, _ := GetCredential(encKey, cred.ID)
+	if got2.PlainValue != "new-token-67890" {
+		t.Errorf("round-trip update failed: got %q", got2.PlainValue)
+	}
+
+	// Delete
+	DeleteCredential(cred.ID)
+
+	// Verify deleted
+	_, err := GetCredential(encKey, cred.ID)
+	if err == nil {
+		t.Error("should fail after delete in round-trip")
+	}
+}
