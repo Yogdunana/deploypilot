@@ -55,7 +55,7 @@ func newTestBridge(t *testing.T) (*Bridge, *mockExecutor) {
 			"cat /etc/os-release 2>/dev/null | head -5": "PRETTY_NAME=\"Ubuntu 22.04\"",
 		},
 	}
-	return NewBridge(db, exec), exec
+	return NewBridge(db, exec, []byte("01234567890123456789012345678901")), exec
 }
 
 // ===================== CRUD Tests =====================
@@ -268,10 +268,13 @@ func TestListCredentials(t *testing.T) {
 
 func TestDeleteCredential(t *testing.T) {
 	b, _ := newTestBridge(t)
-	result, _ := b.CreateCredential(context.Background(), "tenant-default", "del-cred", "ssh", "val")
+	result, err := b.CreateCredential(context.Background(), "tenant-default", "del-cred", "ssh", "val")
+	if err != nil {
+		t.Fatalf("CreateCredential failed: %v", err)
+	}
 	id := result.(map[string]interface{})["id"].(string)
 
-	err := b.DeleteCredential(context.Background(), id)
+	err = b.DeleteCredential(context.Background(), id)
 	if err != nil {
 		t.Fatalf("DeleteCredential failed: %v", err)
 	}
@@ -284,7 +287,10 @@ func TestDeleteCredential(t *testing.T) {
 
 func TestUpdateCredential(t *testing.T) {
 	b, _ := newTestBridge(t)
-	result, _ := b.CreateCredential(context.Background(), "tenant-default", "upd-cred", "ssh", "old")
+	result, err := b.CreateCredential(context.Background(), "tenant-default", "upd-cred", "ssh", "old")
+	if err != nil {
+		t.Fatalf("CreateCredential failed: %v", err)
+	}
 	id := result.(map[string]interface{})["id"].(string)
 
 	updated, err := b.UpdateCredential(context.Background(), id, "new-value")

@@ -8,21 +8,24 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Yogdunana/deploypilot/internal/crypto"
 	"github.com/Yogdunana/deploypilot/internal/engine/deployer"
 	"github.com/Yogdunana/deploypilot/internal/mcp"
+	"github.com/Yogdunana/deploypilot/internal/provider/server"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
 // Bridge implements mcp.Deployer by wiring DB + Docker executor.
 type Bridge struct {
-	DB       *gorm.DB
-	Executor deployer.CommandExecutor // can be SSH client or local shell
+	DB            *gorm.DB
+	Executor      deployer.CommandExecutor // can be SSH client or local shell
+	EncryptionKey []byte                   // AES-256 key for credential encryption
 }
 
 // NewBridge creates a new Bridge that satisfies the mcp.Deployer interface.
-func NewBridge(db *gorm.DB, executor deployer.CommandExecutor) *Bridge {
-	return &Bridge{DB: db, Executor: executor}
+func NewBridge(db *gorm.DB, executor deployer.CommandExecutor, encryptionKey []byte) *Bridge {
+	return &Bridge{DB: db, Executor: executor, EncryptionKey: encryptionKey}
 }
 
 // d returns a deployer.DockerDeployer backed by the bridge's executor.
@@ -30,9 +33,76 @@ func (b *Bridge) d() *deployer.DockerDeployer {
 	return deployer.New(b.Executor)
 }
 
+// getRemoteExecutor creates an SSH executor for the given server.
+// It looks up the server record, finds its credential, decrypts the password/key,
+// and returns an SSH client that satisfies deployer.CommandExecutor.
+func (b *Bridge) getRemoteExecutor(ctx context.Context, serverID string) (*sshClientExecutor, error) {
+	row := make(map[string]interface{})
+	if err := b.DB.Table("servers").Where("id = ?", serverID).Take(&row).Error; err != nil {
+		return nil, fmt.Errorf("server not found: %w", err)
+	}
+
+	host := toString(row["host"])
+	port := toInt(row["port"])
+
+	// Look up credential if associated
+	var password, keyStr string
+	if credID := toString(row["credential_id"]); credID != "" {
+		credRow := make(map[string]interface{})
+		if err := b.DB.Table("credentials").Where("id = ?", credID).Take(&credRow).Error; err == nil {
+			encrypted := toString(credRow["encrypted_value"])
+			if b.EncryptionKey != nil && encrypted != "" {
+				if decrypted, err := crypto.Decrypt(b.EncryptionKey, encrypted); err == nil {
+					password = decrypted
+				}
+			}
+		}
+	}
+
+	cfg := server.Config{
+		Host:     host,
+		Port:     port,
+		Username: "root",
+		Password: password,
+		KeyBytes: []byte(keyStr),
+		Timeout:  30 * time.Second,
+	}
+
+	client, err := server.Connect(ctx, cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	return &sshClientExecutor{Client: client}, nil
+}
+
+// sshClientExecutor wraps server.Client to implement deployer.CommandExecutor.
+type sshClientExecutor struct {
+	Client *server.Client
+}
+
+func (e *sshClientExecutor) RunCommand(ctx context.Context, cmd string) (string, error) {
+	return e.Client.RunCommand(ctx, cmd)
+}
+
+func (e *sshClientExecutor) Close() error {
+	return e.Client.Close()
+}
+
 // ---------- 1. Deploy ----------
 
 func (b *Bridge) Deploy(ctx context.Context, cfg mcp.DeployConfig) (*mcp.ContainerStatus, error) {
+	// Determine executor: remote SSH if server_id provided, otherwise local
+	executor := b.Executor
+	if cfg.ServerID != "" {
+		remoteExec, err := b.getRemoteExecutor(ctx, cfg.ServerID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get remote executor for server %s: %w", cfg.ServerID, err)
+		}
+		defer remoteExec.Close()
+		executor = remoteExec
+	}
+
 	dCfg := deployer.DeployConfig{
 		Image:         cfg.Image,
 		ContainerName: cfg.ContainerName,
@@ -48,7 +118,8 @@ func (b *Bridge) Deploy(ctx context.Context, cfg mcp.DeployConfig) (*mcp.Contain
 		},
 	}
 
-	cs, err := b.d().Deploy(ctx, dCfg)
+	d := deployer.New(executor)
+	cs, err := d.Deploy(ctx, dCfg)
 	if err != nil {
 		return nil, err
 	}
@@ -392,12 +463,19 @@ func (b *Bridge) TestServer(ctx context.Context, serverID string) (interface{}, 
 
 func (b *Bridge) CreateCredential(ctx context.Context, tenantID, name, credType, plainValue string) (interface{}, error) {
 	id := uuid.New().String()
+
+	// Encrypt the value before storing
+	encrypted, err := crypto.Encrypt(b.EncryptionKey, plainValue)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encrypt credential: %w", err)
+	}
+
 	if err := b.DB.Table("credentials").Create(map[string]interface{}{
-		"id":             id,
-		"tenant_id":      tenantID,
-		"name":           name,
-		"type":           credType,
-		"encrypted_value": plainValue, // TODO: encrypt before storing
+		"id":              id,
+		"tenant_id":       tenantID,
+		"name":            name,
+		"type":            credType,
+		"encrypted_value": encrypted,
 	}).Error; err != nil {
 		return nil, fmt.Errorf("failed to create credential: %w", err)
 	}
@@ -630,7 +708,13 @@ func (b *Bridge) UpdateDNSRecord(ctx context.Context, domain, subdomain, recordT
 // ---------- 31. UpdateCredential ----------
 
 func (b *Bridge) UpdateCredential(ctx context.Context, credID string, value string) (interface{}, error) {
-	if err := b.DB.Table("credentials").Where("id = ?", credID).Update("encrypted_value", value).Error; err != nil {
+	// Encrypt the new value before storing
+	encrypted, err := crypto.Encrypt(b.EncryptionKey, value)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encrypt credential: %w", err)
+	}
+
+	if err := b.DB.Table("credentials").Where("id = ?", credID).Update("encrypted_value", encrypted).Error; err != nil {
 		return nil, fmt.Errorf("failed to update credential: %w", err)
 	}
 	return map[string]interface{}{

@@ -65,6 +65,7 @@ type DeployConfig struct {
 	Labels        map[string]string `json:"labels,omitempty"`
 	CPU           string            `json:"cpu,omitempty"`
 	Memory        string            `json:"memory,omitempty"`
+	ServerID      string            `json:"server_id,omitempty"`
 }
 
 // ContainerStatus mirrors deployer.ContainerStatus.
@@ -140,6 +141,9 @@ func NewServer(deployer Deployer) *server.MCPServer {
 		),
 		mcp.WithString("memory",
 			mcp.Description("Memory limit (e.g. 4GB)"),
+		),
+		mcp.WithString("server_id",
+			mcp.Description("Target server ID for remote deployment (omit for local)"),
 		),
 	)
 
@@ -597,6 +601,9 @@ func handleDeployApp(ctx context.Context, deployer Deployer, request mcp.CallToo
 	}
 	if v := request.GetString("memory", ""); v != "" {
 		cfg.Memory = v
+	}
+	if v := request.GetString("server_id", ""); v != "" {
+		cfg.ServerID = v
 	}
 
 	// Parse env vars JSON

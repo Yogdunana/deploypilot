@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 
 	"github.com/Yogdunana/deploypilot/internal/config"
+	"github.com/Yogdunana/deploypilot/internal/crypto"
 	"github.com/Yogdunana/deploypilot/internal/database"
 	"github.com/Yogdunana/deploypilot/internal/engine/deployer"
 	"github.com/Yogdunana/deploypilot/internal/mcp"
@@ -74,7 +75,14 @@ var serveCmd = &cobra.Command{
 
 		// Create executor + bridge
 		var executor deployer.CommandExecutor = &localExecutor{}
-		bridge := service.NewBridge(db, executor)
+
+		// Load or generate encryption key
+		encKey := []byte(os.Getenv("DEPLOYPILOT_ENCRYPTION_KEY"))
+		if len(encKey) == 0 {
+			encKey = crypto.NewEncryptionKey()
+			log.Printf("warning: DEPLOYPILOT_ENCRYPTION_KEY not set, generated a temporary key (credentials will be lost on restart)")
+		}
+		bridge := service.NewBridge(db, executor, encKey)
 
 		// Create MCP server
 		mcpServer := mcp.NewServer(bridge)

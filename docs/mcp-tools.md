@@ -86,3 +86,41 @@ go tool cover -func=c.out | tail -n 1
 | 1 | govulncheck 恢复为硬门槛 | 中 | 需升级 Go ≥ 1.25 + golang.org/x/crypto，修复 SSH 漏洞 (GO-2025-0335) |
 | 2 | .golangci.yml 收紧 errcheck 排除 | 低 | 当前整包跳过 _test.go，可改为按文件排除 |
 | 3 | 真机 E2E 验证 | 高 | scripts/e2e-real-server.sh 待目标服务器就绪后执行 |
+
+## v0.2: 凭据加密 + 远端部署
+
+### 环境变量
+
+| 变量 | 必需 | 说明 |
+|------|------|------|
+| `DEPLOYPILOT_ENCRYPTION_KEY` | 推荐 | Base64 编码的 32 字节 AES-256 密钥。未设置时自动生成临时密钥（重启后凭据丢失） |
+| `DEPLOYPILOT_SSH_HOST` | 否 | 默认 SSH 主机（未来用于全局远端模式） |
+| `DEPLOYPILOT_SSH_PORT` | 否 | 默认 SSH 端口（默认 22） |
+| `DEPLOYPILOT_SSH_USER` | 否 | 默认 SSH 用户（默认 root） |
+
+### 凭据安全
+
+- `create_credential` / `update_credential`：明文经 AES-256-GCM 加密后存入 `encrypted_value` 字段
+- `list_credentials`：返回值不包含 `encrypted_value`（已脱敏）
+- `getRemoteExecutor`：部署时自动解密关联凭据用于 SSH 认证
+- 数据库中不会出现凭据明文
+
+### 远端部署流程
+
+1. `add_server` → 注册服务器（host/port）
+2. `create_credential` → 创建 SSH 凭据（加密存储）
+3. `deploy_app(server_id=...)` → Bridge 查询 server → 解密凭据 → SSH 连接 → 远端 Docker 部署
+4. 未传 `server_id` 时保持本机 Docker 默认行为
+
+### 最小验证命令
+
+```bash
+# 本地验证（stdio 模式）
+export DEPLOYPILOT_ENCRYPTION_KEY=$(echo -n "01234567890123456789012345678901" | base64)
+echo '{"jsonrpc":"2.0","method":"initialize","id":1,"params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}' | ./bin/mcp-server
+
+# 服务器验证
+ssh -p 23196 root@101.237.129.33
+export DEPLOYPILOT_ENCRYPTION_KEY=<your-base64-key>
+./bin/mcp-server
+```
