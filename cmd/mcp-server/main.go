@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"flag"
 	"fmt"
 	"log"
 	"os"
@@ -32,18 +33,51 @@ func (e *localExecutor) RunCommand(ctx context.Context, cmd string) (string, err
 }
 
 func main() {
-	if err := run(); err != nil {
+	// Flags
+	showVersion := flag.Bool("version", false, "print version and exit")
+	showHelp := flag.Bool("help", false, "print help and exit")
+	dbDriver := flag.String("db-driver", "", "database driver: sqlite, postgres (default: sqlite)")
+	dbDSN := flag.String("db-dsn", "", "database DSN (default: ./data/deploypilot.db)")
+	flag.BoolVar(showHelp, "h", false, "print help and exit")
+	flag.Parse()
+
+	if *showHelp {
+		fmt.Fprintf(os.Stderr, "DeployPilot MCP Server v%s\n\n", version)
+		fmt.Fprintf(os.Stderr, "Usage: mcp-server [options]\n\n")
+		fmt.Fprintf(os.Stderr, "Options:\n")
+		flag.PrintDefaults()
+		fmt.Fprintf(os.Stderr, "\nEnvironment variables:\n")
+		fmt.Fprintf(os.Stderr, "  DEPLOYPILOT_DATABASE_TYPE    Database driver (default: sqlite)\n")
+		fmt.Fprintf(os.Stderr, "  DEPLOYPILOT_DATABASE_DSN     Database DSN (default: ./data/deploypilot.db)\n")
+		fmt.Fprintf(os.Stderr, "  DEPLOYPILOT_ENCRYPTION_KEY   Base64-encoded 32-byte AES key\n")
+		os.Exit(0)
+	}
+
+	if *showVersion {
+		fmt.Printf("mcp-server %s\n", version)
+		os.Exit(0)
+	}
+
+	if err := run(*dbDriver, *dbDSN); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		os.Exit(1)
 	}
 }
 
-func run() error {
+func run(cliDriver, cliDSN string) error {
 	// Load config (optional — falls back to defaults)
 	cfg, err := config.Load("")
 	if err != nil {
 		log.Printf("warning: config load failed, using defaults: %v", err)
-		cfg = &config.Config{}
+		cfg = config.DefaultConfig()
+	}
+
+	// CLI flags override config/env
+	if cliDriver != "" {
+		cfg.Database.Type = cliDriver
+	}
+	if cliDSN != "" {
+		cfg.Database.DSN = cliDSN
 	}
 
 	// Ensure data directory exists
@@ -67,7 +101,6 @@ func run() error {
 
 	// Seed (ignore "already exists" errors)
 	if err := database.Seed(db); err != nil {
-		// Seed may fail if data already exists, that's OK
 		if !errors.Is(err, gorm.ErrDuplicatedKey) {
 			log.Printf("warning: database seed: %v", err)
 		}
@@ -75,7 +108,6 @@ func run() error {
 
 	// Create executor (local Docker by default)
 	var executor deployer.CommandExecutor = &localExecutor{}
-	// TODO: SSH remote executor when DEPLOYPILOT_SSH_HOST is set
 
 	// Load or generate encryption key
 	encKey := []byte(os.Getenv("DEPLOYPILOT_ENCRYPTION_KEY"))
@@ -90,5 +122,6 @@ func run() error {
 
 	// Start stdio transport
 	log.Printf("DeployPilot MCP server v%s starting (stdio)", version)
+	log.Printf("database: %s (%s)", cfg.Database.Type, cfg.Database.DSN)
 	return server.ServeStdio(mcpServer)
 }

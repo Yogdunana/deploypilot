@@ -44,7 +44,7 @@ var serveCmd = &cobra.Command{
 		cfg, err := config.Load("")
 		if err != nil {
 			log.Printf("warning: config load failed, using defaults: %v", err)
-			cfg = &config.Config{}
+			cfg = config.DefaultConfig()
 		}
 
 		// Ensure data directory exists

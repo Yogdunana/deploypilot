@@ -1,14 +1,13 @@
 package main
 
 import (
-	"os"
 	"os/exec"
+	"strings"
 	"testing"
 	"time"
 )
 
 func TestMainBuilds(t *testing.T) {
-	// Verify the binary builds successfully
 	tmpDir := t.TempDir()
 	binPath := tmpDir + "/mcp-server"
 
@@ -20,8 +19,7 @@ func TestMainBuilds(t *testing.T) {
 	}
 }
 
-func TestMainStartsAndResponds(t *testing.T) {
-	// Build the binary
+func TestVersionFlag(t *testing.T) {
 	tmpDir := t.TempDir()
 	binPath := tmpDir + "/mcp-server"
 
@@ -31,11 +29,56 @@ func TestMainStartsAndResponds(t *testing.T) {
 		t.Fatalf("failed to build: %v\n%s", err, string(out))
 	}
 
-	// Run the binary — it should start and wait for stdio input (not exit immediately)
-	runCmd := exec.Command(binPath)
-	runCmd.Env = append(os.Environ(), "DEPLOYPILOT_DATABASE_DSN="+tmpDir+"/test.db")
+	out, err := exec.Command(binPath, "--version").CombinedOutput()
+	if err != nil {
+		t.Fatalf("--version exited with error: %v\n%s", err, string(out))
+	}
+	if !strings.Contains(string(out), "mcp-server") {
+		t.Errorf("--version output should contain 'mcp-server', got: %q", string(out))
+	}
+	if !strings.Contains(string(out), "dev") {
+		t.Errorf("--version output should contain version 'dev', got: %q", string(out))
+	}
+}
 
-	// Use a pipe for stdin so we can close it
+func TestHelpFlag(t *testing.T) {
+	tmpDir := t.TempDir()
+	binPath := tmpDir + "/mcp-server"
+
+	buildCmd := exec.Command("go", "build", "-o", binPath, ".")
+	buildCmd.Dir = "."
+	if out, err := buildCmd.CombinedOutput(); err != nil {
+		t.Fatalf("failed to build: %v\n%s", err, string(out))
+	}
+
+	out, err := exec.Command(binPath, "--help").CombinedOutput()
+	if err != nil {
+		t.Fatalf("--help exited with error: %v\n%s", err, string(out))
+	}
+	if !strings.Contains(string(out), "Usage") {
+		t.Errorf("--help output should contain 'Usage', got: %q", string(out))
+	}
+	if !strings.Contains(string(out), "-db-driver") {
+		t.Errorf("--help output should contain '-db-driver', got: %q", string(out))
+	}
+	if !strings.Contains(string(out), "-db-dsn") {
+		t.Errorf("--help output should contain '-db-dsn', got: %q", string(out))
+	}
+}
+
+func TestMainStartsAndResponds(t *testing.T) {
+	tmpDir := t.TempDir()
+	binPath := tmpDir + "/mcp-server"
+
+	buildCmd := exec.Command("go", "build", "-o", binPath, ".")
+	buildCmd.Dir = "."
+	if out, err := buildCmd.CombinedOutput(); err != nil {
+		t.Fatalf("failed to build: %v\n%s", err, string(out))
+	}
+
+	// Use --db-dsn to avoid relying on env vars
+	runCmd := exec.Command(binPath, "--db-dsn", tmpDir+"/test.db")
+
 	stdin, err := runCmd.StdinPipe()
 	if err != nil {
 		t.Fatalf("failed to create stdin pipe: %v", err)
@@ -45,11 +88,9 @@ func TestMainStartsAndResponds(t *testing.T) {
 		t.Fatalf("failed to start: %v", err)
 	}
 
-	// Close stdin to trigger graceful shutdown after a moment
 	time.Sleep(100 * time.Millisecond)
 	stdin.Close()
 
-	// Wait for process to exit with timeout
 	done := make(chan error, 1)
 	go func() {
 		done <- runCmd.Wait()
@@ -57,8 +98,6 @@ func TestMainStartsAndResponds(t *testing.T) {
 
 	select {
 	case err := <-done:
-		// Process exited — that's expected when stdin closes
-		// Non-zero exit is acceptable (broken pipe, etc.)
 		_ = err
 	case <-time.After(5 * time.Second):
 		runCmd.Process.Kill()

@@ -119,6 +119,16 @@ func Load(configPath string) (*Config, error) {
 	return &cfg, nil
 }
 
+// DefaultConfig returns a Config populated with default values.
+func DefaultConfig() *Config {
+	return &Config{
+		Database: DatabaseConfig{
+			Type: "sqlite",
+			DSN:  "./data/deploypilot.db",
+		},
+	}
+}
+
 // setDefaults sets default values for all configuration fields.
 func setDefaults(v *viper.Viper) {
 	// Server
