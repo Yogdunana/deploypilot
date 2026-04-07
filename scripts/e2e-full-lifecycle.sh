@@ -11,8 +11,8 @@ PASS=0
 FAIL=0
 ERRORS=()
 
-log_pass() { echo "  ✅ $1"; ((PASS++)); }
-log_fail() { echo "  ❌ $1"; ((FAIL++)); ERRORS+=("$1"); }
+log_pass() { echo "  ✅ $1"; PASS=$((PASS + 1)); }
+log_fail() { echo "  ❌ $1"; FAIL=$((FAIL + 1)); ERRORS+=("$1"); }
 
 # Binary path
 DP="${1:-./deploypilot}"
