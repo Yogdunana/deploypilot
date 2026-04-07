@@ -1,7 +1,8 @@
 #!/bin/bash
 # e2e-full-lifecycle.sh - DeployPilot 全量生命周期 E2E 测试
 # 在目标服务器上运行，验证 deploypilot CLI + 真实 Docker 部署
-# Usage: bash e2e-full-lifecycle.sh
+# Usage: bash scripts/e2e-full-lifecycle.sh [path-to-binary]
+#   Defaults to ./bin/deploypilot (aligned with Makefile)
 set -euo pipefail
 
 APP_NAME="e2e-full-$(date +%s)"
@@ -38,7 +39,7 @@ if [ -f "${DP}" ]; then
   log_pass "Binary exists: $(ls -lh "${DP}" | awk '{print $5}')"
 else
   log_fail "Binary not found: ${DP}"
-  echo "  Usage: bash e2e-full-lifecycle.sh /path/to/deploypilot"
+  echo "  Usage: bash scripts/e2e-full-lifecycle.sh [path-to-binary]"
   exit 1
 fi
 
