@@ -15,7 +15,7 @@ log_pass() { echo "  ✅ $1"; PASS=$((PASS + 1)); }
 log_fail() { echo "  ❌ $1"; FAIL=$((FAIL + 1)); ERRORS+=("$1"); }
 
 # Binary path
-DP="${1:-./deploypilot}"
+DP="${1:-./bin/deploypilot}"
 
 echo "=== DeployPilot Full Lifecycle E2E ==="
 echo "Binary: ${DP}"
