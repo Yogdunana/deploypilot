@@ -77,7 +77,7 @@ func (d *DockerDeployer) Deploy(ctx context.Context, cfg DeployConfig) (*Contain
 	}
 
 	// Step 2: Remove existing container with same name (if any)
-	d.executor.RunCommand(ctx, fmt.Sprintf("docker rm -f %s 2>/dev/null || true", cfg.ContainerName))
+	_, _ = d.executor.RunCommand(ctx, fmt.Sprintf("docker rm -f %s 2>/dev/null || true", cfg.ContainerName))
 
 	// Step 3: Build docker run command
 	runCmd := d.buildRunCommand(cfg)

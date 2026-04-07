@@ -816,7 +816,7 @@ func handleGetAppLogs(ctx context.Context, deployer Deployer, request mcp.CallTo
 
 	tail := 100
 	if t := request.GetString("tail", ""); t != "" {
-		fmt.Sscanf(t, "%d", &tail)
+		_, _ = fmt.Sscanf(t, "%d", &tail)
 	}
 
 	logs, err := deployer.GetContainerLogs(ctx, containerName, tail)
@@ -838,7 +838,7 @@ func handleGetAppLogs(ctx context.Context, deployer Deployer, request mcp.CallTo
 func handleDetectEnv(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	level := 2
 	if l := request.GetString("level", "2"); l != "" {
-		fmt.Sscanf(l, "%d", &level)
+		_, _ = fmt.Sscanf(l, "%d", &level)
 	}
 
 	var ports []int

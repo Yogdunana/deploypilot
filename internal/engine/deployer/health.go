@@ -166,7 +166,7 @@ func (h *HealthChecker) DeployWithHealthCheck(ctx context.Context, cfg DeployCon
 		host := parts[0]
 		port := 80
 		if len(parts) > 1 {
-			fmt.Sscanf(parts[1], "%d", &port)
+			_, _ = fmt.Sscanf(parts[1], "%d", &port)
 		}
 		healthResult = h.CheckTCP(ctx, host, port, 3, 3*time.Second)
 	default:
