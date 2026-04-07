@@ -159,8 +159,8 @@ func (b *Bridge) CreateApp(ctx context.Context, cfg mcp.CreateAppConfig) (string
 // ---------- 6. DeleteApp ----------
 
 func (b *Bridge) DeleteApp(ctx context.Context, appID string) error {
-	var row map[string]interface{}
-	if err := b.DB.Table("apps").Where("id = ?", appID).First(&row).Error; err != nil {
+	row := make(map[string]interface{})
+	if err := b.DB.Table("apps").Where("id = ?", appID).Take(&row).Error; err != nil {
 		return fmt.Errorf("app not found: %w", err)
 	}
 
@@ -356,8 +356,8 @@ func (b *Bridge) RemoveServer(ctx context.Context, serverID string) error {
 // ---------- 15. TestServer ----------
 
 func (b *Bridge) TestServer(ctx context.Context, serverID string) (interface{}, error) {
-	var row map[string]interface{}
-	if err := b.DB.Table("servers").Where("id = ?", serverID).First(&row).Error; err != nil {
+	row := make(map[string]interface{})
+	if err := b.DB.Table("servers").Where("id = ?", serverID).Take(&row).Error; err != nil {
 		return nil, fmt.Errorf("server not found: %w", err)
 	}
 
@@ -528,8 +528,8 @@ func (b *Bridge) GetTemplate(ctx context.Context, tmplType string) (interface{},
 // ---------- 25. GetAppDetail ----------
 
 func (b *Bridge) GetAppDetail(ctx context.Context, appID string) (interface{}, error) {
-	var row map[string]interface{}
-	if err := b.DB.Table("apps").Where("id = ?", appID).First(&row).Error; err != nil {
+	row := make(map[string]interface{})
+	if err := b.DB.Table("apps").Where("id = ?", appID).Take(&row).Error; err != nil {
 		return nil, fmt.Errorf("app not found: %w", err)
 	}
 	return row, nil
@@ -542,8 +542,8 @@ func (b *Bridge) UpdateApp(ctx context.Context, appID string, config map[string]
 		return nil, fmt.Errorf("failed to update app: %w", err)
 	}
 
-	var row map[string]interface{}
-	if err := b.DB.Table("apps").Where("id = ?", appID).First(&row).Error; err != nil {
+	row := make(map[string]interface{})
+	if err := b.DB.Table("apps").Where("id = ?", appID).Take(&row).Error; err != nil {
 		return map[string]interface{}{"status": "updated", "id": appID}, nil
 	}
 	return row, nil
@@ -575,8 +575,8 @@ func (b *Bridge) ListTasks(ctx context.Context, limit int, statusFilter string) 
 
 func (b *Bridge) SearchAppLogs(ctx context.Context, appID, keyword string, limit int) (interface{}, error) {
 	// Look up container name from app record
-	var row map[string]interface{}
-	if err := b.DB.Table("apps").Where("id = ?", appID).First(&row).Error; err != nil {
+	row := make(map[string]interface{})
+	if err := b.DB.Table("apps").Where("id = ?", appID).Take(&row).Error; err != nil {
 		return nil, fmt.Errorf("app not found: %w", err)
 	}
 
@@ -647,8 +647,8 @@ func (b *Bridge) UpdateServer(ctx context.Context, serverID string, config map[s
 		return nil, fmt.Errorf("failed to update server: %w", err)
 	}
 
-	var row map[string]interface{}
-	if err := b.DB.Table("servers").Where("id = ?", serverID).First(&row).Error; err != nil {
+	row := make(map[string]interface{})
+	if err := b.DB.Table("servers").Where("id = ?", serverID).Take(&row).Error; err != nil {
 		return map[string]interface{}{"status": "updated", "id": serverID}, nil
 	}
 	return row, nil
@@ -737,8 +737,8 @@ func (b *Bridge) BatchDeploy(ctx context.Context, apps []map[string]interface{})
 // ---------- 35. Backup ----------
 
 func (b *Bridge) Backup(ctx context.Context, appID string) (string, error) {
-	var row map[string]interface{}
-	if err := b.DB.Table("apps").Where("id = ?", appID).First(&row).Error; err != nil {
+	row := make(map[string]interface{})
+	if err := b.DB.Table("apps").Where("id = ?", appID).Take(&row).Error; err != nil {
 		return "", fmt.Errorf("app not found: %w", err)
 	}
 

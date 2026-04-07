@@ -49,7 +49,9 @@ var serveCmd = &cobra.Command{
 		// Ensure data directory exists
 		dataDir := filepath.Dir(cfg.Database.DSN)
 		if dataDir != "" && dataDir != "." {
-			os.MkdirAll(dataDir, 0755)
+			if err := os.MkdirAll(dataDir, 0755); err != nil {
+				return fmt.Errorf("create data directory: %w", err)
+			}
 		}
 
 		// Open database

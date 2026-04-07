@@ -48,7 +48,9 @@ func run() error {
 	// Ensure data directory exists
 	dataDir := filepath.Dir(cfg.Database.DSN)
 	if dataDir != "" && dataDir != "." {
-		os.MkdirAll(dataDir, 0755)
+		if err := os.MkdirAll(dataDir, 0755); err != nil {
+			return fmt.Errorf("create data directory: %w", err)
+		}
 	}
 
 	// Open database
@@ -72,22 +74,7 @@ func run() error {
 
 	// Create executor (local Docker by default)
 	var executor deployer.CommandExecutor = &localExecutor{}
-
-	// If SSH env vars are set, use SSH executor
-	if sshHost := os.Getenv("DEPLOYPILOT_SSH_HOST"); sshHost != "" {
-		sshPort := os.Getenv("DEPLOYPILOT_SSH_PORT")
-		if sshPort == "" {
-			sshPort = "22"
-		}
-		sshUser := os.Getenv("DEPLOYPILOT_SSH_USER")
-		if sshUser == "" {
-			sshUser = "root"
-		}
-		log.Printf("SSH mode: %s@%s:%s", sshUser, sshHost, sshPort)
-		// SSH executor will be used when server_id is specified in deploy
-		// For now, local executor is default; SSH is per-server
-		_ = sshHost // used in future per-server routing
-	}
+	// TODO: SSH remote executor when DEPLOYPILOT_SSH_HOST is set
 
 	// Create bridge deployer
 	bridge := service.NewBridge(db, executor)
