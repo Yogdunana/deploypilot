@@ -78,3 +78,11 @@ go test ./... -race -count=1
 go test ./... -coverprofile=c.out -count=1
 go tool cover -func=c.out | tail -n 1
 ```
+
+## 待办（技术债务）
+
+| # | 事项 | 优先级 | 备注 |
+|---|------|--------|------|
+| 1 | govulncheck 恢复为硬门槛 | 中 | 需升级 Go ≥ 1.25 + golang.org/x/crypto，修复 SSH 漏洞 (GO-2025-0335) |
+| 2 | .golangci.yml 收紧 errcheck 排除 | 低 | 当前整包跳过 _test.go，可改为按文件排除 |
+| 3 | 真机 E2E 验证 | 高 | scripts/e2e-real-server.sh 待目标服务器就绪后执行 |
