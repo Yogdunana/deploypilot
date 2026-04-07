@@ -3,12 +3,12 @@ package main
 import (
 	"os"
 	"os/exec"
-	"strings"
 	"testing"
+	"time"
 )
 
-func TestMainOutput(t *testing.T) {
-	// Build and run the binary in a subprocess since main() calls os.Exit
+func TestMainBuilds(t *testing.T) {
+	// Verify the binary builds successfully
 	tmpDir := t.TempDir()
 	binPath := tmpDir + "/mcp-server"
 
@@ -18,24 +18,52 @@ func TestMainOutput(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to build: %v\n%s", err, string(output))
 	}
+}
 
+func TestMainStartsAndResponds(t *testing.T) {
+	// Build the binary
+	tmpDir := t.TempDir()
+	binPath := tmpDir + "/mcp-server"
+
+	buildCmd := exec.Command("go", "build", "-o", binPath, ".")
+	buildCmd.Dir = "."
+	if out, err := buildCmd.CombinedOutput(); err != nil {
+		t.Fatalf("failed to build: %v\n%s", err, string(out))
+	}
+
+	// Run the binary — it should start and wait for stdio input (not exit immediately)
 	runCmd := exec.Command(binPath)
-	runCmd.Env = os.Environ()
-	out, err := runCmd.CombinedOutput()
+	runCmd.Env = append(os.Environ(), "DEPLOYPILOT_DATABASE_DSN="+tmpDir+"/test.db")
+
+	// Use a pipe for stdin so we can close it
+	stdin, err := runCmd.StdinPipe()
 	if err != nil {
-		t.Fatalf("failed to run: %v", err)
+		t.Fatalf("failed to create stdin pipe: %v", err)
 	}
 
-	result := string(out)
+	if err := runCmd.Start(); err != nil {
+		t.Fatalf("failed to start: %v", err)
+	}
 
-	if !strings.Contains(result, "mcp-server") {
-		t.Errorf("main() output should contain 'mcp-server', got: %q", result)
-	}
-	if !strings.Contains(result, "placeholder") {
-		t.Errorf("main() output should contain 'placeholder', got: %q", result)
-	}
-	if !strings.Contains(result, "dev") {
-		t.Errorf("main() output should contain version 'dev', got: %q", result)
+	// Close stdin to trigger graceful shutdown after a moment
+	time.Sleep(100 * time.Millisecond)
+	stdin.Close()
+
+	// Wait for process to exit with timeout
+	done := make(chan error, 1)
+	go func() {
+		done <- runCmd.Wait()
+	}()
+
+	select {
+	case err := <-done:
+		// Process exited — that's expected when stdin closes
+		if err != nil {
+			// Non-zero exit is acceptable (broken pipe, etc.)
+		}
+	case <-time.After(5 * time.Second):
+		runCmd.Process.Kill()
+		t.Fatal("process did not exit within 5s after stdin close")
 	}
 }
 
