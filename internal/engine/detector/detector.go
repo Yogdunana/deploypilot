@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net"
-	"os/exec"
 	"runtime"
 	"strings"
 	"sync"
@@ -66,15 +65,6 @@ type SvcInfo struct {
 // CommandRunner abstracts command execution for testability.
 type CommandRunner interface {
 	Run(name string, args ...string) (string, error)
-}
-
-// realRunner executes real commands.
-type realRunner struct{}
-
-func (r *realRunner) Run(name string, args ...string) (string, error) {
-	cmd := exec.Command(name, args...)
-	out, err := cmd.CombinedOutput()
-	return string(out), err
 }
 
 // Detector performs environment detection.

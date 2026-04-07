@@ -3,7 +3,6 @@ package database
 import (
 	"errors"
 	"fmt"
-	"path/filepath"
 
 	"github.com/go-gormigrate/gormigrate/v2"
 	"gorm.io/driver/postgres"
@@ -24,11 +23,6 @@ func Connect(driver, dsn string) (*gorm.DB, error) {
 
 	switch driver {
 	case "sqlite":
-		// Ensure parent directory exists
-		dir := filepath.Dir(dsn)
-		if dir != "" && dir != "." {
-			// Let GORM/sqlite handle directory creation implicitly
-		}
 		db, err = gorm.Open(sqlite.Open(dsn), &gorm.Config{
 			Logger: logger.Default.LogMode(logger.Silent),
 		})
