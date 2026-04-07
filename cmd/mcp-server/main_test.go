@@ -58,9 +58,8 @@ func TestMainStartsAndResponds(t *testing.T) {
 	select {
 	case err := <-done:
 		// Process exited — that's expected when stdin closes
-		if err != nil {
-			// Non-zero exit is acceptable (broken pipe, etc.)
-		}
+		// Non-zero exit is acceptable (broken pipe, etc.)
+		_ = err
 	case <-time.After(5 * time.Second):
 		runCmd.Process.Kill()
 		t.Fatal("process did not exit within 5s after stdin close")
