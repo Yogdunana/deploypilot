@@ -70,7 +70,10 @@ func (b *Bridge) getRemoteExecutor(ctx context.Context, serverID string) (*sshCl
 
 	client, err := server.Connect(ctx, cfg)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("SSH connection failed to %s:%d: %w. "+
+			"Suggestions: check host/port, verify security group allows TCP/%d, "+
+			"confirm sshd is running, and ensure credentials are correct",
+			host, port, err, port)
 	}
 
 	return &sshClientExecutor{Client: client}, nil
@@ -440,13 +443,21 @@ func (b *Bridge) TestServer(ctx context.Context, serverID string) (interface{}, 
 	elapsed := time.Since(start)
 
 	if err != nil {
+		suggestions := []string{
+			fmt.Sprintf("Check if the server %s:%d is running and accessible", host, port),
+			"Verify the SSH port is not blocked by a firewall or security group",
+			"Confirm the SSH service (sshd) is listening on the specified port",
+			"If using a cloud provider, ensure the security group allows inbound TCP on port " + fmt.Sprintf("%d", port),
+			"Try: ssh -p " + fmt.Sprintf("%d", port) + " root@" + host + " from your terminal",
+		}
 		return map[string]interface{}{
-			"server_id": serverID,
-			"host":      host,
-			"port":      port,
-			"status":    "unreachable",
-			"error":     err.Error(),
-			"latency":   elapsed.String(),
+			"server_id":   serverID,
+			"host":        host,
+			"port":        port,
+			"status":      "unreachable",
+			"error":       err.Error(),
+			"latency":     elapsed.String(),
+			"suggestions": suggestions,
 		}, nil
 	}
 

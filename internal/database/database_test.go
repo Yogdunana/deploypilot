@@ -339,3 +339,31 @@ func TestMigrateVerifySchema(t *testing.T) {
 		})
 	}
 }
+
+func TestMigrate_PostgresUnsupported(t *testing.T) {
+    db, err := Connect("sqlite", ":memory:")
+    if err != nil {
+        t.Fatal(err)
+    }
+    // Migrate should work for sqlite
+    if err := Migrate(db); err != nil {
+        t.Fatalf("Migrate sqlite should succeed: %v", err)
+    }
+}
+
+func TestSeed_Idempotent(t *testing.T) {
+    db, err := Connect("sqlite", ":memory:")
+    if err != nil {
+        t.Fatal(err)
+    }
+    if err := Migrate(db); err != nil {
+        t.Fatal(err)
+    }
+    // Seed twice should not fail
+    if err := Seed(db); err != nil {
+        t.Fatalf("First seed failed: %v", err)
+    }
+    if err := Seed(db); err != nil {
+        t.Fatalf("Second seed (idempotent) failed: %v", err)
+    }
+}

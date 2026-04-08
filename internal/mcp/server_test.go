@@ -2031,3 +2031,27 @@ func TestDeleteAppFailure(t *testing.T) {
 		t.Error("should return error on failure")
 	}
 }
+
+func TestHandleDoctor(t *testing.T) {
+        mock := &mockDeployer{}
+        result, err := handleDoctor(context.Background(), mock, newRequest(map[string]interface{}{}))
+        if err != nil {
+                t.Fatalf("handleDoctor failed: %v", err)
+        }
+        if result.IsError {
+                t.Errorf("doctor should not return error, got: %v", result)
+        }
+        if len(result.Content) == 0 {
+                t.Fatal("doctor should return content")
+        }
+        text := result.Content[0].(mcp.TextContent).Text
+        var parsed map[string]interface{}
+        json.Unmarshal([]byte(text), &parsed)
+        if parsed["status"] != "ok" {
+                t.Errorf("status = %v, want ok", parsed["status"])
+        }
+        checks, ok := parsed["checks"].([]interface{})
+        if !ok || len(checks) != 3 {
+                t.Errorf("expected 3 checks, got %v", parsed["checks"])
+        }
+}

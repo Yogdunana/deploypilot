@@ -175,3 +175,13 @@ func TestEnvOverride(t *testing.T) {
 		t.Errorf("Server.Port = %d, want %d (env override)", cfg.Server.Port, 7777)
 	}
 }
+
+func TestDefaultConfig(t *testing.T) {
+    cfg := DefaultConfig()
+    if cfg.Database.Type != "sqlite" {
+        t.Errorf("expected sqlite, got %s", cfg.Database.Type)
+    }
+    if cfg.Database.DSN != "./data/deploypilot.db" {
+        t.Errorf("expected ./data/deploypilot.db, got %s", cfg.Database.DSN)
+    }
+}

@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/Yogdunana/deploypilot/internal/database"
@@ -663,6 +664,29 @@ func TestBackup_NotFound(t *testing.T) {
 }
 
 // ===================== Helper Tests =====================
+
+func TestTestServer_Suggestions(t *testing.T) {
+	b, exec := newTestBridge(t)
+	// Make executor fail to simulate unreachable server
+	exec.err = map[string]error{"echo ok": fmt.Errorf("connection refused")}
+	srv, _ := b.AddServer(context.Background(), "unreachable-srv", "10.0.0.99", 22, "root")
+
+	result, err := b.TestServer(context.Background(), srv.ID)
+	if err != nil {
+		t.Fatalf("TestServer failed: %v", err)
+	}
+	m, ok := result.(map[string]interface{})
+	if !ok {
+		t.Fatal("expected map")
+	}
+	if m["status"] != "unreachable" {
+		t.Fatalf("expected unreachable, got %v", m["status"])
+	}
+	suggestions, ok := m["suggestions"].([]string)
+	if !ok || len(suggestions) == 0 {
+		t.Fatal("expected suggestions for unreachable server")
+	}
+}
 
 func TestToString(t *testing.T) {
 	tests := []struct {
