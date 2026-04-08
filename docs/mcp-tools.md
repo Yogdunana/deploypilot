@@ -119,8 +119,8 @@ go tool cover -func=c.out | tail -n 1
 export DEPLOYPILOT_ENCRYPTION_KEY=$(echo -n "01234567890123456789012345678901" | base64)
 echo '{"jsonrpc":"2.0","method":"initialize","id":1,"params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}' | ./bin/mcp-server
 
-# 服务器验证
-ssh -p 23196 root@101.237.129.33
+# 服务器验证（替换为你的实际 host/port）
+ssh -p <port> root@<host>
 export DEPLOYPILOT_ENCRYPTION_KEY=<your-base64-key>
 ./bin/mcp-server
 ```
