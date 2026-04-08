@@ -190,8 +190,7 @@ func TestLoadEncryptionKeyFromEnv_Base64(t *testing.T) {
 }
 
 func TestLoadEncryptionKeyFromEnv_Raw32(t *testing.T) {
-	raw := "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" // exactly 32 bytes, valid base64 but decodes to 24 bytes... need non-base64
-	raw = "aaaa!aaaa@aaaa#aaaa$aaaa%aaaa^aa" // exactly 32 bytes, not valid base64
+	raw := "aaaa!aaaa@aaaa#aaaa$aaaa%aaaa^aa" // exactly 32 bytes, not valid base64
 	if len(raw) != 32 {
 		t.Fatalf("test bug: raw key length = %d, want 32", len(raw))
 	}

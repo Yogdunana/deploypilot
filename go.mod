@@ -1,15 +1,15 @@
 module github.com/Yogdunana/deploypilot
 
-go 1.25.0
+go 1.23.6
 
 require (
 	github.com/go-gormigrate/gormigrate/v2 v2.1.5
 	github.com/google/uuid v1.6.0
 	github.com/mark3labs/mcp-go v0.47.0
 	github.com/spf13/cobra v1.8.1
-	github.com/spf13/viper v1.21.0
+	github.com/spf13/viper v1.20.0-alpha.6
 	golang.org/x/crypto v0.31.0
-	golang.org/x/term v0.41.0
+	golang.org/x/term v0.27.0
 	gorm.io/driver/postgres v1.6.0
 	gorm.io/driver/sqlite v1.6.0
 	gorm.io/gorm v1.31.1
@@ -35,8 +35,8 @@ require (
 	github.com/spf13/pflag v1.0.10 // indirect
 	github.com/subosito/gotenv v1.6.0 // indirect
 	github.com/yosida95/uritemplate/v3 v3.0.2 // indirect
-	go.yaml.in/yaml/v3 v3.0.4 // indirect
 	golang.org/x/sync v0.16.0 // indirect
-	golang.org/x/sys v0.42.0 // indirect
+	golang.org/x/sys v0.28.0 // indirect
 	golang.org/x/text v0.28.0 // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
