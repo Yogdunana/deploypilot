@@ -1,6 +1,8 @@
 package crypto
 
 import (
+	"encoding/base64"
+	"strings"
 	"testing"
 )
 
@@ -161,5 +163,80 @@ func TestHashPasswordDifferentEachTime(t *testing.T) {
 
 	if h1 == h2 {
 		t.Error("two hashes of same password should differ (bcrypt salt)")
+	}
+}
+
+// ========== LoadEncryptionKeyFromEnv ==========
+
+func TestLoadEncryptionKeyFromEnv_Base64(t *testing.T) {
+	// Generate a valid 32-byte key and base64 encode it
+	key := make([]byte, 32)
+	for i := range key {
+		key[i] = byte(i)
+	}
+	b64 := base64.StdEncoding.EncodeToString(key)
+
+	t.Setenv("DEPLOYPILOT_ENCRYPTION_KEY", b64)
+	result, err := LoadEncryptionKeyFromEnv()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(result) != 32 {
+		t.Fatalf("expected 32 bytes, got %d", len(result))
+	}
+	if string(result) != string(key) {
+		t.Fatal("round-trip base64 key mismatch")
+	}
+}
+
+func TestLoadEncryptionKeyFromEnv_Raw32(t *testing.T) {
+	raw := "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" // exactly 32 bytes, valid base64 but decodes to 24 bytes... need non-base64
+	raw = "aaaa!aaaa@aaaa#aaaa$aaaa%aaaa^aa" // exactly 32 bytes, not valid base64
+	if len(raw) != 32 {
+		t.Fatalf("test bug: raw key length = %d, want 32", len(raw))
+	}
+	t.Setenv("DEPLOYPILOT_ENCRYPTION_KEY", raw)
+	result, err := LoadEncryptionKeyFromEnv()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if string(result) != raw {
+		t.Fatal("raw 32-byte key mismatch")
+	}
+}
+
+func TestLoadEncryptionKeyFromEnv_InvalidLength(t *testing.T) {
+	t.Setenv("DEPLOYPILOT_ENCRYPTION_KEY", "too-short")
+	_, err := LoadEncryptionKeyFromEnv()
+	if err == nil {
+		t.Fatal("expected error for invalid key length")
+	}
+	if !strings.Contains(err.Error(), "invalid key") {
+		t.Errorf("error should mention 'invalid key', got: %v", err)
+	}
+}
+
+func TestLoadEncryptionKeyFromEnv_Empty(t *testing.T) {
+	t.Setenv("DEPLOYPILOT_ENCRYPTION_KEY", "")
+	result, err := LoadEncryptionKeyFromEnv()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result != nil {
+		t.Fatal("expected nil for empty env")
+	}
+}
+
+func TestLoadEncryptionKeyFromEnv_Base64WrongSize(t *testing.T) {
+	// base64 of 16 bytes = valid base64 but wrong key size
+	shortKey := make([]byte, 16)
+	b64 := base64.StdEncoding.EncodeToString(shortKey)
+	t.Setenv("DEPLOYPILOT_ENCRYPTION_KEY", b64)
+	_, err := LoadEncryptionKeyFromEnv()
+	if err == nil {
+		t.Fatal("expected error for wrong base64 decoded size")
+	}
+	if !strings.Contains(err.Error(), "base64 decoded to 16") {
+		t.Errorf("error should mention decoded size, got: %v", err)
 	}
 }

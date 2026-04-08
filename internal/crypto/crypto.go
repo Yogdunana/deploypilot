@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 
 	"golang.org/x/crypto/bcrypt"
 )
@@ -89,4 +90,43 @@ func HashPassword(password string) (string, error) {
 func CheckPassword(password, hash string) bool {
 	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
 	return err == nil
+}
+
+// LoadEncryptionKeyFromEnv parses DEPLOYPILOT_ENCRYPTION_KEY from the environment.
+// It supports two formats:
+//   - base64-encoded 32-byte key (recommended): openssl rand -base64 32
+//   - raw 32-byte string (legacy compatibility)
+//
+// Returns an error with actionable guidance for invalid inputs.
+func LoadEncryptionKeyFromEnv() ([]byte, error) {
+	raw := os.Getenv("DEPLOYPILOT_ENCRYPTION_KEY")
+	if raw == "" {
+		return nil, nil // caller should generate a temporary key
+	}
+
+	// Try base64 decode first
+	if decoded, err := base64.StdEncoding.DecodeString(raw); err == nil {
+		if len(decoded) == 32 {
+			return decoded, nil
+		}
+		return nil, fmt.Errorf(
+			"DEPLOYPILOT_ENCRYPTION_KEY: base64 decoded to %d bytes, expected 32. "+
+				"Generate a valid key with: openssl rand -base64 32",
+			len(decoded),
+		)
+	}
+
+	// Try raw string (legacy 32-byte hex/string)
+	if len(raw) == 32 {
+		return []byte(raw), nil
+	}
+
+	return nil, fmt.Errorf(
+		"DEPLOYPILOT_ENCRYPTION_KEY: invalid key (length %d). "+
+			"Supported formats:\n"+
+			"  1. Base64-encoded 32-byte key (recommended): openssl rand -base64 32\n"+
+			"  2. Raw 32-byte string (legacy)\n"+
+			"  Current value length: %d bytes",
+		len(raw), len(raw),
+	)
 }

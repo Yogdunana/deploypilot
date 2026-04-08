@@ -49,7 +49,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "\nEnvironment variables:\n")
 		fmt.Fprintf(os.Stderr, "  DEPLOYPILOT_DATABASE_TYPE    Database driver (default: sqlite)\n")
 		fmt.Fprintf(os.Stderr, "  DEPLOYPILOT_DATABASE_DSN     Database DSN (default: ./data/deploypilot.db)\n")
-		fmt.Fprintf(os.Stderr, "  DEPLOYPILOT_ENCRYPTION_KEY   Base64-encoded 32-byte AES key\n")
+		fmt.Fprintf(os.Stderr, "  DEPLOYPILOT_ENCRYPTION_KEY   AES-256 key: base64 (recommended, e.g. openssl rand -base64 32) or raw 32-byte string\n")
 		os.Exit(0)
 	}
 
@@ -110,8 +110,11 @@ func run(cliDriver, cliDSN string) error {
 	var executor deployer.CommandExecutor = &localExecutor{}
 
 	// Load or generate encryption key
-	encKey := []byte(os.Getenv("DEPLOYPILOT_ENCRYPTION_KEY"))
-	if len(encKey) == 0 {
+	encKey, err := crypto.LoadEncryptionKeyFromEnv()
+	if err != nil {
+		return fmt.Errorf("encryption key: %w", err)
+	}
+	if encKey == nil {
 		encKey = crypto.NewEncryptionKey()
 		log.Printf("warning: DEPLOYPILOT_ENCRYPTION_KEY not set, generated a temporary key (credentials will be lost on restart)")
 	}

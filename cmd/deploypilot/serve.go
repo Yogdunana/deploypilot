@@ -77,8 +77,11 @@ var serveCmd = &cobra.Command{
 		var executor deployer.CommandExecutor = &localExecutor{}
 
 		// Load or generate encryption key
-		encKey := []byte(os.Getenv("DEPLOYPILOT_ENCRYPTION_KEY"))
-		if len(encKey) == 0 {
+		encKey, err := crypto.LoadEncryptionKeyFromEnv()
+		if err != nil {
+			return fmt.Errorf("encryption key: %w", err)
+		}
+		if encKey == nil {
 			encKey = crypto.NewEncryptionKey()
 			log.Printf("warning: DEPLOYPILOT_ENCRYPTION_KEY not set, generated a temporary key (credentials will be lost on restart)")
 		}
