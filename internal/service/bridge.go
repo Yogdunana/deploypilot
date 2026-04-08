@@ -11,6 +11,7 @@ import (
 	"github.com/Yogdunana/deploypilot/internal/crypto"
 	"github.com/Yogdunana/deploypilot/internal/engine/deployer"
 	"github.com/Yogdunana/deploypilot/internal/mcp"
+	"github.com/Yogdunana/deploypilot/internal/model"
 	"github.com/Yogdunana/deploypilot/internal/provider/server"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -152,6 +153,16 @@ func (b *Bridge) Deploy(ctx context.Context, cfg mcp.DeployConfig) (*mcp.Contain
 	}
 	pfResult := RunPreflight(ctx, pfCfg)
 	if !pfResult.Passed {
+		// Save preflight failure to deployment records
+		b.saveDeploymentRecord(ctx, mcp.DeployConfig{
+			Image:         cfg.Image,
+			ContainerName: cfg.ContainerName,
+			ServerID:      cfg.ServerID,
+		}, "preflight_failed", pfResult)
+
+		// Log structured preflight failure
+		logPreflightResult(cfg.ContainerName, pfResult)
+
 		return nil, &PreflightError{
 			Code:    pfResult.Code,
 			Message: pfResult.Message,
@@ -177,8 +188,14 @@ func (b *Bridge) Deploy(ctx context.Context, cfg mcp.DeployConfig) (*mcp.Contain
 	d := deployer.New(executor)
 	cs, err := d.Deploy(ctx, dCfg)
 	if err != nil {
+		// Save deployment failure
+		b.saveDeploymentRecord(ctx, cfg, "failed", nil)
+		log.Printf("[deploy] container %s deployment failed: %v", cfg.ContainerName, err)
 		return nil, err
 	}
+	// Save deployment success
+	b.saveDeploymentRecord(ctx, cfg, "success", nil)
+	log.Printf("[deploy] container %s deployed successfully (id: %s)", cfg.ContainerName, cs.ID)
 
 	return &mcp.ContainerStatus{
 		ID:        cs.ID,
@@ -981,6 +998,59 @@ func (b *Bridge) CheckSystemUpdate(ctx context.Context) (interface{}, error) {
 }
 
 // ---------- helpers ----------
+
+// saveDeploymentRecord persists a deployment attempt to the database.
+func (b *Bridge) saveDeploymentRecord(ctx context.Context, cfg mcp.DeployConfig, status string, pfResult *PreflightResult) {
+	if b.DB == nil {
+		return
+	}
+	record := &model.DeploymentRecord{
+		ID:            generateID(),
+		TenantID:      "tenant-default",
+		ServerID:      cfg.ServerID,
+		ContainerName: cfg.ContainerName,
+		Image:         cfg.Image,
+		Status:        status,
+		CreatedAt:     time.Now(),
+		UpdatedAt:     time.Now(),
+	}
+	if pfResult != nil {
+		record.PreflightCode = string(pfResult.Code)
+		record.PreflightMessage = pfResult.Message
+		checksJSON, _ := json.Marshal(pfResult.Checks)
+		record.PreflightChecks = string(checksJSON)
+	}
+	if err := b.DB.Create(record).Error; err != nil {
+		log.Printf("[deploy] failed to save deployment record: %v", err)
+	}
+}
+
+// generateID returns a unique deployment record ID.
+func generateID() string {
+	return fmt.Sprintf("dep-%d", time.Now().UnixNano())
+}
+
+// logPreflightResult logs structured preflight check results.
+func logPreflightResult(containerName string, result *PreflightResult) {
+	log.Printf("[preflight] container=%s passed=%v code=%s message=%q",
+		containerName, result.Passed, result.Code, result.Message)
+	for _, c := range result.Checks {
+		log.Printf("[preflight]   check: name=%s passed=%v message=%q suggestion=%q",
+			c.Name, c.Passed, c.Message, c.Suggestion)
+	}
+}
+
+// GetLatestDeploymentRecord returns the most recent deployment record for a container.
+func (b *Bridge) GetLatestDeploymentRecord(ctx context.Context, containerName string) (*model.DeploymentRecord, error) {
+	var record model.DeploymentRecord
+	err := b.DB.Where("container_name = ?", containerName).
+		Order("created_at DESC").
+		First(&record).Error
+	if err != nil {
+		return nil, err
+	}
+	return &record, nil
+}
 
 func toString(v interface{}) string {
 	if v == nil {

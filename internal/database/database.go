@@ -171,6 +171,30 @@ func Migrate(db *gorm.DB) error {
 				)
 			},
 		},
+		// 202604080001: Create deployments table
+		{
+			ID: "202604080001",
+			Migrate: func(tx *gorm.DB) error {
+				return tx.Exec(`CREATE TABLE IF NOT EXISTS deployments (
+					id TEXT PRIMARY KEY,
+					tenant_id TEXT REFERENCES tenants(id),
+					server_id TEXT,
+					app_name TEXT,
+					container_name TEXT,
+					image TEXT,
+					status TEXT DEFAULT 'deploying',
+					preflight_code TEXT,
+					preflight_message TEXT,
+					preflight_checks TEXT,
+					error_message TEXT,
+					created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+					updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+				)`).Error
+			},
+			Rollback: func(tx *gorm.DB) error {
+				return tx.Migrator().DropTable("deployments")
+			},
+		},
 	})
 
 	// Use InitSchema for initial creation (faster than Migrate)

@@ -6,8 +6,11 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/mark3labs/mcp-go/mcp"
+	"github.com/Yogdunana/deploypilot/internal/model"
+	"gorm.io/gorm"
 )
 
 // mockDeployer implements Deployer for testing.
@@ -49,6 +52,7 @@ type mockDeployer struct {
 	batchBackupFn  func(ctx context.Context, appIDs []string) (interface{}, error)
 	batchDNSFn     func(ctx context.Context, records []map[string]interface{}) (interface{}, error)
 	checkSysUpdateFn func(ctx context.Context) (interface{}, error)
+	latestRecord   *model.DeploymentRecord
 }
 
 func (m *mockDeployer) Deploy(ctx context.Context, cfg DeployConfig) (*ContainerStatus, error) {
@@ -349,6 +353,13 @@ func (m *mockDeployer) CheckSystemUpdate(ctx context.Context) (interface{}, erro
 		"update_available": true,
 		"release_notes": "Added Web Dashboard",
 	}, nil
+}
+
+func (m *mockDeployer) GetLatestDeploymentRecord(ctx context.Context, containerName string) (*model.DeploymentRecord, error) {
+	if m.latestRecord != nil {
+		return m.latestRecord, nil
+	}
+	return nil, gorm.ErrRecordNotFound
 }
 
 // extractText gets the text content from a CallToolResult.
@@ -2140,5 +2151,37 @@ func TestHandleBatchDeploy(t *testing.T) {
 	}))
 	if err != nil {
 		t.Fatalf("handleBatchDeploy failed: %v", err)
+	}
+}
+
+func TestHandleGetDeployStatus_WithPreflightSummary(t *testing.T) {
+	now := time.Now()
+	mock := &mockDeployer{
+		statusFn: func(ctx context.Context, name string) (*ContainerStatus, error) {
+			return &ContainerStatus{ID: "abc", Name: "test-pf", Image: "nginx", Status: "running"}, nil
+		},
+		latestRecord: &model.DeploymentRecord{
+			ContainerName:    "test-pf",
+			Status:           "preflight_failed",
+			PreflightCode:    "REMOTE_DOCKER_UNAVAILABLE",
+			PreflightMessage: "Docker not found",
+			CreatedAt:        now,
+		},
+	}
+	result, err := handleGetDeployStatus(context.Background(), mock, newRequest(map[string]interface{}{
+		"container_name": "test-pf",
+	}))
+	if err != nil {
+		t.Fatalf("handleGetDeployStatus failed: %v", err)
+	}
+	text, err := extractText(result)
+	if err != nil {
+		t.Fatalf("extractText failed: %v", err)
+	}
+	if !strings.Contains(text, "last_preflight") {
+		t.Errorf("expected last_preflight in result, got: %s", text)
+	}
+	if !strings.Contains(text, "REMOTE_DOCKER_UNAVAILABLE") {
+		t.Errorf("expected preflight code in result, got: %s", text)
 	}
 }

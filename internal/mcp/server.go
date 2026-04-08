@@ -9,6 +9,7 @@ import (
 
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
+	"github.com/Yogdunana/deploypilot/internal/model"
 )
 
 // PreflightErrorInfo is an interface used to detect preflight errors from the deployer.
@@ -61,6 +62,7 @@ type Deployer interface {
 	BatchBackup(ctx context.Context, appIDs []string) (interface{}, error)
 	BatchDNS(ctx context.Context, records []map[string]interface{}) (interface{}, error)
 	CheckSystemUpdate(ctx context.Context) (interface{}, error)
+	GetLatestDeploymentRecord(ctx context.Context, containerName string) (*model.DeploymentRecord, error)
 }
 
 // DeployConfig mirrors deployer.DeployConfig to avoid circular imports.
@@ -1469,6 +1471,16 @@ func handleGetDeployStatus(ctx context.Context, deployer Deployer, request mcp.C
 			"image":  status.Image,
 			"status": status.Status,
 		},
+	}
+
+	// Add preflight summary from latest deployment record
+	if record, err := deployer.GetLatestDeploymentRecord(ctx, containerName); err == nil && record.PreflightCode != "" {
+		result["last_preflight"] = map[string]interface{}{
+			"status":  record.Status,
+			"code":    record.PreflightCode,
+			"message": record.PreflightMessage,
+			"time":    record.CreatedAt,
+		}
 	}
 
 	data, _ := json.MarshalIndent(result, "", "  ")
