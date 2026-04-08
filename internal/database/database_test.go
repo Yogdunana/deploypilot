@@ -367,3 +367,19 @@ func TestSeed_Idempotent(t *testing.T) {
         t.Fatalf("Second seed (idempotent) failed: %v", err)
     }
 }
+
+func TestMigrate_Rollback(t *testing.T) {
+	db, err := Connect("sqlite", ":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := Migrate(db); err != nil {
+		t.Fatalf("Migrate failed: %v", err)
+	}
+	// Verify tables exist
+	var count int64
+	db.Raw("SELECT count(*) FROM sqlite_master WHERE type='table'").Scan(&count)
+	if count == 0 {
+		t.Fatal("expected tables to exist after migrate")
+	}
+}

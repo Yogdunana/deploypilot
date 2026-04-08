@@ -783,3 +783,46 @@ func TestDeploy_PreflightPass_Local(t *testing.T) {
 		// Non-preflight error is OK (mock limitations)
 	}
 }
+
+func TestPreflightError_Methods(t *testing.T) {
+	pfErr := &PreflightError{
+		Code:    PreflightDockerUnavailable,
+		Message: "Docker not found",
+		Checks:  []PreflightCheck{{Name: "Docker", Passed: false, Suggestion: "Install Docker"}},
+	}
+	if pfErr.PreflightCode() != string(PreflightDockerUnavailable) {
+		t.Errorf("expected code %s, got %s", PreflightDockerUnavailable, pfErr.PreflightCode())
+	}
+	if pfErr.PreflightMessage() != "Docker not found" {
+		t.Errorf("expected message 'Docker not found', got %s", pfErr.PreflightMessage())
+	}
+	checks := pfErr.PreflightChecks()
+	if checks == nil {
+		t.Fatal("expected non-nil checks")
+	}
+}
+
+func TestRemove_Success(t *testing.T) {
+	b, _ := newTestBridge(t)
+	exec := b.Executor.(*mockExecutor)
+	exec.output["docker rm -f test-rm"] = "test-rm"
+	err := b.Remove(context.Background(), "test-rm")
+	if err != nil {
+		t.Fatalf("Remove failed: %v", err)
+	}
+}
+
+func TestDetectEnv_Level1(t *testing.T) {
+	b, _ := newTestBridge(t)
+	result, err := b.DetectEnv(context.Background(), 1, nil, nil)
+	if err != nil {
+		t.Fatalf("DetectEnv failed: %v", err)
+	}
+	m, ok := result.(map[string]interface{})
+	if !ok {
+		t.Fatal("expected map result")
+	}
+	if _, ok := m["os"]; !ok {
+		t.Error("expected 'os' key in result")
+	}
+}

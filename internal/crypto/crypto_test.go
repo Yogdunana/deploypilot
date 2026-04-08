@@ -239,3 +239,60 @@ func TestLoadEncryptionKeyFromEnv_Base64WrongSize(t *testing.T) {
 		t.Errorf("error should mention decoded size, got: %v", err)
 	}
 }
+
+func TestHashPassword_Verify(t *testing.T) {
+	hash, err := HashPassword("test-password")
+	if err != nil {
+		t.Fatalf("HashPassword failed: %v", err)
+	}
+	if !CheckPassword("test-password", hash) {
+		t.Error("CheckPassword should return true for correct password")
+	}
+	if CheckPassword("wrong-password", hash) {
+		t.Error("CheckPassword should return false for wrong password")
+	}
+}
+
+func TestEncryptDecrypt_RoundTrip(t *testing.T) {
+	key := NewEncryptionKey()
+	plaintext := "hello world 1234"
+	encrypted, err := Encrypt(key, plaintext)
+	if err != nil {
+		t.Fatalf("Encrypt failed: %v", err)
+	}
+	decrypted, err := Decrypt(key, encrypted)
+	if err != nil {
+		t.Fatalf("Decrypt failed: %v", err)
+	}
+	if decrypted != plaintext {
+		t.Errorf("round-trip mismatch: got %q, want %q", decrypted, plaintext)
+	}
+}
+
+func TestDecrypt_WrongKey(t *testing.T) {
+	key1 := NewEncryptionKey()
+	key2 := NewEncryptionKey()
+	encrypted, _ := Encrypt(key1, "secret")
+	_, err := Decrypt(key2, encrypted)
+	if err == nil {
+		t.Error("expected error when decrypting with wrong key")
+	}
+}
+
+func TestDecrypt_InvalidBase64(t *testing.T) {
+	key := NewEncryptionKey()
+	_, err := Decrypt(key, "not-valid-base64!!!")
+	if err == nil {
+		t.Error("expected error for invalid base64")
+	}
+}
+
+func TestDecrypt_TooShort(t *testing.T) {
+	key := NewEncryptionKey()
+	// Valid base64 but too short for nonce + ciphertext
+	short := "AQID" // 4 bytes decoded = 3 bytes
+	_, err := Decrypt(key, short)
+	if err == nil {
+		t.Error("expected error for too-short ciphertext")
+	}
+}

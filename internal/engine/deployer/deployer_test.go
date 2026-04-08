@@ -434,3 +434,36 @@ func TestBuildRunCommandWithNetwork(t *testing.T) {
 		t.Errorf("buildRunCommand() missing network, got: %s", cmd)
 	}
 }
+
+func TestRemove_Error(t *testing.T) {
+	exec := &mockExecutor{
+		errors: map[string]error{"docker rm -f test-container": fmt.Errorf("not found")},
+	}
+	d := New(exec)
+	err := d.Remove(context.Background(), "test-container")
+	if err == nil {
+		t.Fatal("expected error when remove fails")
+	}
+}
+
+func TestGetContainerStatus_Error(t *testing.T) {
+	exec := &mockExecutor{
+		errors: map[string]error{"docker inspect --format '{{.State.Status}}' test-container": fmt.Errorf("no such container")},
+	}
+	d := New(exec)
+	_, err := d.GetContainerStatus(context.Background(), "test-container")
+	if err == nil {
+		t.Fatal("expected error when inspect fails")
+	}
+}
+
+func TestGetContainerLogs_Error(t *testing.T) {
+	exec := &mockExecutor{
+		errors: map[string]error{"docker logs --tail 100 test-container": fmt.Errorf("not found")},
+	}
+	d := New(exec)
+	_, err := d.GetContainerLogs(context.Background(), "test-container", 100)
+	if err == nil {
+		t.Fatal("expected error when logs fails")
+	}
+}

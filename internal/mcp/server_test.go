@@ -2091,3 +2091,54 @@ func (e *preflightTestError) PreflightMessage() string  { return e.msg }
 func (e *preflightTestError) PreflightChecks() interface{} {
 	return []map[string]interface{}{{"name": "Docker", "passed": false}}
 }
+
+func TestHandleListCredentials(t *testing.T) {
+	mock := &mockDeployer{}
+	_, err := handleListCredentials(context.Background(), mock, newRequest(map[string]interface{}{}))
+	if err != nil {
+		t.Fatalf("handleListCredentials failed: %v", err)
+	}
+}
+
+func TestHandleUpdateCredential(t *testing.T) {
+	mock := &mockDeployer{}
+	_, err := handleUpdateCredential(context.Background(), mock, newRequest(map[string]interface{}{
+		"credential_id": "cred-1",
+		"name":          "updated-name",
+	}))
+	if err != nil {
+		t.Fatalf("handleUpdateCredential failed: %v", err)
+	}
+}
+
+func TestHandleCheckDeployReadiness(t *testing.T) {
+	mock := &mockDeployer{}
+	_, err := handleCheckDeployReadiness(context.Background(), mock, newRequest(map[string]interface{}{
+		"image":          "nginx:alpine",
+		"container_name": "readiness-test",
+	}))
+	if err != nil {
+		t.Fatalf("handleCheckDeployReadiness failed: %v", err)
+	}
+}
+
+func TestHandleUpdateApp(t *testing.T) {
+	mock := &mockDeployer{}
+	_, err := handleUpdateApp(context.Background(), mock, newRequest(map[string]interface{}{
+		"app_id":   "app-1",
+		"env_vars": "KEY=VALUE",
+	}))
+	if err != nil {
+		t.Fatalf("handleUpdateApp failed: %v", err)
+	}
+}
+
+func TestHandleBatchDeploy(t *testing.T) {
+	mock := &mockDeployer{}
+	_, err := handleBatchDeploy(context.Background(), mock, newRequest(map[string]interface{}{
+		"deployments": []map[string]interface{}{},
+	}))
+	if err != nil {
+		t.Fatalf("handleBatchDeploy failed: %v", err)
+	}
+}

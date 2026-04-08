@@ -294,3 +294,11 @@ func TestAllTemplatesHaveRequiredFields(t *testing.T) {
 		})
 	}
 }
+
+func TestHealthCheckURL_EmptyPath(t *testing.T) {
+	tmpl := AppTemplate{HealthPath: "", Port: 8080}
+	url := tmpl.HealthCheckURL("localhost")
+	if url != "" {
+		t.Errorf("expected empty URL for empty HealthPath, got %q", url)
+	}
+}
