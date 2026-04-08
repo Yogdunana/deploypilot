@@ -99,7 +99,7 @@ func (h *HealthChecker) doHTTPCheck(ctx context.Context, target string) bool {
 
 // CheckTCP performs a TCP health check with retries.
 func (h *HealthChecker) CheckTCP(ctx context.Context, host string, port int, retries int, interval time.Duration) *HealthResult {
-	addr := fmt.Sprintf("%s:%d", host, port)
+	addr := net.JoinHostPort(host, fmt.Sprintf("%d", port))
 	var lastErr string
 
 	for i := 0; i < retries; i++ {
