@@ -16,6 +16,32 @@ import (
 	"gorm.io/gorm"
 )
 
+// PreflightError represents a structured preflight failure.
+type PreflightError struct {
+	Code    PreflightErrorCode `json:"code"`
+	Message string             `json:"message"`
+	Checks  []PreflightCheck   `json:"checks"`
+}
+
+func (e *PreflightError) Error() string {
+	return fmt.Sprintf("preflight failed [%s]: %s", e.Code, e.Message)
+}
+
+// PreflightCode returns the error code as a string (implements mcp.PreflightErrorInfo).
+func (e *PreflightError) PreflightCode() string {
+	return string(e.Code)
+}
+
+// PreflightMessage returns the error message (implements mcp.PreflightErrorInfo).
+func (e *PreflightError) PreflightMessage() string {
+	return e.Message
+}
+
+// PreflightChecks returns the individual check results (implements mcp.PreflightErrorInfo).
+func (e *PreflightError) PreflightChecks() interface{} {
+	return e.Checks
+}
+
 // Bridge implements mcp.Deployer by wiring DB + Docker executor.
 type Bridge struct {
 	DB            *gorm.DB
@@ -97,13 +123,40 @@ func (e *sshClientExecutor) Close() error {
 func (b *Bridge) Deploy(ctx context.Context, cfg mcp.DeployConfig) (*mcp.ContainerStatus, error) {
 	// Determine executor: remote SSH if server_id provided, otherwise local
 	executor := b.Executor
+	var host string
+	var port int
+
 	if cfg.ServerID != "" {
+		// Look up server info for preflight
+		row := make(map[string]interface{})
+		if err := b.DB.Table("servers").Where("id = ?", cfg.ServerID).Take(&row).Error; err != nil {
+			return nil, fmt.Errorf("server not found: %w", err)
+		}
+		host = toString(row["host"])
+		port = toInt(row["port"])
+
 		remoteExec, err := b.getRemoteExecutor(ctx, cfg.ServerID)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get remote executor for server %s: %w", cfg.ServerID, err)
 		}
 		defer remoteExec.Close()
 		executor = remoteExec
+	}
+
+	// Run preflight checks
+	pfCfg := PreflightConfig{
+		Host:         host,
+		Port:         port,
+		Executor:     executor,
+		PortMappings: cfg.Ports,
+	}
+	pfResult := RunPreflight(ctx, pfCfg)
+	if !pfResult.Passed {
+		return nil, &PreflightError{
+			Code:    pfResult.Code,
+			Message: pfResult.Message,
+			Checks:  pfResult.Checks,
+		}
 	}
 
 	dCfg := deployer.DeployConfig{

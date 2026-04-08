@@ -2055,3 +2055,39 @@ func TestHandleDoctor(t *testing.T) {
                 t.Errorf("expected 3 checks, got %v", parsed["checks"])
         }
 }
+
+func TestHandleDeployApp_PreflightError(t *testing.T) {
+	mock := &mockDeployer{
+		deployFn: func(_ context.Context, cfg DeployConfig) (*ContainerStatus, error) {
+			return nil, &preflightTestError{code: "REMOTE_DOCKER_UNAVAILABLE", msg: "Docker not found"}
+		},
+	}
+	result, _ := handleDeployApp(context.Background(), mock, newRequest(map[string]interface{}{
+		"image":          "nginx:alpine",
+		"container_name": "pf-test",
+	}))
+	if !result.IsError {
+		t.Fatal("should return error for preflight failure")
+	}
+	text := result.Content[0].(mcp.TextContent).Text
+	if !strings.Contains(text, "preflight_failed") {
+		t.Errorf("should contain preflight_failed, got: %s", text)
+	}
+	if !strings.Contains(text, "REMOTE_DOCKER_UNAVAILABLE") {
+		t.Errorf("should contain error code, got: %s", text)
+	}
+}
+
+type preflightTestError struct {
+	code string
+	msg  string
+}
+
+func (e *preflightTestError) Error() string {
+	return e.msg
+}
+func (e *preflightTestError) PreflightCode() string     { return e.code }
+func (e *preflightTestError) PreflightMessage() string  { return e.msg }
+func (e *preflightTestError) PreflightChecks() interface{} {
+	return []map[string]interface{}{{"name": "Docker", "passed": false}}
+}

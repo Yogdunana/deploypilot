@@ -3,12 +3,22 @@ package mcp
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 )
+
+// PreflightErrorInfo is an interface used to detect preflight errors from the deployer.
+// The service package's PreflightError implements this interface.
+type PreflightErrorInfo interface {
+	error
+	PreflightCode() string
+	PreflightMessage() string
+	PreflightChecks() interface{}
+}
 
 // Deployer abstracts deployment operations for the MCP server.
 type Deployer interface {
@@ -634,6 +644,18 @@ func handleDeployApp(ctx context.Context, deployer Deployer, request mcp.CallToo
 
 	status, err := deployer.Deploy(ctx, cfg)
 	if err != nil {
+		// Check if it's a preflight error for structured output
+		var pfErr PreflightErrorInfo
+		if errors.As(err, &pfErr) {
+			pfData := map[string]interface{}{
+				"status":  "preflight_failed",
+				"code":    pfErr.PreflightCode(),
+				"message": pfErr.PreflightMessage(),
+				"checks":  pfErr.PreflightChecks(),
+			}
+			data, _ := json.MarshalIndent(pfData, "", "  ")
+			return mcp.NewToolResultError(string(data)), nil
+		}
 		return mcp.NewToolResultError(fmt.Sprintf("deploy failed: %v", err)), nil
 	}
 

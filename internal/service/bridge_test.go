@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"testing"
 
@@ -55,6 +56,7 @@ func newTestBridge(t *testing.T) (*Bridge, *mockExecutor) {
 			"uname -a": "Linux test 5.15 x86_64",
 			"cat /etc/os-release 2>/dev/null | head -5": "PRETTY_NAME=\"Ubuntu 22.04\"",
 		},
+		err: map[string]error{},
 	}
 	return NewBridge(db, exec, []byte("01234567890123456789012345678901")), exec
 }
@@ -731,5 +733,53 @@ func TestDefaultVal(t *testing.T) {
 	}
 	if defaultVal("value", "fallback") != "value" {
 		t.Error("expected value for non-empty string")
+	}
+}
+
+func TestDeploy_PreflightFail_DockerUnavailable(t *testing.T) {
+	b, _ := newTestBridge(t)
+	// Make executor fail on docker version (simulates Docker not installed)
+	exec := b.Executor.(*mockExecutor)
+	exec.output["docker version --format '{{.Server.Version}}'"] = ""
+	exec.err["docker version --format '{{.Server.Version}}'"] = fmt.Errorf("command not found")
+
+	_, err := b.Deploy(context.Background(), mcp.DeployConfig{
+		Image:         "nginx:alpine",
+		ContainerName: "preflight-fail-test",
+	})
+	if err == nil {
+		t.Fatal("expected preflight error")
+	}
+	var pfErr *PreflightError
+	if !errors.As(err, &pfErr) {
+		t.Fatalf("expected PreflightError, got: %T: %v", err, err)
+	}
+	if pfErr.Code != PreflightDockerUnavailable {
+		t.Errorf("expected code %s, got %s", PreflightDockerUnavailable, pfErr.Code)
+	}
+	if pfErr.Message == "" {
+		t.Error("expected non-empty message")
+	}
+}
+
+func TestDeploy_PreflightPass_Local(t *testing.T) {
+	b, _ := newTestBridge(t)
+	exec := b.Executor.(*mockExecutor)
+	exec.output["docker version --format '{{.Server.Version}}'"] = "24.0.7"
+	exec.output["docker pull nginx:alpine"] = "pulled"
+	exec.output["docker run -d --name preflight-ok-test --restart no nginx:alpine"] = "abc123"
+
+	_, err := b.Deploy(context.Background(), mcp.DeployConfig{
+		Image:         "nginx:alpine",
+		ContainerName: "preflight-ok-test",
+	})
+	// May still fail at deploy stage (mock doesn't handle all docker commands),
+	// but should NOT be a preflight error
+	if err != nil {
+		var pfErr *PreflightError
+		if errors.As(err, &pfErr) {
+			t.Fatalf("should not be a preflight error, got: %s", pfErr.Code)
+		}
+		// Non-preflight error is OK (mock limitations)
 	}
 }
