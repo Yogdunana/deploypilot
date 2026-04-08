@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"sync"
 	"testing"
+	"time"
 )
 
 // ========== Watcher (Hot Reload) ==========
@@ -260,4 +261,36 @@ func TestOnChangeMultipleCallbacks(t *testing.T) {
 		t.Errorf("callback2 count = %d, want 1", count2)
 	}
 	mu.Unlock()
+}
+
+func TestFileHash_NonexistentFile(t *testing.T) {
+	m := &Manager{configPath: "/nonexistent/path"}
+	h := m.fileHash()
+	if h != "" {
+		t.Errorf("expected empty hash for nonexistent file, got %q", h)
+	}
+}
+
+func TestWatchLoop_ContextCancel(t *testing.T) {
+	tmpDir := t.TempDir()
+	cfgPath := tmpDir + "/config.yaml"
+	os.WriteFile(cfgPath, []byte("database:\n  type: sqlite\n"), 0644)
+
+	m := NewManager(cfgPath)
+
+	done := make(chan struct{})
+	go func() {
+		m.watchLoop()
+		close(done)
+	}()
+
+	// Close the manager to stop watchLoop
+	time.Sleep(200 * time.Millisecond)
+	close(m.closeCh)
+	select {
+	case <-done:
+		// watchLoop exited cleanly
+	case <-time.After(2 * time.Second):
+		t.Fatal("watchLoop did not exit after close")
+	}
 }

@@ -383,3 +383,10 @@ func TestMigrate_Rollback(t *testing.T) {
 		t.Fatal("expected tables to exist after migrate")
 	}
 }
+
+func TestConnect_InvalidDSN(t *testing.T) {
+	_, err := Connect("mysql", "invalid:user@tcp(localhost:3306)/db")
+	if err == nil {
+		t.Fatal("expected error for invalid MySQL DSN (no driver)")
+	}
+}

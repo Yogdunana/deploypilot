@@ -302,3 +302,19 @@ func TestHealthCheckURL_EmptyPath(t *testing.T) {
 		t.Errorf("expected empty URL for empty HealthPath, got %q", url)
 	}
 }
+
+func TestGenerateDockerfile_WithOverrides(t *testing.T) {
+	tmpl := AppTemplate{
+		Dockerfile: "FROM {{BASE_IMAGE}}\nCOPY . .\nRUN {{BUILD_CMD}}",
+	}
+	result := tmpl.GenerateDockerfile(map[string]string{
+		"BASE_IMAGE": "node:18-alpine",
+		"BUILD_CMD":  "npm ci && npm run build",
+	})
+	if !strings.Contains(result, "node:18-alpine") {
+		t.Error("expected BASE_IMAGE override in dockerfile")
+	}
+	if !strings.Contains(result, "npm ci && npm run build") {
+		t.Error("expected BUILD_CMD override in dockerfile")
+	}
+}
