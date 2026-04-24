@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"testing"
 
 	"github.com/Yogdunana/deploypilot/internal/model"
@@ -104,7 +105,7 @@ func TestAuditService_ListWithFilter(t *testing.T) {
 	_ = svc.Record(nil, AuditEntry{UserID: 1, Action: "app.delete", ResourceType: "app"})
 
 	// Filter by user_id
-	logs, total, err := svc.List(nil, AuditFilter{UserID: 1, Page: 1, PageSize: 10})
+	_, total, err := svc.List(context.TODO(), AuditFilter{UserID: 1, Page: 1, PageSize: 10})
 	if err != nil {
 		t.Fatalf("List() error = %v", err)
 	}
@@ -113,12 +114,12 @@ func TestAuditService_ListWithFilter(t *testing.T) {
 	}
 
 	// Filter by action
-	logs, total, err = svc.List(nil, AuditFilter{Action: "server.create", Page: 1, PageSize: 10})
+	logs, actionTotal, err := svc.List(context.TODO(), AuditFilter{Action: "server.create", Page: 1, PageSize: 10})
 	if err != nil {
 		t.Fatalf("List() error = %v", err)
 	}
-	if total != 1 {
-		t.Errorf("total for server.create = %d, want 1", total)
+	if actionTotal != 1 {
+		t.Errorf("total for server.create = %d, want 1", actionTotal)
 	}
 	if len(logs) != 1 {
 		t.Fatalf("len(logs) = %d, want 1", len(logs))
@@ -128,7 +129,7 @@ func TestAuditService_ListWithFilter(t *testing.T) {
 	}
 
 	// Filter by resource_type
-	logs, total, err = svc.List(nil, AuditFilter{ResourceType: "server", Page: 1, PageSize: 10})
+	_, total, err = svc.List(context.TODO(), AuditFilter{ResourceType: "server", Page: 1, PageSize: 10})
 	if err != nil {
 		t.Fatalf("List() error = %v", err)
 	}

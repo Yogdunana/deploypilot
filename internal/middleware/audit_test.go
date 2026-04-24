@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"context"
 	"net/http/httptest"
 	"testing"
 
@@ -46,7 +47,7 @@ func TestAuditMiddleware_RecordsMutation(t *testing.T) {
 	}
 
 	// Verify audit log was created
-	logs, total, err := auditSvc.List(nil, service.AuditFilter{Page: 1, PageSize: 10})
+	logs, total, err := auditSvc.List(context.TODO(), service.AuditFilter{Page: 1, PageSize: 10})
 	if err != nil {
 		t.Fatalf("failed to list audit logs: %v", err)
 	}
@@ -84,7 +85,7 @@ func TestAuditMiddleware_SkipsGET(t *testing.T) {
 	}
 
 	// Verify no audit log was created
-	_, total, err := auditSvc.List(nil, service.AuditFilter{Page: 1, PageSize: 10})
+	_, total, err := auditSvc.List(context.TODO(), service.AuditFilter{Page: 1, PageSize: 10})
 	if err != nil {
 		t.Fatalf("failed to list audit logs: %v", err)
 	}
@@ -108,7 +109,7 @@ func TestAuditMiddleware_SkipsHEAD(t *testing.T) {
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
-	_, total, _ := auditSvc.List(nil, service.AuditFilter{Page: 1, PageSize: 10})
+	_, total, _ := auditSvc.List(context.TODO(), service.AuditFilter{Page: 1, PageSize: 10})
 	if total != 0 {
 		t.Errorf("expected 0 audit logs for HEAD, got %d", total)
 	}

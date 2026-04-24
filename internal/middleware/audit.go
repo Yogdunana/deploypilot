@@ -23,7 +23,7 @@ func AuditMiddleware(auditSvc *service.AuditService) gin.HandlerFunc {
 		username, _ := c.Get("username")
 
 		action := mapMethodToAction(method, c.Request.URL.Path)
-		auditSvc.Record(c.Request.Context(), service.AuditEntry{
+		_ = auditSvc.Record(c.Request.Context(), service.AuditEntry{
 			UserID:       toUint(userID),
 			Username:     toString(username),
 			Action:       action,
