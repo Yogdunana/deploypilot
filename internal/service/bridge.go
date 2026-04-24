@@ -1213,8 +1213,8 @@ func (b *Bridge) Restore(ctx context.Context, backupID string) (*mcp.ContainerSt
 
 	// Stop and remove current container
 	exec := b.Executor
-	exec.RunCommand(ctx, fmt.Sprintf("docker stop %s", containerName))
-	exec.RunCommand(ctx, fmt.Sprintf("docker rm -f %s", containerName))
+	_, _ = exec.RunCommand(ctx, fmt.Sprintf("docker stop %s", containerName))
+	_, _ = exec.RunCommand(ctx, fmt.Sprintf("docker rm -f %s", containerName))
 
 	// Restore from backup
 	timestamp := time.Now().Format("20060102-150405")
