@@ -37,6 +37,7 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge) {
 			apps.PUT("/:id", UpdateApp(db))
 			apps.DELETE("/:id", DeleteApp(bridge))
 			apps.POST("/:id/deploy", DeployApp(bridge))
+			apps.POST("/:id/build", BuildAndDeployApp(bridge))
 			apps.GET("/:id/status", GetAppStatus(bridge))
 			apps.POST("/:id/rollback", RollbackApp(bridge))
 			apps.GET("/:id/logs/container", GetContainerLogs(bridge))

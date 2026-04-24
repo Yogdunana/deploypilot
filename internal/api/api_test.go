@@ -2245,3 +2245,31 @@ func TestRegisterRoutes(t *testing.T) {
 		t.Fatal("expected non-nil router")
 	}
 }
+
+// --- BuildAndDeployApp coverage ---
+
+func TestBuildAndDeployApp_NotFound(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Exec("VACUUM")
+	bridge := createTestBridge(t, db)
+	r := setupFullTestRouter(db, bridge)
+
+	token := getTestToken(t, "user-1", "owner")
+	w := makeRequest(r, "POST", "/api/v1/apps/nonexistent/build", nil, token)
+
+	if w.Code != 404 {
+		t.Errorf("expected 404, got %d", w.Code)
+	}
+}
+
+func TestCoalesce(t *testing.T) {
+	if coalesce("", "fallback") != "fallback" {
+		t.Error("expected fallback")
+	}
+	if coalesce("primary", "fallback") != "primary" {
+		t.Error("expected primary")
+	}
+	if coalesce("", "") != "" {
+		t.Error("expected empty")
+	}
+}

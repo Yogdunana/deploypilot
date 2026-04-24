@@ -362,6 +362,17 @@ func (m *mockDeployer) GetLatestDeploymentRecord(ctx context.Context, containerN
 	return nil, gorm.ErrRecordNotFound
 }
 
+func (m *mockDeployer) BuildAndDeploy(ctx context.Context, cfg BuildAndDeployConfig) (*BuildAndDeployResult, error) {
+	return &BuildAndDeployResult{
+		Image:      cfg.AppName + ":abc12345",
+		Digest:     "sha256:testdigest",
+		BuildLog:   "Successfully built abc12345",
+		Duration:   42.5,
+		TechStack:  cfg.TechStack,
+		CommitHash: "abc1234567890",
+	}, nil
+}
+
 // extractText gets the text content from a CallToolResult.
 func extractText(result *mcp.CallToolResult) (string, error) {
 	if result.IsError {

@@ -315,3 +315,55 @@ func UpdateAppEnv(db *gorm.DB) gin.HandlerFunc {
 		respondSuccess(c, gin.H{"app_id": id, "message": "env vars updated"})
 	}
 }
+
+// coalesce returns the first non-empty string.
+func coalesce(vals ...string) string {
+	for _, v := range vals {
+		if v != "" {
+			return v
+		}
+	}
+	return ""
+}
+
+// BuildAndDeployApp builds and deploys an application from git source.
+func BuildAndDeployApp(bridge *service.Bridge) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		appID := c.Param("id")
+
+		// Get app from DB
+		var app model.App
+		if err := bridge.DB.Where("id = ?", appID).First(&app).Error; err != nil {
+			respondError(c, http.StatusNotFound, "app not found")
+			return
+		}
+
+		// Parse optional overrides from request body
+		var overrides struct {
+			Branch    string            `json:"branch"`
+			TechStack string            `json:"tech_stack"`
+			Ports     string            `json:"ports"`
+			EnvVars   map[string]string `json:"env_vars"`
+			ServerID  string            `json:"server_id"`
+		}
+		_ = c.ShouldBindJSON(&overrides)
+
+		cfg := mcp.BuildAndDeployConfig{
+			RepoURL:   app.RepoURL,
+			AppName:   app.Name,
+			Branch:    coalesce(overrides.Branch, app.Branch),
+			TechStack: coalesce(overrides.TechStack, app.TechStack),
+			Ports:     coalesce(overrides.Ports, ""),
+			EnvVars:   overrides.EnvVars,
+			ServerID:  coalesce(overrides.ServerID, app.ServerID),
+		}
+
+		result, err := bridge.BuildAndDeploy(c.Request.Context(), cfg)
+		if err != nil {
+			respondError(c, http.StatusInternalServerError, err.Error())
+			return
+		}
+
+		respondSuccess(c, result)
+	}
+}

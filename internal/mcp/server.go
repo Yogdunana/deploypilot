@@ -63,6 +63,7 @@ type Deployer interface {
 	BatchDNS(ctx context.Context, records []map[string]interface{}) (interface{}, error)
 	CheckSystemUpdate(ctx context.Context) (interface{}, error)
 	GetLatestDeploymentRecord(ctx context.Context, containerName string) (*model.DeploymentRecord, error)
+	BuildAndDeploy(ctx context.Context, cfg BuildAndDeployConfig) (*BuildAndDeployResult, error)
 }
 
 // DeployConfig mirrors deployer.DeployConfig to avoid circular imports.
@@ -109,6 +110,31 @@ type CreateAppConfig struct {
 	TechStack  string `json:"tech_stack,omitempty"`
 	DeployMode string `json:"deploy_mode,omitempty"`
 	ServerID   string `json:"server_id,omitempty"`
+}
+
+// BuildAndDeployConfig holds parameters for a build-and-deploy operation.
+type BuildAndDeployConfig struct {
+	RepoURL             string            `json:"repo_url"`
+	Branch              string            `json:"branch,omitempty"`
+	TechStack           string            `json:"tech_stack,omitempty"`
+	AppName             string            `json:"app_name"`
+	ProjectDir          string            `json:"project_dir,omitempty"`
+	BuildArgs           map[string]string `json:"build_args,omitempty"`
+	EnvVars             map[string]string `json:"env_vars,omitempty"`
+	Ports               string            `json:"ports,omitempty"`
+	ServerID            string            `json:"server_id,omitempty"`
+	DockerfileOverrides map[string]string `json:"dockerfile_overrides,omitempty"`
+}
+
+// BuildAndDeployResult holds the result of a build-and-deploy operation.
+type BuildAndDeployResult struct {
+	Image      string  `json:"image"`
+	Digest     string  `json:"digest,omitempty"`
+	Size       string  `json:"size,omitempty"`
+	BuildLog   string  `json:"build_log"`
+	Duration   float64 `json:"duration_seconds"`
+	TechStack  string  `json:"tech_stack"`
+	CommitHash string  `json:"commit_hash"`
 }
 
 // NewServer creates a new MCP server with deploy tools registered.
@@ -585,7 +611,64 @@ func NewServer(deployer Deployer) *server.MCPServer {
 		return handleDoctor(ctx, deployer, request)
 	})
 
+	// Register build_and_deploy tool
+	buildAndDeployTool := mcp.NewTool("build_and_deploy",
+		mcp.WithDescription("Build and deploy an application from git source. Clones repo, detects tech stack, generates Dockerfile, builds image, and deploys container."),
+		mcp.WithString("repo_url", mcp.Required(), mcp.Description("Git repository URL")),
+		mcp.WithString("app_name", mcp.Required(), mcp.Description("Application name (used for container name and image tag)")),
+		mcp.WithString("branch", mcp.Description("Git branch (default: main)")),
+		mcp.WithString("tech_stack", mcp.Description("Tech stack template (auto-detect if empty): node, python, go, java, php, ruby, rust, static, docker")),
+		mcp.WithString("ports", mcp.Description("Port mappings (e.g. '8080:80')")),
+		mcp.WithString("server_id", mcp.Description("Target server ID (deploy locally if empty)")),
+		mcp.WithString("env_vars", mcp.Description("JSON object of environment variables")),
+	)
+	s.AddTool(buildAndDeployTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleBuildAndDeploy(ctx, deployer, request)
+	})
+
 	return s
+}
+
+func handleBuildAndDeploy(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	repoURL, err := request.RequireString("repo_url")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+	appName, err := request.RequireString("app_name")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	branch := request.GetString("branch", "main")
+	techStack := request.GetString("tech_stack", "")
+	ports := request.GetString("ports", "")
+	serverID := request.GetString("server_id", "")
+	envVarsStr := request.GetString("env_vars", "")
+
+	var envVars map[string]string
+	if envVarsStr != "" {
+		if err := json.Unmarshal([]byte(envVarsStr), &envVars); err != nil {
+			return mcp.NewToolResultError(fmt.Sprintf("invalid env_vars JSON: %v", err)), nil
+		}
+	}
+
+	cfg := BuildAndDeployConfig{
+		RepoURL:   repoURL,
+		AppName:   appName,
+		Branch:    branch,
+		TechStack: techStack,
+		Ports:     ports,
+		ServerID:  serverID,
+		EnvVars:   envVars,
+	}
+
+	result, err := deployer.BuildAndDeploy(ctx, cfg)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("build and deploy failed: %v", err)), nil
+	}
+
+	data, _ := json.MarshalIndent(result, "", "  ")
+	return mcp.NewToolResultText(string(data)), nil
 }
 
 func handleDeployApp(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {

@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/Yogdunana/deploypilot/internal/crypto"
+	"github.com/Yogdunana/deploypilot/internal/engine/builder"
 	"github.com/Yogdunana/deploypilot/internal/engine/deployer"
 	"github.com/Yogdunana/deploypilot/internal/mcp"
 	"github.com/Yogdunana/deploypilot/internal/model"
@@ -314,6 +315,64 @@ func (b *Bridge) Deploy(ctx context.Context, cfg mcp.DeployConfig) (*mcp.Contain
 		Ports:     cs.Ports,
 		CreatedAt: cs.CreatedAt.Format(time.RFC3339),
 		Labels:    cs.Labels,
+	}, nil
+}
+
+// ---------- 1b. BuildAndDeploy ----------
+
+// BuildAndDeploy orchestrates the full build-and-deploy pipeline:
+// git clone -> detect tech stack -> generate Dockerfile -> docker build -> deploy.
+func (b *Bridge) BuildAndDeploy(ctx context.Context, cfg mcp.BuildAndDeployConfig) (*mcp.BuildAndDeployResult, error) {
+	exec := b.Executor
+	if exec == nil {
+		return nil, fmt.Errorf("no executor available")
+	}
+
+	// Convert MCP config to builder config
+	bldCfg := builder.BuildConfig{
+		RepoURL:             cfg.RepoURL,
+		Branch:              cfg.Branch,
+		TechStack:           cfg.TechStack,
+		AppName:             cfg.AppName,
+		ProjectDir:          cfg.ProjectDir,
+		BuildArgs:           cfg.BuildArgs,
+		EnvVars:             cfg.EnvVars,
+		Ports:               cfg.Ports,
+		ServerID:            cfg.ServerID,
+		DockerfileOverrides: cfg.DockerfileOverrides,
+	}
+
+	bld := builder.NewBuilder(exec)
+	result, err := bld.BuildAndDeploy(ctx, bldCfg)
+	if err != nil {
+		return nil, err
+	}
+
+	// After successful build, deploy the built image
+	deployCfg := mcp.DeployConfig{
+		Image:         result.Image,
+		ContainerName: cfg.AppName,
+		Ports:         cfg.Ports,
+		EnvVars:       cfg.EnvVars,
+	}
+	if cfg.ServerID != "" {
+		deployCfg.ServerID = cfg.ServerID
+	}
+
+	_, err = b.Deploy(ctx, deployCfg)
+	if err != nil {
+		return nil, fmt.Errorf("build succeeded but deploy failed: %w", err)
+	}
+
+	// Convert builder result to MCP result
+	return &mcp.BuildAndDeployResult{
+		Image:      result.Image,
+		Digest:     result.Digest,
+		Size:       result.Size,
+		BuildLog:   result.BuildLog,
+		Duration:   result.Duration,
+		TechStack:  result.TechStack,
+		CommitHash: result.CommitHash,
 	}, nil
 }
 
