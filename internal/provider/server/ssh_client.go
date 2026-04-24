@@ -184,7 +184,7 @@ func (c *Client) CreateSession(ctx context.Context, pty bool, termType string, r
 			cols = 80
 		}
 		if err := session.RequestPty(termType, rows, cols, ssh.TerminalModes{}); err != nil {
-			session.Close()
+			_ = session.Close()
 			return nil, fmt.Errorf("failed to request PTY: %w", err)
 		}
 	}

@@ -150,7 +150,7 @@ func LogStreamWS(bridge *service.Bridge, hub *WSHub) gin.HandlerFunc {
 			log.Printf("[ws] upgrade failed: %v", err)
 			return
 		}
-		defer conn.Close()
+		defer func() { _ = conn.Close() }()
 
 		appID := c.Param("app_id")
 		hub.Register(conn, appID)
@@ -178,9 +178,9 @@ func LogStreamWS(bridge *service.Bridge, hub *WSHub) gin.HandlerFunc {
 		go streamContainerLogs(ctx, bridge, containerName, hub, appID)
 
 		// 5. Read loop (handle ping/pong, close)
-		conn.SetReadDeadline(time.Now().Add(60 * time.Second))
+		_ = conn.SetReadDeadline(time.Now().Add(60 * time.Second))
 		conn.SetPongHandler(func(string) error {
-			conn.SetReadDeadline(time.Now().Add(60 * time.Second))
+			_ = conn.SetReadDeadline(time.Now().Add(60 * time.Second))
 			return nil
 		})
 
@@ -277,7 +277,7 @@ func TerminalWS(bridge *service.Bridge, hub *WSHub) gin.HandlerFunc {
 			log.Printf("[ws] terminal upgrade failed: %v", err)
 			return
 		}
-		defer conn.Close()
+		defer func() { _ = conn.Close() }()
 
 		// 3. Get server info
 		serverID := c.Param("server_id")
@@ -299,7 +299,7 @@ func TerminalWS(bridge *service.Bridge, hub *WSHub) gin.HandlerFunc {
 			})
 			return
 		}
-		defer remoteExec.Close()
+		defer func() { _ = remoteExec.Close() }()
 
 		// 5. Read loop: receive commands from client
 		for {
