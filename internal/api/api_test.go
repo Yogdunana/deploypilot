@@ -201,7 +201,7 @@ func getTestToken(t *testing.T, userID, role string) string {
 func createTestBridge(t *testing.T, db *gorm.DB) *service.Bridge {
 	t.Helper()
 	encKey := []byte("abcdefghijklmnopqrstuvwxyz123456")
-	return service.NewBridge(db, &localExecutor{}, encKey)
+	return service.NewBridge(db, &localExecutor{}, encKey, nil)
 }
 
 // localExecutor implements service.CommandExecutor for local testing.

@@ -59,7 +59,7 @@ func newTestBridge(t *testing.T) (*Bridge, *mockExecutor) {
 		},
 		err: map[string]error{},
 	}
-	return NewBridge(db, exec, []byte("01234567890123456789012345678901")), exec
+	return NewBridge(db, exec, []byte("01234567890123456789012345678901"), nil), exec
 }
 
 // ===================== CRUD Tests =====================

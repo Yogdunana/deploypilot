@@ -9,13 +9,16 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"time"
 
+	"github.com/Yogdunana/deploypilot/internal/agent"
 	"github.com/Yogdunana/deploypilot/internal/config"
 	"github.com/Yogdunana/deploypilot/internal/crypto"
 	"github.com/Yogdunana/deploypilot/internal/database"
 	"github.com/Yogdunana/deploypilot/internal/engine/deployer"
 	"github.com/Yogdunana/deploypilot/internal/server"
 	"github.com/Yogdunana/deploypilot/internal/service"
+	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
 )
 
@@ -104,7 +107,31 @@ func run(cliDriver, cliDSN, cliAddr string) error {
 		log.Printf("warning: DEPLOYPILOT_ENCRYPTION_KEY not set, generated a temporary key (credentials will be lost on restart)")
 	}
 
-	bridge := service.NewBridge(db, executor, encKey)
+	// Initialize event bus (Redis if available, otherwise in-memory)
+	var eventBus service.EventBus
+	if cfg.Redis.Addr != "" {
+		rdb := redis.NewClient(&redis.Options{
+			Addr:     cfg.Redis.Addr,
+			Password: cfg.Redis.Password,
+			DB:       cfg.Redis.DB,
+		})
+		if err := rdb.Ping(context.Background()).Err(); err != nil {
+			log.Printf("Redis unavailable, falling back to in-memory event bus: %v", err)
+			eventBus = service.NewInMemoryEventBus()
+		} else {
+			eventBus = service.NewRedisEventBus(rdb)
+			log.Println("Using Redis Pub/Sub event bus")
+		}
+	} else {
+		eventBus = service.NewInMemoryEventBus()
+	}
+
+	// Initialize agent tunnel manager
+	tunnelManager := agent.NewTunnelManager()
+	tunnelManager.StartCleanup(5 * time.Minute)
+
+	bridge := service.NewBridge(db, executor, encKey, eventBus)
+	bridge.TunnelManager = tunnelManager
 
 	// Determine listen address
 	listenAddr := cliAddr

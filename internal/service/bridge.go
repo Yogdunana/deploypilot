@@ -5,12 +5,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"net/http"
 	"path/filepath"
 	"sort"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/Yogdunana/deploypilot/internal/agent"
 	"github.com/Yogdunana/deploypilot/internal/crypto"
 	"github.com/Yogdunana/deploypilot/internal/engine/builder"
 	"github.com/Yogdunana/deploypilot/internal/engine/deployer"
@@ -63,62 +65,6 @@ type DeployEvent struct {
 	Timestamp string `json:"timestamp"`
 }
 
-// DeployEventBus is a simple pub/sub for deploy events.
-type DeployEventBus struct {
-	subscribers map[string][]chan DeployEvent // appID -> channels
-	mu          sync.RWMutex
-}
-
-// NewDeployEventBus creates a new DeployEventBus.
-func NewDeployEventBus() *DeployEventBus {
-	return &DeployEventBus{
-		subscribers: make(map[string][]chan DeployEvent),
-	}
-}
-
-// Subscribe returns a buffered channel for the given appID.
-func (b *DeployEventBus) Subscribe(appID string) chan DeployEvent {
-	ch := make(chan DeployEvent, 100)
-	b.mu.Lock()
-	b.subscribers[appID] = append(b.subscribers[appID], ch)
-	b.mu.Unlock()
-	return ch
-}
-
-// Unsubscribe removes a channel for the given appID.
-func (b *DeployEventBus) Unsubscribe(appID string, ch chan DeployEvent) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	channels := b.subscribers[appID]
-	for i, c := range channels {
-		if c == ch {
-			b.subscribers[appID] = append(channels[:i], channels[i+1:]...)
-			close(ch)
-			break
-		}
-	}
-	if len(b.subscribers[appID]) == 0 {
-		delete(b.subscribers, appID)
-	}
-}
-
-// Publish sends an event to all subscribers of the given appID.
-func (b *DeployEventBus) Publish(event DeployEvent) {
-	b.mu.RLock()
-	channels := b.subscribers[event.AppID]
-	// Copy to avoid holding lock during sends
-	copied := make([]chan DeployEvent, len(channels))
-	copy(copied, channels)
-	b.mu.RUnlock()
-	for _, ch := range copied {
-		select {
-		case ch <- event:
-		default:
-			// channel full, drop event to avoid blocking publisher
-		}
-	}
-}
-
 // Bridge implements mcp.Deployer by wiring DB + Docker executor.
 type Bridge struct {
 	DB            *gorm.DB
@@ -126,16 +72,31 @@ type Bridge struct {
 	EncryptionKey []byte                   // AES-256 key for credential encryption
 	Monitor       *monitor.Monitor         // monitoring system (lazy-initialized)
 	healer        *healer.Healer           // self-healing engine (lazy-initialized)
-	EventBus      *DeployEventBus          // pub/sub for deploy progress events
+	EventBus      EventBus                 // pub/sub for deploy progress events
+	TunnelManager TunnelManager            // agent reverse tunnel manager
 }
 
+// TunnelManager defines the interface for agent reverse tunnel management.
+type TunnelManager interface {
+	HandleTunnel(w http.ResponseWriter, r *http.Request, serverID string)
+	IsConnected(serverID string) bool
+	ListAgents() []string
+	ExecuteCommand(ctx context.Context, serverID, cmd string, timeout time.Duration) (*agent.CommandResult, error)
+}
+
+// CommandResult is an alias for agent.CommandResult for convenience.
+type CommandResult = agent.CommandResult
+
 // NewBridge creates a new Bridge that satisfies the mcp.Deployer interface.
-func NewBridge(db *gorm.DB, executor deployer.CommandExecutor, encryptionKey []byte) *Bridge {
+func NewBridge(db *gorm.DB, executor deployer.CommandExecutor, encryptionKey []byte, eventBus EventBus) *Bridge {
+	if eventBus == nil {
+		eventBus = NewInMemoryEventBus()
+	}
 	return &Bridge{
 		DB:            db,
 		Executor:      executor,
 		EncryptionKey: encryptionKey,
-		EventBus:      NewDeployEventBus(),
+		EventBus:      eventBus,
 	}
 }
 

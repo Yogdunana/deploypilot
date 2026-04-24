@@ -18,6 +18,14 @@ type Config struct {
 	Log      LogConfig      `mapstructure:"log"`
 	Notify   NotifyConfig   `mapstructure:"notify"`
 	Monitor  MonitorConfig  `mapstructure:"monitor"`
+	Redis    RedisConfig    `mapstructure:"redis"`
+}
+
+// RedisConfig holds Redis connection settings for Pub/Sub.
+type RedisConfig struct {
+	Addr     string `mapstructure:"addr"`     // default: "localhost:6379"
+	Password string `mapstructure:"password"` // default: ""
+	DB       int    `mapstructure:"db"`       // default: 0
 }
 
 // ServerConfig holds HTTP/MCP/Web server settings.
@@ -181,4 +189,9 @@ func setDefaults(v *viper.Viper) {
 	// Monitor
 	v.SetDefault("monitor.enabled", true)
 	v.SetDefault("monitor.metrics_port", 9091)
+
+	// Redis
+	v.SetDefault("redis.addr", "localhost:6379")
+	v.SetDefault("redis.password", "")
+	v.SetDefault("redis.db", 0)
 }

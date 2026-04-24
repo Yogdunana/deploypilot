@@ -122,7 +122,7 @@ func getSSEToken(t *testing.T) string {
 
 func TestDeploySSE_Connection(t *testing.T) {
 	db := setupSSETestDB(t)
-	bridge := service.NewBridge(db, &localExecutor{}, []byte("test-key-1234567890abcdef"))
+	bridge := service.NewBridge(db, &localExecutor{}, []byte("test-key-1234567890abcdef"), nil)
 
 	router := setupSSERouter(db, bridge)
 	server := httptest.NewServer(router)
@@ -166,7 +166,7 @@ func TestDeploySSE_Connection(t *testing.T) {
 
 func TestDeploySSE_DeployEvent(t *testing.T) {
 	db := setupSSETestDB(t)
-	bridge := service.NewBridge(db, &localExecutor{}, []byte("test-key-1234567890abcdef"))
+	bridge := service.NewBridge(db, &localExecutor{}, []byte("test-key-1234567890abcdef"), nil)
 
 	router := setupSSERouter(db, bridge)
 	server := httptest.NewServer(router)
@@ -260,7 +260,7 @@ func TestDeploySSE_DeployEvent(t *testing.T) {
 
 func TestDeploySSE_DoneClosesConnection(t *testing.T) {
 	db := setupSSETestDB(t)
-	bridge := service.NewBridge(db, &localExecutor{}, []byte("test-key-1234567890abcdef"))
+	bridge := service.NewBridge(db, &localExecutor{}, []byte("test-key-1234567890abcdef"), nil)
 
 	router := setupSSERouter(db, bridge)
 	server := httptest.NewServer(router)
@@ -319,7 +319,7 @@ func TestDeploySSE_DoneClosesConnection(t *testing.T) {
 
 func TestDeploySSE_Unauthorized(t *testing.T) {
 	db := setupSSETestDB(t)
-	bridge := service.NewBridge(db, &localExecutor{}, []byte("test-key-1234567890abcdef"))
+	bridge := service.NewBridge(db, &localExecutor{}, []byte("test-key-1234567890abcdef"), nil)
 
 	router := setupSSERouter(db, bridge)
 	server := httptest.NewServer(router)
@@ -339,7 +339,7 @@ func TestDeploySSE_Unauthorized(t *testing.T) {
 
 func TestDeploySSE_Heartbeat(t *testing.T) {
 	db := setupSSETestDB(t)
-	bridge := service.NewBridge(db, &localExecutor{}, []byte("test-key-1234567890abcdef"))
+	bridge := service.NewBridge(db, &localExecutor{}, []byte("test-key-1234567890abcdef"), nil)
 
 	router := setupSSERouter(db, bridge)
 	server := httptest.NewServer(router)
@@ -370,4 +370,31 @@ func TestDeploySSE_Heartbeat(t *testing.T) {
 	}
 
 	cancel()
+}
+
+func TestDeployAsyncHandler_InvalidJSON(t *testing.T) {
+	db := setupSSETestDB(t)
+	bridge := service.NewBridge(db, &localExecutor{}, []byte("test-key-1234567890abcdef"), nil)
+
+	gin.SetMode(gin.TestMode)
+	r := gin.New()
+	r.POST("/api/v1/apps/:id/deploy", DeployAsyncHandler(bridge))
+
+	server := httptest.NewServer(r)
+	defer server.Close()
+
+	token := getSSEToken(t)
+	req, _ := http.NewRequest("POST", server.URL+"/api/v1/apps/app-1/deploy?async=true", strings.NewReader("not json"))
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("request failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("expected 400, got %d", resp.StatusCode)
+	}
 }

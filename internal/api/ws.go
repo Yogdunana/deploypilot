@@ -209,6 +209,33 @@ func LogStreamWS(bridge *service.Bridge, hub *WSHub) gin.HandlerFunc {
 	}
 }
 
+// AgentTunnelWS handles WebSocket connections for agent reverse tunnels.
+// GET /ws/agent/:server_id?token=xxx
+func AgentTunnelWS(bridge *service.Bridge) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// Authenticate via query param token (JWT)
+		token := c.Query("token")
+		if token == "" {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "token required"})
+			return
+		}
+		_, err := auth.ParseToken(token)
+		if err != nil {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid token"})
+			return
+		}
+
+		serverID := c.Param("server_id")
+
+		// Delegate to tunnel manager
+		if bridge.TunnelManager != nil {
+			bridge.TunnelManager.HandleTunnel(c.Writer, c.Request, serverID)
+		} else {
+			c.JSON(http.StatusServiceUnavailable, gin.H{"error": "agent tunnel not configured"})
+		}
+	}
+}
+
 // wsToString converts an interface{} to string (local helper for ws.go).
 func wsToString(v interface{}) string {
 	if v == nil {

@@ -18,7 +18,7 @@ func TestNew(t *testing.T) {
 	}
 
 	executor := &testLocalExecutor{}
-	bridge := service.NewBridge(db, executor, []byte("test-key-1234567890abcdef"))
+	bridge := service.NewBridge(db, executor, []byte("test-key-1234567890abcdef"), nil)
 
 	srv := New("0.0.0.0:0", db, bridge)
 	if srv == nil {

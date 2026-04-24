@@ -135,7 +135,7 @@ func TestDNSCreateRecord_WithProvider(t *testing.T) {
 		output: map[string]string{},
 		err:    map[string]error{},
 	}
-	b := NewBridge(db, exec, []byte("01234567890123456789012345678901"))
+	b := NewBridge(db, exec, []byte("01234567890123456789012345678901"), nil)
 	// The DNS provider will try to make HTTP calls to Cloudflare API,
 	// which will fail in tests. We just verify it doesn't panic and returns
 	// a result (error from the API call is wrapped in the response).
@@ -171,7 +171,7 @@ func TestDNSListRecords_NoProvider(t *testing.T) {
 func TestDNSDeleteRecord_InvalidFormat(t *testing.T) {
 	db := setupDBWithProviders(t)
 	exec := &mockExecutor{}
-	b := NewBridge(db, exec, []byte("01234567890123456789012345678901"))
+	b := NewBridge(db, exec, []byte("01234567890123456789012345678901"), nil)
 	err := b.DNSDeleteRecord(context.Background(), "invalid-format")
 	if err == nil {
 		t.Fatal("expected error for invalid record ID format")
@@ -201,7 +201,7 @@ func TestSendNotification_NoProviders(t *testing.T) {
 func TestSendNotification_WithWebhook(t *testing.T) {
 	db := setupDBWithProviders(t)
 	exec := &mockExecutor{}
-	b := NewBridge(db, exec, []byte("01234567890123456789012345678901"))
+	b := NewBridge(db, exec, []byte("01234567890123456789012345678901"), nil)
 	// The webhook notifier will try to make an HTTP call that will fail in tests.
 	// The MultiNotifier should still return results (with success=false).
 	result, err := b.SendNotification(context.Background(), "deploy", "myapp", "server1", "success", "deployed ok")
@@ -251,7 +251,7 @@ func TestRestore_AppNotFound(t *testing.T) {
 func TestRestore_BackupExists_AppGone(t *testing.T) {
 	db := setupTestDB(t)
 	exec := &mockExecutor{}
-	b := NewBridge(db, exec, []byte("01234567890123456789012345678901"))
+	b := NewBridge(db, exec, []byte("01234567890123456789012345678901"), nil)
 
 	// Manually insert a backup mapping for a nonexistent app
 	backupMu.Lock()

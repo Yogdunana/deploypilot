@@ -118,7 +118,7 @@ func run(cliDriver, cliDSN string) error {
 		encKey = crypto.NewEncryptionKey()
 		log.Printf("warning: DEPLOYPILOT_ENCRYPTION_KEY not set, generated a temporary key (credentials will be lost on restart)")
 	}
-	bridge := service.NewBridge(db, executor, encKey)
+	bridge := service.NewBridge(db, executor, encKey, nil)
 
 	// Create MCP server
 	mcpServer := mcp.NewServer(bridge)

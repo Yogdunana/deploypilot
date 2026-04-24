@@ -23,8 +23,7 @@ func DeploySSE(bridge *service.Bridge) gin.HandlerFunc {
 		c.Header("X-Accel-Buffering", "no") // disable nginx buffering
 
 		ctx := c.Request.Context()
-		ch := bridge.EventBus.Subscribe(appID)
-		defer bridge.EventBus.Unsubscribe(appID, ch)
+		ch := bridge.EventBus.Subscribe(ctx, appID)
 
 		// Send heartbeat every 15s
 		heartbeat := time.NewTicker(15 * time.Second)

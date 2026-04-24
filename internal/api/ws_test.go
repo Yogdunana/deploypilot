@@ -357,7 +357,7 @@ func TestWSMessageJSON(t *testing.T) {
 
 func TestLogStreamWS_NoToken(t *testing.T) {
 	db := setupWSTestDB(t)
-	bridge := service.NewBridge(db, &localExecutor{}, []byte("test-key-1234567890abcdef"))
+	bridge := service.NewBridge(db, &localExecutor{}, []byte("test-key-1234567890abcdef"), nil)
 	hub := NewWSHub()
 	go hub.Run()
 
@@ -379,7 +379,7 @@ func TestLogStreamWS_NoToken(t *testing.T) {
 
 func TestLogStreamWS_InvalidToken(t *testing.T) {
 	db := setupWSTestDB(t)
-	bridge := service.NewBridge(db, &localExecutor{}, []byte("test-key-1234567890abcdef"))
+	bridge := service.NewBridge(db, &localExecutor{}, []byte("test-key-1234567890abcdef"), nil)
 	hub := NewWSHub()
 	go hub.Run()
 
@@ -402,7 +402,7 @@ func TestLogStreamWS_InvalidToken(t *testing.T) {
 
 func TestTerminalWS_NoToken(t *testing.T) {
 	db := setupWSTestDB(t)
-	bridge := service.NewBridge(db, &localExecutor{}, []byte("test-key-1234567890abcdef"))
+	bridge := service.NewBridge(db, &localExecutor{}, []byte("test-key-1234567890abcdef"), nil)
 	hub := NewWSHub()
 	go hub.Run()
 
@@ -423,7 +423,7 @@ func TestTerminalWS_NoToken(t *testing.T) {
 
 func TestTerminalWS_InvalidToken(t *testing.T) {
 	db := setupWSTestDB(t)
-	bridge := service.NewBridge(db, &localExecutor{}, []byte("test-key-1234567890abcdef"))
+	bridge := service.NewBridge(db, &localExecutor{}, []byte("test-key-1234567890abcdef"), nil)
 	hub := NewWSHub()
 	go hub.Run()
 
@@ -443,7 +443,7 @@ func TestTerminalWS_InvalidToken(t *testing.T) {
 
 func TestTerminalWS_ServerNotFound(t *testing.T) {
 	db := setupWSTestDB(t)
-	bridge := service.NewBridge(db, &localExecutor{}, []byte("test-key-1234567890abcdef"))
+	bridge := service.NewBridge(db, &localExecutor{}, []byte("test-key-1234567890abcdef"), nil)
 	hub := NewWSHub()
 	go hub.Run()
 
@@ -474,7 +474,7 @@ func TestTerminalWS_ServerNotFound(t *testing.T) {
 
 func TestLogStreamWS_AppNotFound(t *testing.T) {
 	db := setupWSTestDB(t)
-	bridge := service.NewBridge(db, &localExecutor{}, []byte("test-key-1234567890abcdef"))
+	bridge := service.NewBridge(db, &localExecutor{}, []byte("test-key-1234567890abcdef"), nil)
 	hub := NewWSHub()
 	go hub.Run()
 
@@ -616,5 +616,74 @@ func TestWsToString(t *testing.T) {
 	// Test empty string
 	if wsToString("") != "" {
 		t.Error("wsToString('') should return empty string")
+	}
+}
+
+func TestAgentTunnelWS_NoToken(t *testing.T) {
+	db := setupWSTestDB(t)
+	bridge := service.NewBridge(db, &localExecutor{}, []byte("test-key-1234567890abcdef"), nil)
+
+	gin.SetMode(gin.TestMode)
+	r := gin.New()
+	r.GET("/ws/agent/:server_id", AgentTunnelWS(bridge))
+
+	server := httptest.NewServer(r)
+	defer server.Close()
+
+	// Dial without token — should get HTTP 401, not a WebSocket upgrade
+	resp, err := http.Get(server.URL + "/ws/agent/test-server")
+	if err != nil {
+		t.Fatalf("request failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusUnauthorized {
+		t.Errorf("expected 401, got %d", resp.StatusCode)
+	}
+}
+
+func TestAgentTunnelWS_InvalidToken(t *testing.T) {
+	db := setupWSTestDB(t)
+	bridge := service.NewBridge(db, &localExecutor{}, []byte("test-key-1234567890abcdef"), nil)
+
+	gin.SetMode(gin.TestMode)
+	r := gin.New()
+	r.GET("/ws/agent/:server_id", AgentTunnelWS(bridge))
+
+	server := httptest.NewServer(r)
+	defer server.Close()
+
+	resp, err := http.Get(server.URL + "/ws/agent/test-server?token=invalid")
+	if err != nil {
+		t.Fatalf("request failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusUnauthorized {
+		t.Errorf("expected 401, got %d", resp.StatusCode)
+	}
+}
+
+func TestAgentTunnelWS_NoTunnelManager(t *testing.T) {
+	db := setupWSTestDB(t)
+	bridge := service.NewBridge(db, &localExecutor{}, []byte("test-key-1234567890abcdef"), nil)
+	// TunnelManager is nil by default
+
+	gin.SetMode(gin.TestMode)
+	r := gin.New()
+	r.GET("/ws/agent/:server_id", AgentTunnelWS(bridge))
+
+	server := httptest.NewServer(r)
+	defer server.Close()
+
+	token := getWSToken(t)
+	resp, err := http.Get(server.URL + "/ws/agent/test-server?token=" + token)
+	if err != nil {
+		t.Fatalf("request failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusServiceUnavailable {
+		t.Errorf("expected 503, got %d", resp.StatusCode)
 	}
 }

@@ -1,26 +1,33 @@
 package service
 
 import (
+	"context"
 	"sync"
 	"testing"
 	"time"
 )
 
-func TestNewDeployEventBus(t *testing.T) {
-	bus := NewDeployEventBus()
+func TestNewInMemoryEventBus(t *testing.T) {
+	bus := NewInMemoryEventBus()
 	if bus == nil {
-		t.Fatal("NewDeployEventBus() returned nil")
+		t.Fatal("NewInMemoryEventBus() returned nil")
 	}
 	if bus.subscribers == nil {
 		t.Fatal("expected non-nil subscribers map")
 	}
 }
 
-func TestDeployEventBus_SubscribeUnsubscribe(t *testing.T) {
-	bus := NewDeployEventBus()
+func TestInMemoryEventBus_ImplementsInterface(t *testing.T) {
+	var _ EventBus = NewInMemoryEventBus()
+}
 
-	ch1 := bus.Subscribe("app-1")
-	if ch1 == nil {
+func TestInMemoryEventBus_Subscribe(t *testing.T) {
+	bus := NewInMemoryEventBus()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	ch := bus.Subscribe(ctx, "app-1")
+	if ch == nil {
 		t.Fatal("Subscribe returned nil channel")
 	}
 
@@ -33,7 +40,9 @@ func TestDeployEventBus_SubscribeUnsubscribe(t *testing.T) {
 	}
 
 	// Subscribe a second channel
-	ch2 := bus.Subscribe("app-1")
+	ctx2, cancel2 := context.WithCancel(context.Background())
+	defer cancel2()
+	_ = bus.Subscribe(ctx2, "app-1")
 	bus.mu.RLock()
 	count = len(bus.subscribers["app-1"])
 	bus.mu.RUnlock()
@@ -41,34 +50,39 @@ func TestDeployEventBus_SubscribeUnsubscribe(t *testing.T) {
 		t.Errorf("expected 2 subscribers, got %d", count)
 	}
 
-	// Unsubscribe first channel
-	bus.Unsubscribe("app-1", ch1)
+	// Cancel first subscription
+	cancel()
+	time.Sleep(50 * time.Millisecond)
 	bus.mu.RLock()
 	count = len(bus.subscribers["app-1"])
 	bus.mu.RUnlock()
 	if count != 1 {
-		t.Errorf("expected 1 subscriber after unsubscribe, got %d", count)
+		t.Errorf("expected 1 subscriber after cancel, got %d", count)
 	}
 
-	// Unsubscribe second channel - should clean up the appID key
-	bus.Unsubscribe("app-1", ch2)
+	// Cancel second subscription - should clean up the appID key
+	cancel2()
+	time.Sleep(50 * time.Millisecond)
 	bus.mu.RLock()
 	_, exists := bus.subscribers["app-1"]
 	bus.mu.RUnlock()
 	if exists {
-		t.Error("expected app-1 key to be removed after last subscriber unsubscribed")
+		t.Error("expected app-1 key to be removed after last subscriber cancelled")
 	}
 
 	// Verify channel was closed
-	_, ok := <-ch1
+	_, ok := <-ch
 	if ok {
-		t.Error("expected ch1 to be closed after unsubscribe")
+		t.Error("expected ch to be closed after cancel")
 	}
 }
 
-func TestDeployEventBus_Publish(t *testing.T) {
-	bus := NewDeployEventBus()
-	ch := bus.Subscribe("app-pub")
+func TestInMemoryEventBus_Publish(t *testing.T) {
+	bus := NewInMemoryEventBus()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	ch := bus.Subscribe(ctx, "app-pub")
 
 	event := DeployEvent{
 		TaskID:    "task-1",
@@ -98,24 +112,38 @@ func TestDeployEventBus_Publish(t *testing.T) {
 	}
 }
 
-func TestDeployEventBus_UnsubscribeCleansUp(t *testing.T) {
-	bus := NewDeployEventBus()
+func TestInMemoryEventBus_UnsubscribeCleansUp(t *testing.T) {
+	bus := NewInMemoryEventBus()
+	ctx, cancel := context.WithCancel(context.Background())
 
-	ch := bus.Subscribe("app-cleanup")
-	bus.Unsubscribe("app-cleanup", ch)
+	ch := bus.Subscribe(ctx, "app-cleanup")
+	cancel()
+	time.Sleep(50 * time.Millisecond)
 
 	// Publishing to an app with no subscribers should not panic
 	event := DeployEvent{AppID: "app-cleanup", Step: "done", Status: "success", Progress: 100}
 	bus.Publish(event)
 	// If we get here without panic, the test passes
+	// Also verify the channel was closed
+	_, ok := <-ch
+	if ok {
+		t.Error("expected channel to be closed after context cancel")
+	}
 }
 
-func TestDeployEventBus_MultipleSubscribers(t *testing.T) {
-	bus := NewDeployEventBus()
+func TestInMemoryEventBus_MultipleSubscribers(t *testing.T) {
+	bus := NewInMemoryEventBus()
 
-	ch1 := bus.Subscribe("app-multi")
-	ch2 := bus.Subscribe("app-multi")
-	ch3 := bus.Subscribe("app-multi")
+	ctx1, cancel1 := context.WithCancel(context.Background())
+	defer cancel1()
+	ctx2, cancel2 := context.WithCancel(context.Background())
+	defer cancel2()
+	ctx3, cancel3 := context.WithCancel(context.Background())
+	defer cancel3()
+
+	ch1 := bus.Subscribe(ctx1, "app-multi")
+	ch2 := bus.Subscribe(ctx2, "app-multi")
+	ch3 := bus.Subscribe(ctx3, "app-multi")
 
 	event := DeployEvent{
 		TaskID: "task-multi",
@@ -127,7 +155,7 @@ func TestDeployEventBus_MultipleSubscribers(t *testing.T) {
 	bus.Publish(event)
 
 	// All three channels should receive the event
-	for i, ch := range []chan DeployEvent{ch1, ch2, ch3} {
+	for i, ch := range []<-chan DeployEvent{ch1, ch2, ch3} {
 		select {
 		case received := <-ch:
 			if received.TaskID != "task-multi" {
@@ -139,17 +167,20 @@ func TestDeployEventBus_MultipleSubscribers(t *testing.T) {
 	}
 }
 
-func TestDeployEventBus_PublishNoSubscribers(t *testing.T) {
-	bus := NewDeployEventBus()
+func TestInMemoryEventBus_PublishNoSubscribers(t *testing.T) {
+	bus := NewInMemoryEventBus()
 
 	// Publishing to an app with no subscribers should not panic
 	event := DeployEvent{AppID: "nonexistent", Step: "done", Status: "success", Progress: 100}
 	bus.Publish(event)
 }
 
-func TestDeployEventBus_ConcurrentPublish(t *testing.T) {
-	bus := NewDeployEventBus()
-	ch := bus.Subscribe("app-concurrent")
+func TestInMemoryEventBus_ConcurrentPublish(t *testing.T) {
+	bus := NewInMemoryEventBus()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	ch := bus.Subscribe(ctx, "app-concurrent")
 
 	var wg sync.WaitGroup
 	for i := 0; i < 100; i++ {
@@ -181,6 +212,14 @@ func TestDeployEventBus_ConcurrentPublish(t *testing.T) {
 done:
 	if received == 0 {
 		t.Error("expected to receive at least some events from concurrent publish")
+	}
+}
+
+func TestInMemoryEventBus_Close(t *testing.T) {
+	bus := NewInMemoryEventBus()
+	err := bus.Close()
+	if err != nil {
+		t.Errorf("Close() returned error: %v", err)
 	}
 }
 

@@ -22,6 +22,7 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 	{
 		wsGroup.GET("/logs/:app_id", LogStreamWS(bridge, wsHub))
 		wsGroup.GET("/terminal/:server_id", TerminalWS(bridge, wsHub))
+		wsGroup.GET("/agent/:server_id", AgentTunnelWS(bridge))
 	}
 
 	// SSE routes (requires auth)
