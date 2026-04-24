@@ -64,6 +64,11 @@ type Deployer interface {
 	CheckSystemUpdate(ctx context.Context) (interface{}, error)
 	GetLatestDeploymentRecord(ctx context.Context, containerName string) (*model.DeploymentRecord, error)
 	BuildAndDeploy(ctx context.Context, cfg BuildAndDeployConfig) (*BuildAndDeployResult, error)
+	HealContainer(ctx context.Context, containerName string) (interface{}, error)
+	GetContainerMetrics(ctx context.Context, containerName string) (interface{}, error)
+	GetSystemMetrics(ctx context.Context) (interface{}, error)
+	ListAlerts(ctx context.Context) (interface{}, error)
+	ListAlertRules(ctx context.Context) (interface{}, error)
 }
 
 // DeployConfig mirrors deployer.DeployConfig to avoid circular imports.
@@ -624,6 +629,48 @@ func NewServer(deployer Deployer) *server.MCPServer {
 	)
 	s.AddTool(buildAndDeployTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return handleBuildAndDeploy(ctx, deployer, request)
+	})
+
+	// Register heal_container tool
+	healContainerTool := mcp.NewTool("heal_container",
+		mcp.WithDescription("Trigger self-healing for a container. Inspects the container state and takes corrective action (restart or rollback) if needed."),
+		mcp.WithString("container_name", mcp.Required(), mcp.Description("Name of the container to heal")),
+	)
+	s.AddTool(healContainerTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleHealContainer(ctx, deployer, request)
+	})
+
+	// Register get_container_metrics tool
+	getContainerMetricsTool := mcp.NewTool("get_container_metrics",
+		mcp.WithDescription("Get resource usage metrics (CPU, memory) for a specific container."),
+		mcp.WithString("container_name", mcp.Required(), mcp.Description("Name of the container")),
+	)
+	s.AddTool(getContainerMetricsTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleGetContainerMetrics(ctx, deployer, request)
+	})
+
+	// Register get_system_metrics tool
+	getSystemMetricsTool := mcp.NewTool("get_system_metrics",
+		mcp.WithDescription("Get system-level metrics (CPU, memory, disk usage)."),
+	)
+	s.AddTool(getSystemMetricsTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleGetSystemMetrics(ctx, deployer, request)
+	})
+
+	// Register list_alerts tool
+	listAlertsTool := mcp.NewTool("list_alerts",
+		mcp.WithDescription("List all currently active (firing) alerts."),
+	)
+	s.AddTool(listAlertsTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleListAlerts(ctx, deployer, request)
+	})
+
+	// Register list_alert_rules tool
+	listAlertRulesTool := mcp.NewTool("list_alert_rules",
+		mcp.WithDescription("List all configured alert rules."),
+	)
+	s.AddTool(listAlertRulesTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleListAlertRules(ctx, deployer, request)
 	})
 
 	return s
@@ -1564,6 +1611,66 @@ func handleGetDeployStatus(ctx context.Context, deployer Deployer, request mcp.C
 			"message": record.PreflightMessage,
 			"time":    record.CreatedAt,
 		}
+	}
+
+	data, _ := json.MarshalIndent(result, "", "  ")
+	return mcp.NewToolResultText(string(data)), nil
+}
+
+func handleHealContainer(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	containerName, err := request.RequireString("container_name")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	result, err := deployer.HealContainer(ctx, containerName)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("heal failed: %v", err)), nil
+	}
+
+	data, _ := json.MarshalIndent(result, "", "  ")
+	return mcp.NewToolResultText(string(data)), nil
+}
+
+func handleGetContainerMetrics(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	containerName, err := request.RequireString("container_name")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	result, err := deployer.GetContainerMetrics(ctx, containerName)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("failed to get container metrics: %v", err)), nil
+	}
+
+	data, _ := json.MarshalIndent(result, "", "  ")
+	return mcp.NewToolResultText(string(data)), nil
+}
+
+func handleGetSystemMetrics(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	result, err := deployer.GetSystemMetrics(ctx)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("failed to get system metrics: %v", err)), nil
+	}
+
+	data, _ := json.MarshalIndent(result, "", "  ")
+	return mcp.NewToolResultText(string(data)), nil
+}
+
+func handleListAlerts(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	result, err := deployer.ListAlerts(ctx)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("failed to list alerts: %v", err)), nil
+	}
+
+	data, _ := json.MarshalIndent(result, "", "  ")
+	return mcp.NewToolResultText(string(data)), nil
+}
+
+func handleListAlertRules(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	result, err := deployer.ListAlertRules(ctx)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("failed to list alert rules: %v", err)), nil
 	}
 
 	data, _ := json.MarshalIndent(result, "", "  ")

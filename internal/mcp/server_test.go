@@ -53,6 +53,11 @@ type mockDeployer struct {
 	batchDNSFn     func(ctx context.Context, records []map[string]interface{}) (interface{}, error)
 	checkSysUpdateFn func(ctx context.Context) (interface{}, error)
 	latestRecord   *model.DeploymentRecord
+	healContainerFn    func(ctx context.Context, containerName string) (interface{}, error)
+	getContainerMetricsFn func(ctx context.Context, containerName string) (interface{}, error)
+	getSystemMetricsFn  func(ctx context.Context) (interface{}, error)
+	listAlertsFn        func(ctx context.Context) (interface{}, error)
+	listAlertRulesFn    func(ctx context.Context) (interface{}, error)
 }
 
 func (m *mockDeployer) Deploy(ctx context.Context, cfg DeployConfig) (*ContainerStatus, error) {
@@ -370,6 +375,56 @@ func (m *mockDeployer) BuildAndDeploy(ctx context.Context, cfg BuildAndDeployCon
 		Duration:   42.5,
 		TechStack:  cfg.TechStack,
 		CommitHash: "abc1234567890",
+	}, nil
+}
+
+func (m *mockDeployer) HealContainer(ctx context.Context, containerName string) (interface{}, error) {
+	if m.healContainerFn != nil {
+		return m.healContainerFn(ctx, containerName)
+	}
+	return map[string]interface{}{
+		"action":  "none",
+		"reason":  "container is healthy",
+		"container_name": containerName,
+	}, nil
+}
+
+func (m *mockDeployer) GetContainerMetrics(ctx context.Context, containerName string) (interface{}, error) {
+	if m.getContainerMetricsFn != nil {
+		return m.getContainerMetricsFn(ctx, containerName)
+	}
+	return []map[string]interface{}{
+		{"type": "cpu", "name": "container_cpu", "value": 12.5, "unit": "percent"},
+		{"type": "memory", "name": "container_memory_percent", "value": 45.2, "unit": "percent"},
+	}, nil
+}
+
+func (m *mockDeployer) GetSystemMetrics(ctx context.Context) (interface{}, error) {
+	if m.getSystemMetricsFn != nil {
+		return m.getSystemMetricsFn(ctx)
+	}
+	return []map[string]interface{}{
+		{"type": "cpu", "name": "cpu_usage", "value": 25.3, "unit": "percent"},
+		{"type": "memory", "name": "memory_usage_percent", "value": 62.1, "unit": "percent"},
+		{"type": "disk", "name": "disk_usage_percent", "value": 45.0, "unit": "percent"},
+	}, nil
+}
+
+func (m *mockDeployer) ListAlerts(ctx context.Context) (interface{}, error) {
+	if m.listAlertsFn != nil {
+		return m.listAlertsFn(ctx)
+	}
+	return []interface{}{}, nil
+}
+
+func (m *mockDeployer) ListAlertRules(ctx context.Context) (interface{}, error) {
+	if m.listAlertRulesFn != nil {
+		return m.listAlertRulesFn(ctx)
+	}
+	return []map[string]interface{}{
+		{"id": "disk-space", "name": "Disk Space Low", "metric_type": "disk", "condition": "lt", "threshold": 5.0, "severity": "warning"},
+		{"id": "memory-high", "name": "Memory Usage High", "metric_type": "memory", "condition": "gt", "threshold": 90.0, "severity": "warning"},
+		{"id": "cpu-high", "name": "CPU Usage High", "metric_type": "cpu", "condition": "gt", "threshold": 95.0, "severity": "warning"},
 	}, nil
 }
 

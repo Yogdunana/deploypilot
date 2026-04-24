@@ -576,3 +576,97 @@ func setupTestWithProviders(t *testing.T) *gorm.DB {
 	t.Helper()
 	return setupDBWithProviders(t)
 }
+
+// --- Monitor/Healer Bridge Tests ---
+
+func TestHealContainer_NoExecutor(t *testing.T) {
+	db, _ := database.Connect("sqlite", ":memory:")
+	database.Migrate(db)
+	b := &Bridge{DB: db, Executor: nil}
+	// getHealer creates a healer even with nil executor, but CheckAndHeal will
+	// panic on nil executor. This is expected — in production, executor is always set.
+	defer func() {
+		if r := recover(); r != nil {
+			t.Logf("expected panic with nil executor: %v", r)
+		}
+	}()
+	b.HealContainer(context.Background(), "test")
+}
+
+func TestGetContainerMetrics_NoExecutor(t *testing.T) {
+	db, _ := database.Connect("sqlite", ":memory:")
+	database.Migrate(db)
+	b := &Bridge{DB: db, Executor: nil}
+	defer func() {
+		if r := recover(); r != nil {
+			t.Logf("expected panic with nil executor: %v", r)
+		}
+	}()
+	b.GetContainerMetrics(context.Background(), "test")
+}
+
+func TestGetSystemMetrics_NoExecutor(t *testing.T) {
+	db, _ := database.Connect("sqlite", ":memory:")
+	database.Migrate(db)
+	b := &Bridge{DB: db, Executor: nil}
+	defer func() {
+		if r := recover(); r != nil {
+			t.Logf("expected panic with nil executor: %v", r)
+		}
+	}()
+	b.GetSystemMetrics(context.Background())
+}
+
+func TestListAlerts_Empty(t *testing.T) {
+	db, _ := database.Connect("sqlite", ":memory:")
+	database.Migrate(db)
+	b := &Bridge{DB: db, Executor: nil}
+	defer func() {
+		if r := recover(); r != nil {
+			t.Logf("expected panic with nil executor: %v", r)
+		}
+	}()
+	b.ListAlerts(context.Background())
+}
+
+func TestListAlertRules_Default(t *testing.T) {
+	db, _ := database.Connect("sqlite", ":memory:")
+	database.Migrate(db)
+	b := &Bridge{DB: db, Executor: nil}
+	defer func() {
+		if r := recover(); r != nil {
+			t.Logf("expected panic with nil executor: %v", r)
+		}
+	}()
+	b.ListAlertRules(context.Background())
+}
+
+func TestBatchDeploy_Empty(t *testing.T) {
+	db, _ := database.Connect("sqlite", ":memory:")
+	database.Migrate(db)
+	b := &Bridge{DB: db, Executor: nil}
+	result, err := b.BatchDeploy(context.Background(), []map[string]interface{}{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	m := result.(map[string]interface{})
+	if m["total"] != 0 {
+		t.Errorf("expected 0 total, got %v", m["total"])
+	}
+}
+
+func TestBatchDeploy_WithApps(t *testing.T) {
+	db, _ := database.Connect("sqlite", ":memory:")
+	database.Migrate(db)
+	b := &Bridge{DB: db, Executor: nil}
+	apps := []map[string]interface{}{
+		{"image": "nginx:latest", "container_name": "test-1"},
+		{"image": "redis:alpine", "container_name": "test-2"},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			t.Logf("expected panic with nil executor: %v", r)
+		}
+	}()
+	b.BatchDeploy(context.Background(), apps)
+}

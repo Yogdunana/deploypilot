@@ -141,5 +141,16 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge) {
 			backups.GET("", ListBackups(db))
 			backups.DELETE("/:backupId", DeleteBackup(db))
 		}
+
+		// Monitor (6 endpoints)
+		mon := protected.Group("/monitor")
+		{
+			mon.GET("/system", GetSystemMetrics(bridge))
+			mon.GET("/container/:name", GetContainerMetrics(bridge))
+			mon.GET("/alerts", ListAlerts(bridge))
+			mon.GET("/alert-rules", ListAlertRules(bridge))
+			mon.POST("/heal/:name", HealContainer(bridge))
+			mon.POST("/check/:name", CheckContainerHealth(bridge))
+		}
 	}
 }

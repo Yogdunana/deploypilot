@@ -3,6 +3,7 @@ package deployer
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -271,4 +272,69 @@ func (d *DockerDeployer) buildHealthCheckCommand(cfg HealthCheckConfig) string {
 	default:
 		return "echo ok"
 	}
+}
+
+// ContainerDetail extends ContainerStatus with health/healing info.
+type ContainerDetail struct {
+	ContainerStatus
+	OOMKilled    bool   `json:"oom_killed"`
+	ExitCode     int    `json:"exit_code"`
+	RestartCount int    `json:"restart_count"`
+	Pid          int    `json:"pid"`
+	StartedAt    string `json:"started_at"`
+	FinishedAt   string `json:"finished_at"`
+	Health       string `json:"health"` // starting, healthy, unhealthy, none
+}
+
+// GetContainerDetail returns detailed container state information including
+// OOM status, exit code, restart count, PID, timestamps, and health status.
+func (d *DockerDeployer) GetContainerDetail(ctx context.Context, name string) (*ContainerDetail, error) {
+	cmd := fmt.Sprintf(
+		`docker inspect --format '{{.State.OOMKilled}}|{{.State.ExitCode}}|{{.State.Restarting}}|{{.State.Pid}}|{{.State.StartedAt}}|{{.State.FinishedAt}}|{{.State.Health.Status}}' %s 2>/dev/null`,
+		name,
+	)
+	output, err := d.executor.RunCommand(ctx, cmd)
+	if err != nil || output == "" {
+		return nil, fmt.Errorf("container %s not found", name)
+	}
+
+	output = strings.TrimSpace(output)
+	parts := strings.Split(output, "|")
+	if len(parts) < 7 {
+		return nil, fmt.Errorf("unexpected inspect output format: %s", output)
+	}
+
+	oomKilled := strings.TrimSpace(parts[0]) == "true"
+	exitCode, _ := strconv.Atoi(strings.TrimSpace(parts[1]))
+	pid, _ := strconv.Atoi(strings.TrimSpace(parts[3]))
+	startedAt := strings.TrimSpace(parts[4])
+	finishedAt := strings.TrimSpace(parts[5])
+	health := strings.TrimSpace(parts[6])
+	if health == "<nil>" || health == "" {
+		health = "none"
+	}
+
+	// Get restart count separately
+	restartCount := 0
+	restartCmd := fmt.Sprintf("docker inspect --format '{{.RestartCount}}' %s 2>/dev/null", name)
+	if restartOut, err := d.executor.RunCommand(ctx, restartCmd); err == nil {
+		restartCount, _ = strconv.Atoi(strings.TrimSpace(restartOut))
+	}
+
+	// Get base container status
+	cs, err := d.GetContainerStatus(ctx, name)
+	if err != nil {
+		return nil, err
+	}
+
+	return &ContainerDetail{
+		ContainerStatus: *cs,
+		OOMKilled:       oomKilled,
+		ExitCode:        exitCode,
+		RestartCount:    restartCount,
+		Pid:             pid,
+		StartedAt:       startedAt,
+		FinishedAt:      finishedAt,
+		Health:          health,
+	}, nil
 }
