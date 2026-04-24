@@ -62,7 +62,7 @@ func exitedInspect(name string) map[string]string {
 // restartingInspect returns inspect output for a container in restarting state.
 func restartingInspect(name string) map[string]string {
 	return map[string]string{
-		"State.OOMKilled":     fmt.Sprintf("false|0|true|0|2024-01-01T00:00:00Z|0001-01-01T00:00:00Z|none"),
+		"State.OOMKilled":     "false|0|true|0|2024-01-01T00:00:00Z|0001-01-01T00:00:00Z|none",
 		"RestartCount":        "5",
 		".Id}}|{{.Name}}|{{.Config.Image}}|{{.State.Status}}": fmt.Sprintf("abc123|/%s|nginx:latest|restarting|2024-01-01T00:00:00Z", name),
 		"docker restart":      "",
