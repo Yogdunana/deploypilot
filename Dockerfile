@@ -12,6 +12,7 @@ COPY . .
 
 RUN CGO_ENABLED=1 go build -ldflags="-s -w" -o /mcp-server ./cmd/mcp-server/
 RUN CGO_ENABLED=1 go build -ldflags="-s -w" -o /deploypilot ./cmd/deploypilot/
+RUN CGO_ENABLED=1 go build -ldflags="-s -w" -o /api-server ./cmd/api-server/
 
 # Runtime stage
 FROM alpine:3.19
@@ -22,6 +23,7 @@ WORKDIR /app
 
 COPY --from=builder /mcp-server .
 COPY --from=builder /deploypilot .
+COPY --from=builder /api-server .
 COPY config.yaml .
 
 EXPOSE 8080

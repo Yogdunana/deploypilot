@@ -1,4 +1,4 @@
-.PHONY: build build-mcp test lint coverage clean docker-build run
+.PHONY: build build-mcp build-api build-all test lint coverage clean docker-build run
 
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
 LDFLAGS := -ldflags "-s -w -X main.version=$(VERSION)"
@@ -16,7 +16,10 @@ build: ## Build CLI binary
 build-mcp: ## Build MCP server binary
 	$(GOBUILD) $(LDFLAGS) -o bin/mcp-server ./cmd/mcp-server/
 
-build-all: build build-mcp ## Build all binaries
+build-api: ## Build API server binary
+	$(GOBUILD) $(LDFLAGS) -o bin/api-server ./cmd/api-server/
+
+build-all: build build-mcp build-api ## Build all binaries
 
 # Test targets
 test: ## Run all tests with race detector
