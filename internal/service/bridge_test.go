@@ -50,9 +50,9 @@ func newTestBridge(t *testing.T) (*Bridge, *mockExecutor) {
 	exec := &mockExecutor{
 		output: map[string]string{
 			"docker ps -a --format '{{.Names}}'": "",
-			"echo ok":                              "ok",
+			"echo ok":                            "ok",
 			"docker version --format '{{.Server.Version}}' 2>/dev/null": "24.0",
-			"docker info --format '{{.NCPU}}' 2>/dev/null":             "4",
+			"docker info --format '{{.NCPU}}' 2>/dev/null":              "4",
 			"docker info --format '{{.MemTotal}}' 2>/dev/null":          "8192000000",
 			"uname -a": "Linux test 5.15 x86_64",
 			"cat /etc/os-release 2>/dev/null | head -5": "PRETTY_NAME=\"Ubuntu 22.04\"",
@@ -470,40 +470,40 @@ func TestDNSStubs(t *testing.T) {
 	b, _ := newTestBridge(t)
 	ctx := context.Background()
 
-	// DNSCreateRecord
+	// DNSCreateRecord - no DNS provider configured, returns error status
 	res, err := b.DNSCreateRecord(ctx, "example.com", "A", "www", "1.2.3.4")
 	if err != nil {
 		t.Fatalf("DNSCreateRecord failed: %v", err)
 	}
 	m, ok := res.(map[string]interface{})
-	if !ok || m["status"] != "not_implemented" {
-		t.Fatalf("expected not_implemented, got %v", m)
+	if !ok || m["status"] != "error" {
+		t.Fatalf("expected error status, got %v", m)
 	}
 
-	// DNSDeleteRecord
+	// DNSDeleteRecord - no DNS provider configured, returns error
 	err = b.DNSDeleteRecord(ctx, "some-id")
-	if err != nil {
-		t.Fatalf("DNSDeleteRecord failed: %v", err)
+	if err == nil {
+		t.Fatal("expected error for DNSDeleteRecord without provider")
 	}
 
-	// DNSListRecords
+	// DNSListRecords - no DNS provider configured, returns error status
 	res, err = b.DNSListRecords(ctx, "example.com")
 	if err != nil {
 		t.Fatalf("DNSListRecords failed: %v", err)
 	}
 	m = res.(map[string]interface{})
-	if m["status"] != "not_implemented" {
-		t.Fatalf("expected not_implemented, got %v", m)
+	if m["status"] != "error" {
+		t.Fatalf("expected error status, got %v", m)
 	}
 
-	// UpdateDNSRecord
+	// UpdateDNSRecord - no DNS provider configured, returns error status
 	res, err = b.UpdateDNSRecord(ctx, "example.com", "www", "A", "5.6.7.8")
 	if err != nil {
 		t.Fatalf("UpdateDNSRecord failed: %v", err)
 	}
 	m = res.(map[string]interface{})
-	if m["status"] != "not_implemented" {
-		t.Fatalf("expected not_implemented, got %v", m)
+	if m["status"] != "error" {
+		t.Fatalf("expected error status, got %v", m)
 	}
 }
 
@@ -521,12 +521,10 @@ func TestSendNotification(t *testing.T) {
 
 func TestRestore(t *testing.T) {
 	b, _ := newTestBridge(t)
-	cs, err := b.Restore(context.Background(), "backup-123")
-	if err != nil {
-		t.Fatalf("Restore failed: %v", err)
-	}
-	if cs.Status != "not_implemented" {
-		t.Fatalf("expected not_implemented, got %s", cs.Status)
+	// No backup mapping exists, should return error
+	_, err := b.Restore(context.Background(), "backup-123")
+	if err == nil {
+		t.Fatal("expected error for nonexistent backup")
 	}
 }
 
@@ -537,8 +535,8 @@ func TestGetTaskStatus(t *testing.T) {
 		t.Fatalf("GetTaskStatus failed: %v", err)
 	}
 	m, ok := result.(map[string]interface{})
-	if !ok || m["status"] != "pending" {
-		t.Fatalf("expected pending, got %v", m)
+	if !ok || m["status"] != "not_found" {
+		t.Fatalf("expected not_found, got %v", m)
 	}
 }
 
@@ -549,8 +547,8 @@ func TestListTasks(t *testing.T) {
 		t.Fatalf("ListTasks failed: %v", err)
 	}
 	m, ok := result.(map[string]interface{})
-	if !ok || m["status"] != "not_implemented" {
-		t.Fatalf("expected not_implemented, got %v", m)
+	if !ok || m["status"] != "success" {
+		t.Fatalf("expected success, got %v", m)
 	}
 }
 
@@ -583,6 +581,14 @@ func TestBatchDNS(t *testing.T) {
 	m, ok := result.(map[string]interface{})
 	if !ok || m["total"] != 1 {
 		t.Fatalf("expected total=1, got %v", m)
+	}
+	// Each record should have error status since no DNS provider is configured
+	results, ok := m["results"].([]map[string]interface{})
+	if !ok || len(results) != 1 {
+		t.Fatalf("expected 1 result, got %v", m["results"])
+	}
+	if results[0]["status"] != "error" {
+		t.Fatalf("expected error status for record without provider, got %v", results[0]["status"])
 	}
 }
 

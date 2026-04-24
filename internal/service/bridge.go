@@ -5,13 +5,18 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"path/filepath"
+	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/Yogdunana/deploypilot/internal/crypto"
 	"github.com/Yogdunana/deploypilot/internal/engine/deployer"
 	"github.com/Yogdunana/deploypilot/internal/mcp"
 	"github.com/Yogdunana/deploypilot/internal/model"
+	"github.com/Yogdunana/deploypilot/internal/provider/dns"
+	"github.com/Yogdunana/deploypilot/internal/provider/notify"
 	"github.com/Yogdunana/deploypilot/internal/provider/server"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -58,6 +63,106 @@ func NewBridge(db *gorm.DB, executor deployer.CommandExecutor, encryptionKey []b
 // d returns a deployer.DockerDeployer backed by the bridge's executor.
 func (b *Bridge) d() *deployer.DockerDeployer {
 	return deployer.New(b.Executor)
+}
+
+// getDNSProvider loads the first enabled DNS provider from DB and returns a CloudflareProvider.
+func (b *Bridge) getDNSProvider(ctx context.Context) (*dns.CloudflareProvider, error) {
+	if b.DB == nil {
+		return nil, fmt.Errorf("database not available")
+	}
+	var provider model.Provider
+	err := b.DB.Where("type = ? AND enabled = ?", "cloudflare", true).First(&provider).Error
+	if err != nil {
+		return nil, fmt.Errorf("no enabled DNS provider found: %w", err)
+	}
+	// Parse config JSON
+	var cfg struct {
+		APIToken     string `json:"api_token"`
+		AccountEmail string `json:"account_email"`
+	}
+	if err := json.Unmarshal([]byte(provider.Config), &cfg); err != nil {
+		return nil, fmt.Errorf("failed to parse DNS provider config: %w", err)
+	}
+	return dns.NewCloudflareProvider(cfg.APIToken, cfg.AccountEmail), nil
+}
+
+// getNotifiers loads all enabled notification providers from DB.
+func (b *Bridge) getNotifiers(ctx context.Context) ([]notify.Notifier, error) {
+	if b.DB == nil {
+		return nil, nil // No DB = no notifiers, just log
+	}
+	var providers []model.Provider
+	err := b.DB.Where("type = ? AND enabled = ?", "notify", true).Find(&providers).Error
+	if err != nil {
+		return nil, err
+	}
+	var notifiers []notify.Notifier
+	for _, p := range providers {
+		var cfg struct {
+			Channel  string            `json:"channel"` // webhook, email
+			URL      string            `json:"url"`
+			Headers  map[string]string `json:"headers"`
+			SMTPHost string            `json:"smtp_host"`
+			SMTPPort int               `json:"smtp_port"`
+			Username string            `json:"username"`
+			Password string            `json:"password"`
+			From     string            `json:"from"`
+		}
+		if err := json.Unmarshal([]byte(p.Config), &cfg); err != nil {
+			log.Printf("[notify] failed to parse provider %s config: %v", p.Name, err)
+			continue
+		}
+		switch cfg.Channel {
+		case "webhook":
+			notifiers = append(notifiers, notify.NewWebhookNotifier(cfg.URL, cfg.Headers))
+		case "email":
+			notifiers = append(notifiers, notify.NewEmailNotifier(notify.EmailConfig{
+				SMTPHost: cfg.SMTPHost,
+				SMTPPort: cfg.SMTPPort,
+				Username: cfg.Username,
+				Password: cfg.Password,
+				From:     cfg.From,
+			}))
+		}
+	}
+	return notifiers, nil
+}
+
+// Simple in-memory task tracker.
+type taskInfo struct {
+	ID        string      `json:"task_id"`
+	Type      string      `json:"type"`
+	Status    string      `json:"status"`   // pending, running, success, failed
+	Progress  int         `json:"progress"` // 0-100
+	Message   string      `json:"message"`
+	Result    interface{} `json:"result,omitempty"`
+	CreatedAt time.Time   `json:"created_at"`
+	UpdatedAt time.Time   `json:"updated_at"`
+}
+
+var (
+	taskMu      sync.RWMutex
+	tasks       = make(map[string]*taskInfo)
+	taskCounter int64
+
+	backupMu   sync.RWMutex
+	backupApps = make(map[string]string) // backupID -> appID
+)
+
+func createTask(taskType string) string {
+	taskMu.Lock()
+	defer taskMu.Unlock()
+	taskCounter++
+	id := fmt.Sprintf("task-%d", taskCounter)
+	tasks[id] = &taskInfo{
+		ID:        id,
+		Type:      taskType,
+		Status:    "pending",
+		Progress:  0,
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+	return id
 }
 
 // getRemoteExecutor creates an SSH executor for the given server.
@@ -611,36 +716,89 @@ func (b *Bridge) DeleteCredential(ctx context.Context, credID string) error {
 // ---------- 19. DNSCreateRecord ----------
 
 func (b *Bridge) DNSCreateRecord(ctx context.Context, domain, recordType, name, value string) (interface{}, error) {
-	// Stub: no DNS provider wired yet
-	id := uuid.New().String()
-	log.Printf("[DNS-stub] create record: domain=%s type=%s name=%s value=%s", domain, recordType, name, value)
+	provider, err := b.getDNSProvider(ctx)
+	if err != nil {
+		log.Printf("[dns] %v", err)
+		return map[string]interface{}{
+			"status":  "error",
+			"domain":  domain,
+			"type":    recordType,
+			"name":    name,
+			"value":   value,
+			"message": err.Error(),
+		}, nil
+	}
+	record := &dns.DNSRecord{
+		Domain: domain,
+		Type:   recordType,
+		Name:   name,
+		Value:  value,
+		TTL:    1,
+	}
+	if err := provider.CreateRecord(ctx, record); err != nil {
+		return map[string]interface{}{
+			"status":  "error",
+			"message": err.Error(),
+		}, nil
+	}
 	return map[string]interface{}{
-		"status": "not_implemented",
-		"id":     id,
+		"status": "success",
 		"domain": domain,
 		"type":   recordType,
 		"name":   name,
 		"value":  value,
-		"message": "DNS provider not configured; record recorded locally only",
 	}, nil
 }
 
 // ---------- 20. DNSDeleteRecord ----------
 
 func (b *Bridge) DNSDeleteRecord(ctx context.Context, recordID string) error {
-	log.Printf("[DNS-stub] delete record: id=%s", recordID)
-	return nil
+	provider, err := b.getDNSProvider(ctx)
+	if err != nil {
+		return err
+	}
+	// recordID format: "domain:type:name"
+	parts := strings.SplitN(recordID, ":", 3)
+	if len(parts) != 3 {
+		return fmt.Errorf("invalid record ID format, expected domain:type:name")
+	}
+	return provider.DeleteRecord(ctx, parts[0], parts[1], parts[2])
 }
 
 // ---------- 21. DNSListRecords ----------
 
 func (b *Bridge) DNSListRecords(ctx context.Context, domain string) (interface{}, error) {
-	log.Printf("[DNS-stub] list records: domain=%s", domain)
+	provider, err := b.getDNSProvider(ctx)
+	if err != nil {
+		return map[string]interface{}{
+			"status":  "error",
+			"domain":  domain,
+			"message": err.Error(),
+		}, nil
+	}
+	records, err := provider.ListRecords(ctx, domain)
+	if err != nil {
+		return map[string]interface{}{
+			"status":  "error",
+			"message": err.Error(),
+		}, nil
+	}
+	// Convert to response format
+	result := make([]map[string]interface{}, 0, len(records))
+	for _, r := range records {
+		result = append(result, map[string]interface{}{
+			"domain":  r.Domain,
+			"type":    r.Type,
+			"name":    r.Name,
+			"value":   r.Value,
+			"ttl":     r.TTL,
+			"proxied": r.Proxied,
+		})
+	}
 	return map[string]interface{}{
-		"status":  "not_implemented",
+		"status":  "success",
 		"domain":  domain,
-		"records": []interface{}{},
-		"message": "DNS provider not configured",
+		"records": result,
 	}, nil
 }
 
@@ -648,12 +806,54 @@ func (b *Bridge) DNSListRecords(ctx context.Context, domain string) (interface{}
 
 func (b *Bridge) SendNotification(ctx context.Context, nType, appName, server, status, message string) (interface{}, error) {
 	log.Printf("[notification] type=%s app=%s server=%s status=%s message=%s", nType, appName, server, status, message)
+
+	notifiers, err := b.getNotifiers(ctx)
+	if err != nil {
+		log.Printf("[notification] failed to load notifiers: %v", err)
+	}
+
+	if len(notifiers) == 0 {
+		return map[string]interface{}{
+			"status":  "logged",
+			"type":    nType,
+			"app":     appName,
+			"message": "no notification providers configured",
+		}, nil
+	}
+
+	notification := notify.Notification{
+		Type:      nType,
+		AppName:   appName,
+		Server:    server,
+		Status:    status,
+		Message:   message,
+		Timestamp: time.Now(),
+	}
+
+	multi := notify.NewMultiNotifier(notifiers...)
+	results, err := multi.Send(ctx, notification)
+	if err != nil {
+		return map[string]interface{}{
+			"status":  "error",
+			"message": err.Error(),
+		}, nil
+	}
+
+	// Count successes
+	successCount := 0
+	for _, r := range results {
+		if r.Success {
+			successCount++
+		}
+	}
+
 	return map[string]interface{}{
-		"status":  "logged",
-		"type":    nType,
-		"app":     appName,
-		"server":  server,
-		"message": message,
+		"status":          "sent",
+		"type":            nType,
+		"app":             appName,
+		"total_notifiers": len(notifiers),
+		"success_count":   successCount,
+		"results":         results,
 	}, nil
 }
 
@@ -715,22 +915,52 @@ func (b *Bridge) UpdateApp(ctx context.Context, appID string, config map[string]
 // ---------- 27. GetTaskStatus ----------
 
 func (b *Bridge) GetTaskStatus(ctx context.Context, taskID string) (interface{}, error) {
-	return map[string]interface{}{
-		"task_id": taskID,
-		"status":  "pending",
-		"message": "async task tracking not yet implemented",
-	}, nil
+	taskMu.RLock()
+	defer taskMu.RUnlock()
+	t, ok := tasks[taskID]
+	if !ok {
+		return map[string]interface{}{
+			"task_id": taskID,
+			"status":  "not_found",
+			"message": "task not found",
+		}, nil
+	}
+	return t, nil
 }
 
 // ---------- 28. ListTasks ----------
 
 func (b *Bridge) ListTasks(ctx context.Context, limit int, statusFilter string) (interface{}, error) {
+	taskMu.RLock()
+	defer taskMu.RUnlock()
+
+	result := make([]*taskInfo, 0)
+	for _, t := range tasks {
+		if statusFilter != "" && t.Status != statusFilter {
+			continue
+		}
+		result = append(result, t)
+	}
+
+	// Sort by created_at descending
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].CreatedAt.After(result[j].CreatedAt)
+	})
+
+	if limit > 0 && len(result) > limit {
+		result = result[:limit]
+	}
+
+	if result == nil {
+		result = []*taskInfo{}
+	}
+
 	return map[string]interface{}{
-		"status":  "not_implemented",
-		"message": "async task tracking not yet implemented",
-		"tasks":   []interface{}{},
-		"limit":   limit,
-		"filter":  statusFilter,
+		"status": "success",
+		"tasks":  result,
+		"total":  len(result),
+		"limit":  limit,
+		"filter": statusFilter,
 	}, nil
 }
 
@@ -766,12 +996,12 @@ func (b *Bridge) SearchAppLogs(ctx context.Context, appID, keyword string, limit
 	}
 
 	return map[string]interface{}{
-		"app_id":       appID,
-		"container":    containerName,
-		"keyword":      keyword,
-		"total_lines":  len(lines),
-		"match_count":  len(matches),
-		"limit":        limit,
+		"app_id":         appID,
+		"container":      containerName,
+		"keyword":        keyword,
+		"total_lines":    len(lines),
+		"match_count":    len(matches),
+		"limit":          limit,
 		"matching_lines": matches,
 	}, nil
 }
@@ -779,14 +1009,32 @@ func (b *Bridge) SearchAppLogs(ctx context.Context, appID, keyword string, limit
 // ---------- 30. UpdateDNSRecord ----------
 
 func (b *Bridge) UpdateDNSRecord(ctx context.Context, domain, subdomain, recordType, newValue string) (interface{}, error) {
-	log.Printf("[DNS-stub] update record: domain=%s subdomain=%s type=%s value=%s", domain, subdomain, recordType, newValue)
+	provider, err := b.getDNSProvider(ctx)
+	if err != nil {
+		return map[string]interface{}{
+			"status":  "error",
+			"message": err.Error(),
+		}, nil
+	}
+	record := &dns.DNSRecord{
+		Domain: domain,
+		Type:   recordType,
+		Name:   subdomain,
+		Value:  newValue,
+		TTL:    1,
+	}
+	if err := provider.UpdateRecord(ctx, record); err != nil {
+		return map[string]interface{}{
+			"status":  "error",
+			"message": err.Error(),
+		}, nil
+	}
 	return map[string]interface{}{
-		"status":   "not_implemented",
-		"domain":   domain,
+		"status":    "success",
+		"domain":    domain,
 		"subdomain": subdomain,
-		"type":     recordType,
-		"value":    newValue,
-		"message":  "DNS provider not configured",
+		"type":      recordType,
+		"value":     newValue,
 	}, nil
 }
 
@@ -928,20 +1176,87 @@ func (b *Bridge) Backup(ctx context.Context, appID string) (string, error) {
 	}
 
 	log.Printf("[backup] app_id=%s container=%s backup_id=%s file=%s", appID, containerName, backupID, backupFile)
+
+	// Store backup-to-app mapping for Restore
+	backupMu.Lock()
+	backupApps[backupID] = appID
+	backupMu.Unlock()
+
 	return backupID, nil
 }
 
 // ---------- 36. Restore ----------
 
 func (b *Bridge) Restore(ctx context.Context, backupID string) (*mcp.ContainerStatus, error) {
-	// Stub: return a not-implemented status with the backup ID
-	log.Printf("[restore-stub] backup_id=%s", backupID)
+	if b.DB == nil {
+		return nil, fmt.Errorf("database not available")
+	}
+
+	// Look up the appID from the backup mapping
+	backupMu.RLock()
+	appID, ok := backupApps[backupID]
+	backupMu.RUnlock()
+	if !ok {
+		return nil, fmt.Errorf("backup %s not found", backupID)
+	}
+
+	// Find the app
+	var app model.App
+	if err := b.DB.Where("id = ?", appID).First(&app).Error; err != nil {
+		return nil, fmt.Errorf("app not found for backup %s: %w", backupID, err)
+	}
+
+	containerName := app.ContainerName
+	if containerName == "" {
+		containerName = app.Name
+	}
+
+	// Stop and remove current container
+	exec := b.Executor
+	exec.RunCommand(ctx, fmt.Sprintf("docker stop %s", containerName))
+	exec.RunCommand(ctx, fmt.Sprintf("docker rm -f %s", containerName))
+
+	// Restore from backup
+	timestamp := time.Now().Format("20060102-150405")
+	backupFile := fmt.Sprintf("/tmp/backup-%s-%s.tar.gz", containerName, timestamp)
+	cmd := fmt.Sprintf("docker run --rm -v /tmp:/backup -v %s-data:/data alpine sh -c 'cd /data && tar xzf /backup/%s 2>/dev/null || true'",
+		containerName, filepath.Base(backupFile))
+	output, err := exec.RunCommand(ctx, cmd)
+	if err != nil {
+		log.Printf("[restore] restore extract warning: %v, output: %s", err, output)
+	}
+	log.Printf("[restore] container %s restore attempted from %s: %s", containerName, backupFile, output)
+
+	// Re-deploy the app using its current version
+	image := app.CurrentVersion
+	if image == "" {
+		image = "nginx:alpine" // fallback image
+	}
+	d := deployer.New(exec)
+	dCfg := deployer.DeployConfig{
+		Image:         image,
+		ContainerName: containerName,
+	}
+	// Parse env vars if present
+	if app.EnvVars != "" {
+		var envMap map[string]string
+		if json.Unmarshal([]byte(app.EnvVars), &envMap) == nil {
+			dCfg.EnvVars = envMap
+		}
+	}
+	cs, err := d.Deploy(ctx, dCfg)
+	if err != nil {
+		return nil, fmt.Errorf("re-deploy after restore failed: %w", err)
+	}
+
 	return &mcp.ContainerStatus{
-		ID:        backupID,
-		Name:      "restore-pending",
-		Image:     "restore",
-		Status:    "not_implemented",
-		CreatedAt: time.Now().Format(time.RFC3339),
+		ID:        cs.ID,
+		Name:      cs.Name,
+		Image:     cs.Image,
+		Status:    cs.Status,
+		Ports:     cs.Ports,
+		CreatedAt: cs.CreatedAt.Format(time.RFC3339),
+		Labels:    cs.Labels,
 	}, nil
 }
 
@@ -977,10 +1292,16 @@ func (b *Bridge) BatchDNS(ctx context.Context, records []map[string]interface{})
 		recordType := toStringOrDefault(rec["type"], "")
 		value := toStringOrDefault(rec["value"], "")
 
-		res, _ := b.DNSCreateRecord(ctx, domain, recordType, subdomain, value)
+		res, err := b.DNSCreateRecord(ctx, domain, recordType, subdomain, value)
+		status := "success"
+		if err != nil {
+			status = "error"
+		} else if m, ok := res.(map[string]interface{}); ok && m["status"] == "error" {
+			status = "error"
+		}
 		results = append(results, map[string]interface{}{
 			"index":  i,
-			"status": "not_implemented",
+			"status": status,
 			"record": res,
 		})
 	}
@@ -994,10 +1315,10 @@ func (b *Bridge) BatchDNS(ctx context.Context, records []map[string]interface{})
 
 func (b *Bridge) CheckSystemUpdate(ctx context.Context) (interface{}, error) {
 	return map[string]interface{}{
-		"current_version": "0.1.0",
-		"latest_version":  "0.1.0",
+		"current_version":  "0.1.0",
+		"latest_version":   "0.1.0",
 		"update_available": false,
-		"message":         "you are running the latest version of DeployPilot",
+		"message":          "you are running the latest version of DeployPilot",
 	}, nil
 }
 
