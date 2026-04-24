@@ -1,12 +1,14 @@
 # Binaries
 bin/
 *.exe
-*.exe~
 *.dll
 *.so
 *.dylib
 
 # Test
+*.test
+*.out
+c.out
 coverage.out
 *.prof
 
@@ -21,14 +23,13 @@ coverage.out
 .DS_Store
 Thumbs.db
 
-# Project specific
-data/
-logs/
-*.db
-configs/config.yaml
+# Environment
 .env
+.env.local
 
-# Build
-/dist/
+# Frontend
+web/node_modules/
+web/dist/
+
+# Build cache
 /tmp/
-c.out
