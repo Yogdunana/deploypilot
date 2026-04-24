@@ -41,13 +41,6 @@ func (t *TencentProvider) SetBaseURL(u string) {
 // Name returns the provider name.
 func (t *TencentProvider) Name() string { return "tencent" }
 
-// tencentAPIRequest represents a Tencent Cloud API request body.
-type tencentAPIRequest struct {
-	Action  string `json:"Action"`
-	Version string `json:"Version"`
-	Region  string `json:"Region,omitempty"`
-}
-
 // tencentAPIResponse represents a Tencent Cloud API response.
 type tencentAPIResponse struct {
 	Response struct {

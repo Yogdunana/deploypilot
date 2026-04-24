@@ -54,9 +54,7 @@ func TestAliyunSign(t *testing.T) {
 		t.Error("sign() returned empty signature")
 	}
 	// Signature should be base64 encoded
-	if strings.Contains(sig, "+") {
-		// base64 can contain + but it should be valid
-	}
+	_ = strings.Contains(sig, "+") // base64 can contain + but it should be valid
 }
 
 func TestAliyunPercentEncode(t *testing.T) {
