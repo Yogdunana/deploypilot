@@ -92,7 +92,9 @@ func (h *HealthChecker) doHTTPCheck(ctx context.Context, target string) bool {
 	if err != nil {
 		return false
 	}
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 
 	return resp.StatusCode == http.StatusOK
 }
@@ -114,7 +116,7 @@ func (h *HealthChecker) CheckTCP(ctx context.Context, host string, port int, ret
 		latency := time.Since(start)
 
 		if err == nil {
-			conn.Close()
+			_ = conn.Close()
 			return &HealthResult{
 				Healthy:   true,
 				Attempts:  i + 1,

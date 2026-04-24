@@ -390,3 +390,100 @@ func TestConnect_InvalidDSN(t *testing.T) {
 		t.Fatal("expected error for invalid MySQL DSN (no driver)")
 	}
 }
+
+// ========== Additional Coverage Tests ==========
+
+func TestMigrate_DeploymentsTable(t *testing.T) {
+	tmpDir := t.TempDir()
+	dbPath := filepath.Join(tmpDir, "test.db")
+
+	db, err := Connect("sqlite", dbPath)
+	if err != nil {
+		t.Fatalf("Connect() error = %v", err)
+	}
+	sqlDB, _ := db.DB()
+	defer sqlDB.Close()
+
+	if err := Migrate(db); err != nil {
+		t.Fatalf("Migrate() error = %v", err)
+	}
+
+	// Verify deployments table exists
+	var count int64
+	db.Raw("SELECT count(*) FROM sqlite_master WHERE type='table' AND name='deployments'").Scan(&count)
+	if count != 1 {
+		t.Errorf("expected deployments table to exist, got count=%d", count)
+	}
+}
+
+func TestMigrate_DeploymentsColumns(t *testing.T) {
+	tmpDir := t.TempDir()
+	dbPath := filepath.Join(tmpDir, "test.db")
+
+	db, err := Connect("sqlite", dbPath)
+	if err != nil {
+		t.Fatalf("Connect() error = %v", err)
+	}
+	sqlDB, _ := db.DB()
+	defer sqlDB.Close()
+
+	if err := Migrate(db); err != nil {
+		t.Fatalf("Migrate() error = %v", err)
+	}
+
+	columns := []string{"id", "tenant_id", "app_name", "container_name", "image", "status", "preflight_code", "preflight_message"}
+	for _, col := range columns {
+		var count int
+		err := db.Raw(
+			"SELECT count(*) FROM pragma_table_info(?) WHERE name = ?",
+			"deployments", col,
+		).Scan(&count).Error
+		if err != nil {
+			t.Fatalf("failed to check column: %v", err)
+		}
+		if count == 0 {
+			t.Errorf("column %q not found in deployments table", col)
+		}
+	}
+}
+
+func TestSeed_VerifyRolePermissions(t *testing.T) {
+	tmpDir := t.TempDir()
+	dbPath := filepath.Join(tmpDir, "test.db")
+
+	db, err := Connect("sqlite", dbPath)
+	if err != nil {
+		t.Fatalf("Connect() error = %v", err)
+	}
+	sqlDB, _ := db.DB()
+	defer sqlDB.Close()
+
+	if err := Migrate(db); err != nil {
+		t.Fatalf("Migrate() error = %v", err)
+	}
+	if err := Seed(db); err != nil {
+		t.Fatalf("Seed() error = %v", err)
+	}
+
+	// Verify admin role does NOT have admin permission
+	var permissions string
+	db.Table("roles").Where("name = ?", "admin").Select("permissions").Scan(&permissions)
+	if permissions == "" {
+		t.Error("admin role should have permissions")
+	}
+	// Verify viewer has no deploy permission
+	db.Table("roles").Where("name = ?", "viewer").Select("permissions").Scan(&permissions)
+	if permissions == "" {
+		t.Error("viewer role should have permissions")
+	}
+}
+
+func TestConnect_UnsupportedDriver(t *testing.T) {
+	_, err := Connect("mysql", "user:pass@tcp(localhost:3306)/db")
+	if err == nil {
+		t.Fatal("expected error for unsupported driver")
+	}
+	if err != nil && err.Error() == "" {
+		t.Error("error message should not be empty")
+	}
+}

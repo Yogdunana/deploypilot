@@ -126,7 +126,13 @@ func checkTCP(ctx context.Context, host string, port int) PreflightCheck {
 			),
 		}
 	}
-	conn.Close()
+	if cerr := conn.Close(); cerr != nil {
+		return PreflightCheck{
+			Name:    "TCP Connectivity",
+			Passed:  false,
+			Message: fmt.Sprintf("TCP connection to %s:%d succeeded but close failed: %v", host, port, cerr),
+		}
+	}
 	return PreflightCheck{
 		Name:    "TCP Connectivity",
 		Passed:  true,

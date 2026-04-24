@@ -1,19 +1,17 @@
+version: "2"
+
 run:
   timeout: 5m
 
 linters:
   enable:
     - errcheck
-
-linters-settings:
-  errcheck:
-    # Exclude test files from errcheck
-    exclude-functions:
-      - fmt.Sscanf
-
-issues:
-  exclude-rules:
-    # Exclude test files from errcheck
-    - linters:
-        - errcheck
-      path: _test\.go
+  settings:
+    errcheck:
+      exclude-functions:
+        - fmt.Sscanf
+  exclusions:
+    rules:
+      - linters:
+          - errcheck
+        path: _test\.go

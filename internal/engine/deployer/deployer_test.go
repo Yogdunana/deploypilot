@@ -467,3 +467,177 @@ func TestGetContainerLogs_Error(t *testing.T) {
 		t.Fatal("expected error when logs fails")
 	}
 }
+
+// ========== Additional Coverage Tests ==========
+
+func TestBuildHealthCheckCommand_Default(t *testing.T) {
+	mock := newMockExecutor()
+	d := New(mock)
+
+	cmd := d.buildHealthCheckCommand(HealthCheckConfig{
+		Type:    "unknown",
+		Target:  "some-target",
+		Timeout: 5 * time.Second,
+	})
+	if cmd != "echo ok" {
+		t.Errorf("default health check should return 'echo ok', got: %s", cmd)
+	}
+}
+
+func TestBuildHealthCheckCommand_EmptyType(t *testing.T) {
+	mock := newMockExecutor()
+	d := New(mock)
+
+	cmd := d.buildHealthCheckCommand(HealthCheckConfig{
+		Type:    "",
+		Target:  "some-target",
+		Timeout: 5 * time.Second,
+	})
+	if cmd != "echo ok" {
+		t.Errorf("empty type health check should return 'echo ok', got: %s", cmd)
+	}
+}
+
+func TestBuildRunCommand_DefaultRestartPolicy(t *testing.T) {
+	mock := newMockExecutor()
+	d := New(mock)
+
+	cfg := DeployConfig{
+		Image:         "nginx:latest",
+		ContainerName: "my-app",
+		// RestartPolicy intentionally empty
+	}
+
+	cmd := d.buildRunCommand(cfg)
+	if !strings.Contains(cmd, "--restart unless-stopped") {
+		t.Errorf("expected default restart policy, got: %s", cmd)
+	}
+}
+
+func TestBuildRunCommand_WithVolumes(t *testing.T) {
+	mock := newMockExecutor()
+	d := New(mock)
+
+	cfg := DeployConfig{
+		Image:         "nginx:latest",
+		ContainerName: "my-app",
+		Volumes:       "/host/data:/container/data",
+	}
+
+	cmd := d.buildRunCommand(cfg)
+	if !strings.Contains(cmd, "-v /host/data:/container/data") {
+		t.Errorf("expected volume mapping, got: %s", cmd)
+	}
+}
+
+func TestDeploy_InspectFallback(t *testing.T) {
+	mock := newMockExecutor()
+	mock.responses["docker pull"] = "ok"
+	mock.responses["docker rm"] = ""
+	mock.responses["docker run"] = "container-id"
+	mock.errors["docker inspect"] = fmt.Errorf("inspect failed")
+
+	d := New(mock)
+	status, err := d.Deploy(context.Background(), DeployConfig{
+		Image:         "nginx:latest",
+		ContainerName: "inspect-fail",
+	})
+	if err != nil {
+		t.Fatalf("Deploy() error = %v", err)
+	}
+	if status.Status != "created" {
+		t.Errorf("expected status 'created' on inspect failure, got %s", status.Status)
+	}
+	if status.ID != "container-id" {
+		t.Errorf("expected ID 'container-id', got %s", status.ID)
+	}
+}
+
+func TestDeploy_EmptyContainerID(t *testing.T) {
+	mock := newMockExecutor()
+	mock.responses["docker pull"] = "ok"
+	mock.responses["docker rm"] = ""
+	mock.responses["docker run"] = "" // empty output
+	mock.responses["docker inspect"] = "inspect-id|/empty-id-app|nginx:latest|running|2026-04-06T12:00:00Z"
+
+	d := New(mock)
+	status, err := d.Deploy(context.Background(), DeployConfig{
+		Image:         "nginx:latest",
+		ContainerName: "empty-id-app",
+	})
+	if err != nil {
+		t.Fatalf("Deploy() error = %v", err)
+	}
+	if status.Name != "empty-id-app" {
+		t.Errorf("expected name 'empty-id-app' as fallback ID, got %s", status.Name)
+	}
+}
+
+func TestGetContainerStatus_InvalidFormat(t *testing.T) {
+	mock := newMockExecutor()
+	mock.responses["docker inspect"] = "only-two-parts"
+
+	d := New(mock)
+	_, err := d.GetContainerStatus(context.Background(), "bad-format")
+	if err == nil {
+		t.Fatal("expected error for invalid inspect format")
+	}
+}
+
+func TestGetContainerStatus_InvalidDate(t *testing.T) {
+	mock := newMockExecutor()
+	mock.responses["docker inspect"] = "abc123|/my-app|nginx:latest|running|not-a-date"
+
+	d := New(mock)
+	status, err := d.GetContainerStatus(context.Background(), "bad-date")
+	if err != nil {
+		t.Fatalf("GetContainerStatus() error = %v", err)
+	}
+	// Should use time.Now() as fallback
+	if status.ID != "abc123" {
+		t.Errorf("ID = %q, want %q", status.ID, "abc123")
+	}
+}
+
+func TestHealthCheck_ContextCancelled(t *testing.T) {
+	mock := newMockExecutor()
+	d := New(mock)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	err := d.HealthCheck(ctx, HealthCheckConfig{
+		Type:    "http",
+		Target:  "http://localhost:8080",
+		Retries: 3,
+	})
+	if err == nil {
+		t.Error("expected error when context is cancelled")
+	}
+}
+
+func TestHealthCheck_DefaultRetries(t *testing.T) {
+	mock := newMockExecutor()
+	mock.errors["curl"] = fmt.Errorf("connection refused")
+
+	d := New(mock)
+	err := d.HealthCheck(context.Background(), HealthCheckConfig{
+		Type:   "http",
+		Target: "http://localhost:8080",
+		// Retries and Interval left at 0 — should use defaults
+	})
+	if err == nil {
+		t.Error("expected error after default retries")
+	}
+}
+
+func TestStop_Error(t *testing.T) {
+	exec := &mockExecutor{
+		errors: map[string]error{"docker stop test-container": fmt.Errorf("not running")},
+	}
+	d := New(exec)
+	err := d.Stop(context.Background(), "test-container")
+	if err == nil {
+		t.Fatal("expected error when stop fails")
+	}
+}

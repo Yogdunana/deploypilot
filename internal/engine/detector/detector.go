@@ -153,7 +153,9 @@ func (d *Detector) detectPort(port int) *PortInfo {
 	conn, err := net.DialTimeout("tcp", fmt.Sprintf("127.0.0.1:%d", port), 2*time.Second)
 	if err == nil {
 		info.Open = true
-		conn.Close()
+		if cerr := conn.Close(); cerr != nil {
+			info.Open = false
+		}
 	} else {
 		info.Open = false
 	}
@@ -173,7 +175,10 @@ func (d *Detector) detectService(ctx context.Context, target string) *SvcInfo {
 		info.Latency = time.Since(start).String()
 		if err == nil {
 			info.Healthy = true
-			conn.Close()
+			if cerr := conn.Close(); cerr != nil {
+				info.Healthy = false
+				info.Error = cerr.Error()
+			}
 		} else {
 			info.Error = err.Error()
 		}
@@ -189,8 +194,8 @@ func (d *Detector) detectService(ctx context.Context, target string) *SvcInfo {
 func (r *EnvReport) Summary() string {
 	var sb strings.Builder
 
-	sb.WriteString(fmt.Sprintf("Environment Detection (Level %d)\n", r.Level))
-	sb.WriteString(fmt.Sprintf("OS: %s/%s\n", r.OS.GOOS, r.OS.Arch))
+	fmt.Fprintf(&sb, "Environment Detection (Level %d)\n", r.Level)
+	fmt.Fprintf(&sb, "OS: %s/%s\n", r.OS.GOOS, r.OS.Arch)
 
 	if r.Docker != nil {
 		status := "not installed"
@@ -200,7 +205,7 @@ func (r *EnvReport) Summary() string {
 				status += " (daemon not running)"
 			}
 		}
-		sb.WriteString(fmt.Sprintf("Docker: %s\n", status))
+		fmt.Fprintf(&sb, "Docker: %s\n", status)
 	}
 
 	for port, info := range r.Ports {
@@ -208,7 +213,7 @@ func (r *EnvReport) Summary() string {
 		if info.Open {
 			state = "open"
 		}
-		sb.WriteString(fmt.Sprintf("Port %d: %s\n", port, state))
+		fmt.Fprintf(&sb, "Port %d: %s\n", port, state)
 	}
 
 	for name, svc := range r.Services {
@@ -216,7 +221,7 @@ func (r *EnvReport) Summary() string {
 		if svc.Healthy {
 			state = "healthy"
 		}
-		sb.WriteString(fmt.Sprintf("Service %s: %s\n", name, state))
+		fmt.Fprintf(&sb, "Service %s: %s\n", name, state)
 	}
 
 	return sb.String()

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"time"
 )
 
@@ -72,7 +73,11 @@ func (c *CloudflareProvider) CreateRecord(ctx context.Context, req *DNSRecord) e
 	if err != nil {
 		return fmt.Errorf("failed to create record: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if cerr := resp.Body.Close(); cerr != nil {
+			fmt.Fprintf(os.Stderr, "failed to close response body: %v\n", cerr)
+		}
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
@@ -107,7 +112,11 @@ func (c *CloudflareProvider) UpdateRecord(ctx context.Context, req *DNSRecord) e
 	if err != nil {
 		return fmt.Errorf("failed to update record: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if cerr := resp.Body.Close(); cerr != nil {
+			fmt.Fprintf(os.Stderr, "failed to close response body: %v\n", cerr)
+		}
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
@@ -134,7 +143,11 @@ func (c *CloudflareProvider) DeleteRecord(ctx context.Context, domain, recordTyp
 	if err != nil {
 		return fmt.Errorf("failed to delete record: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if cerr := resp.Body.Close(); cerr != nil {
+			fmt.Fprintf(os.Stderr, "failed to close response body: %v\n", cerr)
+		}
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
@@ -161,7 +174,11 @@ func (c *CloudflareProvider) GetRecord(ctx context.Context, domain, recordType, 
 	if err != nil {
 		return nil, fmt.Errorf("failed to get record: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if cerr := resp.Body.Close(); cerr != nil {
+			fmt.Fprintf(os.Stderr, "failed to close response body: %v\n", cerr)
+		}
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("cloudflare API error %d", resp.StatusCode)
@@ -187,7 +204,11 @@ func (c *CloudflareProvider) ListRecords(ctx context.Context, domain string) ([]
 	if err != nil {
 		return nil, fmt.Errorf("failed to list records: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if cerr := resp.Body.Close(); cerr != nil {
+			fmt.Fprintf(os.Stderr, "failed to close response body: %v\n", cerr)
+		}
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("cloudflare API error %d", resp.StatusCode)
@@ -204,7 +225,11 @@ func (c *CloudflareProvider) getZoneID(ctx context.Context, domain string) (stri
 	if err != nil {
 		return "", err
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if cerr := resp.Body.Close(); cerr != nil {
+			fmt.Fprintf(os.Stderr, "failed to close response body: %v\n", cerr)
+		}
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		return "", fmt.Errorf("failed to find zone for %s", domain)
@@ -222,7 +247,11 @@ func (c *CloudflareProvider) getRecordID(ctx context.Context, zoneID, recordType
 	if err != nil {
 		return "", err
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if cerr := resp.Body.Close(); cerr != nil {
+			fmt.Fprintf(os.Stderr, "failed to close response body: %v\n", cerr)
+		}
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		return "", fmt.Errorf("record not found: %s %s", recordType, name)

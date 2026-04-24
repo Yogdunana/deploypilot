@@ -140,7 +140,11 @@ func (b *Bridge) Deploy(ctx context.Context, cfg mcp.DeployConfig) (*mcp.Contain
 		if err != nil {
 			return nil, fmt.Errorf("failed to get remote executor for server %s: %w", cfg.ServerID, err)
 		}
-		defer remoteExec.Close()
+		defer func() {
+			if cerr := remoteExec.Close(); cerr != nil {
+				log.Printf("failed to close remote executor: %v", cerr)
+			}
+		}()
 		executor = remoteExec
 	}
 

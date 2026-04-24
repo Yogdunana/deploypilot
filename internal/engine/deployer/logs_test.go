@@ -2,6 +2,7 @@ package deployer
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -261,5 +262,173 @@ func TestLogWriter(t *testing.T) {
 	}
 	if entries[0].Message != "line one" {
 		t.Errorf("First message = %q", entries[0].Message)
+	}
+}
+
+// ========== Additional Coverage Tests ==========
+
+func TestStreamLogsSimulated_StreamClosed(t *testing.T) {
+	stream := NewLogStream(100)
+	// Close the stream before writing
+	stream.Close()
+
+	StreamLogsSimulated(context.Background(), "my-app", stream, 10*time.Millisecond,
+		[]string{"line1", "line2", "line3"})
+	// Should not panic
+}
+
+func TestStreamLogsSimulated_SingleMessage(t *testing.T) {
+	stream := NewLogStream(100)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	go StreamLogsSimulated(ctx, "my-app", stream, 10*time.Millisecond, []string{"only-msg"})
+
+	entries := CollectLogs(stream, 2*time.Second)
+	if len(entries) != 1 {
+		t.Errorf("Expected 1 entry, got %d", len(entries))
+	}
+	if entries[0].Message != "only-msg" {
+		t.Errorf("Message = %q", entries[0].Message)
+	}
+}
+
+func TestStreamLogsSimulated_EmptyMessages(t *testing.T) {
+	stream := NewLogStream(100)
+	defer stream.Close()
+
+	StreamLogsSimulated(context.Background(), "my-app", stream, 10*time.Millisecond, []string{})
+	// Should not panic
+}
+
+func TestStreamLogs(t *testing.T) {
+	mock := newMockExecutor()
+	mock.responses["docker logs --follow"] = "line1\nline2\nline3"
+
+	stream := NewLogStream(100)
+	defer stream.Close()
+
+	lr := NewLogReader(mock)
+	err := lr.StreamLogs(context.Background(), "my-app", stream)
+	if err != nil {
+		t.Fatalf("StreamLogs() error = %v", err)
+	}
+
+	entries := CollectLogs(stream, 1*time.Second)
+	if len(entries) != 3 {
+		t.Errorf("Expected 3 entries, got %d", len(entries))
+	}
+}
+
+func TestStreamLogs_Error(t *testing.T) {
+	mock := newMockExecutor()
+	mock.errors["docker logs --follow"] = fmt.Errorf("container not found")
+
+	stream := NewLogStream(100)
+	defer stream.Close()
+
+	lr := NewLogReader(mock)
+	err := lr.StreamLogs(context.Background(), "nonexistent", stream)
+	if err == nil {
+		t.Fatal("expected error for nonexistent container")
+	}
+}
+
+func TestStreamLogs_EmptyOutput(t *testing.T) {
+	mock := newMockExecutor()
+	mock.responses["docker logs --follow"] = ""
+
+	stream := NewLogStream(100)
+	defer stream.Close()
+
+	lr := NewLogReader(mock)
+	err := lr.StreamLogs(context.Background(), "empty-app", stream)
+	if err != nil {
+		t.Fatalf("StreamLogs() error = %v", err)
+	}
+
+	entries := CollectLogs(stream, 100*time.Millisecond)
+	if len(entries) != 0 {
+		t.Errorf("Expected 0 entries, got %d", len(entries))
+	}
+}
+
+func TestGetHistory_Error(t *testing.T) {
+	mock := newMockExecutor()
+	mock.errors["docker logs"] = fmt.Errorf("not found")
+
+	lr := NewLogReader(mock)
+	_, err := lr.GetHistory(context.Background(), "nonexistent", 100)
+	if err == nil {
+		t.Fatal("expected error for nonexistent container")
+	}
+}
+
+func TestLogWriter_EmptyInput(t *testing.T) {
+	stream := NewLogStream(100)
+	defer stream.Close()
+
+	writer := NewLogWriter(stream, "my-app")
+	n, err := writer.Write([]byte(""))
+	if err != nil {
+		t.Fatalf("Write() error = %v", err)
+	}
+	if n != 0 {
+		t.Errorf("Expected 0 bytes written, got %d", n)
+	}
+}
+
+func TestLogWriter_SingleLine(t *testing.T) {
+	stream := NewLogStream(100)
+	defer stream.Close()
+
+	writer := NewLogWriter(stream, "my-app")
+	_, err := writer.Write([]byte("single line"))
+	if err != nil {
+		t.Fatalf("Write() error = %v", err)
+	}
+
+	entries := CollectLogs(stream, 1*time.Second)
+	if len(entries) != 1 {
+		t.Errorf("Expected 1 entry, got %d", len(entries))
+	}
+}
+
+func TestLogStreamWrite_DoneChannel(t *testing.T) {
+	stream := NewLogStream(100)
+	// Fill the buffer so the next Write will block on entries channel
+	for i := 0; i < 100; i++ {
+		stream.Write(LogEntry{Message: fmt.Sprintf("fill-%d", i)})
+	}
+	// Now close the stream - this should set closed=true and close both channels
+	stream.Close()
+
+	// Writing after close should return false
+	ok := stream.Write(LogEntry{Message: "after-close"})
+	if ok {
+		t.Error("Write should return false after Close()")
+	}
+}
+
+func TestParseLogLines_EmptyOutput(t *testing.T) {
+	entries := parseLogLines("test-container", "")
+	if len(entries) != 0 {
+		t.Errorf("Expected 0 entries, got %d", len(entries))
+	}
+}
+
+func TestParseLogLines_WithEmptyLines(t *testing.T) {
+	output := "line1\n\nline2\n\n"
+	entries := parseLogLines("test-container", output)
+	if len(entries) != 2 {
+		t.Errorf("Expected 2 entries, got %d", len(entries))
+	}
+}
+
+func TestDetectStream(t *testing.T) {
+	result := detectStream("some log line")
+	if result != "stdout" {
+		t.Errorf("expected stdout, got %s", result)
 	}
 }

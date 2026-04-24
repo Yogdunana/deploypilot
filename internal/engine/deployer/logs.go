@@ -188,10 +188,10 @@ func SearchLogs(entries []LogEntry, query string) []LogEntry {
 func FormatLogs(entries []LogEntry) string {
 	var sb strings.Builder
 	for _, entry := range entries {
-		sb.WriteString(fmt.Sprintf("[%s] [%s] %s\n",
+		fmt.Fprintf(&sb, "[%s] [%s] %s\n",
 			entry.Timestamp.Format("2006-01-02 15:04:05"),
 			entry.Stream,
-			entry.Message))
+			entry.Message)
 	}
 	return sb.String()
 }

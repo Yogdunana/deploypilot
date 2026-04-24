@@ -81,7 +81,9 @@ func (w *WebhookNotifier) Send(ctx context.Context, notification Notification) (
 	if err != nil {
 		return &NotifyResult{Provider: "webhook", Success: false, Error: err.Error()}, nil
 	}
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 
 	body, _ := io.ReadAll(resp.Body)
 

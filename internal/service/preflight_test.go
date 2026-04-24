@@ -206,3 +206,102 @@ func TestCheckTCP_Success(t *testing.T) {
 		t.Fatalf("expected TCP success, got: %s", check.Message)
 	}
 }
+
+// ========== Additional Coverage Tests ==========
+
+func TestRunPreflight_RemoteWithExecutor(t *testing.T) {
+	exec := &preflightMockExecutor{
+		responses: map[string]string{
+			"echo ok":                                        "ok",
+			"docker version --format '{{.Server.Version}}'": "24.0.7",
+		},
+	}
+	// Use a real TCP listener to pass the TCP check
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Skip("cannot bind TCP listener")
+	}
+	defer ln.Close()
+
+	_, portStr, _ := net.SplitHostPort(ln.Addr().String())
+	port, _ := strconv.Atoi(portStr)
+
+	result := RunPreflight(context.Background(), PreflightConfig{
+		Host:         "127.0.0.1",
+		Port:         port,
+		Executor:     exec,
+		PortMappings: "9090:80",
+	})
+	if !result.Passed {
+		t.Fatalf("expected passed, got: %s", result.Message)
+	}
+	// Should have TCP + SSH + Docker + Port checks
+	if len(result.Checks) != 4 {
+		t.Fatalf("expected 4 checks, got %d", len(result.Checks))
+	}
+}
+
+func TestRunPreflight_SSHAuthPass(t *testing.T) {
+	check := checkSSHAuth(context.Background(), &preflightMockExecutor{
+		responses: map[string]string{"echo ok": "ok"},
+	})
+	if !check.Passed {
+		t.Fatalf("expected SSH auth success, got: %s", check.Message)
+	}
+}
+
+func TestRunPreflight_DockerSuccess(t *testing.T) {
+	check := checkDocker(context.Background(), &preflightMockExecutor{
+		responses: map[string]string{
+			"docker version --format '{{.Server.Version}}'": "24.0.7",
+		},
+	})
+	if !check.Passed {
+		t.Fatalf("expected Docker success, got: %s", check.Message)
+	}
+}
+
+func TestRunPreflight_PortConflict_MultiplePorts(t *testing.T) {
+	exec := &preflightMockExecutor{
+		responses: map[string]string{
+			"ss -tlnp 2>/dev/null | grep ':8080 ' || true": "",
+			"ss -tlnp 2>/dev/null | grep ':3000 ' || true": "",
+		},
+	}
+	check := checkPortConflict(context.Background(), exec, "8080:80,3000:3000")
+	if !check.Passed {
+		t.Fatalf("expected ports to be free, got: %s", check.Message)
+	}
+}
+
+func TestRunPreflight_PortConflict_NoHostPorts(t *testing.T) {
+	exec := &preflightMockExecutor{}
+	check := checkPortConflict(context.Background(), exec, "")
+	if !check.Passed {
+		t.Fatalf("expected pass for empty port mappings, got: %s", check.Message)
+	}
+}
+
+func TestParseHostPorts_JustPort(t *testing.T) {
+	result := parseHostPorts("8080")
+	if len(result) != 1 || result[0] != "8080" {
+		t.Errorf("expected [8080], got %v", result)
+	}
+}
+
+func TestParseHostPorts_WithProtocol(t *testing.T) {
+	result := parseHostPorts("8080:80/tcp")
+	if len(result) != 1 || result[0] != "8080" {
+		t.Errorf("expected [8080], got %v", result)
+	}
+}
+
+func TestCheckTCP_Fail(t *testing.T) {
+	check := checkTCP(context.Background(), "10.255.255.1", 1)
+	if check.Passed {
+		t.Fatal("expected TCP failure for unreachable host")
+	}
+	if check.Suggestion == "" {
+		t.Error("expected suggestion for TCP failure")
+	}
+}

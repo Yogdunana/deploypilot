@@ -31,3 +31,4 @@ configs/config.yaml
 # Build
 /dist/
 /tmp/
+c.out

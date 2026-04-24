@@ -10,6 +10,7 @@ jobs:
   test:
     name: Test (race + coverage)
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v6
 
@@ -34,6 +35,7 @@ jobs:
   lint:
     name: Lint (golangci-lint)
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v6
 
@@ -42,13 +44,14 @@ jobs:
           go-version: "1.23"
 
       - name: Run golangci-lint
-        uses: golangci/golangci-lint-action@v6
+        uses: golangci/golangci-lint-action@v7
         with:
-          version: v1.62
+          version: v2
 
   vuln:
     name: Vulnerability Check
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     # Non-blocking: govulncheck findings are informational until Go upgrade
     if: always()
     steps:
@@ -68,6 +71,7 @@ jobs:
   build:
     name: Build
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     needs: [test, lint]
     steps:
       - uses: actions/checkout@v6

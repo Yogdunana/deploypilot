@@ -255,3 +255,181 @@ func (t *trackingExecutor) RunCommand(ctx context.Context, cmd string) (string, 
 // Suppress unused import warnings
 var _ = strings.TrimSpace
 var _ = fmt.Sprintf
+
+// ========== Additional Coverage Tests ==========
+
+func TestDeployWithHealthCheck_DeployFail(t *testing.T) {
+	mock := newMockExecutor()
+	mock.errors["docker pull"] = fmt.Errorf("image not found")
+
+	hc := NewHealthChecker(mock)
+	status, healthResult, rollbackResult := hc.DeployWithHealthCheck(
+		context.Background(),
+		DeployConfig{Image: "nonexistent:v1", ContainerName: "fail-app"},
+		"http://localhost:8080",
+		"http",
+	)
+
+	if status != nil {
+		t.Error("status should be nil when deploy fails")
+	}
+	if healthResult == nil {
+		t.Fatal("healthResult should not be nil")
+	}
+	if healthResult.Healthy {
+		t.Error("expected unhealthy when deploy fails")
+	}
+	if rollbackResult != nil {
+		t.Error("rollbackResult should be nil when deploy fails")
+	}
+}
+
+func TestDeployWithHealthCheck_TCPType(t *testing.T) {
+	mock := newMockExecutor()
+	mock.responses["docker inspect"] = ""
+	mock.responses["docker pull"] = "ok"
+	mock.responses["docker rm"] = ""
+	mock.responses["docker run"] = "abc123"
+	mock.responses["docker stop"] = ""
+
+	hc := NewHealthChecker(mock)
+	status, healthResult, rollbackResult := hc.DeployWithHealthCheck(
+		context.Background(),
+		DeployConfig{Image: "nginx:latest", ContainerName: "tcp-app"},
+		"localhost:8080",
+		"tcp",
+	)
+
+	if status == nil {
+		t.Error("status should not be nil")
+	}
+	if healthResult == nil {
+		t.Fatal("healthResult should not be nil")
+	}
+	// TCP check to non-existent port should fail
+	if healthResult.Healthy {
+		t.Error("expected unhealthy for TCP check to non-existent port")
+	}
+	if rollbackResult == nil {
+		t.Fatal("rollbackResult should not be nil when unhealthy")
+	}
+}
+
+func TestDeployWithHealthCheck_DefaultType(t *testing.T) {
+	mock := newMockExecutor()
+	mock.responses["docker inspect"] = ""
+	mock.responses["docker pull"] = "ok"
+	mock.responses["docker rm"] = ""
+	mock.responses["docker run"] = "abc123"
+
+	hc := NewHealthChecker(mock)
+	status, healthResult, rollbackResult := hc.DeployWithHealthCheck(
+		context.Background(),
+		DeployConfig{Image: "nginx:latest", ContainerName: "default-app"},
+		"http://localhost:8080",
+		"unknown_type",
+	)
+
+	if status == nil {
+		t.Error("status should not be nil")
+	}
+	if healthResult == nil {
+		t.Fatal("healthResult should not be nil")
+	}
+	if !healthResult.Healthy {
+		t.Error("expected healthy for default/unknown health type")
+	}
+	if rollbackResult != nil {
+		t.Error("rollbackResult should be nil when healthy")
+	}
+}
+
+func TestDeployWithHealthCheck_ExistingContainer(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	mock := newMockExecutor()
+	mock.responses["docker inspect"] = "old-id|/my-app|old-img:latest|running|2026-04-06T12:00:00Z"
+	mock.responses["docker pull"] = "ok"
+	mock.responses["docker rm"] = ""
+	mock.responses["docker run"] = "new-id"
+	mock.responses["docker stop"] = ""
+
+	hc := NewHealthChecker(mock)
+	status, healthResult, rollbackResult := hc.DeployWithHealthCheck(
+		context.Background(),
+		DeployConfig{Image: "new-img:latest", ContainerName: "my-app"},
+		server.URL,
+		"http",
+	)
+
+	if status == nil {
+		t.Error("status should not be nil")
+	}
+	if !healthResult.Healthy {
+		t.Errorf("expected healthy, error: %s", healthResult.Error)
+	}
+	if rollbackResult != nil {
+		t.Error("rollbackResult should be nil when healthy")
+	}
+}
+
+func TestRollback_DeployFail(t *testing.T) {
+	mock := newMockExecutor()
+	mock.responses["docker inspect"] = "old-img|/my-app|old-img:latest|running|2026-04-06T12:00:00Z"
+	mock.responses["docker stop"] = ""
+	mock.responses["docker rm"] = ""
+	mock.errors["docker pull"] = fmt.Errorf("image not found")
+
+	hc := NewHealthChecker(mock)
+	result := hc.Rollback(context.Background(), "my-app", "old-img:latest")
+
+	if result.RolledBack {
+		t.Error("should not be rolled back when rollback deploy fails")
+	}
+	if result.Success {
+		t.Error("should not be success when rollback deploy fails")
+	}
+}
+
+func TestCheckHTTP_InvalidURL(t *testing.T) {
+	hc := NewHealthChecker(&noopExecutor{})
+	result := hc.CheckHTTP(context.Background(), "://invalid-url", 1, 50*time.Millisecond)
+
+	if result.Healthy {
+		t.Error("expected unhealthy for invalid URL")
+	}
+}
+
+func TestDoHTTPCheck_InvalidURL(t *testing.T) {
+	hc := NewHealthChecker(&noopExecutor{})
+	result := hc.doHTTPCheck(context.Background(), "://invalid")
+	if result {
+		t.Error("expected false for invalid URL")
+	}
+}
+
+func TestCheckTCP_InvalidPort(t *testing.T) {
+	hc := NewHealthChecker(&noopExecutor{})
+	result := hc.CheckTCP(context.Background(), "127.0.0.1", -1, 1, 50*time.Millisecond)
+
+	if result.Healthy {
+		t.Error("expected unhealthy for invalid port")
+	}
+}
+
+func TestGetCurrentImage_Error(t *testing.T) {
+	mock := newMockExecutor()
+	mock.errors["docker inspect"] = fmt.Errorf("not found")
+
+	hc := NewHealthChecker(mock)
+	img, err := hc.getCurrentImage(context.Background(), "nonexistent")
+	if err == nil {
+		t.Fatal("expected error for nonexistent container")
+	}
+	if img != "" {
+		t.Errorf("expected empty image, got %s", img)
+	}
+}

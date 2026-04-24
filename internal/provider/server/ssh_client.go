@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log"
 	"net"
 	"strings"
 	"time"
@@ -89,7 +90,11 @@ func (c *Client) RunCommand(ctx context.Context, cmd string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to create SSH session: %w", err)
 	}
-	defer session.Close()
+	defer func() {
+		if cerr := session.Close(); cerr != nil {
+			log.Printf("failed to close SSH session: %v", cerr)
+		}
+	}()
 
 	// Use context for cancellation
 	type result struct {
@@ -104,7 +109,7 @@ func (c *Client) RunCommand(ctx context.Context, cmd string) (string, error) {
 
 	select {
 	case <-ctx.Done():
-		session.Close()
+		_ = session.Close()
 		return "", fmt.Errorf("command cancelled: %w", ctx.Err())
 	case r := <-done:
 		if r.err != nil {
@@ -120,7 +125,11 @@ func (c *Client) RunCommandWithStdio(ctx context.Context, cmd string, stdout, st
 	if err != nil {
 		return fmt.Errorf("failed to create SSH session: %w", err)
 	}
-	defer session.Close()
+	defer func() {
+		if cerr := session.Close(); cerr != nil {
+			log.Printf("failed to close SSH session: %v", cerr)
+		}
+	}()
 
 	if stdout != nil {
 		session.Stdout = stdout
@@ -139,7 +148,7 @@ func (c *Client) RunCommandWithStdio(ctx context.Context, cmd string, stdout, st
 
 	select {
 	case <-ctx.Done():
-		session.Close()
+		_ = session.Close()
 		return fmt.Errorf("command cancelled: %w", ctx.Err())
 	case r := <-done:
 		return r.err
@@ -169,7 +178,11 @@ func (c *Client) RunCommandSplit(ctx context.Context, cmd string) (stdout, stder
 	if err != nil {
 		return "", "", fmt.Errorf("failed to create SSH session: %w", err)
 	}
-	defer session.Close()
+	defer func() {
+		if cerr := session.Close(); cerr != nil {
+			log.Printf("failed to close SSH session: %v", cerr)
+		}
+	}()
 
 	var outBuf, errBuf strings.Builder
 	session.Stdout = &outBuf
@@ -185,7 +198,7 @@ func (c *Client) RunCommandSplit(ctx context.Context, cmd string) (stdout, stder
 
 	select {
 	case <-ctx.Done():
-		session.Close()
+		_ = session.Close()
 		return "", "", fmt.Errorf("command cancelled: %w", ctx.Err())
 	case r := <-done:
 		return outBuf.String(), errBuf.String(), r.err

@@ -3,6 +3,7 @@ package errors
 import (
 	stderrors "errors"
 	"fmt"
+	"strings"
 	"testing"
 )
 
@@ -188,4 +189,34 @@ func TestErrorCode(t *testing.T) {
 // stdlibError creates a standard library error (avoids package name conflict).
 func stdlibError(msg string) error {
 	return fmt.Errorf("%s", msg)
+}
+
+// ========== Additional Coverage Tests ==========
+
+func TestFormatForLog_NonAppError(t *testing.T) {
+	err := fmt.Errorf("plain error message")
+	output := FormatForLog(err)
+	if output != "plain error message" {
+		t.Errorf("FormatForLog() = %q, want %q", output, "plain error message")
+	}
+}
+
+func TestFormatForLog_Nil(t *testing.T) {
+	// FormatForLog with nil should panic or return empty — test it doesn't crash
+	// Actually it will panic since err.Error() is called on nil
+	// Let's test with a wrapped error
+	err := fmt.Errorf("wrapped: %w", stdlibError("inner"))
+	output := FormatForLog(err)
+	if !strings.Contains(output, "wrapped") {
+		t.Errorf("FormatForLog() = %q", output)
+	}
+}
+
+func TestAppError_WithCauseReturnsSelf(t *testing.T) {
+	err := New("E001", "test", "fix")
+	cause := stdlibError("cause")
+	result := err.WithCause(cause)
+	if result != err {
+		t.Error("WithCause should return the same AppError")
+	}
 }

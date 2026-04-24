@@ -134,7 +134,11 @@ func (m *Manager) fileHash() string {
 	if err != nil {
 		return ""
 	}
-	defer f.Close()
+	defer func() {
+		if cerr := f.Close(); cerr != nil {
+			fmt.Fprintf(os.Stderr, "[config] failed to close config file: %v\n", cerr)
+		}
+	}()
 
 	h := sha256.New()
 	if _, err := io.Copy(h, f); err != nil {
