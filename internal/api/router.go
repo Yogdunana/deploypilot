@@ -8,7 +8,7 @@ import (
 )
 
 // RegisterRoutes registers all API routes on the given Gin engine.
-func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge) {
+func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *WSHub) {
 	api := r.Group("/api/v1")
 
 	// Store db in gin context for handlers that need it via context
@@ -16,6 +16,13 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge) {
 		c.Set("db", db)
 		c.Next()
 	})
+
+	// WebSocket routes (auth via query param token, not middleware)
+	wsGroup := r.Group("/ws")
+	{
+		wsGroup.GET("/logs/:app_id", LogStreamWS(bridge, wsHub))
+		wsGroup.GET("/terminal/:server_id", TerminalWS(bridge, wsHub))
+	}
 
 	// Public routes
 	authGroup := api.Group("/auth")

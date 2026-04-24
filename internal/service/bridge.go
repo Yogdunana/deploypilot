@@ -241,6 +241,17 @@ func (b *Bridge) getRemoteExecutor(ctx context.Context, serverID string) (*sshCl
 	return &sshClientExecutor{Client: client}, nil
 }
 
+// RemoteExecutor is the interface for remote command execution (used by WebSocket terminal).
+type RemoteExecutor interface {
+	RunCommand(ctx context.Context, cmd string) (string, error)
+	Close() error
+}
+
+// GetRemoteExecutorForTerminal creates an SSH executor for the given server (exported for WebSocket terminal).
+func (b *Bridge) GetRemoteExecutorForTerminal(ctx context.Context, serverID string) (RemoteExecutor, error) {
+	return b.getRemoteExecutor(ctx, serverID)
+}
+
 // sshClientExecutor wraps server.Client to implement deployer.CommandExecutor.
 type sshClientExecutor struct {
 	Client *server.Client

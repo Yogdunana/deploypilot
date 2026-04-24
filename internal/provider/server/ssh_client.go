@@ -163,6 +163,34 @@ func (c *Client) Close() error {
 	return nil
 }
 
+// CreateSession creates a new SSH session with optional PTY support.
+// If pty is true, a pseudo-terminal is requested with the given termType, rows, and cols.
+func (c *Client) CreateSession(ctx context.Context, pty bool, termType string, rows, cols int) (*ssh.Session, error) {
+	if c.client == nil {
+		return nil, fmt.Errorf("SSH client is nil")
+	}
+	session, err := c.client.NewSession()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create SSH session: %w", err)
+	}
+	if pty {
+		if termType == "" {
+			termType = "xterm"
+		}
+		if rows == 0 {
+			rows = 24
+		}
+		if cols == 0 {
+			cols = 80
+		}
+		if err := session.RequestPty(termType, rows, cols, ssh.TerminalModes{}); err != nil {
+			session.Close()
+			return nil, fmt.Errorf("failed to request PTY: %w", err)
+		}
+	}
+	return session, nil
+}
+
 // IsConnected returns true if the underlying SSH connection is alive.
 func (c *Client) IsConnected() bool {
 	if c.client == nil {

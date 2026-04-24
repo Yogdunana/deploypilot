@@ -311,3 +311,46 @@ func TestIsConnectedNil(t *testing.T) {
 		t.Error("IsConnected() should return false for nil client")
 	}
 }
+
+func TestCreateSession(t *testing.T) {
+	port, keyPEM := newTestServer(t)
+	time.Sleep(100 * time.Millisecond)
+
+	client := connectTestClient(t, port, keyPEM)
+	defer client.Close()
+
+	ctx := context.Background()
+
+	// Test without PTY
+	session, err := client.CreateSession(ctx, false, "", 0, 0)
+	if err != nil {
+		t.Fatalf("CreateSession(no PTY) error = %v", err)
+	}
+	session.Close()
+
+	// Test with PTY (test server may not support PTY, so we just verify it doesn't panic)
+	session, err = client.CreateSession(ctx, true, "xterm", 24, 80)
+	if err != nil {
+		// PTY not supported by test server - this is expected
+		t.Logf("CreateSession(with PTY) error = %v (expected for test server)", err)
+	} else {
+		session.Close()
+	}
+
+	// Test with PTY and default values
+	session, err = client.CreateSession(ctx, true, "", 0, 0)
+	if err != nil {
+		t.Logf("CreateSession(PTY defaults) error = %v (expected for test server)", err)
+	} else {
+		session.Close()
+	}
+}
+
+func TestCreateSessionNilClient(t *testing.T) {
+	c := &Client{}
+	ctx := context.Background()
+	_, err := c.CreateSession(ctx, false, "", 0, 0)
+	if err == nil {
+		t.Error("CreateSession() should fail for nil client")
+	}
+}

@@ -19,7 +19,9 @@ type Server struct {
 func New(addr string, db *gorm.DB, bridge *service.Bridge) *Server {
 	r := gin.Default()
 	r.Use(corsMiddleware())
-	api.RegisterRoutes(r, db, bridge)
+	wsHub := api.NewWSHub()
+	go wsHub.Run()
+	api.RegisterRoutes(r, db, bridge, wsHub)
 	return &Server{router: r, db: db, bridge: bridge, addr: addr}
 }
 

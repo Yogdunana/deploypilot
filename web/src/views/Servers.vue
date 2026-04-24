@@ -20,10 +20,13 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="Actions" width="200" fixed="right">
+        <el-table-column label="Actions" width="280" fixed="right">
           <template #default="{ row }">
             <el-button size="small" type="success" :loading="testing === row.id" @click="handleTest(row)">
               Test
+            </el-button>
+            <el-button size="small" type="primary" @click="openTerminal(row)">
+              Terminal
             </el-button>
             <el-button size="small" type="danger" @click="handleDelete(row)">
               Delete
@@ -54,12 +57,36 @@
         <el-button type="primary" :loading="creating" @click="handleCreate">Add</el-button>
       </template>
     </el-dialog>
+
+    <el-dialog v-model="terminalDialogVisible" :title="`Terminal - ${terminalServerName}`" width="800px" @close="closeTerminal">
+      <div class="terminal-container">
+        <div class="terminal-header">
+          <el-tag :type="terminalConnected ? 'success' : 'danger'" size="small">
+            {{ terminalConnected ? 'Connected' : 'Disconnected' }}
+          </el-tag>
+        </div>
+        <div ref="terminalOutput" class="terminal-output" v-html="terminalHtml"></div>
+        <div class="terminal-input">
+          <el-input
+            v-model="terminalInput"
+            placeholder="Enter command..."
+            @keyup.enter="sendTerminalCommand"
+            :disabled="!terminalConnected"
+          >
+            <template #append>
+              <el-button @click="sendTerminalCommand" :disabled="!terminalConnected">Send</el-button>
+            </template>
+          </el-input>
+        </div>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, nextTick, onUnmounted } from 'vue'
 import { serversApi } from '../api'
+import { getToken } from '../utils/auth'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
 const loading = ref(false)
@@ -81,6 +108,15 @@ const createRules = {
   host: [{ required: true, message: 'Please enter host', trigger: 'blur' }],
   port: [{ required: true, message: 'Please enter port', trigger: 'blur' }],
 }
+
+// Terminal state
+const terminalDialogVisible = ref(false)
+const terminalServerName = ref('')
+const terminalConnected = ref(false)
+const terminalOutput = ref(null)
+const terminalHtml = ref('')
+const terminalInput = ref('')
+let terminalWs = null
 
 function openCreateDialog() {
   createForm.value = { name: '', host: '', port: 22, user: 'root' }
@@ -133,7 +169,99 @@ async function handleDelete(row) {
   } catch { /* cancelled or error */ }
 }
 
-onMounted(fetchServers)
+function openTerminal(row) {
+  terminalServerName.value = row.name
+  terminalHtml.value = ''
+  terminalInput.value = ''
+  terminalDialogVisible.value = true
+
+  nextTick(() => {
+    connectTerminal(row.id)
+  })
+}
+
+function connectTerminal(serverId) {
+  const token = getToken()
+  if (!token) {
+    ElMessage.error('Not authenticated')
+    return
+  }
+
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+  const wsUrl = `${protocol}//${window.location.host}/ws/terminal/${serverId}?token=${token}`
+
+  terminalWs = new WebSocket(wsUrl)
+
+  terminalWs.onopen = () => {
+    terminalConnected.value = true
+    appendTerminalOutput('<span style="color: #67c23a">Connected to ' + terminalServerName.value + '</span>\n')
+  }
+
+  terminalWs.onmessage = (event) => {
+    try {
+      const msg = JSON.parse(event.data)
+      if (msg.type === 'output') {
+        appendTerminalOutput(escapeHtml(String(msg.data)))
+      } else if (msg.type === 'error') {
+        appendTerminalOutput('<span style="color: #f56c6c">Error: ' + escapeHtml(String(msg.data)) + '</span>\n')
+      }
+    } catch (e) {
+      appendTerminalOutput(String(event.data))
+    }
+  }
+
+  terminalWs.onclose = () => {
+    terminalConnected.value = false
+    appendTerminalOutput('<span style="color: #909399">Connection closed</span>\n')
+  }
+
+  terminalWs.onerror = (err) => {
+    console.error('Terminal WebSocket error:', err)
+  }
+}
+
+function sendTerminalCommand() {
+  const cmd = terminalInput.value.trim()
+  if (!cmd || !terminalWs || terminalWs.readyState !== WebSocket.OPEN) return
+
+  appendTerminalOutput('<span style="color: #409eff">$ ' + escapeHtml(cmd) + '</span>\n')
+  terminalWs.send(JSON.stringify({
+    type: 'input',
+    data: cmd,
+    timestamp: new Date().toISOString(),
+  }))
+  terminalInput.value = ''
+}
+
+function appendTerminalOutput(text) {
+  terminalHtml.value += text
+  nextTick(() => {
+    if (terminalOutput.value) {
+      terminalOutput.value.scrollTop = terminalOutput.value.scrollHeight
+    }
+  })
+}
+
+function escapeHtml(text) {
+  const div = document.createElement('div')
+  div.textContent = text
+  return div.innerHTML
+}
+
+function closeTerminal() {
+  if (terminalWs) {
+    terminalWs.onclose = null
+    terminalWs.close()
+    terminalWs = null
+  }
+  terminalConnected.value = false
+}
+
+onUnmounted(() => {
+  closeTerminal()
+})
+
+fetchServers()
 </script>
 
 <style scoped>
@@ -142,5 +270,35 @@ onMounted(fetchServers)
   align-items: center;
   justify-content: space-between;
   margin-bottom: 16px;
+}
+
+.terminal-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.terminal-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.terminal-output {
+  background: #1e1e1e;
+  color: #d4d4d4;
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 13px;
+  padding: 12px;
+  border-radius: 4px;
+  height: 400px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+  line-height: 1.5;
+}
+
+.terminal-input {
+  display: flex;
 }
 </style>

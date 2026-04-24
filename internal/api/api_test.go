@@ -138,7 +138,9 @@ func setupTestRouter(db *gorm.DB) *gin.Engine {
 func setupFullTestRouter(db *gorm.DB, bridge *service.Bridge) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
-	RegisterRoutes(r, db, bridge)
+	wsHub := NewWSHub()
+	go wsHub.Run()
+	RegisterRoutes(r, db, bridge, wsHub)
 	return r
 }
 

@@ -64,7 +64,9 @@
         <div class="card-header">
           <span>Container Logs</span>
           <div>
-            <el-switch v-model="autoRefresh" active-text="Auto Refresh" style="margin-right: 12px" />
+            <el-tag :type="wsConnected ? 'success' : 'danger'" size="small" style="margin-right: 12px">
+              {{ wsConnected ? 'Live' : 'Disconnected' }}
+            </el-tag>
             <el-button size="small" @click="fetchLogs">
               <el-icon><Refresh /></el-icon> Refresh
             </el-button>
@@ -84,9 +86,10 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, watch } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { appsApi } from '../api'
+import { getToken } from '../utils/auth'
 import { ElMessage } from 'element-plus'
 
 const route = useRoute()
@@ -95,14 +98,16 @@ const appId = route.params.id
 const loading = ref(true)
 const app = ref({})
 const logs = ref('')
-const autoRefresh = ref(false)
+const wsConnected = ref(false)
 const deploying = ref(false)
 const building = ref(false)
 const rollingBack = ref(false)
 const backingUp = ref(false)
 const restoring = ref(false)
 
-let refreshTimer = null
+let ws = null
+let reconnectTimer = null
+let reconnectAttempts = 0
 
 function statusType(status) {
   const map = { running: 'success', stopped: 'info', failed: 'danger' }
@@ -133,6 +138,59 @@ async function fetchLogs() {
   } catch {
     logs.value = 'Failed to load logs'
   }
+}
+
+function connectLogStream() {
+  const token = getToken()
+  if (!token || !appId) return
+
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+  const wsUrl = `${protocol}//${window.location.host}/ws/logs/${appId}?token=${token}`
+
+  ws = new WebSocket(wsUrl)
+
+  ws.onmessage = (event) => {
+    try {
+      const msg = JSON.parse(event.data)
+      if (msg.type === 'log') {
+        logs.value = typeof msg.data === 'string' ? msg.data : JSON.stringify(msg.data, null, 2)
+      } else if (msg.type === 'error') {
+        console.error('WS log error:', msg.data)
+      }
+    } catch (e) {
+      console.error('Failed to parse WS message:', e)
+    }
+  }
+
+  ws.onopen = () => {
+    wsConnected.value = true
+    reconnectAttempts = 0
+  }
+
+  ws.onclose = () => {
+    wsConnected.value = false
+    // Reconnect with exponential backoff
+    const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 30000)
+    reconnectTimer = setTimeout(connectLogStream, delay)
+    reconnectAttempts++
+  }
+
+  ws.onerror = (err) => {
+    console.error('WebSocket error:', err)
+  }
+}
+
+function disconnectLogStream() {
+  if (reconnectTimer) {
+    clearTimeout(reconnectTimer)
+    reconnectTimer = null
+  }
+  if (ws) {
+    ws.onclose = null // prevent reconnect on intentional close
+    ws.close()
+    ws = null
+  }
+  wsConnected.value = false
 }
 
 async function handleDeploy() {
@@ -189,22 +247,14 @@ async function handleRestore() {
   }
 }
 
-watch(autoRefresh, (val) => {
-  if (val) {
-    refreshTimer = setInterval(fetchLogs, 3000)
-  } else {
-    clearInterval(refreshTimer)
-    refreshTimer = null
-  }
-})
-
 onMounted(() => {
   fetchApp()
   fetchLogs()
+  connectLogStream()
 })
 
 onUnmounted(() => {
-  if (refreshTimer) clearInterval(refreshTimer)
+  disconnectLogStream()
 })
 </script>
 
