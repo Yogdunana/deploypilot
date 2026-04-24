@@ -27,7 +27,7 @@ func TestAuditService_Record(t *testing.T) {
 	db := setupAuditTestDB(t)
 	svc := NewAuditService(db)
 
-	err := svc.Record(nil, AuditEntry{
+	err := svc.Record(context.TODO(), AuditEntry{
 		UserID:       1,
 		Username:     "testuser",
 		Action:       "app.create",
@@ -41,7 +41,7 @@ func TestAuditService_Record(t *testing.T) {
 		t.Fatalf("Record() error = %v", err)
 	}
 
-	logs, total, err := svc.List(nil, AuditFilter{Page: 1, PageSize: 10})
+	logs, total, err := svc.List(context.TODO(), AuditFilter{Page: 1, PageSize: 10})
 	if err != nil {
 		t.Fatalf("List() error = %v", err)
 	}
@@ -77,14 +77,14 @@ func TestAuditService_List(t *testing.T) {
 
 	// Create multiple entries
 	for i := 0; i < 5; i++ {
-		_ = svc.Record(nil, AuditEntry{
+		_ = svc.Record(context.TODO(), AuditEntry{
 			UserID:   uint(i),
 			Username: "user",
 			Action:   "app.create",
 		})
 	}
 
-	logs, total, err := svc.List(nil, AuditFilter{Page: 1, PageSize: 3})
+	logs, total, err := svc.List(context.TODO(), AuditFilter{Page: 1, PageSize: 3})
 	if err != nil {
 		t.Fatalf("List() error = %v", err)
 	}
@@ -100,9 +100,9 @@ func TestAuditService_ListWithFilter(t *testing.T) {
 	db := setupAuditTestDB(t)
 	svc := NewAuditService(db)
 
-	_ = svc.Record(nil, AuditEntry{UserID: 1, Action: "app.create", ResourceType: "app"})
-	_ = svc.Record(nil, AuditEntry{UserID: 2, Action: "server.create", ResourceType: "server"})
-	_ = svc.Record(nil, AuditEntry{UserID: 1, Action: "app.delete", ResourceType: "app"})
+	_ = svc.Record(context.TODO(), AuditEntry{UserID: 1, Action: "app.create", ResourceType: "app"})
+	_ = svc.Record(context.TODO(), AuditEntry{UserID: 2, Action: "server.create", ResourceType: "server"})
+	_ = svc.Record(context.TODO(), AuditEntry{UserID: 1, Action: "app.delete", ResourceType: "app"})
 
 	// Filter by user_id
 	_, total, err := svc.List(context.TODO(), AuditFilter{UserID: 1, Page: 1, PageSize: 10})
@@ -143,11 +143,11 @@ func TestAuditService_ListPagination(t *testing.T) {
 	svc := NewAuditService(db)
 
 	for i := 0; i < 15; i++ {
-		_ = svc.Record(nil, AuditEntry{Action: "app.create"})
+		_ = svc.Record(context.TODO(), AuditEntry{Action: "app.create"})
 	}
 
 	// Page 1
-	logs, total, _ := svc.List(nil, AuditFilter{Page: 1, PageSize: 10})
+	logs, total, _ := svc.List(context.TODO(), AuditFilter{Page: 1, PageSize: 10})
 	if total != 15 {
 		t.Errorf("total = %d, want 15", total)
 	}
@@ -156,7 +156,7 @@ func TestAuditService_ListPagination(t *testing.T) {
 	}
 
 	// Page 2
-	logs, _, _ = svc.List(nil, AuditFilter{Page: 2, PageSize: 10})
+	logs, _, _ = svc.List(context.TODO(), AuditFilter{Page: 2, PageSize: 10})
 	if len(logs) != 5 {
 		t.Errorf("page 2 len = %d, want 5", len(logs))
 	}
@@ -166,7 +166,7 @@ func TestAuditService_ListEmpty(t *testing.T) {
 	db := setupAuditTestDB(t)
 	svc := NewAuditService(db)
 
-	logs, total, err := svc.List(nil, AuditFilter{Page: 1, PageSize: 10})
+	logs, total, err := svc.List(context.TODO(), AuditFilter{Page: 1, PageSize: 10})
 	if err != nil {
 		t.Fatalf("List() error = %v", err)
 	}
@@ -182,7 +182,7 @@ func TestAuditService_RecordWithNilDetail(t *testing.T) {
 	db := setupAuditTestDB(t)
 	svc := NewAuditService(db)
 
-	err := svc.Record(nil, AuditEntry{
+	err := svc.Record(context.TODO(), AuditEntry{
 		UserID:   1,
 		Action:   "app.create",
 		Detail:   nil,
@@ -191,7 +191,7 @@ func TestAuditService_RecordWithNilDetail(t *testing.T) {
 		t.Fatalf("Record() with nil detail error = %v", err)
 	}
 
-	logs, _, _ := svc.List(nil, AuditFilter{Page: 1, PageSize: 10})
+	logs, _, _ := svc.List(context.TODO(), AuditFilter{Page: 1, PageSize: 10})
 	if len(logs) != 1 {
 		t.Fatalf("expected 1 log, got %d", len(logs))
 	}
@@ -236,23 +236,23 @@ func TestAuditService_ListPageSizeBounds(t *testing.T) {
 	svc := NewAuditService(db)
 
 	for i := 0; i < 5; i++ {
-		_ = svc.Record(nil, AuditEntry{Action: "app.create"})
+		_ = svc.Record(context.TODO(), AuditEntry{Action: "app.create"})
 	}
 
 	// pageSize 0 should default to 20
-	logs, _, _ := svc.List(nil, AuditFilter{Page: 1, PageSize: 0})
+	logs, _, _ := svc.List(context.TODO(), AuditFilter{Page: 1, PageSize: 0})
 	if len(logs) != 5 {
 		t.Errorf("with pageSize=0, got %d logs, want 5", len(logs))
 	}
 
 	// pageSize > 100 should be capped to 100
-	logs, _, _ = svc.List(nil, AuditFilter{Page: 1, PageSize: 200})
+	logs, _, _ = svc.List(context.TODO(), AuditFilter{Page: 1, PageSize: 200})
 	if len(logs) != 5 {
 		t.Errorf("with pageSize=200, got %d logs, want 5", len(logs))
 	}
 
 	// page 0 should default to 1
-	logs, _, _ = svc.List(nil, AuditFilter{Page: 0, PageSize: 10})
+	logs, _, _ = svc.List(context.TODO(), AuditFilter{Page: 0, PageSize: 10})
 	if len(logs) != 5 {
 		t.Errorf("with page=0, got %d logs, want 5", len(logs))
 	}

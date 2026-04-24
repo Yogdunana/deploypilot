@@ -130,7 +130,7 @@ func TestAuditMiddleware_SkipsOPTIONS(t *testing.T) {
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
-	_, total, _ := auditSvc.List(nil, service.AuditFilter{Page: 1, PageSize: 10})
+	_, total, _ := auditSvc.List(context.TODO(), service.AuditFilter{Page: 1, PageSize: 10})
 	if total != 0 {
 		t.Errorf("expected 0 audit logs for OPTIONS, got %d", total)
 	}
@@ -236,7 +236,7 @@ func TestAuditMiddleware_DeleteAction(t *testing.T) {
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
-	logs, _, _ := auditSvc.List(nil, service.AuditFilter{Page: 1, PageSize: 10})
+	logs, _, _ := auditSvc.List(context.TODO(), service.AuditFilter{Page: 1, PageSize: 10})
 	if len(logs) != 1 {
 		t.Fatalf("expected 1 audit log, got %d", len(logs))
 	}
