@@ -54,7 +54,7 @@ func (r *RedisEventBus) Subscribe(ctx context.Context, appID string) <-chan Depl
 	localCh := r.localBus.Subscribe(ctx, appID)
 
 	go func() {
-		defer sub.Close()
+		defer func() { _ = sub.Close() }()
 		defer close(ch)
 		for {
 			select {
