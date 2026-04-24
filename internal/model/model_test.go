@@ -225,3 +225,73 @@ func TestProviderModel(t *testing.T) {
 		t.Errorf("Provider.Enabled = %v, want %v", p.Enabled, true)
 	}
 }
+
+func TestAuditLogModel(t *testing.T) {
+	now := time.Now()
+	al := &AuditLog{
+		ID:           1,
+		UserID:       42,
+		Username:     "admin",
+		Action:       "app.create",
+		ResourceType: "app",
+		ResourceID:   "app-123",
+		Detail:       `{"name": "myapp"}`,
+		IPAddress:    "192.168.1.1",
+		UserAgent:    "test-agent",
+		CreatedAt:    now,
+	}
+
+	if al.ID != 1 {
+		t.Errorf("AuditLog.ID = %d, want 1", al.ID)
+	}
+	if al.UserID != 42 {
+		t.Errorf("AuditLog.UserID = %d, want 42", al.UserID)
+	}
+	if al.Action != "app.create" {
+		t.Errorf("AuditLog.Action = %q, want %q", al.Action, "app.create")
+	}
+	if al.ResourceType != "app" {
+		t.Errorf("AuditLog.ResourceType = %q, want %q", al.ResourceType, "app")
+	}
+	if al.ResourceID != "app-123" {
+		t.Errorf("AuditLog.ResourceID = %q, want %q", al.ResourceID, "app-123")
+	}
+	if al.IPAddress != "192.168.1.1" {
+		t.Errorf("AuditLog.IPAddress = %q, want %q", al.IPAddress, "192.168.1.1")
+	}
+}
+
+func TestAuditLogTableName(t *testing.T) {
+	al := &AuditLog{}
+	if al.TableName() != "audit_logs" {
+		t.Errorf("AuditLog.TableName() = %q, want %q", al.TableName(), "audit_logs")
+	}
+}
+
+func TestDeploymentRecordModel(t *testing.T) {
+	now := time.Now()
+	dr := &DeploymentRecord{
+		ID:            "dep-001",
+		TenantID:      "tenant-default",
+		AppName:       "myapp",
+		ContainerName: "myapp-container",
+		Image:         "nginx:latest",
+		Status:        "success",
+		CreatedAt:     now,
+		UpdatedAt:     now,
+	}
+
+	if dr.ID != "dep-001" {
+		t.Errorf("DeploymentRecord.ID = %q, want %q", dr.ID, "dep-001")
+	}
+	if dr.Status != "success" {
+		t.Errorf("DeploymentRecord.Status = %q, want %q", dr.Status, "success")
+	}
+}
+
+func TestDeploymentRecordTableName(t *testing.T) {
+	dr := &DeploymentRecord{}
+	if dr.TableName() != "deployments" {
+		t.Errorf("DeploymentRecord.TableName() = %q, want %q", dr.TableName(), "deployments")
+	}
+}

@@ -74,6 +74,11 @@ func setupTestDB(t *testing.T) *gorm.DB {
 		preflight_message TEXT, preflight_checks TEXT, error_message TEXT,
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 	)`)
+	db.Exec(`CREATE TABLE IF NOT EXISTS audit_logs (
+		id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, username TEXT,
+		action TEXT, resource_type TEXT, resource_id TEXT, detail TEXT,
+		ip_address TEXT, user_agent TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+	)`)
 
 	// Seed roles
 	db.Exec(`INSERT INTO roles (id, name, permissions) VALUES
@@ -140,7 +145,8 @@ func setupFullTestRouter(db *gorm.DB, bridge *service.Bridge) *gin.Engine {
 	r := gin.New()
 	wsHub := NewWSHub()
 	go wsHub.Run()
-	RegisterRoutes(r, db, bridge, wsHub)
+	auditSvc := service.NewAuditService(db)
+	RegisterRoutes(r, db, bridge, wsHub, auditSvc)
 	return r
 }
 

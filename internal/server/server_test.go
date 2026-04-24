@@ -5,6 +5,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/Yogdunana/deploypilot/internal/config"
 	"github.com/Yogdunana/deploypilot/internal/service"
 	"github.com/gin-gonic/gin"
 	"gorm.io/driver/sqlite"
@@ -19,8 +20,9 @@ func TestNew(t *testing.T) {
 
 	executor := &testLocalExecutor{}
 	bridge := service.NewBridge(db, executor, []byte("test-key-1234567890abcdef"), nil)
+	cfg := config.DefaultConfig()
 
-	srv := New("0.0.0.0:0", db, bridge)
+	srv := New("0.0.0.0:0", db, bridge, cfg)
 	if srv == nil {
 		t.Fatal("New() returned nil")
 	}
@@ -41,9 +43,9 @@ func TestNew(t *testing.T) {
 func TestCorsMiddleware(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	// Test OPTIONS request
+	// Test OPTIONS request with wildcard origins
 	r := gin.New()
-	r.Use(corsMiddleware())
+	r.Use(corsMiddleware([]string{"*"}))
 	r.GET("/test", func(c *gin.Context) { c.String(200, "ok") })
 
 	req := httptest.NewRequest("OPTIONS", "/test", nil)
@@ -70,6 +72,77 @@ func TestCorsMiddleware(t *testing.T) {
 	}
 	if w.Header().Get("Access-Control-Allow-Methods") == "" {
 		t.Error("missing CORS methods header for GET")
+	}
+}
+
+func TestCorsMiddleware_SpecificOrigin(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	r := gin.New()
+	r.Use(corsMiddleware([]string{"https://example.com"}))
+	r.GET("/test", func(c *gin.Context) { c.String(200, "ok") })
+
+	// Request with matching origin
+	req := httptest.NewRequest("GET", "/test", nil)
+	req.Header.Set("Origin", "https://example.com")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != 200 {
+		t.Errorf("GET status = %d, want 200", w.Code)
+	}
+	if w.Header().Get("Access-Control-Allow-Origin") != "https://example.com" {
+		t.Errorf("CORS origin = %q, want %q", w.Header().Get("Access-Control-Allow-Origin"), "https://example.com")
+	}
+
+	// Request with non-matching origin
+	req = httptest.NewRequest("GET", "/test", nil)
+	req.Header.Set("Origin", "https://evil.com")
+	w = httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != 200 {
+		t.Errorf("GET status = %d, want 200", w.Code)
+	}
+	if w.Header().Get("Access-Control-Allow-Origin") != "" {
+		t.Errorf("CORS origin should be empty for non-matching origin, got %q", w.Header().Get("Access-Control-Allow-Origin"))
+	}
+}
+
+func TestCorsMiddleware_EmptyOrigins(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	r := gin.New()
+	r.Use(corsMiddleware([]string{}))
+	r.GET("/test", func(c *gin.Context) { c.String(200, "ok") })
+
+	req := httptest.NewRequest("GET", "/test", nil)
+	req.Header.Set("Origin", "https://any.com")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != 200 {
+		t.Errorf("GET status = %d, want 200", w.Code)
+	}
+	// Empty origins list should fall back to wildcard
+	if w.Header().Get("Access-Control-Allow-Origin") != "*" {
+		t.Errorf("CORS origin = %q, want %q", w.Header().Get("Access-Control-Allow-Origin"), "*")
+	}
+}
+
+func TestCorsMiddleware_MaxAge(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	r := gin.New()
+	r.Use(corsMiddleware([]string{"*"}))
+	r.GET("/test", func(c *gin.Context) { c.String(200, "ok") })
+
+	req := httptest.NewRequest("OPTIONS", "/test", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Header().Get("Access-Control-Max-Age") != "86400" {
+		t.Errorf("Max-Age = %q, want %q", w.Header().Get("Access-Control-Max-Age"), "86400")
 	}
 }
 

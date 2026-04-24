@@ -8,7 +8,7 @@ import (
 )
 
 // RegisterRoutes registers all API routes on the given Gin engine.
-func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *WSHub) {
+func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *WSHub, auditSvc *service.AuditService) {
 	api := r.Group("/api/v1")
 
 	// Store db in gin context for handlers that need it via context
@@ -133,7 +133,7 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 		}
 
 		// Audit logs
-		protected.GET("/audit-logs", ListAuditLogs(db))
+		protected.GET("/audit-logs", ListAuditLogs(auditSvc))
 
 		// System (3 endpoints)
 		system := protected.Group("/system")

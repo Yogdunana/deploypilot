@@ -61,7 +61,7 @@ func TestMigrate(t *testing.T) {
 
 	expectedTables := []string{
 		"tenants", "roles", "users", "servers",
-		"apps", "credentials", "providers",
+		"apps", "credentials", "providers", "audit_logs",
 	}
 
 	for _, expected := range expectedTables {

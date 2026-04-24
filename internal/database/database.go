@@ -195,6 +195,27 @@ func Migrate(db *gorm.DB) error {
 				return tx.Migrator().DropTable("deployments")
 			},
 		},
+		// 202604240001: Create audit_logs table
+		{
+			ID: "202604240001",
+			Migrate: func(tx *gorm.DB) error {
+				return tx.Exec(`CREATE TABLE IF NOT EXISTS audit_logs (
+					id INTEGER PRIMARY KEY AUTOINCREMENT,
+					user_id INTEGER,
+					username TEXT,
+					action TEXT,
+					resource_type TEXT,
+					resource_id TEXT,
+					detail TEXT,
+					ip_address TEXT,
+					user_agent TEXT,
+					created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+				)`).Error
+			},
+			Rollback: func(tx *gorm.DB) error {
+				return tx.Migrator().DropTable("audit_logs")
+			},
+		},
 	})
 
 	// Use InitSchema for initial creation (faster than Migrate)

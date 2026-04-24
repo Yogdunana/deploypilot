@@ -30,10 +30,11 @@ type RedisConfig struct {
 
 // ServerConfig holds HTTP/MCP/Web server settings.
 type ServerConfig struct {
-	Host    string `mapstructure:"host"`
-	Port    int    `mapstructure:"port"`
-	MCPPort int    `mapstructure:"mcp_port"`
-	WebPort int    `mapstructure:"web_port"`
+	Host               string   `mapstructure:"host"`
+	Port               int      `mapstructure:"port"`
+	MCPPort            int      `mapstructure:"mcp_port"`
+	WebPort            int      `mapstructure:"web_port"`
+	CORSAllowedOrigins []string `mapstructure:"cors_allowed_origins"` // default: ["*"]
 }
 
 // DatabaseConfig holds database connection settings.
@@ -144,6 +145,7 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("server.port", 8080)
 	v.SetDefault("server.mcp_port", 9090)
 	v.SetDefault("server.web_port", 3000)
+	v.SetDefault("server.cors_allowed_origins", []string{"*"})
 
 	// Database
 	v.SetDefault("database.type", "sqlite")

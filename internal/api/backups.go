@@ -2,8 +2,10 @@ package api
 
 import (
 	"net/http"
+	"strconv"
 
 	"github.com/Yogdunana/deploypilot/internal/model"
+	"github.com/Yogdunana/deploypilot/internal/service"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
@@ -26,18 +28,43 @@ func DeleteBackup(db *gorm.DB) gin.HandlerFunc {
 	}
 }
 
-// ListAuditLogs lists audit logs (placeholder using deployment records).
-func ListAuditLogs(db *gorm.DB) gin.HandlerFunc {
+// ListAuditLogs lists audit logs with pagination and filtering.
+func ListAuditLogs(auditSvc *service.AuditService) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		var records []model.DeploymentRecord
-		query := db.Model(&model.DeploymentRecord{}).Order("created_at DESC").Limit(100)
-		if err := query.Find(&records).Error; err != nil {
+		page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+		pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
+		if page < 1 {
+			page = 1
+		}
+		if pageSize < 1 || pageSize > 100 {
+			pageSize = 20
+		}
+
+		filter := service.AuditFilter{
+			Page:     page,
+			PageSize: pageSize,
+		}
+		if userID := c.Query("user_id"); userID != "" {
+			uid, _ := strconv.ParseUint(userID, 10, 64)
+			filter.UserID = uint(uid)
+		}
+		if action := c.Query("action"); action != "" {
+			filter.Action = action
+		}
+		if resourceType := c.Query("resource_type"); resourceType != "" {
+			filter.ResourceType = resourceType
+		}
+
+		logs, total, err := auditSvc.List(c.Request.Context(), filter)
+		if err != nil {
 			respondError(c, http.StatusInternalServerError, err.Error())
 			return
 		}
-		if records == nil {
-			records = []model.DeploymentRecord{}
-		}
-		respondSuccess(c, records)
+		respondSuccess(c, gin.H{
+			"logs":      logs,
+			"total":     total,
+			"page":      page,
+			"page_size": pageSize,
+		})
 	}
 }

@@ -139,7 +139,7 @@ func run(cliDriver, cliDSN, cliAddr string) error {
 		listenAddr = fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port)
 	}
 
-	srv := server.New(listenAddr, db, bridge)
+	srv := server.New(listenAddr, db, bridge, cfg)
 
 	log.Printf("DeployPilot API server v%s starting on %s", version, listenAddr)
 	log.Printf("database: %s (%s)", cfg.Database.Type, cfg.Database.DSN)
