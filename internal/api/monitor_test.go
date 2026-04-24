@@ -6,7 +6,6 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/Yogdunana/deploypilot/internal/auth"
 	"github.com/gin-gonic/gin"
 )
 
@@ -199,12 +198,5 @@ func TestMonitorRoutesRegistered(t *testing.T) {
 	}
 }
 
-// getTestTokenForMonitor creates a JWT token for testing monitor endpoints.
-func getTestTokenForMonitor(t *testing.T, userID, role string) string {
-	t.Helper()
-	token, err := auth.GenerateToken(userID, role)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return token
-}
+
+

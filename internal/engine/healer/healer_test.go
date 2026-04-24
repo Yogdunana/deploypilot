@@ -32,7 +32,7 @@ func (m *mockExecutor) RunCommand(_ context.Context, cmd string) (string, error)
 // healthyInspect returns inspect output for a healthy container.
 func healthyInspect(name string) map[string]string {
 	return map[string]string{
-		"State.OOMKilled":     fmt.Sprintf("false|0|false|1234|2024-01-01T00:00:00Z|0001-01-01T00:00:00Z|healthy"),
+		"State.OOMKilled":     "false|0|false|1234|2024-01-01T00:00:00Z|0001-01-01T00:00:00Z|healthy",
 		"RestartCount":        "0",
 		".Id}}|{{.Name}}|{{.Config.Image}}|{{.State.Status}}": fmt.Sprintf("abc123|/%s|nginx:latest|running|2024-01-01T00:00:00Z", name),
 		"docker restart":      "",
@@ -42,7 +42,7 @@ func healthyInspect(name string) map[string]string {
 // oomKilledInspect returns inspect output for an OOMKilled container.
 func oomKilledInspect(name string) map[string]string {
 	return map[string]string{
-		"State.OOMKilled":     fmt.Sprintf("true|137|false|0|2024-01-01T00:00:00Z|2024-01-01T00:01:00Z|none"),
+		"State.OOMKilled":     "true|137|false|0|2024-01-01T00:00:00Z|2024-01-01T00:01:00Z|none",
 		"RestartCount":        "0",
 		".Id}}|{{.Name}}|{{.Config.Image}}|{{.State.Status}}": fmt.Sprintf("abc123|/%s|nginx:latest|exited|2024-01-01T00:00:00Z", name),
 		"docker restart":      "",
@@ -52,7 +52,7 @@ func oomKilledInspect(name string) map[string]string {
 // exitedInspect returns inspect output for a container that exited with non-zero code.
 func exitedInspect(name string) map[string]string {
 	return map[string]string{
-		"State.OOMKilled":     fmt.Sprintf("false|1|false|0|2024-01-01T00:00:00Z|2024-01-01T00:01:00Z|none"),
+		"State.OOMKilled":     "false|1|false|0|2024-01-01T00:00:00Z|2024-01-01T00:01:00Z|none",
 		"RestartCount":        "0",
 		".Id}}|{{.Name}}|{{.Config.Image}}|{{.State.Status}}": fmt.Sprintf("abc123|/%s|nginx:latest|exited|2024-01-01T00:00:00Z", name),
 		"docker restart":      "",
