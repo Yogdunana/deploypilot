@@ -152,5 +152,12 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge) {
 			mon.POST("/heal/:name", HealContainer(bridge))
 			mon.POST("/check/:name", CheckContainerHealth(bridge))
 		}
+
+		// CI/CD (2 endpoints)
+		cicd := protected.Group("/cicd")
+		{
+			cicd.POST("/trigger", TriggerCIBuild(bridge))
+			cicd.GET("/status/:runID", GetCIBuildStatus(bridge))
+		}
 	}
 }

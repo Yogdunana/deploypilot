@@ -571,6 +571,175 @@ func TestGetNotifiers_UnknownChannel(t *testing.T) {
 	}
 }
 
+// ===================== New DNS Provider Tests =====================
+
+func TestGetDNSProvider_Aliyun(t *testing.T) {
+	db := setupTestDB(t)
+	cfg, _ := json.Marshal(map[string]interface{}{
+		"access_key_id":     "test-key-id",
+		"access_key_secret": "test-key-secret",
+	})
+	db.Create(&model.Provider{
+		ID:      "dns-aliyun-1",
+		Type:    "dns-aliyun",
+		Name:    "Aliyun DNS",
+		Config:  string(cfg),
+		Enabled: true,
+	})
+	b := &Bridge{DB: db}
+	provider, err := b.getDNSProvider(context.Background())
+	if err != nil {
+		t.Fatalf("getDNSProvider failed: %v", err)
+	}
+	if provider == nil {
+		t.Fatal("expected non-nil provider")
+	}
+	// Verify it implements DNSProvider by calling a method
+	_, _ = provider.ListRecords(context.Background(), "example.com")
+}
+
+func TestGetDNSProvider_Tencent(t *testing.T) {
+	db := setupTestDB(t)
+	cfg, _ := json.Marshal(map[string]interface{}{
+		"secret_id":  "test-secret-id",
+		"secret_key": "test-secret-key",
+	})
+	db.Create(&model.Provider{
+		ID:      "dns-tencent-1",
+		Type:    "dns-tencent",
+		Name:    "Tencent DNS",
+		Config:  string(cfg),
+		Enabled: true,
+	})
+	b := &Bridge{DB: db}
+	provider, err := b.getDNSProvider(context.Background())
+	if err != nil {
+		t.Fatalf("getDNSProvider failed: %v", err)
+	}
+	if provider == nil {
+		t.Fatal("expected non-nil provider")
+	}
+	// Verify it implements DNSProvider by calling a method
+	_, _ = provider.ListRecords(context.Background(), "example.com")
+}
+
+func TestGetDNSProvider_UnsupportedType(t *testing.T) {
+	db := setupTestDB(t)
+	cfg, _ := json.Marshal(map[string]interface{}{
+		"api_token": "test-token",
+	})
+	db.Create(&model.Provider{
+		ID:      "dns-unsupported-1",
+		Type:    "dns-unsupported",
+		Name:    "Unsupported DNS",
+		Config:  string(cfg),
+		Enabled: true,
+	})
+	b := &Bridge{DB: db}
+	_, err := b.getDNSProvider(context.Background())
+	if err == nil {
+		t.Fatal("expected error for unsupported DNS provider type")
+	}
+}
+
+func TestGetDNSProvider_InvalidConfig(t *testing.T) {
+	db := setupTestDB(t)
+	db.Create(&model.Provider{
+		ID:      "dns-bad-1",
+		Type:    "dns-cloudflare",
+		Name:    "Bad Config DNS",
+		Config:  "not-json{{{",
+		Enabled: true,
+	})
+	b := &Bridge{DB: db}
+	_, err := b.getDNSProvider(context.Background())
+	if err == nil {
+		t.Fatal("expected error for invalid config")
+	}
+}
+
+// ===================== New Notifier Tests =====================
+
+func TestGetNotifiers_Telegram(t *testing.T) {
+	db := setupTestDB(t)
+	cfg, _ := json.Marshal(map[string]interface{}{
+		"channel":   "telegram",
+		"bot_token": "test-bot-token",
+		"chat_id":   "test-chat-id",
+	})
+	db.Create(&model.Provider{
+		ID:      "notify-telegram-1",
+		Type:    "notify",
+		Name:    "Telegram",
+		Config:  string(cfg),
+		Enabled: true,
+	})
+	b := &Bridge{DB: db}
+	notifiers, err := b.getNotifiers(context.Background())
+	if err != nil {
+		t.Fatalf("getNotifiers failed: %v", err)
+	}
+	if len(notifiers) != 1 {
+		t.Fatalf("expected 1 notifier, got %d", len(notifiers))
+	}
+	if notifiers[0].Name() != "telegram" {
+		t.Errorf("expected telegram notifier, got %s", notifiers[0].Name())
+	}
+}
+
+func TestGetNotifiers_DingTalk(t *testing.T) {
+	db := setupTestDB(t)
+	cfg, _ := json.Marshal(map[string]interface{}{
+		"channel":     "dingtalk",
+		"webhook_url": "https://oapi.dingtalk.com/robot/send?access_token=test",
+		"secret":      "test-secret",
+	})
+	db.Create(&model.Provider{
+		ID:      "notify-dingtalk-1",
+		Type:    "notify",
+		Name:    "DingTalk",
+		Config:  string(cfg),
+		Enabled: true,
+	})
+	b := &Bridge{DB: db}
+	notifiers, err := b.getNotifiers(context.Background())
+	if err != nil {
+		t.Fatalf("getNotifiers failed: %v", err)
+	}
+	if len(notifiers) != 1 {
+		t.Fatalf("expected 1 notifier, got %d", len(notifiers))
+	}
+	if notifiers[0].Name() != "dingtalk" {
+		t.Errorf("expected dingtalk notifier, got %s", notifiers[0].Name())
+	}
+}
+
+func TestGetNotifiers_Feishu(t *testing.T) {
+	db := setupTestDB(t)
+	cfg, _ := json.Marshal(map[string]interface{}{
+		"channel":     "feishu",
+		"webhook_url": "https://open.feishu.cn/open-apis/bot/v2/hook/test-token",
+	})
+	db.Create(&model.Provider{
+		ID:      "notify-feishu-1",
+		Type:    "notify",
+		Name:    "Feishu",
+		Config:  string(cfg),
+		Enabled: true,
+	})
+	b := &Bridge{DB: db}
+	notifiers, err := b.getNotifiers(context.Background())
+	if err != nil {
+		t.Fatalf("getNotifiers failed: %v", err)
+	}
+	if len(notifiers) != 1 {
+		t.Fatalf("expected 1 notifier, got %d", len(notifiers))
+	}
+	if notifiers[0].Name() != "feishu" {
+		t.Errorf("expected feishu notifier, got %s", notifiers[0].Name())
+	}
+}
+
 // setupTestWithProviders is a variant that returns the DB for further manipulation.
 func setupTestWithProviders(t *testing.T) *gorm.DB {
 	t.Helper()

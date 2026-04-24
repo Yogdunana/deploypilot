@@ -58,6 +58,8 @@ type mockDeployer struct {
 	getSystemMetricsFn  func(ctx context.Context) (interface{}, error)
 	listAlertsFn        func(ctx context.Context) (interface{}, error)
 	listAlertRulesFn    func(ctx context.Context) (interface{}, error)
+	triggerCIBuildFn    func(ctx context.Context, provider, repo, branch string) (interface{}, error)
+	getCIBuildStatusFn  func(ctx context.Context, provider, runID string) (interface{}, error)
 }
 
 func (m *mockDeployer) Deploy(ctx context.Context, cfg DeployConfig) (*ContainerStatus, error) {
@@ -425,6 +427,36 @@ func (m *mockDeployer) ListAlertRules(ctx context.Context) (interface{}, error) 
 		{"id": "disk-space", "name": "Disk Space Low", "metric_type": "disk", "condition": "lt", "threshold": 5.0, "severity": "warning"},
 		{"id": "memory-high", "name": "Memory Usage High", "metric_type": "memory", "condition": "gt", "threshold": 90.0, "severity": "warning"},
 		{"id": "cpu-high", "name": "CPU Usage High", "metric_type": "cpu", "condition": "gt", "threshold": 95.0, "severity": "warning"},
+	}, nil
+}
+
+func (m *mockDeployer) TriggerCIBuild(ctx context.Context, provider, repo, branch string) (interface{}, error) {
+	if m.triggerCIBuildFn != nil {
+		return m.triggerCIBuildFn(ctx, provider, repo, branch)
+	}
+	return map[string]interface{}{
+		"status":  "triggered",
+		"run_id":  "triggered",
+		"repo":    repo,
+		"branch":  branch,
+		"provider": provider,
+	}, nil
+}
+
+func (m *mockDeployer) GetCIBuildStatus(ctx context.Context, provider, runID string) (interface{}, error) {
+	if m.getCIBuildStatusFn != nil {
+		return m.getCIBuildStatusFn(ctx, provider, runID)
+	}
+	return map[string]interface{}{
+		"status":   "success",
+		"provider": provider,
+		"build": map[string]interface{}{
+			"run_id":  runID,
+			"status":  "success",
+			"commit":  "abc123",
+			"branch":  "main",
+			"duration": 300,
+		},
 	}, nil
 }
 

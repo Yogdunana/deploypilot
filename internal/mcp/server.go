@@ -69,6 +69,8 @@ type Deployer interface {
 	GetSystemMetrics(ctx context.Context) (interface{}, error)
 	ListAlerts(ctx context.Context) (interface{}, error)
 	ListAlertRules(ctx context.Context) (interface{}, error)
+	TriggerCIBuild(ctx context.Context, provider, repo, branch string) (interface{}, error)
+	GetCIBuildStatus(ctx context.Context, provider, runID string) (interface{}, error)
 }
 
 // DeployConfig mirrors deployer.DeployConfig to avoid circular imports.
@@ -673,6 +675,27 @@ func NewServer(deployer Deployer) *server.MCPServer {
 		return handleListAlertRules(ctx, deployer, request)
 	})
 
+	// Register trigger_ci_build tool
+	triggerCITool := mcp.NewTool("trigger_ci_build",
+		mcp.WithDescription("Trigger a CI/CD build for a repository"),
+		mcp.WithString("provider", mcp.Required(), mcp.Description("CI/CD provider type: github-actions")),
+		mcp.WithString("repo", mcp.Required(), mcp.Description("Repository name (e.g. my-project)")),
+		mcp.WithString("branch", mcp.Required(), mcp.Description("Git branch to build (e.g. main)")),
+	)
+	s.AddTool(triggerCITool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleTriggerCIBuild(ctx, deployer, request)
+	})
+
+	// Register get_ci_build_status tool
+	getCIStatusTool := mcp.NewTool("get_ci_build_status",
+		mcp.WithDescription("Get the status of a CI/CD build"),
+		mcp.WithString("provider", mcp.Required(), mcp.Description("CI/CD provider type: github-actions")),
+		mcp.WithString("run_id", mcp.Required(), mcp.Description("Build run ID")),
+	)
+	s.AddTool(getCIStatusTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleGetCIBuildStatus(ctx, deployer, request)
+	})
+
 	return s
 }
 
@@ -712,6 +735,48 @@ func handleBuildAndDeploy(ctx context.Context, deployer Deployer, request mcp.Ca
 	result, err := deployer.BuildAndDeploy(ctx, cfg)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("build and deploy failed: %v", err)), nil
+	}
+
+	data, _ := json.MarshalIndent(result, "", "  ")
+	return mcp.NewToolResultText(string(data)), nil
+}
+
+func handleTriggerCIBuild(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	provider, err := request.RequireString("provider")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+	repo, err := request.RequireString("repo")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+	branch, err := request.RequireString("branch")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	result, err := deployer.TriggerCIBuild(ctx, provider, repo, branch)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("failed to trigger CI build: %v", err)), nil
+	}
+
+	data, _ := json.MarshalIndent(result, "", "  ")
+	return mcp.NewToolResultText(string(data)), nil
+}
+
+func handleGetCIBuildStatus(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	provider, err := request.RequireString("provider")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+	runID, err := request.RequireString("run_id")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	result, err := deployer.GetCIBuildStatus(ctx, provider, runID)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("failed to get CI build status: %v", err)), nil
 	}
 
 	data, _ := json.MarshalIndent(result, "", "  ")

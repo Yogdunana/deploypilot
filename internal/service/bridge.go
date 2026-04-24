@@ -18,6 +18,7 @@ import (
 	"github.com/Yogdunana/deploypilot/internal/mcp"
 	"github.com/Yogdunana/deploypilot/internal/model"
 	"github.com/Yogdunana/deploypilot/internal/monitor"
+	"github.com/Yogdunana/deploypilot/internal/provider/cicd"
 	"github.com/Yogdunana/deploypilot/internal/provider/dns"
 	"github.com/Yogdunana/deploypilot/internal/provider/notify"
 	"github.com/Yogdunana/deploypilot/internal/provider/server"
@@ -70,25 +71,39 @@ func (b *Bridge) d() *deployer.DockerDeployer {
 	return deployer.New(b.Executor)
 }
 
-// getDNSProvider loads the first enabled DNS provider from DB and returns a CloudflareProvider.
-func (b *Bridge) getDNSProvider(ctx context.Context) (*dns.CloudflareProvider, error) {
+// getDNSProvider loads the first enabled DNS provider from DB and returns a DNSProvider interface.
+func (b *Bridge) getDNSProvider(ctx context.Context) (dns.DNSProvider, error) {
 	if b.DB == nil {
 		return nil, fmt.Errorf("database not available")
 	}
 	var provider model.Provider
-	err := b.DB.Where("type = ? AND enabled = ?", "cloudflare", true).First(&provider).Error
+	err := b.DB.Where("type LIKE ? AND enabled = ?", "dns-%", true).First(&provider).Error
 	if err != nil {
 		return nil, fmt.Errorf("no enabled DNS provider found: %w", err)
 	}
 	// Parse config JSON
 	var cfg struct {
-		APIToken     string `json:"api_token"`
-		AccountEmail string `json:"account_email"`
+		APIToken       string `json:"api_token"`
+		AccountEmail   string `json:"account_email"`
+		AccessKeyID    string `json:"access_key_id"`
+		AccessKeySecret string `json:"access_key_secret"`
+		SecretID       string `json:"secret_id"`
+		SecretKey      string `json:"secret_key"`
 	}
 	if err := json.Unmarshal([]byte(provider.Config), &cfg); err != nil {
 		return nil, fmt.Errorf("failed to parse DNS provider config: %w", err)
 	}
-	return dns.NewCloudflareProvider(cfg.APIToken, cfg.AccountEmail), nil
+
+	switch provider.Type {
+	case "dns-cloudflare":
+		return dns.NewCloudflareProvider(cfg.APIToken, cfg.AccountEmail), nil
+	case "dns-aliyun":
+		return dns.NewAliyunProvider(cfg.AccessKeyID, cfg.AccessKeySecret), nil
+	case "dns-tencent":
+		return dns.NewTencentProvider(cfg.SecretID, cfg.SecretKey), nil
+	default:
+		return nil, fmt.Errorf("unsupported DNS provider type: %s", provider.Type)
+	}
 }
 
 // getNotifiers loads all enabled notification providers from DB.
@@ -104,7 +119,7 @@ func (b *Bridge) getNotifiers(ctx context.Context) ([]notify.Notifier, error) {
 	var notifiers []notify.Notifier
 	for _, p := range providers {
 		var cfg struct {
-			Channel  string            `json:"channel"` // webhook, email
+			Channel  string            `json:"channel"` // webhook, email, telegram, dingtalk, feishu
 			URL      string            `json:"url"`
 			Headers  map[string]string `json:"headers"`
 			SMTPHost string            `json:"smtp_host"`
@@ -112,6 +127,10 @@ func (b *Bridge) getNotifiers(ctx context.Context) ([]notify.Notifier, error) {
 			Username string            `json:"username"`
 			Password string            `json:"password"`
 			From     string            `json:"from"`
+			BotToken string            `json:"bot_token"`
+			ChatID   string            `json:"chat_id"`
+			WebhookURL string          `json:"webhook_url"`
+			Secret   string            `json:"secret"`
 		}
 		if err := json.Unmarshal([]byte(p.Config), &cfg); err != nil {
 			log.Printf("[notify] failed to parse provider %s config: %v", p.Name, err)
@@ -128,6 +147,12 @@ func (b *Bridge) getNotifiers(ctx context.Context) ([]notify.Notifier, error) {
 				Password: cfg.Password,
 				From:     cfg.From,
 			}))
+		case "telegram":
+			notifiers = append(notifiers, notify.NewTelegramNotifier(cfg.BotToken, cfg.ChatID))
+		case "dingtalk":
+			notifiers = append(notifiers, notify.NewDingTalkNotifier(cfg.WebhookURL, cfg.Secret))
+		case "feishu":
+			notifiers = append(notifiers, notify.NewFeishuNotifier(cfg.WebhookURL))
 		}
 	}
 	return notifiers, nil
@@ -1538,4 +1563,94 @@ func defaultVal(val, def string) string {
 		return def
 	}
 	return val
+}
+
+// ---------- 45. TriggerCIBuild ----------
+
+func (b *Bridge) TriggerCIBuild(ctx context.Context, providerType, repo, branch string) (interface{}, error) {
+	if b.DB == nil {
+		return nil, fmt.Errorf("database not available")
+	}
+
+	var provider model.Provider
+	err := b.DB.Where("type = ? AND enabled = ?", "cicd-"+providerType, true).First(&provider).Error
+	if err != nil {
+		return map[string]interface{}{
+			"status":  "error",
+			"message": fmt.Sprintf("no enabled CI/CD provider found for type: %s", providerType),
+		}, nil
+	}
+
+	var cfg struct {
+		Token string `json:"token"`
+		Owner string `json:"owner"`
+	}
+	if err := json.Unmarshal([]byte(provider.Config), &cfg); err != nil {
+		return nil, fmt.Errorf("failed to parse CI/CD provider config: %w", err)
+	}
+
+	switch providerType {
+	case "github-actions":
+		gh := cicd.NewGitHubActionsProvider(cfg.Token, cfg.Owner)
+		runID, err := gh.TriggerBuild(ctx, repo, branch)
+		if err != nil {
+			return map[string]interface{}{
+				"status":  "error",
+				"message": err.Error(),
+			}, nil
+		}
+		return map[string]interface{}{
+			"status":  "triggered",
+			"run_id":  runID,
+			"repo":    repo,
+			"branch":  branch,
+			"provider": providerType,
+		}, nil
+	default:
+		return nil, fmt.Errorf("unsupported CI/CD provider type: %s", providerType)
+	}
+}
+
+// ---------- 46. GetCIBuildStatus ----------
+
+func (b *Bridge) GetCIBuildStatus(ctx context.Context, providerType, runID string) (interface{}, error) {
+	if b.DB == nil {
+		return nil, fmt.Errorf("database not available")
+	}
+
+	var provider model.Provider
+	err := b.DB.Where("type = ? AND enabled = ?", "cicd-"+providerType, true).First(&provider).Error
+	if err != nil {
+		return map[string]interface{}{
+			"status":  "error",
+			"message": fmt.Sprintf("no enabled CI/CD provider found for type: %s", providerType),
+		}, nil
+	}
+
+	var cfg struct {
+		Token string `json:"token"`
+		Owner string `json:"owner"`
+	}
+	if err := json.Unmarshal([]byte(provider.Config), &cfg); err != nil {
+		return nil, fmt.Errorf("failed to parse CI/CD provider config: %w", err)
+	}
+
+	switch providerType {
+	case "github-actions":
+		gh := cicd.NewGitHubActionsProvider(cfg.Token, cfg.Owner)
+		status, err := gh.GetBuildStatus(ctx, runID)
+		if err != nil {
+			return map[string]interface{}{
+				"status":  "error",
+				"message": err.Error(),
+			}, nil
+		}
+		return map[string]interface{}{
+			"status":  "success",
+			"build":   status,
+			"provider": providerType,
+		}, nil
+	default:
+		return nil, fmt.Errorf("unsupported CI/CD provider type: %s", providerType)
+	}
 }
