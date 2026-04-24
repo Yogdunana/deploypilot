@@ -52,6 +52,73 @@ func (e *PreflightError) PreflightChecks() interface{} {
 	return e.Checks
 }
 
+// DeployEvent represents a deploy progress event.
+type DeployEvent struct {
+	TaskID    string `json:"task_id"`
+	AppID     string `json:"app_id"`
+	Step      string `json:"step"`     // preflight, pull, stop, run, health_check, done
+	Status    string `json:"status"`   // running, success, failed
+	Progress  int    `json:"progress"` // 0-100
+	Message   string `json:"message"`
+	Timestamp string `json:"timestamp"`
+}
+
+// DeployEventBus is a simple pub/sub for deploy events.
+type DeployEventBus struct {
+	subscribers map[string][]chan DeployEvent // appID -> channels
+	mu          sync.RWMutex
+}
+
+// NewDeployEventBus creates a new DeployEventBus.
+func NewDeployEventBus() *DeployEventBus {
+	return &DeployEventBus{
+		subscribers: make(map[string][]chan DeployEvent),
+	}
+}
+
+// Subscribe returns a buffered channel for the given appID.
+func (b *DeployEventBus) Subscribe(appID string) chan DeployEvent {
+	ch := make(chan DeployEvent, 100)
+	b.mu.Lock()
+	b.subscribers[appID] = append(b.subscribers[appID], ch)
+	b.mu.Unlock()
+	return ch
+}
+
+// Unsubscribe removes a channel for the given appID.
+func (b *DeployEventBus) Unsubscribe(appID string, ch chan DeployEvent) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	channels := b.subscribers[appID]
+	for i, c := range channels {
+		if c == ch {
+			b.subscribers[appID] = append(channels[:i], channels[i+1:]...)
+			close(ch)
+			break
+		}
+	}
+	if len(b.subscribers[appID]) == 0 {
+		delete(b.subscribers, appID)
+	}
+}
+
+// Publish sends an event to all subscribers of the given appID.
+func (b *DeployEventBus) Publish(event DeployEvent) {
+	b.mu.RLock()
+	channels := b.subscribers[event.AppID]
+	// Copy to avoid holding lock during sends
+	copied := make([]chan DeployEvent, len(channels))
+	copy(copied, channels)
+	b.mu.RUnlock()
+	for _, ch := range copied {
+		select {
+		case ch <- event:
+		default:
+			// channel full, drop event to avoid blocking publisher
+		}
+	}
+}
+
 // Bridge implements mcp.Deployer by wiring DB + Docker executor.
 type Bridge struct {
 	DB            *gorm.DB
@@ -59,11 +126,17 @@ type Bridge struct {
 	EncryptionKey []byte                   // AES-256 key for credential encryption
 	Monitor       *monitor.Monitor         // monitoring system (lazy-initialized)
 	healer        *healer.Healer           // self-healing engine (lazy-initialized)
+	EventBus      *DeployEventBus          // pub/sub for deploy progress events
 }
 
 // NewBridge creates a new Bridge that satisfies the mcp.Deployer interface.
 func NewBridge(db *gorm.DB, executor deployer.CommandExecutor, encryptionKey []byte) *Bridge {
-	return &Bridge{DB: db, Executor: executor, EncryptionKey: encryptionKey}
+	return &Bridge{
+		DB:            db,
+		Executor:      executor,
+		EncryptionKey: encryptionKey,
+		EventBus:      NewDeployEventBus(),
+	}
 }
 
 // d returns a deployer.DockerDeployer backed by the bridge's executor.
@@ -195,6 +268,29 @@ func createTask(taskType string) string {
 	return id
 }
 
+// updateTask updates the status of an existing task.
+func updateTask(id, status string, progress int, message string) {
+	taskMu.Lock()
+	defer taskMu.Unlock()
+	if t, ok := tasks[id]; ok {
+		t.Status = status
+		t.Progress = progress
+		t.Message = message
+		t.UpdatedAt = time.Now()
+	}
+}
+
+// getTask returns a copy of the task info for the given task ID.
+func getTask(id string) *taskInfo {
+	taskMu.RLock()
+	defer taskMu.RUnlock()
+	if t, ok := tasks[id]; ok {
+		cp := *t
+		return &cp
+	}
+	return nil
+}
+
 // getRemoteExecutor creates an SSH executor for the given server.
 // It looks up the server record, finds its credential, decrypts the password/key,
 // and returns an SSH client that satisfies deployer.CommandExecutor.
@@ -267,6 +363,44 @@ func (e *sshClientExecutor) Close() error {
 
 // ---------- 1. Deploy ----------
 
+// DeployAsync starts a deploy in a goroutine and returns a task ID immediately.
+func (b *Bridge) DeployAsync(ctx context.Context, cfg mcp.DeployConfig, appID string) (taskID string, err error) {
+	taskID = createTask("deploy")
+	updateTask(taskID, "running", 0, "deploy started")
+	go func() {
+		cs, deployErr := b.Deploy(ctx, cfg)
+		if deployErr != nil {
+			updateTask(taskID, "failed", 100, deployErr.Error())
+			b.EventBus.Publish(DeployEvent{
+				TaskID:    taskID,
+				AppID:     appID,
+				Step:      "done",
+				Status:    "failed",
+				Progress:  100,
+				Message:   deployErr.Error(),
+				Timestamp: time.Now().Format(time.RFC3339),
+			})
+		} else {
+			updateTask(taskID, "success", 100, "deploy completed")
+			b.EventBus.Publish(DeployEvent{
+				TaskID:    taskID,
+				AppID:     appID,
+				Step:      "done",
+				Status:    "success",
+				Progress:  100,
+				Message:   "deploy completed",
+				Timestamp: time.Now().Format(time.RFC3339),
+			})
+			taskMu.Lock()
+			if t, ok := tasks[taskID]; ok {
+				t.Result = cs
+			}
+			taskMu.Unlock()
+		}
+	}()
+	return taskID, nil
+}
+
 func (b *Bridge) Deploy(ctx context.Context, cfg mcp.DeployConfig) (*mcp.ContainerStatus, error) {
 	// Determine executor: remote SSH if server_id provided, otherwise local
 	executor := b.Executor
@@ -313,12 +447,26 @@ func (b *Bridge) Deploy(ctx context.Context, cfg mcp.DeployConfig) (*mcp.Contain
 		// Log structured preflight failure
 		logPreflightResult(cfg.ContainerName, pfResult)
 
+		b.EventBus.Publish(DeployEvent{
+			TaskID:    "", AppID: cfg.ContainerName,
+			Step: "preflight", Status: "failed", Progress: 20,
+			Message:   pfResult.Message,
+			Timestamp: time.Now().Format(time.RFC3339),
+		})
+
 		return nil, &PreflightError{
 			Code:    pfResult.Code,
 			Message: pfResult.Message,
 			Checks:  pfResult.Checks,
 		}
 	}
+
+	b.EventBus.Publish(DeployEvent{
+		TaskID:    "", AppID: cfg.ContainerName,
+		Step: "preflight", Status: "success", Progress: 20,
+		Message:   "preflight checks passed",
+		Timestamp: time.Now().Format(time.RFC3339),
+	})
 
 	dCfg := deployer.DeployConfig{
 		Image:         cfg.Image,
@@ -336,16 +484,39 @@ func (b *Bridge) Deploy(ctx context.Context, cfg mcp.DeployConfig) (*mcp.Contain
 	}
 
 	d := deployer.New(executor)
+
+	b.EventBus.Publish(DeployEvent{
+		TaskID:    "", AppID: cfg.ContainerName,
+		Step: "pull", Status: "running", Progress: 30,
+		Message:   "pulling image: " + cfg.Image,
+		Timestamp: time.Now().Format(time.RFC3339),
+	})
+
 	cs, err := d.Deploy(ctx, dCfg)
 	if err != nil {
 		// Save deployment failure
 		b.saveDeploymentRecord(ctx, cfg, "failed", nil)
 		log.Printf("[deploy] container %s deployment failed: %v", cfg.ContainerName, err)
+
+		b.EventBus.Publish(DeployEvent{
+			TaskID:    "", AppID: cfg.ContainerName,
+			Step: "run", Status: "failed", Progress: 60,
+			Message:   "deploy failed: " + err.Error(),
+			Timestamp: time.Now().Format(time.RFC3339),
+		})
+
 		return nil, err
 	}
 	// Save deployment success
 	b.saveDeploymentRecord(ctx, cfg, "success", nil)
 	log.Printf("[deploy] container %s deployed successfully (id: %s)", cfg.ContainerName, cs.ID)
+
+	b.EventBus.Publish(DeployEvent{
+		TaskID:    "", AppID: cfg.ContainerName,
+		Step: "run", Status: "success", Progress: 90,
+		Message:   "container deployed successfully",
+		Timestamp: time.Now().Format(time.RFC3339),
+	})
 
 	return &mcp.ContainerStatus{
 		ID:        cs.ID,

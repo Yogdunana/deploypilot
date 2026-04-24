@@ -51,7 +51,7 @@ export const appsApi = {
   get: (id) => api.get(`/apps/${id}`),
   update: (id, data) => api.put(`/apps/${id}`, data),
   delete: (id) => api.delete(`/apps/${id}`),
-  deploy: (id, data) => api.post(`/apps/${id}/deploy`, data),
+  deploy: (id, data, config = {}) => api.post(`/apps/${id}/deploy`, data, config),
   status: (id) => api.get(`/apps/${id}/status`),
   rollback: (id) => api.post(`/apps/${id}/rollback`),
   logs: (id) => api.get(`/apps/${id}/logs/container`),

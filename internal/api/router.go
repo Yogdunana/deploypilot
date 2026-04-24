@@ -24,6 +24,13 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 		wsGroup.GET("/terminal/:server_id", TerminalWS(bridge, wsHub))
 	}
 
+	// SSE routes (requires auth)
+	sseGroup := api.Group("/sse")
+	sseGroup.Use(auth.AuthMiddleware())
+	{
+		sseGroup.GET("/deploy/:app_id", DeploySSE(bridge))
+	}
+
 	// Public routes
 	authGroup := api.Group("/auth")
 	{

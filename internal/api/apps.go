@@ -130,6 +130,12 @@ func DeleteApp(bridge *service.Bridge) gin.HandlerFunc {
 // DeployApp deploys an application.
 func DeployApp(bridge *service.Bridge) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		// Check async query param
+		if c.Query("async") == "true" {
+			DeployAsyncHandler(bridge)(c)
+			return
+		}
+
 		var cfg mcp.DeployConfig
 		if err := c.ShouldBindJSON(&cfg); err != nil {
 			respondError(c, http.StatusBadRequest, "invalid request: "+err.Error())

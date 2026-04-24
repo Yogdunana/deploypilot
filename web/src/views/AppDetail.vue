@@ -42,6 +42,10 @@
             <el-button type="primary" :loading="deploying" @click="handleDeploy" style="width: 100%; margin-bottom: 8px">
               <el-icon><Upload /></el-icon> Deploy
             </el-button>
+            <div v-if="deployProgress" class="deploy-progress" style="margin-bottom: 8px">
+              <el-progress :percentage="deployProgress.progress" :status="deployProgress.status === 'failed' ? 'exception' : undefined" />
+              <span class="deploy-step" style="font-size: 12px; color: #606266">{{ deployProgress.step }}: {{ deployProgress.message }}</span>
+            </div>
             <el-button type="success" :loading="building" @click="handleBuild" style="width: 100%; margin-bottom: 8px">
               <el-icon><SetUp /></el-icon> Build & Deploy
             </el-button>
@@ -104,10 +108,12 @@ const building = ref(false)
 const rollingBack = ref(false)
 const backingUp = ref(false)
 const restoring = ref(false)
+const deployProgress = ref(null)
 
 let ws = null
 let reconnectTimer = null
 let reconnectAttempts = 0
+let eventSource = null
 
 function statusType(status) {
   const map = { running: 'success', stopped: 'info', failed: 'danger' }
@@ -195,12 +201,53 @@ function disconnectLogStream() {
 
 async function handleDeploy() {
   deploying.value = true
+  deployProgress.value = { step: 'starting', status: 'running', progress: 0, message: 'Starting deploy...' }
+
   try {
-    await appsApi.deploy(appId, {})
-    ElMessage.success('Deployment started')
-    fetchApp()
-  } catch { /* handled */ } finally {
+    const res = await appsApi.deploy(appId, {}, { params: { async: true } })
+    const data = res.data || res
+    const sseUrl = data.sse_url
+
+    if (sseUrl) {
+      eventSource = new EventSource(sseUrl)
+
+      eventSource.addEventListener('deploy', (e) => {
+        const event = JSON.parse(e.data)
+        deployProgress.value = event
+        if (event.step === 'done') {
+          eventSource.close()
+          eventSource = null
+          deploying.value = false
+          if (event.status === 'success') {
+            ElMessage.success('Deployment completed')
+          } else {
+            ElMessage.error('Deployment failed: ' + event.message)
+          }
+          fetchApp()
+        }
+      })
+
+      eventSource.addEventListener('heartbeat', () => {
+        // keep-alive, no action needed
+      })
+
+      eventSource.onerror = () => {
+        if (eventSource) {
+          eventSource.close()
+          eventSource = null
+        }
+        deploying.value = false
+      }
+    } else {
+      // Fallback: synchronous response
+      deploying.value = false
+      deployProgress.value = null
+      ElMessage.success('Deployment started')
+      fetchApp()
+    }
+  } catch {
     deploying.value = false
+    deployProgress.value = null
   }
 }
 
@@ -255,6 +302,10 @@ onMounted(() => {
 
 onUnmounted(() => {
   disconnectLogStream()
+  if (eventSource) {
+    eventSource.close()
+    eventSource = null
+  }
 })
 </script>
 
