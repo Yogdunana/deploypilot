@@ -25,6 +25,10 @@
 
   "error.server.not_found": "服务器不存在",
   "error.server.deleted": "服务器已删除",
+  "error.server.panel_api_failed": "面板 API 请求失败",
+  "error.server.firewall_open_failed": "开放防火墙端口失败",
+  "error.server.firewall_close_failed": "关闭防火墙端口失败",
+  "error.server.reverse_proxy_create_failed": "创建反向代理失败",
 
   "error.deployment.not_found": "部署记录不存在",
 
@@ -38,6 +42,7 @@
   "error.notification.not_found": "通知渠道不存在",
   "error.notification.deleted": "通知渠道已删除",
   "error.notification.name_required": "name 为必填项",
+  "error.notification.wecom_webhook_failed": "企业微信 Webhook 请求失败",
 
   "error.user.not_found": "用户不存在",
   "error.user.deleted": "用户已删除",
@@ -54,6 +59,8 @@
 
   "error.cicd.provider_required": "provider 查询参数为必填项",
   "error.cicd.runid_required": "runID 为必填项",
+  "error.cicd.gitea_trigger_failed": "Gitea CI 触发失败",
+  "error.cicd.gitea_status_failed": "Gitea CI 状态查询失败",
 
   "error.provider.name_and_type_required": "name 和 type 为必填项",
   "error.provider.not_found": "服务提供商不存在",

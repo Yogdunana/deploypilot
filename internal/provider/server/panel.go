@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"sync"
 )
 
 // PanelType represents the type of hosting panel.
@@ -25,6 +26,14 @@ type PanelProvider struct {
 	panelType PanelType
 	baseURL   string
 	apiKey    string
+
+	// Lazy-initialized panel clients
+	panel1Once  sync.Once
+	panel1      *Panel1Panel
+	panel1Err   error
+	btPanelOnce sync.Once
+	btPanel     *PanelBTPanel
+	btPanelErr  error
 }
 
 // NewPanelProvider creates a panel provider based on the detected panel type.
@@ -34,6 +43,30 @@ func NewPanelProvider(panelType PanelType, baseURL, apiKey string) *PanelProvide
 		baseURL:   baseURL,
 		apiKey:    apiKey,
 	}
+}
+
+// getPanel1Client lazily initializes and returns the 1Panel client.
+func (p *PanelProvider) getPanel1Client() (*Panel1Panel, error) {
+	p.panel1Once.Do(func() {
+		if p.baseURL == "" || p.apiKey == "" {
+			p.panel1Err = fmt.Errorf("1Panel base URL and API key are required")
+			return
+		}
+		p.panel1 = NewPanel1Panel(p.baseURL, p.apiKey)
+	})
+	return p.panel1, p.panel1Err
+}
+
+// getBTPanelClient lazily initializes and returns the BT-Panel client.
+func (p *PanelProvider) getBTPanelClient() (*PanelBTPanel, error) {
+	p.btPanelOnce.Do(func() {
+		if p.baseURL == "" || p.apiKey == "" {
+			p.btPanelErr = fmt.Errorf("BT-Panel base URL and API key are required")
+			return
+		}
+		p.btPanel = NewPanelBTPanel(p.baseURL, p.apiKey)
+	})
+	return p.btPanel, p.btPanelErr
 }
 
 // DetectPanel attempts to detect which panel is installed.
@@ -90,17 +123,81 @@ func (p *PanelProvider) GetPanelInfo(_ context.Context) (map[string]interface{},
 }
 
 // OpenFirewall opens a port on the panel's firewall.
-func (p *PanelProvider) OpenFirewall(_ context.Context, port int, protocol string) error {
+// It uses the panel-specific API when available, or falls back to SSH.
+func (p *PanelProvider) OpenFirewall(ctx context.Context, port int, protocol string) error {
 	slog.Info("opening firewall port", "panel", p.panelType, "port", port, "protocol", protocol)
-	// Placeholder -- in production, call panel API
-	return nil
+
+	switch p.panelType {
+	case Panel1Panel:
+		client, err := p.getPanel1Client()
+		if err != nil {
+			return fmt.Errorf("failed to initialize 1Panel client: %w", err)
+		}
+		return client.OpenFirewall(ctx, port, protocol)
+
+	case PanelBTPanel:
+		client, err := p.getBTPanelClient()
+		if err != nil {
+			return fmt.Errorf("failed to initialize BT-Panel client: %w", err)
+		}
+		return client.OpenFirewall(ctx, port, protocol)
+
+	default:
+		slog.Warn("no panel detected, skipping firewall operation (use SSH fallback)", "port", port, "protocol", protocol)
+		return nil
+	}
 }
 
 // CloseFirewall closes a port on the panel's firewall.
-func (p *PanelProvider) CloseFirewall(_ context.Context, port int, protocol string) error {
+// It uses the panel-specific API when available, or falls back to SSH.
+func (p *PanelProvider) CloseFirewall(ctx context.Context, port int, protocol string) error {
 	slog.Info("closing firewall port", "panel", p.panelType, "port", port, "protocol", protocol)
-	// Placeholder -- in production, call panel API
-	return nil
+
+	switch p.panelType {
+	case Panel1Panel:
+		client, err := p.getPanel1Client()
+		if err != nil {
+			return fmt.Errorf("failed to initialize 1Panel client: %w", err)
+		}
+		return client.CloseFirewall(ctx, port, protocol)
+
+	case PanelBTPanel:
+		client, err := p.getBTPanelClient()
+		if err != nil {
+			return fmt.Errorf("failed to initialize BT-Panel client: %w", err)
+		}
+		return client.CloseFirewall(ctx, port, protocol)
+
+	default:
+		slog.Warn("no panel detected, skipping firewall operation (use SSH fallback)", "port", port, "protocol", protocol)
+		return nil
+	}
+}
+
+// CreateReverseProxy creates a reverse proxy via the panel's API.
+// It uses the panel-specific API when available, or falls back to SSH.
+func (p *PanelProvider) CreateReverseProxy(ctx context.Context, domain, targetURL string, port int) error {
+	slog.Info("creating reverse proxy", "panel", p.panelType, "domain", domain, "targetURL", targetURL, "port", port)
+
+	switch p.panelType {
+	case Panel1Panel:
+		client, err := p.getPanel1Client()
+		if err != nil {
+			return fmt.Errorf("failed to initialize 1Panel client: %w", err)
+		}
+		return client.CreateReverseProxy(ctx, domain, targetURL, port)
+
+	case PanelBTPanel:
+		client, err := p.getBTPanelClient()
+		if err != nil {
+			return fmt.Errorf("failed to initialize BT-Panel client: %w", err)
+		}
+		return client.CreateReverseProxy(ctx, domain, targetURL, port)
+
+	default:
+		slog.Warn("no panel detected, skipping reverse proxy creation (use SSH fallback)", "domain", domain)
+		return nil
+	}
 }
 
 func contains(s, substr string) bool {

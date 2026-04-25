@@ -25,6 +25,10 @@
 
   "error.server.not_found": "server not found",
   "error.server.deleted": "server deleted",
+  "error.server.panel_api_failed": "Panel API request failed",
+  "error.server.firewall_open_failed": "Failed to open firewall port",
+  "error.server.firewall_close_failed": "Failed to close firewall port",
+  "error.server.reverse_proxy_create_failed": "Failed to create reverse proxy",
 
   "error.deployment.not_found": "deployment not found",
 
@@ -38,6 +42,7 @@
   "error.notification.not_found": "notification provider not found",
   "error.notification.deleted": "notification provider deleted",
   "error.notification.name_required": "name is required",
+  "error.notification.wecom_webhook_failed": "WeCom webhook request failed",
 
   "error.user.not_found": "user not found",
   "error.user.deleted": "user deleted",
@@ -54,6 +59,8 @@
 
   "error.cicd.provider_required": "provider query parameter is required",
   "error.cicd.runid_required": "runID is required",
+  "error.cicd.gitea_trigger_failed": "Gitea CI trigger failed",
+  "error.cicd.gitea_status_failed": "Gitea CI status check failed",
 
   "error.provider.name_and_type_required": "name and type are required",
   "error.provider.not_found": "provider not found",

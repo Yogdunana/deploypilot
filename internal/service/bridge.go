@@ -187,6 +187,8 @@ func (b *Bridge) getNotifiers(ctx context.Context) ([]notify.Notifier, error) {
 			notifiers = append(notifiers, notify.NewDingTalkNotifier(cfg.WebhookURL, cfg.Secret))
 		case "feishu":
 			notifiers = append(notifiers, notify.NewFeishuNotifier(cfg.WebhookURL))
+		case "wecom":
+			notifiers = append(notifiers, notify.NewWeComNotifier(cfg.WebhookURL))
 		}
 	}
 	return notifiers, nil
@@ -1794,8 +1796,9 @@ func (b *Bridge) TriggerCIBuild(ctx context.Context, providerType, repo, branch 
 	}
 
 	var cfg struct {
-		Token string `json:"token"`
-		Owner string `json:"owner"`
+		Token   string `json:"token"`
+		Owner   string `json:"owner"`
+		BaseURL string `json:"base_url"`
 	}
 	if err := json.Unmarshal([]byte(provider.Config), &cfg); err != nil {
 		return nil, fmt.Errorf("failed to parse CI/CD provider config: %w", err)
@@ -1812,10 +1815,26 @@ func (b *Bridge) TriggerCIBuild(ctx context.Context, providerType, repo, branch 
 			}, nil
 		}
 		return map[string]interface{}{
-			"status":  "triggered",
-			"run_id":  runID,
-			"repo":    repo,
-			"branch":  branch,
+			"status":   "triggered",
+			"run_id":   runID,
+			"repo":     repo,
+			"branch":   branch,
+			"provider": providerType,
+		}, nil
+	case "gitea":
+		gt := cicd.NewGiteaActionsProvider(cfg.Token, cfg.Owner, cfg.BaseURL)
+		runID, err := gt.TriggerBuild(ctx, repo, branch)
+		if err != nil {
+			return map[string]interface{}{
+				"status":  "error",
+				"message": err.Error(),
+			}, nil
+		}
+		return map[string]interface{}{
+			"status":   "triggered",
+			"run_id":   runID,
+			"repo":     repo,
+			"branch":   branch,
 			"provider": providerType,
 		}, nil
 	default:
@@ -1912,8 +1931,9 @@ func (b *Bridge) GetCIBuildStatus(ctx context.Context, providerType, runID strin
 	}
 
 	var cfg struct {
-		Token string `json:"token"`
-		Owner string `json:"owner"`
+		Token   string `json:"token"`
+		Owner   string `json:"owner"`
+		BaseURL string `json:"base_url"`
 	}
 	if err := json.Unmarshal([]byte(provider.Config), &cfg); err != nil {
 		return nil, fmt.Errorf("failed to parse CI/CD provider config: %w", err)
@@ -1930,8 +1950,22 @@ func (b *Bridge) GetCIBuildStatus(ctx context.Context, providerType, runID strin
 			}, nil
 		}
 		return map[string]interface{}{
-			"status":  "success",
-			"build":   status,
+			"status":   "success",
+			"build":    status,
+			"provider": providerType,
+		}, nil
+	case "gitea":
+		gt := cicd.NewGiteaActionsProvider(cfg.Token, cfg.Owner, cfg.BaseURL)
+		status, err := gt.GetBuildStatus(ctx, runID)
+		if err != nil {
+			return map[string]interface{}{
+				"status":  "error",
+				"message": err.Error(),
+			}, nil
+		}
+		return map[string]interface{}{
+			"status":   "success",
+			"build":    status,
 			"provider": providerType,
 		}, nil
 	default:

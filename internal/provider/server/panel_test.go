@@ -2,6 +2,9 @@ package server
 
 import (
 	"context"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 )
 
@@ -19,6 +22,37 @@ func (m *mockCommandExecutor) RunCommand(_ context.Context, cmd string) (string,
 		return out, nil
 	}
 	return "", nil
+}
+
+// setupPanelProviderTestServer creates a mock HTTP server that handles both 1Panel and BT-Panel API calls.
+func setupPanelProviderTestServer() *httptest.Server {
+	mux := http.NewServeMux()
+
+	// 1Panel endpoints
+	mux.HandleFunc("/api/v1/firewall/rules", func(w http.ResponseWriter, r *http.Request) {
+		resp := panel1Response{Code: 200, Message: "success", Data: json.RawMessage(`{"id": 1}`)}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(resp)
+	})
+	mux.HandleFunc("/api/v1/websites/reverse_proxy", func(w http.ResponseWriter, r *http.Request) {
+		resp := panel1Response{Code: 200, Message: "success", Data: json.RawMessage(`{"id": 1}`)}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(resp)
+	})
+
+	// BT-Panel endpoints
+	mux.HandleFunc("/firewall", func(w http.ResponseWriter, r *http.Request) {
+		resp := btPanelResponse{Status: true, Msg: "ok"}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(resp)
+	})
+	mux.HandleFunc("/site", func(w http.ResponseWriter, r *http.Request) {
+		resp := btPanelResponse{Status: true, Msg: "ok"}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(resp)
+	})
+
+	return httptest.NewServer(mux)
 }
 
 func TestDetectPanel_None(t *testing.T) {
@@ -113,19 +147,109 @@ func TestGetPanelInfo_BTPanel(t *testing.T) {
 	}
 }
 
-func TestOpenFirewall(t *testing.T) {
-	p := NewPanelProvider(Panel1Panel, "http://localhost:8888", "test-key")
+func TestOpenFirewall_1Panel(t *testing.T) {
+	server := setupPanelProviderTestServer()
+	defer server.Close()
+
+	p := NewPanelProvider(Panel1Panel, server.URL, "test-key")
 	err := p.OpenFirewall(context.TODO(), 8080, "tcp")
 	if err != nil {
 		t.Errorf("OpenFirewall() error = %v", err)
 	}
 }
 
-func TestCloseFirewall(t *testing.T) {
-	p := NewPanelProvider(PanelBTPanel, "http://localhost:8888", "test-key")
+func TestOpenFirewall_BTPanel(t *testing.T) {
+	server := setupPanelProviderTestServer()
+	defer server.Close()
+
+	p := NewPanelProvider(PanelBTPanel, server.URL, "test-key")
+	err := p.OpenFirewall(context.TODO(), 8080, "tcp")
+	if err != nil {
+		t.Errorf("OpenFirewall() error = %v", err)
+	}
+}
+
+func TestOpenFirewall_None(t *testing.T) {
+	p := NewPanelProvider(PanelNone, "", "")
+	err := p.OpenFirewall(context.TODO(), 8080, "tcp")
+	if err != nil {
+		t.Errorf("OpenFirewall() for PanelNone should not error, got = %v", err)
+	}
+}
+
+func TestOpenFirewall_MissingCredentials(t *testing.T) {
+	p := NewPanelProvider(Panel1Panel, "", "")
+	err := p.OpenFirewall(context.TODO(), 8080, "tcp")
+	if err == nil {
+		t.Error("OpenFirewall() should return error when credentials are missing")
+	}
+}
+
+func TestCloseFirewall_1Panel(t *testing.T) {
+	server := setupPanelProviderTestServer()
+	defer server.Close()
+
+	p := NewPanelProvider(Panel1Panel, server.URL, "test-key")
 	err := p.CloseFirewall(context.TODO(), 8080, "tcp")
 	if err != nil {
 		t.Errorf("CloseFirewall() error = %v", err)
+	}
+}
+
+func TestCloseFirewall_BTPanel(t *testing.T) {
+	server := setupPanelProviderTestServer()
+	defer server.Close()
+
+	p := NewPanelProvider(PanelBTPanel, server.URL, "test-key")
+	err := p.CloseFirewall(context.TODO(), 8080, "tcp")
+	if err != nil {
+		t.Errorf("CloseFirewall() error = %v", err)
+	}
+}
+
+func TestCloseFirewall_None(t *testing.T) {
+	p := NewPanelProvider(PanelNone, "", "")
+	err := p.CloseFirewall(context.TODO(), 8080, "tcp")
+	if err != nil {
+		t.Errorf("CloseFirewall() for PanelNone should not error, got = %v", err)
+	}
+}
+
+func TestCreateReverseProxy_1Panel(t *testing.T) {
+	server := setupPanelProviderTestServer()
+	defer server.Close()
+
+	p := NewPanelProvider(Panel1Panel, server.URL, "test-key")
+	err := p.CreateReverseProxy(context.TODO(), "example.com", "http://localhost:3000", 3000)
+	if err != nil {
+		t.Errorf("CreateReverseProxy() error = %v", err)
+	}
+}
+
+func TestCreateReverseProxy_BTPanel(t *testing.T) {
+	server := setupPanelProviderTestServer()
+	defer server.Close()
+
+	p := NewPanelProvider(PanelBTPanel, server.URL, "test-key")
+	err := p.CreateReverseProxy(context.TODO(), "example.com", "http://localhost:3000", 3000)
+	if err != nil {
+		t.Errorf("CreateReverseProxy() error = %v", err)
+	}
+}
+
+func TestCreateReverseProxy_None(t *testing.T) {
+	p := NewPanelProvider(PanelNone, "", "")
+	err := p.CreateReverseProxy(context.TODO(), "example.com", "http://localhost:3000", 3000)
+	if err != nil {
+		t.Errorf("CreateReverseProxy() for PanelNone should not error, got = %v", err)
+	}
+}
+
+func TestCreateReverseProxy_MissingCredentials(t *testing.T) {
+	p := NewPanelProvider(PanelBTPanel, "", "")
+	err := p.CreateReverseProxy(context.TODO(), "example.com", "http://localhost:3000", 3000)
+	if err == nil {
+		t.Error("CreateReverseProxy() should return error when credentials are missing")
 	}
 }
 
