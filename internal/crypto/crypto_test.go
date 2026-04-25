@@ -364,3 +364,50 @@ func TestDecrypt_CorruptedCiphertext(t *testing.T) {
 		t.Error("expected error for corrupted ciphertext")
 	}
 }
+
+func TestEncrypt_InvalidKeySize(t *testing.T) {
+	// 15 bytes instead of 16/24/32
+	shortKey := make([]byte, 15)
+	for i := range shortKey {
+		shortKey[i] = byte(i)
+	}
+	_, err := Encrypt(shortKey, "test")
+	if err == nil {
+		t.Error("Encrypt() should fail with 15-byte key")
+	}
+}
+
+func TestDecrypt_InvalidKeySize(t *testing.T) {
+	shortKey := make([]byte, 15)
+	for i := range shortKey {
+		shortKey[i] = byte(i)
+	}
+	_, err := Decrypt(shortKey, "AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyAhIiMk")
+	if err == nil {
+		t.Error("Decrypt() should fail with 15-byte key")
+	}
+}
+
+func TestHashPassword_LongPassword(t *testing.T) {
+	// bcrypt has a 72-byte limit - passwords at exactly 72 bytes should work
+	longPassword := strings.Repeat("a", 72)
+	hash, err := HashPassword(longPassword)
+	if err != nil {
+		t.Fatalf("HashPassword() error = %v", err)
+	}
+	if !CheckPassword(longPassword, hash) {
+		t.Error("CheckPassword() should return true for 72-byte password")
+	}
+}
+
+func TestCheckPassword_EmptyHash(t *testing.T) {
+	if CheckPassword("password", "") {
+		t.Error("CheckPassword() should return false for empty hash")
+	}
+}
+
+func TestCheckPassword_EmptyBoth(t *testing.T) {
+	if CheckPassword("", "") {
+		t.Error("CheckPassword() should return false for empty password and hash")
+	}
+}

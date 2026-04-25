@@ -406,3 +406,170 @@ func TestAliyunGetRecordParseError(t *testing.T) {
 		t.Error("GetRecord() should return error when response is not valid JSON")
 	}
 }
+
+func TestAliyunUpdateRecordFindError(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		action := r.URL.Query().Get("Action")
+		if action == "DescribeDomainRecords" {
+			w.WriteHeader(http.StatusOK)
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"TotalCount": 0,
+				"Records":    map[string]interface{}{"Record": []map[string]interface{}{}},
+			})
+			return
+		}
+		w.WriteHeader(http.StatusBadRequest)
+	}))
+	defer ts.Close()
+
+	p := NewAliyunProvider("test-id", "test-secret")
+	p.SetBaseURL(ts.URL)
+
+	err := p.UpdateRecord(context.Background(), &DNSRecord{
+		Domain: "example.com", Type: "A", Name: "nonexistent", Value: "1.1.1.1", TTL: 300,
+	})
+	if err == nil {
+		t.Error("UpdateRecord() should return error when record not found")
+	}
+}
+
+func TestAliyunDeleteRecordFindError(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		action := r.URL.Query().Get("Action")
+		if action == "DescribeDomainRecords" {
+			w.WriteHeader(http.StatusOK)
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"TotalCount": 0,
+				"Records":    map[string]interface{}{"Record": []map[string]interface{}{}},
+			})
+			return
+		}
+		w.WriteHeader(http.StatusBadRequest)
+	}))
+	defer ts.Close()
+
+	p := NewAliyunProvider("test-id", "test-secret")
+	p.SetBaseURL(ts.URL)
+
+	err := p.DeleteRecord(context.Background(), "example.com", "A", "nonexistent")
+	if err == nil {
+		t.Error("DeleteRecord() should return error when record not found")
+	}
+}
+
+func TestAliyunGetRecordFindError(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		action := r.URL.Query().Get("Action")
+		if action == "DescribeDomainRecords" {
+			w.WriteHeader(http.StatusOK)
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"TotalCount": 0,
+				"Records":    map[string]interface{}{"Record": []map[string]interface{}{}},
+			})
+			return
+		}
+		w.WriteHeader(http.StatusBadRequest)
+	}))
+	defer ts.Close()
+
+	p := NewAliyunProvider("test-id", "test-secret")
+	p.SetBaseURL(ts.URL)
+
+	_, err := p.GetRecord(context.Background(), "example.com", "A", "nonexistent")
+	if err == nil {
+		t.Error("GetRecord() should return error when record not found")
+	}
+}
+
+func TestAliyunFindRecordIDParseError(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		action := r.URL.Query().Get("Action")
+		if action == "DescribeDomainRecords" {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte("invalid json"))
+			return
+		}
+		w.WriteHeader(http.StatusBadRequest)
+	}))
+	defer ts.Close()
+
+	p := NewAliyunProvider("test-id", "test-secret")
+	p.SetBaseURL(ts.URL)
+
+	_, err := p.GetRecord(context.Background(), "example.com", "A", "www")
+	if err == nil {
+		t.Error("GetRecord() should return error when findRecordID returns parse error")
+	}
+}
+
+func TestAliyunListRecordsParseError(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("invalid json"))
+	}))
+	defer ts.Close()
+
+	p := NewAliyunProvider("test-id", "test-secret")
+	p.SetBaseURL(ts.URL)
+
+	_, err := p.ListRecords(context.Background(), "example.com")
+	if err == nil {
+		t.Error("ListRecords() should return error for invalid JSON")
+	}
+}
+
+func TestAliyunContextCancelled(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		select {}
+	}))
+	defer ts.Close()
+
+	p := NewAliyunProvider("test-id", "test-secret")
+	p.SetBaseURL(ts.URL)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	err := p.CreateRecord(ctx, &DNSRecord{
+		Domain: "example.com", Type: "A", Name: "www", Value: "1.2.3.4", TTL: 300,
+	})
+	if err == nil {
+		t.Error("should return error when context is cancelled")
+	}
+}
+
+func TestAliyunGetRecordAPIErrorCode(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		action := r.URL.Query().Get("Action")
+		if action == "DescribeDomainRecords" {
+			w.WriteHeader(http.StatusOK)
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"TotalCount": 1,
+				"Records": map[string]interface{}{
+					"Record": []map[string]interface{}{
+						{"RecordId": "12345", "RR": "www", "Type": "A", "Value": "1.2.3.4", "TTL": 300},
+					},
+				},
+			})
+			return
+		}
+		if action == "DescribeDomainRecordInfo" {
+			w.WriteHeader(http.StatusOK)
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"Code":    "DomainRecordNotExist",
+				"Message": "record not found",
+			})
+			return
+		}
+		w.WriteHeader(http.StatusBadRequest)
+	}))
+	defer ts.Close()
+
+	p := NewAliyunProvider("test-id", "test-secret")
+	p.SetBaseURL(ts.URL)
+
+	_, err := p.GetRecord(context.Background(), "example.com", "A", "www")
+	if err == nil {
+		t.Error("GetRecord() should return error when API returns error code")
+	}
+}

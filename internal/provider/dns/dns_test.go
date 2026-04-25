@@ -801,3 +801,340 @@ func TestDNSProviderMultipleTypes(t *testing.T) {
 		t.Errorf("CNAME value = %q", cname.Value)
 	}
 }
+
+// ========== Additional Cloudflare Error Path Tests ==========
+
+func TestCloudflareUpdateRecordZoneError(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer ts.Close()
+
+	cf := newTestCFProvider(ts)
+	ctx := context.Background()
+
+	err := cf.UpdateRecord(ctx, &DNSRecord{
+		Domain: "example.com", Type: "A", Name: "www", Value: "1.1.1.1", TTL: 300,
+	})
+	if err == nil {
+		t.Error("UpdateRecord() should return error when zone lookup fails")
+	}
+}
+
+func TestCloudflareDeleteRecordZoneError(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer ts.Close()
+
+	cf := newTestCFProvider(ts)
+	ctx := context.Background()
+
+	err := cf.DeleteRecord(ctx, "example.com", "A", "www")
+	if err == nil {
+		t.Error("DeleteRecord() should return error when zone lookup fails")
+	}
+}
+
+func TestCloudflareGetRecordZoneError(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer ts.Close()
+
+	cf := newTestCFProvider(ts)
+	ctx := context.Background()
+
+	_, err := cf.GetRecord(ctx, "example.com", "A", "www")
+	if err == nil {
+		t.Error("GetRecord() should return error when zone lookup fails")
+	}
+}
+
+func TestCloudflareCreateRecordZoneError(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Return error for zone lookup but 200 for records
+		if r.URL.Path == "/zones" {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer ts.Close()
+
+	cf := newTestCFProvider(ts)
+	ctx := context.Background()
+
+	err := cf.CreateRecord(ctx, &DNSRecord{
+		Domain: "example.com", Type: "A", Name: "www", Value: "1.2.3.4", TTL: 300,
+	})
+	if err == nil {
+		t.Error("CreateRecord() should return error when zone lookup fails")
+	}
+}
+
+func TestCloudflareGetZoneIDNonOK(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/zones" {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer ts.Close()
+
+	cf := newTestCFProvider(ts)
+	ctx := context.Background()
+
+	err := cf.CreateRecord(ctx, &DNSRecord{
+		Domain: "example.com", Type: "A", Name: "www", Value: "1.2.3.4", TTL: 300,
+	})
+	if err == nil {
+		t.Error("should fail when zone lookup returns non-200")
+	}
+}
+
+func TestCloudflareGetRecordIDNonOK(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/zones" {
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"success": true,
+				"result":  []map[string]string{{"id": "zone-1", "name": "example.com"}},
+			})
+			return
+		}
+		// Record lookup fails
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer ts.Close()
+
+	cf := newTestCFProvider(ts)
+	ctx := context.Background()
+
+	_, err := cf.GetRecord(ctx, "example.com", "A", "www")
+	if err == nil {
+		t.Error("GetRecord() should return error when record ID lookup fails")
+	}
+}
+
+func TestCloudflareDoRequestContextError(t *testing.T) {
+	cf := NewCloudflareProvider("token", "email")
+	// Use an invalid URL to trigger request creation error
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	_, err := cf.doRequest(ctx, "GET", "http://invalid url with spaces", nil)
+	if err == nil {
+		t.Error("doRequest() should return error for invalid URL")
+	}
+}
+
+// ========== Non-200 API Response Path Tests ==========
+
+func TestCloudflareCreateRecordAPIError(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/zones" {
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"success": true,
+				"result":  []map[string]string{{"id": "zone-1", "name": "example.com"}},
+			})
+			return
+		}
+		// Create record returns 403
+		w.WriteHeader(http.StatusForbidden)
+		w.Write([]byte(`{"success":false,"errors":[{"code":9109,"message":"You do not have permission to modify this DNS record."}]}`))
+	}))
+	defer ts.Close()
+
+	cf := newTestCFProvider(ts)
+	ctx := context.Background()
+
+	err := cf.CreateRecord(ctx, &DNSRecord{
+		Domain: "example.com", Type: "A", Name: "www", Value: "1.2.3.4", TTL: 300,
+	})
+	if err == nil {
+		t.Error("CreateRecord() should return error on 403 from API")
+	}
+}
+
+func TestCloudflareUpdateRecordAPIError(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/zones" {
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"success": true,
+				"result":  []map[string]string{{"id": "zone-1", "name": "example.com"}},
+			})
+			return
+		}
+		if strings.HasPrefix(r.URL.Path, "/zones/zone-1/dns_records") && r.Method == "GET" && r.URL.Query().Get("type") == "A" {
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"success": true,
+				"result":  []map[string]string{{"id": "rec-1"}},
+			})
+			return
+		}
+		// Update returns 500
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(`{"success":false,"errors":[{"code":81057,"message":"Internal server error."}]}`))
+	}))
+	defer ts.Close()
+
+	cf := newTestCFProvider(ts)
+	ctx := context.Background()
+
+	err := cf.UpdateRecord(ctx, &DNSRecord{
+		Domain: "example.com", Type: "A", Name: "www", Value: "1.1.1.1", TTL: 300,
+	})
+	if err == nil {
+		t.Error("UpdateRecord() should return error on 500 from API")
+	}
+}
+
+func TestCloudflareDeleteRecordAPIError(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/zones" {
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"success": true,
+				"result":  []map[string]string{{"id": "zone-1", "name": "example.com"}},
+			})
+			return
+		}
+		if strings.HasPrefix(r.URL.Path, "/zones/zone-1/dns_records") && r.Method == "GET" && r.URL.Query().Get("type") == "A" {
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"success": true,
+				"result":  []map[string]string{{"id": "rec-1"}},
+			})
+			return
+		}
+		// Delete returns 400
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte(`{"success":false,"errors":[{"code":81057,"message":"Bad request."}]}`))
+	}))
+	defer ts.Close()
+
+	cf := newTestCFProvider(ts)
+	ctx := context.Background()
+
+	err := cf.DeleteRecord(ctx, "example.com", "A", "www")
+	if err == nil {
+		t.Error("DeleteRecord() should return error on 400 from API")
+	}
+}
+
+func TestCloudflareGetRecordAPIError(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/zones" {
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"success": true,
+				"result":  []map[string]string{{"id": "zone-1", "name": "example.com"}},
+			})
+			return
+		}
+		if strings.HasPrefix(r.URL.Path, "/zones/zone-1/dns_records") && r.Method == "GET" && r.URL.Query().Get("type") == "A" {
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"success": true,
+				"result":  []map[string]string{{"id": "rec-1"}},
+			})
+			return
+		}
+		// Get specific record returns 500
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer ts.Close()
+
+	cf := newTestCFProvider(ts)
+	ctx := context.Background()
+
+	_, err := cf.GetRecord(ctx, "example.com", "A", "www")
+	if err == nil {
+		t.Error("GetRecord() should return error on 500 from API")
+	}
+}
+
+func TestCloudflareListRecordsAPIError(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/zones" {
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"success": true,
+				"result":  []map[string]string{{"id": "zone-1", "name": "example.com"}},
+			})
+			return
+		}
+		// List records returns 403
+		w.WriteHeader(http.StatusForbidden)
+	}))
+	defer ts.Close()
+
+	cf := newTestCFProvider(ts)
+	ctx := context.Background()
+
+	_, err := cf.ListRecords(ctx, "example.com")
+	if err == nil {
+		t.Error("ListRecords() should return error on 403 from API")
+	}
+}
+
+func TestCloudflareGetZoneIDEmptyResult(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/zones" {
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"success": true,
+				"result":  []map[string]string{},
+			})
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer ts.Close()
+
+	cf := newTestCFProvider(ts)
+	ctx := context.Background()
+
+	err := cf.CreateRecord(ctx, &DNSRecord{
+		Domain: "example.com", Type: "A", Name: "www", Value: "1.2.3.4", TTL: 300,
+	})
+	if err == nil {
+		t.Error("should fail when zone ID is empty (no matching zone)")
+	}
+}
+
+func TestCloudflareGetRecordIDEmptyResult(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/zones" {
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"success": true,
+				"result":  []map[string]string{{"id": "zone-1", "name": "example.com"}},
+			})
+			return
+		}
+		if strings.HasPrefix(r.URL.Path, "/zones/zone-1/dns_records") && r.Method == "GET" {
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"success": true,
+				"result":  []map[string]interface{}{},
+			})
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer ts.Close()
+
+	cf := newTestCFProvider(ts)
+	ctx := context.Background()
+
+	_, err := cf.GetRecord(ctx, "example.com", "A", "www")
+	if err == nil {
+		t.Error("GetRecord() should return error when record ID is empty (no matching record)")
+	}
+}

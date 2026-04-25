@@ -641,3 +641,92 @@ func TestStop_Error(t *testing.T) {
 		t.Fatal("expected error when stop fails")
 	}
 }
+
+func TestGetContainerDetail_Success(t *testing.T) {
+	mock := newMockExecutor()
+	inspectCmd := `docker inspect --format '{{.State.OOMKilled}}|{{.State.ExitCode}}|{{.State.Restarting}}|{{.State.Pid}}|{{.State.StartedAt}}|{{.State.FinishedAt}}|{{.State.Health.Status}}' my-app 2>/dev/null`
+	mock.responses[inspectCmd] = "true|1|false|1234|2024-01-01T00:00:00Z|2024-01-01T01:00:00Z|healthy"
+	restartCmd := "docker inspect --format '{{.RestartCount}}' my-app 2>/dev/null"
+	mock.responses[restartCmd] = "3"
+	statusCmd := "docker inspect --format '{{.Id}}|{{.Name}}|{{.Config.Image}}|{{.State.Status}}|{{.Created}}' my-app 2>/dev/null"
+	mock.responses[statusCmd] = "abc123|my-app|nginx:latest|running|2024-01-01T00:00:00Z"
+
+	d := New(mock)
+	detail, err := d.GetContainerDetail(context.Background(), "my-app")
+	if err != nil {
+		t.Fatalf("GetContainerDetail() error = %v", err)
+	}
+	if !detail.OOMKilled {
+		t.Error("OOMKilled should be true")
+	}
+	if detail.ExitCode != 1 {
+		t.Errorf("ExitCode = %d, want 1", detail.ExitCode)
+	}
+	if detail.RestartCount != 3 {
+		t.Errorf("RestartCount = %d, want 3", detail.RestartCount)
+	}
+	if detail.Pid != 1234 {
+		t.Errorf("Pid = %d, want 1234", detail.Pid)
+	}
+	if detail.Health != "healthy" {
+		t.Errorf("Health = %q, want %q", detail.Health, "healthy")
+	}
+}
+
+func TestGetContainerDetail_NotFound(t *testing.T) {
+	mock := newMockExecutor()
+	mock.errors["OOMKilled"] = fmt.Errorf("container not found")
+
+	d := New(mock)
+	_, err := d.GetContainerDetail(context.Background(), "nonexistent")
+	if err == nil {
+		t.Fatal("expected error when container not found")
+	}
+}
+
+func TestGetContainerDetail_InvalidFormat(t *testing.T) {
+	mock := newMockExecutor()
+	inspectCmd := `docker inspect --format '{{.State.OOMKilled}}|{{.State.ExitCode}}|{{.State.Restarting}}|{{.State.Pid}}|{{.State.StartedAt}}|{{.State.FinishedAt}}|{{.State.Health.Status}}' bad-format 2>/dev/null`
+	mock.responses[inspectCmd] = "only-two-parts"
+	statusCmd := "docker inspect --format '{{.Id}}|{{.Name}}|{{.Config.Image}}|{{.State.Status}}|{{.Created}}' bad-format 2>/dev/null"
+	mock.responses[statusCmd] = "running|abc123|my-app|nginx:latest|2024-01-01T00:00:00Z"
+
+	d := New(mock)
+	_, err := d.GetContainerDetail(context.Background(), "bad-format")
+	if err == nil {
+		t.Fatal("expected error for invalid inspect output format")
+	}
+}
+
+func TestGetContainerDetail_NilHealth(t *testing.T) {
+	mock := newMockExecutor()
+	inspectCmd := `docker inspect --format '{{.State.OOMKilled}}|{{.State.ExitCode}}|{{.State.Restarting}}|{{.State.Pid}}|{{.State.StartedAt}}|{{.State.FinishedAt}}|{{.State.Health.Status}}' my-app 2>/dev/null`
+	mock.responses[inspectCmd] = "false|0|false|1234|2024-01-01T00:00:00Z|2024-01-01T00:00:00Z|<nil>"
+	restartCmd := "docker inspect --format '{{.RestartCount}}' my-app 2>/dev/null"
+	mock.responses[restartCmd] = "0"
+	statusCmd := "docker inspect --format '{{.Id}}|{{.Name}}|{{.Config.Image}}|{{.State.Status}}|{{.Created}}' my-app 2>/dev/null"
+	mock.responses[statusCmd] = "abc123|my-app|nginx:latest|running|2024-01-01T00:00:00Z"
+
+	d := New(mock)
+	detail, err := d.GetContainerDetail(context.Background(), "my-app")
+	if err != nil {
+		t.Fatalf("GetContainerDetail() error = %v", err)
+	}
+	if detail.Health != "none" {
+		t.Errorf("Health = %q, want %q for <nil>", detail.Health, "none")
+	}
+}
+
+func TestGetContainerDetail_StatusError(t *testing.T) {
+	mock := newMockExecutor()
+	inspectCmd := `docker inspect --format '{{.State.OOMKilled}}|{{.State.ExitCode}}|{{.State.Restarting}}|{{.State.Pid}}|{{.State.StartedAt}}|{{.State.FinishedAt}}|{{.State.Health.Status}}' status-fail 2>/dev/null`
+	mock.responses[inspectCmd] = "false|0|false|1234|2024-01-01T00:00:00Z|2024-01-01T00:00:00Z|none"
+	statusCmd := "docker inspect --format '{{.Id}}|{{.Name}}|{{.Config.Image}}|{{.State.Status}}|{{.Created}}' status-fail 2>/dev/null"
+	mock.errors[statusCmd] = fmt.Errorf("status error")
+
+	d := New(mock)
+	_, err := d.GetContainerDetail(context.Background(), "status-fail")
+	if err == nil {
+		t.Fatal("expected error when GetContainerStatus fails")
+	}
+}

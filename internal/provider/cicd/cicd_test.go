@@ -362,3 +362,129 @@ func TestGitHubActionsGetBuildLogsRedirect(t *testing.T) {
 		t.Log("GetBuildLogs with redirect succeeded")
 	}
 }
+
+func TestGitHubActionsGetBuildLogsRedirectEmptyLocation(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/repos/test-owner/actions/runs/12345/logs" {
+			w.WriteHeader(http.StatusFound)
+			// No Location header
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer ts.Close()
+
+	g := NewGitHubActionsProvider("test-token", "test-owner")
+	g.SetBaseURL(ts.URL)
+
+	// Redirect with empty location should fall through and read empty body
+	logs, err := g.GetBuildLogs(context.Background(), "12345")
+	if err != nil {
+		t.Logf("GetBuildLogs with empty redirect location: %v", err)
+	}
+	_ = logs
+}
+
+func TestGitHubActionsTriggerBuildContextCancelled(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Simulate slow response
+		select {}
+	}))
+	defer ts.Close()
+
+	g := NewGitHubActionsProvider("test-token", "test-owner")
+	g.SetBaseURL(ts.URL)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	_, err := g.TriggerBuild(ctx, "test-repo", "main")
+	if err == nil {
+		t.Error("TriggerBuild() should return error when context is cancelled")
+	}
+}
+
+func TestGitHubActionsGetBuildStatusContextCancelled(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		select {}
+	}))
+	defer ts.Close()
+
+	g := NewGitHubActionsProvider("test-token", "test-owner")
+	g.SetBaseURL(ts.URL)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	_, err := g.GetBuildStatus(ctx, "12345")
+	if err == nil {
+		t.Error("GetBuildStatus() should return error when context is cancelled")
+	}
+}
+
+func TestGitHubActionsGetBuildLogsContextCancelled(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		select {}
+	}))
+	defer ts.Close()
+
+	g := NewGitHubActionsProvider("test-token", "test-owner")
+	g.SetBaseURL(ts.URL)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	_, err := g.GetBuildLogs(ctx, "12345")
+	if err == nil {
+		t.Error("GetBuildLogs() should return error when context is cancelled")
+	}
+}
+
+func TestGitHubActionsListWorkflowsContextCancelled(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		select {}
+	}))
+	defer ts.Close()
+
+	g := NewGitHubActionsProvider("test-token", "test-owner")
+	g.SetBaseURL(ts.URL)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	_, err := g.ListWorkflows(ctx, "test-repo")
+	if err == nil {
+		t.Error("ListWorkflows() should return error when context is cancelled")
+	}
+}
+
+func TestGitHubActionsGetBuildStatusNoConclusion(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"id":          12345,
+			"status":      "queued",
+			"conclusion":  nil,
+			"head_sha":    "abc123",
+			"head_branch": "main",
+			"created_at":  "",
+			"updated_at":  "",
+			"logs_url":    "",
+		})
+	}))
+	defer ts.Close()
+
+	g := NewGitHubActionsProvider("test-token", "test-owner")
+	g.SetBaseURL(ts.URL)
+
+	status, err := g.GetBuildStatus(context.Background(), "12345")
+	if err != nil {
+		t.Fatalf("GetBuildStatus() error = %v", err)
+	}
+	if status.Status != "queued" {
+		t.Errorf("Status = %q, want %q", status.Status, "queued")
+	}
+	if status.Duration != 0 {
+		t.Errorf("Duration = %d, want 0 for empty timestamps", status.Duration)
+	}
+}

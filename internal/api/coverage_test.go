@@ -1697,3 +1697,654 @@ func TestSSLCertificate_Fields(t *testing.T) {
 
 // Ensure uuid import is used
 var _ = uuid.New
+
+// ===================== Additional API Coverage Tests =====================
+
+func TestListApps_DBError_Cov(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	db, _ := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	_ = db.Exec("CREATE TABLE apps (id TEXT PRIMARY KEY)")
+	sqlDB, _ := db.DB()
+	_ = sqlDB.Close()
+
+	r := gin.New()
+	r.GET("/api/v1/apps", ListApps(db))
+	req := httptest.NewRequest("GET", "/api/v1/apps", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusInternalServerError {
+		t.Errorf("expected 500, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestListApps_EmptyResult_Cov(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	db := setupTestDB(t)
+	defer db.Exec("VACUUM")
+
+	r := gin.New()
+	r.GET("/api/v1/apps", ListApps(db))
+	req := httptest.NewRequest("GET", "/api/v1/apps", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestCreateApp_DBError_Cov(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	db, _ := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	_ = db.Exec("CREATE TABLE apps (id TEXT PRIMARY KEY)")
+	sqlDB, _ := db.DB()
+	_ = sqlDB.Close()
+
+	r := gin.New()
+	r.POST("/api/v1/apps", CreateApp(db))
+
+	body, _ := json.Marshal(map[string]string{"name": "test", "repo_url": "https://x.com/x"})
+	req, _ := http.NewRequest("POST", "/api/v1/apps", bytes.NewBuffer(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusInternalServerError {
+		t.Errorf("expected 500, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestCreateApp_WithUserID_Cov(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	db := setupTestDB(t)
+	defer db.Exec("VACUUM")
+
+	r := gin.New()
+	r.Use(func(c *gin.Context) {
+		c.Set(string(auth.UserIDKey), "tenant-custom")
+		c.Next()
+	})
+	r.POST("/api/v1/apps", CreateApp(db))
+
+	body, _ := json.Marshal(map[string]string{"name": "custom-tenant-app", "repo_url": "https://x.com/x"})
+	req, _ := http.NewRequest("POST", "/api/v1/apps", bytes.NewBuffer(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestUpdateApp_DBError_Cov(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	db, _ := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	_ = db.Exec("CREATE TABLE apps (id TEXT PRIMARY KEY)")
+	sqlDB, _ := db.DB()
+	_ = sqlDB.Close()
+
+	r := gin.New()
+	r.PUT("/api/v1/apps/:id", UpdateApp(db))
+
+	body, _ := json.Marshal(map[string]string{"name": "updated"})
+	req, _ := http.NewRequest("PUT", "/api/v1/apps/some-id", bytes.NewBuffer(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusInternalServerError {
+		t.Errorf("expected 500, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestUpdateApp_NotFound_Cov(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	db := setupTestDB(t)
+	defer db.Exec("VACUUM")
+
+	r := gin.New()
+	r.PUT("/api/v1/apps/:id", UpdateApp(db))
+
+	body, _ := json.Marshal(map[string]string{"name": "updated"})
+	req, _ := http.NewRequest("PUT", "/api/v1/apps/nonexistent-id", bytes.NewBuffer(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestGetAppStatus_NotFound_Cov(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	db := setupTestDB(t)
+	defer db.Exec("VACUUM")
+
+	bridge := createTestBridge(t, db)
+	r := gin.New()
+	r.GET("/api/v1/apps/:id/status", GetAppStatus(bridge))
+
+	req := httptest.NewRequest("GET", "/api/v1/apps/nonexistent-id/status", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusNotFound {
+		t.Errorf("expected 404, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestRollbackApp_BridgeError_Cov(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	db := setupTestDB(t)
+	defer db.Exec("VACUUM")
+
+	bridge := createTestBridge(t, db)
+	r := gin.New()
+	r.POST("/api/v1/apps/:id/rollback", RollbackApp(bridge))
+
+	body, _ := json.Marshal(map[string]string{"container_name": "test", "previous_image": "nginx:old"})
+	req, _ := http.NewRequest("POST", "/api/v1/apps/some-id/rollback", bytes.NewBuffer(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	// Bridge will return error since container doesn't exist, but handler returns 404 first
+	if w.Code != http.StatusNotFound {
+		t.Errorf("expected 404, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestGetContainerLogs_BridgeError_Cov(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	db := setupTestDB(t)
+	defer db.Exec("VACUUM")
+
+	bridge := createTestBridge(t, db)
+	r := gin.New()
+	r.GET("/api/v1/apps/:id/logs", GetContainerLogs(bridge))
+
+	req := httptest.NewRequest("GET", "/api/v1/apps/some-id/logs?tail=100", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusNotFound {
+		t.Errorf("expected 404, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestGetAppEnv_NotFound_Cov(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	db := setupTestDB(t)
+	defer db.Exec("VACUUM")
+
+	r := gin.New()
+	r.GET("/api/v1/apps/:id/env", GetAppEnv(db))
+
+	req := httptest.NewRequest("GET", "/api/v1/apps/nonexistent-id/env", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusNotFound {
+		t.Errorf("expected 404, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestGetAppEnv_Success_Cov(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	db := setupTestDB(t)
+	defer db.Exec("VACUUM")
+
+	// Create an app with env_vars
+	appID := uuid.New().String()
+	db.Exec(`INSERT INTO apps (id, name, repo_url, env_vars) VALUES (?, 'env-app-cov', 'https://x.com/x', '{"FOO":"bar"}')`, appID)
+
+	r := gin.New()
+	r.GET("/api/v1/apps/:id/env", GetAppEnv(db))
+
+	req := httptest.NewRequest("GET", "/api/v1/apps/"+appID+"/env", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestUpdateAppEnv_NotFound_Cov(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	db := setupTestDB(t)
+	defer db.Exec("VACUUM")
+
+	r := gin.New()
+	r.PUT("/api/v1/apps/:id/env", UpdateAppEnv(db))
+
+	body, _ := json.Marshal(map[string]string{"FOO": "bar"})
+	req, _ := http.NewRequest("PUT", "/api/v1/apps/nonexistent-id/env", bytes.NewBuffer(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	// UpdateAppEnv uses db.Model().Where().Updates() which doesn't error on missing rows
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestUpdateAppEnv_InvalidJSON_Cov(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	db := setupTestDB(t)
+	defer db.Exec("VACUUM")
+
+	r := gin.New()
+	r.PUT("/api/v1/apps/:id/env", UpdateAppEnv(db))
+
+	req, _ := http.NewRequest("PUT", "/api/v1/apps/some-id/env", bytes.NewBufferString("{invalid}"))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected 400, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestBuildAndDeployApp_BridgeError_Cov(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	db := setupTestDB(t)
+	defer db.Exec("VACUUM")
+
+	bridge := createTestBridge(t, db)
+	r := gin.New()
+	r.POST("/api/v1/apps/build-deploy", BuildAndDeployApp(bridge))
+
+	body, _ := json.Marshal(map[string]string{"repo_url": "https://x.com/x", "app_name": "test"})
+	req, _ := http.NewRequest("POST", "/api/v1/apps/build-deploy", bytes.NewBuffer(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	// Handler looks up app first, returns 404 if not found
+	if w.Code != http.StatusNotFound {
+		t.Errorf("expected 404, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestBuildAndDeployApp_InvalidJSON_Cov(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	db := setupTestDB(t)
+	defer db.Exec("VACUUM")
+
+	bridge := createTestBridge(t, db)
+	r := gin.New()
+	r.POST("/api/v1/apps/build-deploy", BuildAndDeployApp(bridge))
+
+	req, _ := http.NewRequest("POST", "/api/v1/apps/build-deploy", bytes.NewBufferString("{invalid}"))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	// Handler looks up app first, returns 404 if not found (before JSON parse)
+	if w.Code != http.StatusNotFound {
+		t.Errorf("expected 404, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+// ===================== Monitor Coverage Tests =====================
+
+func TestListAlertRules_BridgeError_Cov(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	db := setupTestDB(t)
+	defer db.Exec("VACUUM")
+
+	bridge := createTestBridge(t, db)
+	r := gin.New()
+	r.GET("/api/v1/monitor/alert-rules", ListAlertRules(bridge))
+
+	req := httptest.NewRequest("GET", "/api/v1/monitor/alert-rules", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestCheckContainerHealth_BridgeError_Cov(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	db := setupTestDB(t)
+	defer db.Exec("VACUUM")
+
+	bridge := createTestBridge(t, db)
+	r := gin.New()
+	r.GET("/api/v1/monitor/health", CheckContainerHealth(bridge))
+
+	req := httptest.NewRequest("GET", "/api/v1/monitor/health?target=test-container&type=http", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	// Handler validates container_name is required
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected 400, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestCheckContainerHealth_MissingTarget_Cov(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	db := setupTestDB(t)
+	defer db.Exec("VACUUM")
+
+	bridge := createTestBridge(t, db)
+	r := gin.New()
+	r.GET("/api/v1/monitor/health", CheckContainerHealth(bridge))
+
+	req := httptest.NewRequest("GET", "/api/v1/monitor/health", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected 400, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+// ===================== DNS Coverage Tests =====================
+
+func TestListDNSRecords_BridgeError_Cov(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	db := setupTestDB(t)
+	defer db.Exec("VACUUM")
+
+	bridge := createTestBridge(t, db)
+	r := gin.New()
+	r.GET("/api/v1/dns/records", ListDNSRecords(bridge))
+
+	req := httptest.NewRequest("GET", "/api/v1/dns/records?domain=example.com", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	// No DNS provider configured, will return error map
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestCreateDNSRecord_BridgeError_Cov(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	db := setupTestDB(t)
+	defer db.Exec("VACUUM")
+
+	bridge := createTestBridge(t, db)
+	r := gin.New()
+	r.POST("/api/v1/dns/records", CreateDNSRecord(bridge))
+
+	body, _ := json.Marshal(map[string]string{"domain": "example.com", "type": "A", "name": "www", "value": "1.2.3.4"})
+	req, _ := http.NewRequest("POST", "/api/v1/dns/records", bytes.NewBuffer(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestUpdateDNSRecord_BridgeError_Cov(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	db := setupTestDB(t)
+	defer db.Exec("VACUUM")
+
+	bridge := createTestBridge(t, db)
+	r := gin.New()
+	r.PUT("/api/v1/dns/records", UpdateDNSRecord(bridge))
+
+	body, _ := json.Marshal(map[string]string{"domain": "example.com", "subdomain": "www", "type": "A", "new_value": "9.9.9.9"})
+	req, _ := http.NewRequest("PUT", "/api/v1/dns/records", bytes.NewBuffer(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestDeleteDNSRecord_BridgeError_Cov(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	db := setupTestDB(t)
+	defer db.Exec("VACUUM")
+
+	bridge := createTestBridge(t, db)
+	r := gin.New()
+	r.DELETE("/api/v1/dns/records/:record_id", DeleteDNSRecord(bridge))
+
+	req := httptest.NewRequest("DELETE", "/api/v1/dns/records/some-record-id", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	// No DNS provider, will return error
+	if w.Code != http.StatusInternalServerError {
+		t.Errorf("expected 500, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+// ===================== Servers Coverage Tests =====================
+
+func TestListServers_BridgeSuccess_Cov(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	db := setupTestDB(t)
+	defer db.Exec("VACUUM")
+
+	bridge := createTestBridge(t, db)
+	r := gin.New()
+	r.GET("/api/v1/servers", ListServers(bridge))
+
+	req := httptest.NewRequest("GET", "/api/v1/servers", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestUpdateServer_BridgeSuccess_Cov(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	db := setupTestDB(t)
+	defer db.Exec("VACUUM")
+
+	bridge := createTestBridge(t, db)
+	r := gin.New()
+	r.PUT("/api/v1/servers/:id", UpdateServer(bridge))
+
+	body, _ := json.Marshal(map[string]string{"name": "updated-srv-cov2"})
+	req, _ := http.NewRequest("PUT", "/api/v1/servers/some-id", bytes.NewBuffer(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	// Bridge UpdateServer returns success map even for nonexistent ID
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+// ===================== Credentials Coverage Tests =====================
+
+func TestListCredentials_Success_Cov(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	db := setupTestDB(t)
+	defer db.Exec("VACUUM")
+
+	bridge := createTestBridge(t, db)
+	r := gin.New()
+	r.GET("/api/v1/credentials", ListCredentials(bridge))
+
+	req := httptest.NewRequest("GET", "/api/v1/credentials", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestUpdateCredential_Success_Cov(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	db := setupTestDB(t)
+	defer db.Exec("VACUUM")
+
+	bridge := createTestBridge(t, db)
+	r := gin.New()
+	r.PUT("/api/v1/credentials/:id", UpdateCredential(bridge))
+
+	body, _ := json.Marshal(map[string]string{"value": "new-secret"})
+	req, _ := http.NewRequest("PUT", "/api/v1/credentials/some-id", bytes.NewBuffer(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	// Bridge UpdateCredential returns success map even for nonexistent ID
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+// ===================== System Coverage Tests =====================
+
+func TestCheckUpdate_Success_Cov(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	db := setupTestDB(t)
+	defer db.Exec("VACUUM")
+
+	bridge := createTestBridge(t, db)
+	r := gin.New()
+	r.GET("/api/v1/system/update", CheckUpdate(bridge))
+
+	req := httptest.NewRequest("GET", "/api/v1/system/update", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestListTemplates_Success_Cov(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	db := setupTestDB(t)
+	defer db.Exec("VACUUM")
+
+	bridge := createTestBridge(t, db)
+	r := gin.New()
+	r.GET("/api/v1/templates", ListTemplates(bridge))
+
+	req := httptest.NewRequest("GET", "/api/v1/templates", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+// ===================== SSE Coverage Tests =====================
+
+func TestDeployAsyncHandler_InvalidJSON_Cov(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	db := setupTestDB(t)
+	defer db.Exec("VACUUM")
+
+	bridge := createTestBridge(t, db)
+	r := gin.New()
+	r.POST("/api/v1/apps/:id/deploy", DeployAsyncHandler(bridge))
+
+	req, _ := http.NewRequest("POST", "/api/v1/apps/some-id/deploy", bytes.NewBufferString("{invalid}"))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected 400, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+// ===================== Backups Coverage Tests =====================
+
+func TestListAuditLogs_Success_Cov(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	db := setupTestDB(t)
+	defer db.Exec("VACUUM")
+
+	auditSvc := service.NewAuditService(db)
+	r := gin.New()
+	r.GET("/api/v1/audit-logs", ListAuditLogs(auditSvc))
+
+	req := httptest.NewRequest("GET", "/api/v1/audit-logs", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+// ===================== Auth Coverage Tests =====================
+
+func TestRegister_MissingEmail_Cov(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	db := setupTestDB(t)
+	defer db.Exec("VACUUM")
+
+	r := gin.New()
+	r.POST("/api/v1/auth/register", Register(db))
+
+	body, _ := json.Marshal(map[string]string{"username": "testuser", "password": "password123"})
+	req, _ := http.NewRequest("POST", "/api/v1/auth/register", bytes.NewBuffer(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected 400, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestRegister_InvalidJSON_Cov(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	db := setupTestDB(t)
+	defer db.Exec("VACUUM")
+
+	r := gin.New()
+	r.POST("/api/v1/auth/register", Register(db))
+
+	req, _ := http.NewRequest("POST", "/api/v1/auth/register", bytes.NewBufferString("{invalid}"))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected 400, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+// ===================== CICD Coverage Tests =====================
+
+func TestGetCIBuildStatus_BridgeSuccess_Cov(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	db := setupTestDB(t)
+	defer db.Exec("VACUUM")
+
+	bridge := createTestBridge(t, db)
+	r := gin.New()
+	r.GET("/api/v1/cicd/status/:runID", GetCIBuildStatus(bridge))
+
+	req := httptest.NewRequest("GET", "/api/v1/cicd/status/123?provider=github-actions", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+}

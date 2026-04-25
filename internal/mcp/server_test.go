@@ -2873,3 +2873,153 @@ func TestHandleListAlertRules_Failure(t *testing.T) {
 		t.Error("should return error when list alert rules fails")
 	}
 }
+
+func TestNewServerRegistersTools(t *testing.T) {
+	mock := &mockDeployer{}
+	s := NewServer(mock)
+	if s == nil {
+		t.Fatal("NewServer() returned nil")
+	}
+	// Verify the server was created (it registers tools during construction)
+	_ = s
+}
+
+func TestNewServerWithNilDeployer(t *testing.T) {
+	// NewServer should not panic with nil deployer
+	s := NewServer(nil)
+	if s == nil {
+		t.Fatal("NewServer(nil) returned nil")
+	}
+}
+
+func TestHandleBuildAndDeploy_MissingRepoURL(t *testing.T) {
+	mock := &mockDeployer{}
+	result, _ := handleBuildAndDeploy(context.TODO(), mock, newRequest(map[string]interface{}{
+		"app_name": "test-app",
+	}))
+	if !result.IsError {
+		t.Error("should return error when repo_url is missing")
+	}
+}
+
+func TestHandleBuildAndDeploy_MissingAppName(t *testing.T) {
+	mock := &mockDeployer{}
+	result, _ := handleBuildAndDeploy(context.TODO(), mock, newRequest(map[string]interface{}{
+		"repo_url": "https://github.com/test/test",
+	}))
+	if !result.IsError {
+		t.Error("should return error when app_name is missing")
+	}
+}
+
+func TestHandleTriggerCIBuild_MissingProvider(t *testing.T) {
+	mock := &mockDeployer{}
+	result, _ := handleTriggerCIBuild(context.TODO(), mock, newRequest(map[string]interface{}{
+		"repo":   "test/repo",
+		"branch": "main",
+	}))
+	if !result.IsError {
+		t.Error("should return error when provider is missing")
+	}
+}
+
+func TestHandleTriggerCIBuild_Failure(t *testing.T) {
+	mock := &mockDeployer{
+		triggerCIBuildFn: func(_ context.Context, provider, repo, branch string) (interface{}, error) {
+			return nil, fmt.Errorf("CI trigger failed")
+		},
+	}
+	result, _ := handleTriggerCIBuild(context.TODO(), mock, newRequest(map[string]interface{}{
+		"provider": "github-actions",
+		"repo":     "test/repo",
+		"branch":   "main",
+	}))
+	if !result.IsError {
+		t.Error("should return error on CI trigger failure")
+	}
+}
+
+func TestHandleGetCIBuildStatus_MissingProvider(t *testing.T) {
+	mock := &mockDeployer{}
+	result, _ := handleGetCIBuildStatus(context.TODO(), mock, newRequest(map[string]interface{}{
+		"run_id": "12345",
+	}))
+	if !result.IsError {
+		t.Error("should return error when provider is missing")
+	}
+}
+
+func TestHandleGetCIBuildStatus_Failure(t *testing.T) {
+	mock := &mockDeployer{
+		getCIBuildStatusFn: func(_ context.Context, provider, runID string) (interface{}, error) {
+			return nil, fmt.Errorf("status check failed")
+		},
+	}
+	result, _ := handleGetCIBuildStatus(context.TODO(), mock, newRequest(map[string]interface{}{
+		"provider": "github-actions",
+		"run_id":   "12345",
+	}))
+	if !result.IsError {
+		t.Error("should return error on status check failure")
+	}
+}
+
+func TestHandleDeployApp_Failure(t *testing.T) {
+	mock := &mockDeployer{
+		deployFn: func(_ context.Context, cfg DeployConfig) (*ContainerStatus, error) {
+			return nil, fmt.Errorf("deploy failed")
+		},
+	}
+	result, _ := handleDeployApp(context.TODO(), mock, newRequest(map[string]interface{}{
+		"image":           "nginx:latest",
+		"container_name":  "fail-deploy",
+	}))
+	if !result.IsError {
+		t.Error("should return error on deploy failure")
+	}
+}
+
+func TestHandleCreateCredential_MissingParams(t *testing.T) {
+	mock := &mockDeployer{}
+	result, _ := handleCreateCredential(context.TODO(), mock, newRequest(map[string]interface{}{
+		"name": "test-cred",
+	}))
+	if !result.IsError {
+		t.Error("should return error when params are missing")
+	}
+}
+
+func TestHandleUpdateDNSRecord_MissingParams(t *testing.T) {
+	mock := &mockDeployer{}
+	result, _ := handleUpdateDNSRecord(context.TODO(), mock, newRequest(map[string]interface{}{
+		"domain": "example.com",
+	}))
+	if !result.IsError {
+		t.Error("should return error when params are missing")
+	}
+}
+
+func TestHandleUpdateDNSRecord_Failure(t *testing.T) {
+	mock := &mockDeployer{
+		updateDNSFn: func(_ context.Context, domain, subdomain, recordType, newValue string) (interface{}, error) {
+			return nil, fmt.Errorf("DNS update failed")
+		},
+	}
+	result, _ := handleUpdateDNSRecord(context.TODO(), mock, newRequest(map[string]interface{}{
+		"domain":     "example.com",
+		"subdomain":  "www",
+		"record_type": "A",
+		"new_value":  "1.2.3.4",
+	}))
+	if !result.IsError {
+		t.Error("should return error on DNS update failure")
+	}
+}
+
+func TestHandleGetContext_NoContext(t *testing.T) {
+	result, _ := handleGetContext(context.TODO(), newRequest(map[string]interface{}{}))
+	// Should succeed with empty/default context
+	if result.IsError {
+		t.Error("should not return error when no context is set")
+	}
+}

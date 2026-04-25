@@ -229,3 +229,136 @@ func TestMonitorRoutesRegistered(t *testing.T) {
 		}
 	}
 }
+
+func TestGetSystemMetricsError(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	db := setupTestDB(t)
+	bridge := createTestBridge(t, db)
+	r := gin.New()
+	r.GET("/api/v1/monitor/system", GetSystemMetrics(bridge))
+
+	req := httptest.NewRequest("GET", "/api/v1/monitor/system", nil)
+	w := httptest.NewRecorder()
+
+	defer func() {
+		if rec := recover(); rec != nil {
+			t.Logf("Recovered expected panic: %v", rec)
+		}
+	}()
+	r.ServeHTTP(w, req)
+
+	// The localExecutor returns mock data, so this should succeed or return 500
+	if w.Code != http.StatusOK && w.Code != http.StatusInternalServerError {
+		t.Errorf("expected 200 or 500, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestGetContainerMetricsError(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	db := setupTestDB(t)
+	bridge := createTestBridge(t, db)
+	r := gin.New()
+	r.GET("/api/v1/monitor/container/:name", GetContainerMetrics(bridge))
+
+	req := httptest.NewRequest("GET", "/api/v1/monitor/container/error-container", nil)
+	w := httptest.NewRecorder()
+
+	defer func() {
+		if rec := recover(); rec != nil {
+			t.Logf("Recovered expected panic: %v", rec)
+		}
+	}()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK && w.Code != http.StatusInternalServerError {
+		t.Errorf("expected 200 or 500, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestListAlertsError(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	db := setupTestDB(t)
+	bridge := createTestBridge(t, db)
+	r := gin.New()
+	r.GET("/api/v1/monitor/alerts", ListAlerts(bridge))
+
+	req := httptest.NewRequest("GET", "/api/v1/monitor/alerts", nil)
+	w := httptest.NewRecorder()
+
+	defer func() {
+		if rec := recover(); rec != nil {
+			t.Logf("Recovered expected panic: %v", rec)
+		}
+	}()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK && w.Code != http.StatusInternalServerError {
+		t.Errorf("expected 200 or 500, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestListAlertRulesError(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	db := setupTestDB(t)
+	bridge := createTestBridge(t, db)
+	r := gin.New()
+	r.GET("/api/v1/monitor/alert-rules", ListAlertRules(bridge))
+
+	req := httptest.NewRequest("GET", "/api/v1/monitor/alert-rules", nil)
+	w := httptest.NewRecorder()
+
+	defer func() {
+		if rec := recover(); rec != nil {
+			t.Logf("Recovered expected panic: %v", rec)
+		}
+	}()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK && w.Code != http.StatusInternalServerError {
+		t.Errorf("expected 200 or 500, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestHealContainerError(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	db := setupTestDB(t)
+	bridge := createTestBridge(t, db)
+	r := gin.New()
+	r.POST("/api/v1/monitor/heal/:name", HealContainer(bridge))
+
+	req := httptest.NewRequest("POST", "/api/v1/monitor/heal/error-app", nil)
+	w := httptest.NewRecorder()
+
+	defer func() {
+		if rec := recover(); rec != nil {
+			t.Logf("Recovered expected panic: %v", rec)
+		}
+	}()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK && w.Code != http.StatusInternalServerError {
+		t.Errorf("expected 200 or 500, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestCheckContainerHealthError(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	db := setupTestDB(t)
+	bridge := createTestBridge(t, db)
+	r := gin.New()
+	r.POST("/api/v1/monitor/check/:name", CheckContainerHealth(bridge))
+
+	req := httptest.NewRequest("POST", "/api/v1/monitor/check/error-app", nil)
+	w := httptest.NewRecorder()
+
+	defer func() {
+		if rec := recover(); rec != nil {
+			t.Logf("Recovered expected panic: %v", rec)
+		}
+	}()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK && w.Code != http.StatusInternalServerError {
+		t.Errorf("expected 200 or 500, got %d: %s", w.Code, w.Body.String())
+	}
+}

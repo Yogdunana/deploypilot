@@ -320,3 +320,81 @@ func TestGetCertificate_InvalidCertPEM(t *testing.T) {
 		t.Fatal("expected error for invalid certificate data")
 	}
 }
+
+func TestGetTLSConfig_InvalidKeyPair(t *testing.T) {
+	dir := t.TempDir()
+	p, err := NewSSLProvider(dir)
+	if err != nil {
+		t.Fatalf("NewSSLProvider failed: %v", err)
+	}
+
+	// Generate a valid cert first
+	_, err = p.RequestCertificate(context.TODO(), "mismatch.example.com", "admin@example.com")
+	if err != nil {
+		t.Fatalf("RequestCertificate failed: %v", err)
+	}
+
+	// Overwrite the key file with garbage
+	keyPath := filepath.Join(dir, "mismatch.example.com.key")
+	_ = os.WriteFile(keyPath, []byte("-----BEGIN EC PRIVATE KEY-----\nAAAA\n-----END EC PRIVATE KEY-----"), 0600)
+
+	_, err = p.GetTLSConfig("mismatch.example.com")
+	if err == nil {
+		t.Fatal("expected error for mismatched cert/key pair")
+	}
+}
+
+func TestRequestCertificate_KeyWriteFailure(t *testing.T) {
+	dir := t.TempDir()
+	p, err := NewSSLProvider(dir)
+	if err != nil {
+		t.Fatalf("NewSSLProvider failed: %v", err)
+	}
+
+	// Create a directory where the key file would be, causing WriteFile to fail
+	keyDir := filepath.Join(dir, "keyfail.example.com.key")
+	_ = os.MkdirAll(keyDir, 0700)
+
+	_, err = p.RequestCertificate(context.TODO(), "keyfail.example.com", "admin@example.com")
+	if err == nil {
+		t.Fatal("expected error when key file write fails")
+	}
+}
+
+func TestDeleteCertificateNonExistent(t *testing.T) {
+	dir := t.TempDir()
+	p, err := NewSSLProvider(dir)
+	if err != nil {
+		t.Fatalf("NewSSLProvider failed: %v", err)
+	}
+
+	// Delete should not error even if files don't exist
+	err = p.DeleteCertificate("nonexistent.example.com")
+	if err != nil {
+		t.Fatalf("DeleteCertificate() error = %v", err)
+	}
+}
+
+func TestCertificateStruct(t *testing.T) {
+	now := time.Now()
+	cert := &Certificate{
+		Domain:    "example.com",
+		CertPEM:   []byte("cert-data"),
+		KeyPEM:    []byte("key-data"),
+		IssuedAt:  now,
+		ExpiresAt: now.Add(90 * 24 * time.Hour),
+	}
+
+	if cert.Domain != "example.com" {
+		t.Errorf("Domain = %q", cert.Domain)
+	}
+	if string(cert.CertPEM) != "cert-data" {
+		t.Errorf("CertPEM = %q", cert.CertPEM)
+	}
+	if string(cert.KeyPEM) != "key-data" {
+		t.Errorf("KeyPEM = %q", cert.KeyPEM)
+	}
+	if cert.ExpiresAt.Sub(cert.IssuedAt) != 90*24*time.Hour {
+		t.Errorf("validity period mismatch")
+	}
+}

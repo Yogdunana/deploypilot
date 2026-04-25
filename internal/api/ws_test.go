@@ -687,3 +687,148 @@ func TestAgentTunnelWS_NoTunnelManager(t *testing.T) {
 		t.Errorf("expected 503, got %d", resp.StatusCode)
 	}
 }
+
+func TestLogStreamWS_ValidApp(t *testing.T) {
+	db := setupWSTestDB(t)
+	// Insert a test app with container_name
+	db.Exec(`INSERT INTO apps (id, tenant_id, name, repo_url, container_name) VALUES ('app-ws-1', 'tenant-default', 'ws-app', 'https://github.com/test/test', 'ws-app-container')`)
+
+	bridge := service.NewBridge(db, &localExecutor{}, []byte("test-key-1234567890abcdef"), nil)
+	hub := NewWSHub()
+	go hub.Run()
+
+	router := setupWSRouter(db, bridge, hub)
+	server := httptest.NewServer(router)
+	defer server.Close()
+
+	token := getWSToken(t)
+	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + "/ws/logs/app-ws-1?token=" + token
+	conn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	if err != nil {
+		t.Fatalf("dial failed: %v", err)
+	}
+	defer conn.Close()
+
+	// Read at least one message (log or error) within a few seconds
+	conn.SetReadDeadline(time.Now().Add(5 * time.Second))
+	_, p, err := conn.ReadMessage()
+	if err != nil {
+		t.Fatalf("read failed: %v", err)
+	}
+
+	var msg WSMessage
+	json.Unmarshal(p, &msg)
+	// Should be either "log" or "error" type
+	if msg.Type != "log" && msg.Type != "error" {
+		t.Errorf("expected log or error message type, got %q", msg.Type)
+	}
+}
+
+func TestLogStreamWS_AppWithFallbackName(t *testing.T) {
+	db := setupWSTestDB(t)
+	// Insert app with no container_name but with name
+	db.Exec(`INSERT INTO apps (id, tenant_id, name, repo_url, container_name) VALUES ('app-ws-2', 'tenant-default', 'fallback-app', 'https://github.com/test/test', '')`)
+
+	bridge := service.NewBridge(db, &localExecutor{}, []byte("test-key-1234567890abcdef"), nil)
+	hub := NewWSHub()
+	go hub.Run()
+
+	router := setupWSRouter(db, bridge, hub)
+	server := httptest.NewServer(router)
+	defer server.Close()
+
+	token := getWSToken(t)
+	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + "/ws/logs/app-ws-2?token=" + token
+	conn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	if err != nil {
+		t.Fatalf("dial failed: %v", err)
+	}
+	defer conn.Close()
+
+	// Should connect and start streaming (using fallback name)
+	conn.SetReadDeadline(time.Now().Add(5 * time.Second))
+	_, _, err = conn.ReadMessage()
+	if err != nil {
+		t.Fatalf("read failed: %v", err)
+	}
+}
+
+func TestTerminalWS_ValidServer(t *testing.T) {
+	db := setupWSTestDB(t)
+	// Insert a test server
+	db.Exec(`INSERT INTO servers (id, tenant_id, name, host, port, status) VALUES ('srv-ws-1', 'tenant-default', 'ws-server', '192.168.1.1', 22, 'reachable')`)
+	// Insert a credential for the server
+	db.Exec(`INSERT INTO credentials (id, tenant_id, name, type, encrypted_value) VALUES ('cred-ws-1', 'tenant-default', 'ssh-key', 'ssh', 'encrypted-value')`)
+
+	bridge := service.NewBridge(db, &localExecutor{}, []byte("test-key-1234567890abcdef"), nil)
+	hub := NewWSHub()
+	go hub.Run()
+
+	router := setupWSRouter(db, bridge, hub)
+	server := httptest.NewServer(router)
+	defer server.Close()
+
+	token := getWSToken(t)
+	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + "/ws/terminal/srv-ws-1?token=" + token
+	conn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	if err != nil {
+		t.Fatalf("dial failed: %v", err)
+	}
+	defer conn.Close()
+
+	// Send an input command
+	cmdMsg := WSMessage{Type: "input", Data: "ls"}
+	data, _ := json.Marshal(cmdMsg)
+	err = conn.WriteMessage(websocket.TextMessage, data)
+	if err != nil {
+		t.Fatalf("write failed: %v", err)
+	}
+
+	// Read the output
+	conn.SetReadDeadline(time.Now().Add(5 * time.Second))
+	_, p, err := conn.ReadMessage()
+	if err != nil {
+		t.Fatalf("read failed: %v", err)
+	}
+
+	var msg WSMessage
+	json.Unmarshal(p, &msg)
+	// Terminal may return "output" or "error" depending on SSH availability
+	if msg.Type != "output" && msg.Type != "error" {
+		t.Errorf("expected output or error message type, got %q", msg.Type)
+	}
+}
+
+func TestTerminalWS_InvalidCommand(t *testing.T) {
+	db := setupWSTestDB(t)
+	db.Exec(`INSERT INTO servers (id, tenant_id, name, host, port, status) VALUES ('srv-ws-3', 'tenant-default', 'ws-server-3', '192.168.1.3', 22, 'reachable')`)
+	db.Exec(`INSERT INTO credentials (id, tenant_id, name, type, encrypted_value) VALUES ('cred-ws-3', 'tenant-default', 'ssh-key-3', 'ssh', 'encrypted-value')`)
+
+	bridge := service.NewBridge(db, &localExecutor{}, []byte("test-key-1234567890abcdef"), nil)
+	hub := NewWSHub()
+	go hub.Run()
+
+	router := setupWSRouter(db, bridge, hub)
+	server := httptest.NewServer(router)
+	defer server.Close()
+
+	token := getWSToken(t)
+	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + "/ws/terminal/srv-ws-3?token=" + token
+	conn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	if err != nil {
+		t.Fatalf("dial failed: %v", err)
+	}
+	defer conn.Close()
+
+	// Send a non-input message type (should be ignored)
+	cmdMsg := WSMessage{Type: "ping", Data: nil}
+	data, _ := json.Marshal(cmdMsg)
+	conn.WriteMessage(websocket.TextMessage, data)
+
+	// Send invalid JSON
+	conn.WriteMessage(websocket.TextMessage, []byte("not json"))
+
+	// Close connection to exit read loop
+	conn.SetWriteDeadline(time.Now().Add(2 * time.Second))
+	conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
+}

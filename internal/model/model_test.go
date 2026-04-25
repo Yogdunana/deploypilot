@@ -295,3 +295,83 @@ func TestDeploymentRecordTableName(t *testing.T) {
 		t.Errorf("DeploymentRecord.TableName() = %q, want %q", dr.TableName(), "deployments")
 	}
 }
+
+func TestSSLCertificateModel(t *testing.T) {
+	now := time.Now()
+	issuedAt := now.Add(-24 * time.Hour)
+	expiresAt := now.Add(89 * 24 * time.Hour)
+	lastRenewed := now.Add(-7 * 24 * time.Hour)
+
+	cert := &SSLCertificate{
+		ID:          1,
+		Domain:      "example.com",
+		Email:       "admin@example.com",
+		Provider:    "cloudflare",
+		Status:      "active",
+		CertPath:    "/etc/ssl/example.com.crt",
+		KeyPath:     "/etc/ssl/example.com.key",
+		IssuedAt:    &issuedAt,
+		ExpiresAt:   &expiresAt,
+		AutoRenew:   true,
+		LastRenewed: &lastRenewed,
+		RetryCount:  0,
+		CreatedAt:   now,
+		UpdatedAt:   now,
+	}
+
+	if cert.Domain != "example.com" {
+		t.Errorf("Domain = %q, want %q", cert.Domain, "example.com")
+	}
+	if cert.Provider != "cloudflare" {
+		t.Errorf("Provider = %q, want %q", cert.Provider, "cloudflare")
+	}
+	if cert.Status != "active" {
+		t.Errorf("Status = %q, want %q", cert.Status, "active")
+	}
+	if cert.AutoRenew != true {
+		t.Error("AutoRenew should be true")
+	}
+	if cert.IssuedAt == nil {
+		t.Error("IssuedAt should not be nil")
+	}
+	if cert.ExpiresAt == nil {
+		t.Error("ExpiresAt should not be nil")
+	}
+	if cert.LastRenewed == nil {
+		t.Error("LastRenewed should not be nil")
+	}
+	if cert.RetryCount != 0 {
+		t.Errorf("RetryCount = %d, want 0", cert.RetryCount)
+	}
+}
+
+func TestSSLCertificateTableName(t *testing.T) {
+	cert := &SSLCertificate{}
+	if cert.TableName() != "ssl_certificates" {
+		t.Errorf("SSLCertificate.TableName() = %q, want %q", cert.TableName(), "ssl_certificates")
+	}
+}
+
+func TestSSLCertificateNilTimeFields(t *testing.T) {
+	cert := &SSLCertificate{
+		ID:        2,
+		Domain:    "test.org",
+		Email:     "admin@test.org",
+		Provider:  "aliyun",
+		Status:    "pending",
+		AutoRenew: false,
+	}
+
+	if cert.IssuedAt != nil {
+		t.Error("IssuedAt should be nil")
+	}
+	if cert.ExpiresAt != nil {
+		t.Error("ExpiresAt should be nil")
+	}
+	if cert.LastRenewed != nil {
+		t.Error("LastRenewed should be nil")
+	}
+	if cert.AutoRenew != false {
+		t.Error("AutoRenew should be false")
+	}
+}

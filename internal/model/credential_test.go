@@ -311,3 +311,59 @@ func TestListCredentialsEmpty(t *testing.T) {
 		t.Errorf("count = %d, want 0", len(creds))
 	}
 }
+
+func TestCreateCredentialEncryptError(t *testing.T) {
+	_, cleanup := setupCredDB(t)
+	defer cleanup()
+
+	// Use a key that's too short to trigger encryption error
+	shortKey := []byte("too-short")
+	_, err := CreateCredential(shortKey, "tenant-default", "bad-key", "ssh", "secret")
+	if err == nil {
+		t.Error("CreateCredential() should fail with short encryption key")
+	}
+}
+
+func TestGetCredentialDecryptError(t *testing.T) {
+	encKey, cleanup := setupCredDB(t)
+	defer cleanup()
+
+	// Create a credential with valid key
+	created, _ := CreateCredential(encKey, "tenant-default", "my-key", "ssh", "secret-value")
+
+	// Try to get with a different (wrong) key
+	wrongKey := crypto.NewEncryptionKey()
+	_, err := GetCredential(wrongKey, created.ID)
+	if err == nil {
+		t.Error("GetCredential() should fail when decrypting with wrong key")
+	}
+}
+
+func TestUpdateCredentialEncryptError(t *testing.T) {
+	_, cleanup := setupCredDB(t)
+	defer cleanup()
+
+	// Use a key that's too short to trigger encryption error
+	shortKey := []byte("too-short")
+	_, err := UpdateCredential(shortKey, "nonexistent-id", "new-value")
+	if err == nil {
+		t.Error("UpdateCredential() should fail with short encryption key")
+	}
+}
+
+func TestCredentialWithPlainZeroValues(t *testing.T) {
+	cwp := &CredentialWithPlain{
+		Credential: Credential{},
+		PlainValue: "",
+	}
+
+	if cwp.ID != "" {
+		t.Errorf("ID = %q, want empty", cwp.ID)
+	}
+	if cwp.PlainValue != "" {
+		t.Errorf("PlainValue = %q, want empty", cwp.PlainValue)
+	}
+	if cwp.TenantID != "" {
+		t.Errorf("TenantID = %q, want empty", cwp.TenantID)
+	}
+}
