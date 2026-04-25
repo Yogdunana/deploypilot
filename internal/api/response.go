@@ -42,10 +42,10 @@ func respondErrori18n(c *gin.Context, code int, key string, args ...interface{})
 	})
 }
 
-// respondAppError returns a standardized error response for an AppError.
+// RespondAppError returns a standardized error response for an AppError.
 // If the AppError has an I18nKey, it uses i18n.Tf to translate the message and suggestion.
 // Otherwise, it falls back to the static Message and Suggestion fields.
-func respondAppError(c *gin.Context, appErr *appErrors.AppError) {
+func RespondAppError(c *gin.Context, appErr *appErrors.AppError) {
 	locale := i18n.GetLocaleFromContext(c)
 
 	var message, suggestion string
