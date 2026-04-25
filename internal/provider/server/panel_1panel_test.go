@@ -14,6 +14,8 @@ func setup1PanelTestServer() *httptest.Server {
 	mux := http.NewServeMux()
 
 	// POST /api/v1/firewall/rules - create rule
+	// GET /api/v1/firewall/rules - list rules
+	// DELETE /api/v1/firewall/rules/{id} - delete rule (path includes rule ID)
 	mux.HandleFunc("/api/v1/firewall/rules", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodPost {
 			body, _ := io.ReadAll(r.Body)
@@ -47,6 +49,11 @@ func setup1PanelTestServer() *httptest.Server {
 			return
 		}
 
+		w.WriteHeader(http.StatusMethodNotAllowed)
+	})
+
+	// DELETE /api/v1/firewall/rules/ - handle deletion with rule ID in path
+	mux.HandleFunc("/api/v1/firewall/rules/", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodDelete {
 			resp := panel1Response{
 				Code:    200,
@@ -57,7 +64,6 @@ func setup1PanelTestServer() *httptest.Server {
 			json.NewEncoder(w).Encode(resp)
 			return
 		}
-
 		w.WriteHeader(http.StatusMethodNotAllowed)
 	})
 

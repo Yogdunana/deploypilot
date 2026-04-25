@@ -156,8 +156,18 @@ func validateEnum(field string, schemaMap map[string]interface{}, value interfac
 		return nil
 	}
 
-	enumSlice, ok := enumRaw.([]interface{})
-	if !ok {
+	// Normalize enum values into a []interface{} slice.
+	// The mcp-go library may store enum as []string instead of []interface{}.
+	var enumSlice []interface{}
+	switch v := enumRaw.(type) {
+	case []interface{}:
+		enumSlice = v
+	case []string:
+		enumSlice = make([]interface{}, len(v))
+		for i, s := range v {
+			enumSlice[i] = s
+		}
+	default:
 		return nil
 	}
 

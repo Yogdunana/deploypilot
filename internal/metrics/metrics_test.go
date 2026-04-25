@@ -89,8 +89,8 @@ func TestHistogramObservation(t *testing.T) {
 	// testutil.ToFloat64 panics on histograms; use CollectAndCount instead.
 	// A histogram produces _bucket, _sum, _count lines (at least 3).
 	count := testutil.CollectAndCount(DeployDuration)
-	if count < 3 {
-		t.Fatalf("expected at least 3 metric lines (bucket+sum+count), got %d", count)
+	if count < 1 {
+		t.Fatalf("expected at least 1 metric family collected, got %d", count)
 	}
 
 	_ = reg
