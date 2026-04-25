@@ -7,9 +7,17 @@ COPY web/ ./
 RUN npm run build
 
 # Stage 2: Build Go backend
-FROM golang:1.23.6 AS backend
+FROM --platform=$BUILDPLATFORM golang:1.23.6 AS backend
+
+# Install xx for cross-compilation support
+COPY --from=tonistiigi/xx / /
+
+# Install native GCC and cross-compiler for arm64
 RUN apt-get update && apt-get install -y --no-install-recommends gcc && rm -rf /var/lib/apt/lists/*
+RUN xx-apt install -y --no-install-recommends gcc-aarch64-linux-gnu && xx-apt clean
+
 RUN go install github.com/swaggo/swag/cmd/swag@v1.16.6
+
 WORKDIR /app
 COPY go.mod go.sum ./
 RUN go mod download
@@ -19,10 +27,15 @@ COPY --from=frontend /app/web/dist ./web/dist
 # Generate swagger docs (excluded by .dockerignore)
 RUN swag init -g cmd/api-server/main.go -o docs/swagger
 
+ARG TARGETPLATFORM
 ENV CGO_ENABLED=1
-RUN go build -ldflags="-s -w" -o /deploypilot ./cmd/deploypilot/ && \
+
+# Use xx-go to handle cross-compilation automatically
+RUN xx-go --wrap && \
+    go build -ldflags="-s -w" -o /deploypilot ./cmd/deploypilot/ && \
     go build -ldflags="-s -w" -o /api-server ./cmd/api-server/ && \
-    go build -ldflags="-s -w" -o /mcp-server ./cmd/mcp-server/
+    go build -ldflags="-s -w" -o /mcp-server ./cmd/mcp-server/ && \
+    xx-verify /deploypilot && xx-verify /api-server && xx-verify /mcp-server
 
 # Stage 3: Runtime
 FROM alpine:3.20
