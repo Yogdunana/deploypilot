@@ -38,6 +38,7 @@
 
   "error.dns.domain_required": "domain query parameter is required",
   "error.dns.record_deleted": "DNS record deleted",
+  "error.dns.westdns_config_required": "WestDNS requires API Token and API Secret configuration",
 
   "error.notification.not_found": "notification provider not found",
   "error.notification.deleted": "notification provider deleted",

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/Yogdunana/deploypilot/internal/auth"
+	"github.com/Yogdunana/deploypilot/internal/metrics"
 	"github.com/Yogdunana/deploypilot/internal/service"
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
@@ -63,6 +64,7 @@ func (h *WSHub) Run() {
 			}
 			h.clients[client.appID][client.conn] = true
 			h.mu.Unlock()
+			metrics.WSConnections.Inc()
 		case client := <-h.unregister:
 			h.mu.Lock()
 			if conns, ok := h.clients[client.appID]; ok {
@@ -72,6 +74,7 @@ func (h *WSHub) Run() {
 				}
 			}
 			h.mu.Unlock()
+			metrics.WSConnections.Dec()
 		}
 	}
 }

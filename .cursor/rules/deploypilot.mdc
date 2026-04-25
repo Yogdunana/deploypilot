@@ -1,0 +1,82 @@
+---
+description: DeployPilot MCP integration rules for Cursor IDE
+globs:
+alwaysApply: false
+---
+
+# DeployPilot MCP Integration Rules
+
+## Overview
+DeployPilot provides MCP (Model Context Protocol) tools for AI-powered deployment management. When working with DeployPilot-related code or infrastructure, follow these rules and conventions.
+
+## Connection
+Configure in Cursor MCP settings:
+```json
+{
+  "mcpServers": {
+    "deploypilot": {
+      "command": "/path/to/mcp-server",
+      "args": ["--config", "/path/to/config.yaml"]
+    }
+  }
+}
+```
+
+## Available Tools (52 total)
+
+### Core Operations
+- `deploy_app`: Deploy an application to a server
+- `list_apps` / `get_app_detail`: Application management
+- `create_app` / `delete_app` / `update_app`: App lifecycle
+- `stop` / `remove`: Container management
+- `get_container_logs` / `get_container_status`: Container observability
+- `rollback`: Rollback to previous image version
+
+### Server Management
+- `list_servers` / `add_server` / `remove_server` / `update_server`: Server CRUD
+- `test_server`: Test server connectivity
+- `detect_environment`: Detect server environment (OS, Docker, ports, services)
+
+### Credential Management
+- `list_credentials` / `add_credential` / `delete_credential`: Encrypted credential management
+- `create_credential_with_expiry` / `rotate_credential`: Credential rotation
+
+### DNS Management
+- `list_dns_records` / `add_dns_record` / `update_dns_record` / `delete_dns_record`
+- `batch_dns`: Batch DNS operations
+- Supported providers: Cloudflare, Alibaba Cloud, Tencent Cloud, WestDNS (west.cn)
+
+### Monitoring
+- `heal_container` / `get_container_metrics` / `get_system_metrics`
+- `list_alerts` / `list_alert_rules`
+- `health_check`: Perform health check on a target
+
+### CI/CD
+- `trigger_ci_build` / `get_ci_build_status`
+
+### Backup & Restore
+- `backup` / `restore` / `batch_backup`
+
+### SSL Certificates
+- `list_ssl_certificates` / `request_ssl_certificate` / `renew_ssl_certificate` / `delete_ssl_certificate`
+
+## Code Conventions
+
+### DNS Provider Implementation
+When adding a new DNS provider:
+1. Create `internal/provider/dns/<provider>.go` implementing the `DNSProvider` interface
+2. Create `internal/provider/dns/<provider>_test.go` with mock HTTP tests
+3. Add the provider case in `internal/service/bridge.go` `getDNSProvider()` function
+4. Update i18n files (`internal/i18n/locales/zh.json`, `internal/i18n/locales/en.json`)
+
+### Provider Type Naming
+- DNS providers: `dns-<name>` (e.g., `dns-cloudflare`, `dns-aliyun`, `dns-west-dns`)
+- CI/CD providers: `cicd-<name>` (e.g., `cicd-github-actions`, `cicd-gitea`)
+- Notification providers: stored as `notify` type with `channel` in config
+
+## Common Workflows
+1. Deploy a new app: `create_app` -> `deploy_app` -> `check_deploy_status`
+2. DNS setup: `add_dns_record` -> `list_dns_records` (verify)
+3. Server monitoring: `detect_environment` -> `get_system_metrics` -> `list_alerts`
+4. Backup: `backup` -> `list_tasks` (monitor progress)
+5. CI/CD: `trigger_ci_build` -> `get_ci_build_status` -> `deploy_app`

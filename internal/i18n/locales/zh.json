@@ -38,6 +38,7 @@
 
   "error.dns.domain_required": "domain 查询参数为必填项",
   "error.dns.record_deleted": "DNS 记录已删除",
+  "error.dns.westdns_config_required": "西部数码 DNS 需要配置 API Token 和 API Secret",
 
   "error.notification.not_found": "通知渠道不存在",
   "error.notification.deleted": "通知渠道已删除",

@@ -25,9 +25,11 @@ import (
 	"flag"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"time"
 
 	_ "github.com/Yogdunana/deploypilot/docs/swagger"
@@ -36,6 +38,7 @@ import (
 	"github.com/Yogdunana/deploypilot/internal/crypto"
 	"github.com/Yogdunana/deploypilot/internal/database"
 	"github.com/Yogdunana/deploypilot/internal/engine/deployer"
+	"github.com/Yogdunana/deploypilot/internal/metrics"
 	"github.com/Yogdunana/deploypilot/internal/server"
 	"github.com/Yogdunana/deploypilot/internal/service"
 	"github.com/redis/go-redis/v9"
@@ -163,6 +166,16 @@ func run(cliDriver, cliDSN, cliAddr string) error {
 	}
 
 	srv := server.New(listenAddr, db, bridge, cfg)
+
+	// Initialize and start Prometheus metrics server
+	metrics.Init()
+	go func() {
+		metricsPort := strconv.Itoa(cfg.Monitor.MetricsPort)
+		slog.Info("starting metrics server", "port", metricsPort)
+		if err := http.ListenAndServe(":"+metricsPort, metrics.Handler()); err != nil {
+			slog.Error("metrics server failed", "error", err)
+		}
+	}()
 
 	slog.Info("DeployPilot API server starting", "version", version, "addr", listenAddr)
 	slog.Info("database configured", "type", cfg.Database.Type, "dsn", cfg.Database.DSN)

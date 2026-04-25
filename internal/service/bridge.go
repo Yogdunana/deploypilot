@@ -18,6 +18,7 @@ import (
 	"github.com/Yogdunana/deploypilot/internal/engine/deployer"
 	"github.com/Yogdunana/deploypilot/internal/engine/healer"
 	"github.com/Yogdunana/deploypilot/internal/mcp"
+	"github.com/Yogdunana/deploypilot/internal/metrics"
 	"github.com/Yogdunana/deploypilot/internal/model"
 	"github.com/Yogdunana/deploypilot/internal/monitor"
 	"github.com/Yogdunana/deploypilot/internal/provider/cicd"
@@ -135,6 +136,8 @@ func (b *Bridge) getDNSProvider(ctx context.Context) (dns.DNSProvider, error) {
 		return dns.NewAliyunProvider(cfg.AccessKeyID, cfg.AccessKeySecret), nil
 	case "dns-tencent":
 		return dns.NewTencentProvider(cfg.SecretID, cfg.SecretKey), nil
+	case "dns-west-dns":
+		return dns.NewWestDNSProvider(cfg.APIToken, cfg.AccessKeySecret), nil
 	default:
 		return nil, fmt.Errorf("unsupported DNS provider type: %s", provider.Type)
 	}
@@ -365,6 +368,9 @@ func (b *Bridge) DeployAsync(ctx context.Context, cfg mcp.DeployConfig, appID st
 }
 
 func (b *Bridge) Deploy(ctx context.Context, cfg mcp.DeployConfig) (*mcp.ContainerStatus, error) {
+	// Record deploy start time for metrics
+	deployStart := time.Now()
+
 	// Determine executor: remote SSH if server_id provided, otherwise local
 	executor := b.Executor
 	var host string
@@ -417,6 +423,10 @@ func (b *Bridge) Deploy(ctx context.Context, cfg mcp.DeployConfig) (*mcp.Contain
 			Timestamp: time.Now().Format(time.RFC3339),
 		})
 
+		// Record preflight failure metric
+		metrics.DeployTotal.WithLabelValues(cfg.ContainerName, cfg.ServerID, "failed").Inc()
+		metrics.DeployDuration.Observe(time.Since(deployStart).Seconds())
+
 		return nil, &PreflightError{
 			Code:    pfResult.Code,
 			Message: pfResult.Message,
@@ -461,6 +471,10 @@ func (b *Bridge) Deploy(ctx context.Context, cfg mcp.DeployConfig) (*mcp.Contain
 		b.saveDeploymentRecord(ctx, cfg, "failed", nil)
 		slog.Error("container deployment failed", "container", cfg.ContainerName, "error", err)
 
+		// Record deploy failure metric
+		metrics.DeployTotal.WithLabelValues(cfg.ContainerName, cfg.ServerID, "failed").Inc()
+		metrics.DeployDuration.Observe(time.Since(deployStart).Seconds())
+
 		b.EventBus.Publish(DeployEvent{
 			TaskID:    "", AppID: cfg.ContainerName,
 			Step: "run", Status: "failed", Progress: 60,
@@ -473,6 +487,10 @@ func (b *Bridge) Deploy(ctx context.Context, cfg mcp.DeployConfig) (*mcp.Contain
 	// Save deployment success
 	b.saveDeploymentRecord(ctx, cfg, "success", nil)
 	slog.Info("container deployed successfully", "container", cfg.ContainerName, "container_id", cs.ID)
+
+	// Record deploy success metric
+	metrics.DeployTotal.WithLabelValues(cfg.ContainerName, cfg.ServerID, "success").Inc()
+	metrics.DeployDuration.Observe(time.Since(deployStart).Seconds())
 
 	b.EventBus.Publish(DeployEvent{
 		TaskID:    "", AppID: cfg.ContainerName,
