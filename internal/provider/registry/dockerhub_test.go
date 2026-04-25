@@ -149,16 +149,15 @@ func TestDockerHubPingConnectionRefused(t *testing.T) {
 }
 
 func TestDockerHubListTags(t *testing.T) {
-	_, registryServer := newDockerHubTestServer(t)
+	authServer, registryServer := newDockerHubTestServer(t)
+	defer authServer.Close()
 	defer registryServer.Close()
 
 	d := NewDockerHubProvider(registryServer.URL+"/v2/", "testuser", "testpass")
+	d.authURL = authServer.URL
 	ctx := context.Background()
 
-	// We need to override the auth URL for testing.
-	// Since getAuthToken calls auth.docker.io directly, we need to test differently.
-	// Instead, test the ListTags with a mock that doesn't require auth.
-	tags, err := d.listTagsWithMockAuth(ctx, "library/nginx", "test-bearer-token")
+	tags, err := d.ListTags(ctx, "library/nginx")
 	if err != nil {
 		t.Fatalf("ListTags() error = %v", err)
 	}
@@ -168,13 +167,15 @@ func TestDockerHubListTags(t *testing.T) {
 }
 
 func TestDockerHubListTagsEmpty(t *testing.T) {
-	_, registryServer := newDockerHubTestServer(t)
+	authServer, registryServer := newDockerHubTestServer(t)
+	defer authServer.Close()
 	defer registryServer.Close()
 
 	d := NewDockerHubProvider(registryServer.URL+"/v2/", "testuser", "testpass")
+	d.authURL = authServer.URL
 	ctx := context.Background()
 
-	tags, err := d.listTagsWithMockAuth(ctx, "library/empty", "test-bearer-token")
+	tags, err := d.ListTags(ctx, "library/empty")
 	if err != nil {
 		t.Fatalf("ListTags() error = %v", err)
 	}

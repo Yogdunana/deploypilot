@@ -21,6 +21,7 @@ const (
 // DockerHubProvider implements RegistryProvider for Docker Hub.
 type DockerHubProvider struct {
 	baseURL    string
+	authURL    string
 	username   string
 	password   string
 	httpClient *http.Client
@@ -33,6 +34,7 @@ func NewDockerHubProvider(url, username, password string) *DockerHubProvider {
 	}
 	return &DockerHubProvider{
 		baseURL:  url,
+		authURL:  dockerHubAuthURL,
 		username: username,
 		password: password,
 		httpClient: &http.Client{
@@ -148,10 +150,10 @@ func (d *DockerHubProvider) Ping(ctx context.Context) error {
 	return nil
 }
 
-// getAuthToken obtains a Bearer token from auth.docker.io using Basic Auth.
+// getAuthToken obtains a Bearer token from the auth endpoint using Basic Auth.
 func (d *DockerHubProvider) getAuthToken(ctx context.Context) (string, error) {
 	tokenURL := fmt.Sprintf("%s?service=registry.docker.io&scope=repository:%s:pull",
-		dockerHubAuthURL, "library/")
+		d.authURL, "library/")
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, tokenURL, nil)
 	if err != nil {

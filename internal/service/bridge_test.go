@@ -1688,12 +1688,12 @@ func TestBatchDeploy_SingleApp(t *testing.T) {
 	if err != nil {
 		t.Fatalf("BatchDeploy failed: %v", err)
 	}
-	m, ok := result.(map[string]interface{})
+	br, ok := result.(*mcp.BatchDeployResult)
 	if !ok {
-		t.Fatal("expected map")
+		t.Fatal("expected *BatchDeployResult")
 	}
-	if m["total"] != 1 {
-		t.Errorf("expected total=1, got %v", m["total"])
+	if br.Total != 1 {
+		t.Errorf("expected total=1, got %d", br.Total)
 	}
 }
 
@@ -1716,12 +1716,12 @@ func TestBatchDeploy_WithEnvVars(t *testing.T) {
 	if err != nil {
 		t.Fatalf("BatchDeploy failed: %v", err)
 	}
-	m, ok := result.(map[string]interface{})
+	br, ok := result.(*mcp.BatchDeployResult)
 	if !ok {
-		t.Fatal("expected map")
+		t.Fatal("expected *BatchDeployResult")
 	}
-	if m["total"] != 1 {
-		t.Errorf("expected total=1, got %v", m["total"])
+	if br.Total != 1 {
+		t.Errorf("expected total=1, got %d", br.Total)
 	}
 }
 

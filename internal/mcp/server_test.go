@@ -502,6 +502,18 @@ func (m *mockDeployer) DeleteSSLCertificate(ctx context.Context, domain string) 
 	}, nil
 }
 
+func (m *mockDeployer) BatchDeployWithConfig(ctx context.Context, config BatchDeployConfig) (*BatchDeployResult, error) {
+	return &BatchDeployResult{
+		Total:   len(config.Apps),
+		Success: len(config.Apps),
+		Failed:  0,
+	}, nil
+}
+
+func (m *mockDeployer) RegistryOps(registryID string, operation string, args map[string]interface{}) (interface{}, error) {
+	return map[string]interface{}{"registry_id": registryID, "operation": operation}, nil
+}
+
 // extractText gets the text content from a CallToolResult.
 func extractText(result *mcp.CallToolResult) (string, error) {
 	if result.IsError {
@@ -2286,11 +2298,15 @@ func TestHandleUpdateApp(t *testing.T) {
 
 func TestHandleBatchDeploy(t *testing.T) {
 	mock := &mockDeployer{}
-	_, err := handleBatchDeploy(context.Background(), mock, newRequest(map[string]interface{}{
-		"deployments": []map[string]interface{}{},
+	result, err := handleBatchDeploy(context.Background(), mock, newRequest(map[string]interface{}{
+		"apps": "[]",
 	}))
 	if err != nil {
 		t.Fatalf("handleBatchDeploy failed: %v", err)
+	}
+	if result.IsError {
+		text, _ := extractText(result)
+		t.Errorf("expected success, got error: %s", text)
 	}
 }
 

@@ -264,7 +264,7 @@ func TestPushImage_LoginFailure(t *testing.T) {
 		RegistryPass: "wrongpass",
 	}
 
-	ref, err := b.PushImage(context.Background(), cfg, "myapp:abc12345")
+	_, err := b.PushImage(context.Background(), cfg, "myapp:abc12345")
 	if err == nil {
 		t.Fatal("expected error when docker login fails, got nil")
 	}
@@ -294,7 +294,7 @@ func TestPushImage_PushFailure(t *testing.T) {
 		RegistryPass: "mypass",
 	}
 
-	ref, err := b.PushImage(context.Background(), cfg, "myapp:abc12345")
+	_, err := b.PushImage(context.Background(), cfg, "myapp:abc12345")
 	if err == nil {
 		t.Fatal("expected error when docker push fails, got nil")
 	}
