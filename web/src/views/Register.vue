@@ -91,7 +91,7 @@ function handleKeydown(e: KeyboardEvent) {
 </script>
 
 <template>
-  <div class="min-h-screen flex items-center justify-center bg-background p-4">
+  <div class="min-h-screen flex items-center justify-center bg-background px-4 py-6 sm:p-4" style="padding-bottom: max(1.5rem, env(safe-area-inset-bottom, 1.5rem))">
     <div class="w-full max-w-sm">
       <!-- Logo & Title -->
       <div class="text-center mb-8">

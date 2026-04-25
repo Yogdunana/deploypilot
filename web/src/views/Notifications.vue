@@ -10,7 +10,7 @@ import Badge from '@/components/ui/Badge.vue'
 import Textarea from '@/components/ui/Textarea.vue'
 import Select from '@/components/ui/Select.vue'
 import Switch from '@/components/ui/Switch.vue'
-import Table from '@/components/ui/Table.vue'
+import Table from '@/components/ui/ResponsiveTable.vue'
 import Dialog from '@/components/ui/Dialog.vue'
 import AlertDialog from '@/components/ui/AlertDialog.vue'
 import DropdownMenu from '@/components/ui/DropdownMenu.vue'
@@ -52,9 +52,9 @@ const typeOptions = computed(() => [
 
 // Table columns
 const columns = computed(() => [
-  { key: 'name', label: t('notifications.name') },
-  { key: 'type', label: t('notifications.type') },
-  { key: 'enabled', label: t('notifications.enabledStatus') },
+  { key: 'name', label: t('notifications.name'), mobile: true },
+  { key: 'type', label: t('notifications.type'), mobile: true },
+  { key: 'enabled', label: t('notifications.enabledStatus'), mobile: true },
   { key: 'created_at', label: t('notifications.createdAt') },
   { key: 'actions', label: t('notifications.actions'), width: '80px' },
 ])

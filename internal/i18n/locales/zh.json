@@ -40,6 +40,18 @@
   "error.registry.deleted": "镜像仓库已删除",
   "error.registry.name_and_provider_required": "name 和 provider 为必填项",
 
+  "error.cluster.not_found": "集群不存在",
+  "error.cluster.deleted": "集群已删除",
+  "error.cluster.name_required": "集群名称为必填项",
+  "error.cluster.api_server_required": "集群 api_server 为必填项",
+  "cluster.status.connected": "已连接",
+  "cluster.status.disconnected": "已断开",
+  "cluster.status.unknown": "未知",
+  "cluster.status.error": "错误",
+  "error.cluster.connection_failed": "连接 Kubernetes 集群失败",
+  "error.cluster.create_failed": "创建集群失败",
+  "error.cluster.update_failed": "更新集群失败",
+
   "error.dns.domain_required": "domain 查询参数为必填项",
   "error.dns.record_deleted": "DNS 记录已删除",
   "error.dns.westdns_config_required": "西部数码 DNS 需要配置 API Token 和 API Secret",
@@ -161,5 +173,27 @@
   "build.push.push_failed": "docker push 失败: %s",
   "build.push.success": "镜像已推送到 %s",
   "build.push.warning": "镜像推送失败 (构建成功): %s",
-  "build.push.registry_not_found": "加载镜像仓库 %s 失败: %s"
+  "build.push.registry_not_found": "加载镜像仓库 %s 失败: %s",
+
+  "error.plugin.not_found": "插件不存在",
+  "error.plugin.deleted": "插件已删除",
+  "error.plugin.name_required": "name 为必填项",
+  "error.plugin.provider_and_type_required": "provider 和 type 为必填项",
+  "error.plugin.already_registered": "插件已注册: %s",
+  "error.plugin.not_registered": "插件未注册: %s",
+  "error.plugin.create_failed": "创建插件失败: %s",
+  "error.plugin.instance_create_failed": "创建插件实例失败: %s",
+  "error.plugin.enable_failed": "启用插件失败: %s",
+  "error.plugin.disable_failed": "禁用插件失败: %s",
+  "error.plugin.reload_failed": "重载插件失败: %s",
+  "error.plugin.load_failed": "加载插件失败: %s",
+  "error.plugin.invalid_action": "无效的插件操作: %s",
+
+  "plugin.status.active": "活跃",
+  "plugin.status.error": "错误",
+  "plugin.status.disabled": "已禁用",
+  "plugin.enabled": "插件已启用",
+  "plugin.disabled": "插件已禁用",
+  "plugin.reloaded": "插件已重载",
+  "plugin.deleted": "插件已删除"
 }

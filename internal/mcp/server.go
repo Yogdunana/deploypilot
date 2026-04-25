@@ -110,6 +110,20 @@ type Deployer interface {
 	RenewSSLCertificate(ctx context.Context, domain string) (interface{}, error)
 	DeleteSSLCertificate(ctx context.Context, domain string) (interface{}, error)
 	RegistryOps(registryID string, operation string, args map[string]interface{}) (interface{}, error)
+	// Kubernetes cluster management
+	CreateCluster(ctx context.Context, cluster *model.Cluster) (*model.Cluster, error)
+	GetCluster(ctx context.Context, id string) (*model.Cluster, error)
+	ListClusters(ctx context.Context, tenantID string) ([]model.Cluster, error)
+	UpdateCluster(ctx context.Context, id string, updates map[string]interface{}) (*model.Cluster, error)
+	DeleteCluster(ctx context.Context, id string) error
+	TestClusterConnection(ctx context.Context, id string) (interface{}, error)
+	// Kubernetes deployment operations
+	K8sDeploy(ctx context.Context, clusterID string, app *K8sDeployConfig) error
+	K8sListDeployments(ctx context.Context, clusterID string) (interface{}, error)
+	K8sGetPods(ctx context.Context, clusterID, labelSelector string) (interface{}, error)
+	PluginOps(pluginID string, action string) (interface{}, error)
+	ListPlugins(provider string) (interface{}, error)
+	GetPluginInfo(pluginID string) (interface{}, error)
 }
 
 // DeployConfig mirrors deployer.DeployConfig to avoid circular imports.
@@ -219,6 +233,17 @@ type BuildAndDeployResult struct {
 	Duration   float64 `json:"duration_seconds"`
 	TechStack  string  `json:"tech_stack"`
 	CommitHash string  `json:"commit_hash"`
+}
+
+// K8sDeployConfig holds parameters for deploying an application to a Kubernetes cluster.
+type K8sDeployConfig struct {
+	Name      string            `json:"name"`
+	Image     string            `json:"image"`
+	Replicas  int32             `json:"replicas"`
+	Ports     []int32           `json:"ports"`
+	EnvVars   map[string]string `json:"env_vars"`
+	Labels    map[string]string `json:"labels"`
+	Namespace string            `json:"namespace"`
 }
 
 // NewServer creates a new MCP server with deploy tools registered.
@@ -867,6 +892,82 @@ func NewServer(deployer Deployer) *server.MCPServer {
 	)
 	s.AddTool(pingRegistryTool, withPermissionCheck("ping_registry", withValidation("ping_registry", pingRegistryTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return handlePingRegistry(ctx, deployer, request)
+	})))
+
+	// Register list_plugins tool
+	listPluginsTool := mcp.NewTool("list_plugins",
+		mcp.WithDescription("List all registered plugins"),
+		mcp.WithString("provider", mcp.Description("Filter by provider type (dns, notify, registry, cicd, server, ssl)")),
+	)
+	s.AddTool(listPluginsTool, withPermissionCheck("list_plugins", withValidation("list_plugins", listPluginsTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleListPlugins(ctx, deployer, request)
+	})))
+
+	// Register manage_plugin tool
+	managePluginTool := mcp.NewTool("manage_plugin",
+		mcp.WithDescription("Enable, disable, or reload a plugin"),
+		mcp.WithString("plugin_id", mcp.Required(), mcp.Description("Plugin ID")),
+		mcp.WithString("action", mcp.Required(), mcp.Description("Action to perform: enable, disable, reload")),
+	)
+	s.AddTool(managePluginTool, withPermissionCheck("manage_plugin", withValidation("manage_plugin", managePluginTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleManagePlugin(ctx, deployer, request)
+	})))
+
+	// Register get_plugin_info tool
+	getPluginInfoTool := mcp.NewTool("get_plugin_info",
+		mcp.WithDescription("Get detailed information about a plugin"),
+		mcp.WithString("plugin_id", mcp.Required(), mcp.Description("Plugin ID")),
+	)
+	s.AddTool(getPluginInfoTool, withPermissionCheck("get_plugin_info", withValidation("get_plugin_info", getPluginInfoTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleGetPluginInfo(ctx, deployer, request)
+	})))
+
+	// ========== Kubernetes Tools ==========
+
+	// Register list_clusters tool
+	listClustersTool := mcp.NewTool("list_clusters",
+		mcp.WithDescription("List all Kubernetes clusters"),
+		mcp.WithString("tenant_id", mcp.Description("Tenant ID (default: tenant-default)")),
+	)
+	s.AddTool(listClustersTool, withPermissionCheck("list_clusters", withValidation("list_clusters", listClustersTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleListClusters(ctx, deployer, request)
+	})))
+
+	// Register k8s_deploy tool
+	k8sDeployTool := mcp.NewTool("k8s_deploy",
+		mcp.WithDescription("Deploy an application to a Kubernetes cluster"),
+		mcp.WithString("cluster_id", mcp.Required(), mcp.Description("Kubernetes cluster ID")),
+		mcp.WithString("name", mcp.Required(), mcp.Description("Deployment name")),
+		mcp.WithString("image", mcp.Required(), mcp.Description("Container image (e.g. nginx:latest)")),
+		mcp.WithString("replicas", mcp.Description("Number of replicas (default: 1)")),
+		mcp.WithString("ports", mcp.Description("Comma-separated container ports (e.g. 8080,3000)")),
+		mcp.WithString("env_vars", mcp.Description("Environment variables as JSON object (e.g. {\"KEY\":\"value\"})")),
+		mcp.WithString("labels", mcp.Description("Labels as JSON object (e.g. {\"app\":\"myapp\"})")),
+		mcp.WithString("namespace", mcp.Description("Target namespace (overrides cluster default)")),
+	)
+	s.AddTool(k8sDeployTool, withPermissionCheck("k8s_deploy", withValidation("k8s_deploy", k8sDeployTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleK8sDeploy(ctx, deployer, request)
+	})))
+
+	// Register k8s_list_deployments tool
+	k8sListDeploymentsTool := mcp.NewTool("k8s_list_deployments",
+		mcp.WithDescription("List deployments in a Kubernetes cluster"),
+		mcp.WithString("cluster_id", mcp.Required(), mcp.Description("Kubernetes cluster ID")),
+		mcp.WithString("namespace", mcp.Description("Namespace to list deployments in (overrides cluster default)")),
+	)
+	s.AddTool(k8sListDeploymentsTool, withPermissionCheck("k8s_list_deployments", withValidation("k8s_list_deployments", k8sListDeploymentsTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleK8sListDeployments(ctx, deployer, request)
+	})))
+
+	// Register k8s_get_pods tool
+	k8sGetPodsTool := mcp.NewTool("k8s_get_pods",
+		mcp.WithDescription("Get pods in a Kubernetes cluster"),
+		mcp.WithString("cluster_id", mcp.Required(), mcp.Description("Kubernetes cluster ID")),
+		mcp.WithString("label_selector", mcp.Description("Label selector to filter pods (e.g. app=myapp)")),
+		mcp.WithString("namespace", mcp.Description("Namespace to list pods in (overrides cluster default)")),
+	)
+	s.AddTool(k8sGetPodsTool, withPermissionCheck("k8s_get_pods", withValidation("k8s_get_pods", k8sGetPodsTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleK8sGetPods(ctx, deployer, request)
 	})))
 
 	return s
@@ -2130,6 +2231,179 @@ func handlePingRegistry(ctx context.Context, deployer Deployer, request mcp.Call
 	result, err := deployer.RegistryOps(registryID, "ping", nil)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("ping registry failed: %v", err)), nil
+	}
+
+	data, _ := json.MarshalIndent(result, "", "  ")
+	return mcp.NewToolResultText(string(data)), nil
+}
+
+func handleListPlugins(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	provider := request.GetString("provider", "")
+
+	result, err := deployer.ListPlugins(provider)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("failed to list plugins: %v", err)), nil
+	}
+
+	data, _ := json.MarshalIndent(result, "", "  ")
+	return mcp.NewToolResultText(string(data)), nil
+}
+
+func handleManagePlugin(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	pluginID, err := request.RequireString("plugin_id")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+	action, err := request.RequireString("action")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	result, err := deployer.PluginOps(pluginID, action)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("plugin %s failed: %v", action, err)), nil
+	}
+
+	data, _ := json.MarshalIndent(result, "", "  ")
+	return mcp.NewToolResultText(string(data)), nil
+}
+
+func handleGetPluginInfo(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	pluginID, err := request.RequireString("plugin_id")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	result, err := deployer.GetPluginInfo(pluginID)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("failed to get plugin info: %v", err)), nil
+	}
+
+	data, _ := json.MarshalIndent(result, "", "  ")
+	return mcp.NewToolResultText(string(data)), nil
+}
+
+// ========== Kubernetes Tool Handlers ==========
+
+func handleListClusters(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	tenantID := request.GetString("tenant_id", "tenant-default")
+
+	clusters, err := deployer.ListClusters(ctx, tenantID)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("failed to list clusters: %v", err)), nil
+	}
+
+	result := map[string]interface{}{
+		"status":  "success",
+		"total":   len(clusters),
+		"clusters": clusters,
+	}
+
+	data, _ := json.MarshalIndent(result, "", "  ")
+	return mcp.NewToolResultText(string(data)), nil
+}
+
+func handleK8sDeploy(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	clusterID, err := request.RequireString("cluster_id")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+	name, err := request.RequireString("name")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+	image, err := request.RequireString("image")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	cfg := &K8sDeployConfig{
+		Name: name,
+		Image: image,
+	}
+
+	// Parse replicas
+	if r := request.GetString("replicas", ""); r != "" {
+		var replicas int32
+		_, _ = fmt.Sscanf(r, "%d", &replicas)
+		cfg.Replicas = replicas
+	}
+
+	// Parse ports
+	if p := request.GetString("ports", ""); p != "" {
+		for _, ps := range strings.Split(p, ",") {
+			ps = strings.TrimSpace(ps)
+			var port int32
+			if _, err := fmt.Sscanf(ps, "%d", &port); err == nil {
+				cfg.Ports = append(cfg.Ports, port)
+			}
+		}
+	}
+
+	// Parse env vars JSON
+	if envStr := request.GetString("env_vars", ""); envStr != "" {
+		var envVars map[string]string
+		if err := json.Unmarshal([]byte(envStr), &envVars); err != nil {
+			return mcp.NewToolResultError(fmt.Sprintf("invalid env_vars JSON: %v", err)), nil
+		}
+		cfg.EnvVars = envVars
+	}
+
+	// Parse labels JSON
+	if labelsStr := request.GetString("labels", ""); labelsStr != "" {
+		var labels map[string]string
+		if err := json.Unmarshal([]byte(labelsStr), &labels); err != nil {
+			return mcp.NewToolResultError(fmt.Sprintf("invalid labels JSON: %v", err)), nil
+		}
+		cfg.Labels = labels
+	}
+
+	cfg.Namespace = request.GetString("namespace", "")
+
+	if err := deployer.K8sDeploy(ctx, clusterID, cfg); err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("k8s deploy failed: %v", err)), nil
+	}
+
+	result := map[string]interface{}{
+		"status":  "success",
+		"message": fmt.Sprintf("deployment %s created on cluster %s", name, clusterID),
+		"deployment": map[string]string{
+			"name":       name,
+			"image":      image,
+			"cluster_id": clusterID,
+		},
+	}
+
+	data, _ := json.MarshalIndent(result, "", "  ")
+	return mcp.NewToolResultText(string(data)), nil
+}
+
+func handleK8sListDeployments(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	clusterID, err := request.RequireString("cluster_id")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	result, err := deployer.K8sListDeployments(ctx, clusterID)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("failed to list k8s deployments: %v", err)), nil
+	}
+
+	data, _ := json.MarshalIndent(result, "", "  ")
+	return mcp.NewToolResultText(string(data)), nil
+}
+
+func handleK8sGetPods(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	clusterID, err := request.RequireString("cluster_id")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	labelSelector := request.GetString("label_selector", "")
+
+	result, err := deployer.K8sGetPods(ctx, clusterID, labelSelector)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("failed to get k8s pods: %v", err)), nil
 	}
 
 	data, _ := json.MarshalIndent(result, "", "  ")

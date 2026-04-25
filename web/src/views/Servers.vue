@@ -12,7 +12,7 @@ import RelativeTime from '@/components/common/RelativeTime.vue'
 import Button from '@/components/ui/Button.vue'
 import Input from '@/components/ui/Input.vue'
 import Badge from '@/components/ui/Badge.vue'
-import Table from '@/components/ui/Table.vue'
+import Table from '@/components/ui/ResponsiveTable.vue'
 import DropdownMenu from '@/components/ui/DropdownMenu.vue'
 import AlertDialog from '@/components/ui/AlertDialog.vue'
 import Pagination from '@/components/ui/Pagination.vue'
@@ -43,10 +43,10 @@ const testingId = ref<number | null>(null)
 
 // Table columns
 const columns = computed(() => [
-  { key: 'name', label: t('servers.name') },
-  { key: 'host_port', label: t('servers.hostPort') },
-  { key: 'status', label: t('servers.status') },
-  { key: 'tags', label: t('servers.tags') },
+  { key: 'name', label: t('servers.name'), mobile: true },
+  { key: 'host_port', label: t('servers.hostPort'), mobile: true },
+  { key: 'status', label: t('servers.status'), mobile: true },
+  { key: 'tags', label: t('servers.tags'), mobile: true },
   { key: 'created_at', label: t('servers.createdAt') },
   { key: 'actions', label: t('servers.actions'), width: '80px' },
 ])
@@ -156,7 +156,7 @@ onMounted(fetchServers)
 </script>
 
 <template>
-  <div class="p-6 space-y-4">
+  <div class="space-y-4">
     <!-- Header -->
     <PageHeader :title="t('servers.title')">
       <template #actions>
@@ -169,7 +169,7 @@ onMounted(fetchServers)
 
     <!-- Search -->
     <div class="flex items-center gap-4">
-      <div class="relative w-72">
+      <div class="relative w-full sm:w-72">
         <Search class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
         <Input
           v-model="searchQuery"

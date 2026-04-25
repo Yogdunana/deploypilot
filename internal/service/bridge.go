@@ -21,6 +21,7 @@ import (
 	"github.com/Yogdunana/deploypilot/internal/metrics"
 	"github.com/Yogdunana/deploypilot/internal/model"
 	"github.com/Yogdunana/deploypilot/internal/monitor"
+	"github.com/Yogdunana/deploypilot/internal/plugin"
 	"github.com/Yogdunana/deploypilot/internal/provider/cicd"
 	"github.com/Yogdunana/deploypilot/internal/provider/dns"
 	"github.com/Yogdunana/deploypilot/internal/provider/notify"
@@ -76,6 +77,7 @@ type Bridge struct {
 	healer        *healer.Healer           // self-healing engine (lazy-initialized)
 	EventBus      EventBus                 // pub/sub for deploy progress events
 	TunnelManager TunnelManager            // agent reverse tunnel manager
+	PluginMgr     *plugin.Manager          // plugin lifecycle manager
 }
 
 // TunnelManager defines the interface for agent reverse tunnel management.
@@ -1846,6 +1848,358 @@ func (b *Bridge) TriggerCIBuild(ctx context.Context, providerType, repo, branch 
 	default:
 		return nil, fmt.Errorf("unsupported CI/CD provider type: %s", providerType)
 	}
+}
+
+// ========== Kubernetes Cluster Management ==========
+
+// CreateCluster creates a new Kubernetes cluster.
+func (b *Bridge) CreateCluster(ctx context.Context, cluster *model.Cluster) (*model.Cluster, error) {
+	if b.DB == nil {
+		return nil, fmt.Errorf("database not available")
+	}
+	return model.CreateCluster(cluster)
+}
+
+// GetCluster retrieves a cluster by ID.
+func (b *Bridge) GetCluster(ctx context.Context, id string) (*model.Cluster, error) {
+	if b.DB == nil {
+		return nil, fmt.Errorf("database not available")
+	}
+	return model.GetCluster(id)
+}
+
+// ListClusters returns all clusters for a tenant.
+func (b *Bridge) ListClusters(ctx context.Context, tenantID string) ([]model.Cluster, error) {
+	if b.DB == nil {
+		return nil, fmt.Errorf("database not available")
+	}
+	return model.ListClusters(tenantID)
+}
+
+// UpdateCluster updates a cluster's fields.
+func (b *Bridge) UpdateCluster(ctx context.Context, id string, updates map[string]interface{}) (*model.Cluster, error) {
+	if b.DB == nil {
+		return nil, fmt.Errorf("database not available")
+	}
+	return model.UpdateCluster(id, updates)
+}
+
+// DeleteCluster removes a cluster by ID.
+func (b *Bridge) DeleteCluster(ctx context.Context, id string) error {
+	if b.DB == nil {
+		return fmt.Errorf("database not available")
+	}
+	return model.DeleteCluster(id)
+}
+
+// TestClusterConnection tests connectivity to a Kubernetes cluster.
+func (b *Bridge) TestClusterConnection(ctx context.Context, id string) (interface{}, error) {
+	if b.DB == nil {
+		return nil, fmt.Errorf("database not available")
+	}
+
+	cluster, err := model.GetClusterWithSecrets(id)
+	if err != nil {
+		return nil, fmt.Errorf("cluster not found: %w", err)
+	}
+
+	k8sProvider, err := server.NewK8sProvider(cluster)
+	if err != nil {
+		return map[string]interface{}{
+			"status":  "error",
+			"message": fmt.Sprintf("failed to create k8s provider: %v", err),
+		}, nil
+	}
+
+	if err := k8sProvider.TestConnection(ctx); err != nil {
+		return map[string]interface{}{
+			"status":  "error",
+			"message": fmt.Sprintf("connection failed: %v", err),
+		}, nil
+	}
+
+	info, err := k8sProvider.GetClusterInfo(ctx)
+	if err != nil {
+		return map[string]interface{}{
+			"status":  "success",
+			"message": "connected",
+		}, nil
+	}
+
+	return map[string]interface{}{
+		"status": "success",
+		"message": "connected",
+		"info":   info,
+	}, nil
+}
+
+// ========== Kubernetes Deployment Operations ==========
+
+// K8sDeploy deploys an application to a Kubernetes cluster.
+func (b *Bridge) K8sDeploy(ctx context.Context, clusterID string, app *mcp.K8sDeployConfig) error {
+	if b.DB == nil {
+		return fmt.Errorf("database not available")
+	}
+
+	cluster, err := model.GetClusterWithSecrets(clusterID)
+	if err != nil {
+		return fmt.Errorf("cluster not found: %w", err)
+	}
+
+	k8sProvider, err := server.NewK8sProvider(cluster)
+	if err != nil {
+		return fmt.Errorf("failed to create k8s provider: %w", err)
+	}
+
+	deployCfg := &server.K8sDeployConfig{
+		Name:      app.Name,
+		Image:     app.Image,
+		Replicas:  app.Replicas,
+		Ports:     app.Ports,
+		EnvVars:   app.EnvVars,
+		Labels:    app.Labels,
+		Namespace: app.Namespace,
+	}
+
+	return k8sProvider.Deploy(ctx, deployCfg)
+}
+
+// K8sListDeployments lists deployments in a Kubernetes cluster.
+func (b *Bridge) K8sListDeployments(ctx context.Context, clusterID string) (interface{}, error) {
+	if b.DB == nil {
+		return nil, fmt.Errorf("database not available")
+	}
+
+	cluster, err := model.GetClusterWithSecrets(clusterID)
+	if err != nil {
+		return nil, fmt.Errorf("cluster not found: %w", err)
+	}
+
+	k8sProvider, err := server.NewK8sProvider(cluster)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create k8s provider: %w", err)
+	}
+
+	deployments, err := k8sProvider.ListDeployments(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list deployments: %w", err)
+	}
+
+	// Convert to serializable format
+	items := make([]map[string]interface{}, 0, len(deployments))
+	for _, d := range deployments {
+		replicas := int32(0)
+		if d.Spec.Replicas != nil {
+			replicas = *d.Spec.Replicas
+		}
+		items = append(items, map[string]interface{}{
+			"name":            d.Name,
+			"namespace":       d.Namespace,
+			"replicas":        replicas,
+			"available":       d.Status.AvailableReplicas,
+			"image":           d.Spec.Template.Spec.Containers[0].Image,
+			"created_at":      d.CreationTimestamp.Format("2006-01-02T15:04:05Z"),
+		})
+	}
+
+	return map[string]interface{}{
+		"status":  "success",
+		"total":   len(items),
+		"cluster": clusterID,
+		"items":   items,
+	}, nil
+}
+
+// K8sGetPods retrieves pods from a Kubernetes cluster.
+func (b *Bridge) K8sGetPods(ctx context.Context, clusterID, labelSelector string) (interface{}, error) {
+	if b.DB == nil {
+		return nil, fmt.Errorf("database not available")
+	}
+
+	cluster, err := model.GetClusterWithSecrets(clusterID)
+	if err != nil {
+		return nil, fmt.Errorf("cluster not found: %w", err)
+	}
+
+	k8sProvider, err := server.NewK8sProvider(cluster)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create k8s provider: %w", err)
+	}
+
+	pods, err := k8sProvider.GetPods(ctx, labelSelector)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get pods: %w", err)
+	}
+
+	// Convert to serializable format
+	items := make([]map[string]interface{}, 0, len(pods))
+	for _, p := range pods {
+		var containers []map[string]string
+		for _, c := range p.Spec.Containers {
+			containers = append(containers, map[string]string{
+				"name":  c.Name,
+				"image": c.Image,
+			})
+		}
+
+		items = append(items, map[string]interface{}{
+			"name":              p.Name,
+			"namespace":         p.Namespace,
+			"status":            string(p.Status.Phase),
+			"pod_ip":            p.Status.PodIP,
+			"node":              p.Spec.NodeName,
+			"restart_count":     p.Status.ContainerStatuses[0].RestartCount,
+			"created_at":        p.CreationTimestamp.Format("2006-01-02T15:04:05Z"),
+			"containers":        containers,
+		})
+	}
+
+	return map[string]interface{}{
+		"status":  "success",
+		"total":   len(items),
+		"cluster": clusterID,
+		"items":   items,
+	}, nil
+}
+
+// ---------- PluginOps ----------
+
+// PluginOps handles plugin lifecycle operations (enable, disable, reload).
+func (b *Bridge) PluginOps(pluginID string, action string) (interface{}, error) {
+	if b.PluginMgr == nil {
+		return nil, fmt.Errorf("plugin manager not available")
+	}
+
+	ctx := context.Background()
+
+	switch action {
+	case "enable":
+		if err := b.PluginMgr.EnablePlugin(ctx, pluginID); err != nil {
+			return nil, err
+		}
+		return map[string]interface{}{
+			"status":    "success",
+			"plugin_id": pluginID,
+			"action":    "enabled",
+		}, nil
+
+	case "disable":
+		if err := b.PluginMgr.DisablePlugin(ctx, pluginID); err != nil {
+			return nil, err
+		}
+		return map[string]interface{}{
+			"status":    "success",
+			"plugin_id": pluginID,
+			"action":    "disabled",
+		}, nil
+
+	case "reload":
+		if err := b.PluginMgr.ReloadPlugin(ctx, pluginID); err != nil {
+			return nil, err
+		}
+		return map[string]interface{}{
+			"status":    "success",
+			"plugin_id": pluginID,
+			"action":    "reloaded",
+		}, nil
+
+	default:
+		return nil, fmt.Errorf("unknown plugin action: %s (valid: enable, disable, reload)", action)
+	}
+}
+
+// ---------- ListPlugins ----------
+
+// ListPlugins returns all plugins from DB, optionally filtered by provider.
+func (b *Bridge) ListPlugins(provider string) (interface{}, error) {
+	if b.DB == nil {
+		return nil, fmt.Errorf("database not available")
+	}
+
+	plugins, err := model.ListPlugins("tenant-default", provider)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list plugins: %w", err)
+	}
+
+	// Enrich with registry descriptor info
+	result := make([]map[string]interface{}, 0, len(plugins))
+	for _, p := range plugins {
+		entry := map[string]interface{}{
+			"id":           p.ID,
+			"name":         p.Name,
+			"display_name": p.DisplayName,
+			"version":      p.Version,
+			"description":  p.Description,
+			"author":       p.Author,
+			"provider":     p.Provider,
+			"type":         p.Type,
+			"enabled":      p.Enabled,
+			"priority":     p.Priority,
+			"status":       p.Status,
+			"created_at":   p.CreatedAt,
+			"updated_at":   p.UpdatedAt,
+		}
+		if p.ErrorMsg != "" {
+			entry["error_msg"] = p.ErrorMsg
+		}
+		result = append(result, entry)
+	}
+
+	return map[string]interface{}{
+		"status": "success",
+		"total":  len(result),
+		"plugins": result,
+	}, nil
+}
+
+// ---------- GetPluginInfo ----------
+
+// GetPluginInfo returns detailed information about a specific plugin.
+func (b *Bridge) GetPluginInfo(pluginID string) (interface{}, error) {
+	if b.DB == nil {
+		return nil, fmt.Errorf("database not available")
+	}
+
+	p, err := model.GetPlugin(pluginID)
+	if err != nil {
+		return nil, fmt.Errorf("plugin not found: %w", err)
+	}
+
+	result := map[string]interface{}{
+		"id":           p.ID,
+		"name":         p.Name,
+		"display_name": p.DisplayName,
+		"version":      p.Version,
+		"description":  p.Description,
+		"author":       p.Author,
+		"provider":     p.Provider,
+		"type":         p.Type,
+		"enabled":      p.Enabled,
+		"priority":     p.Priority,
+		"status":       p.Status,
+		"created_at":   p.CreatedAt,
+		"updated_at":   p.UpdatedAt,
+	}
+
+	if p.ErrorMsg != "" {
+		result["error_msg"] = p.ErrorMsg
+	}
+
+	// Check if instance is loaded
+	if b.PluginMgr != nil {
+		instance, err := b.PluginMgr.GetPluginInstance(pluginID)
+		if err == nil {
+			result["instance_loaded"] = true
+			result["instance_type"] = fmt.Sprintf("%T", instance)
+		} else {
+			result["instance_loaded"] = false
+		}
+	}
+
+	return map[string]interface{}{
+		"status": "success",
+		"plugin": result,
+	}, nil
 }
 
 // ---------- RegistryOps ----------

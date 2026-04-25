@@ -114,7 +114,7 @@ async function handleRefresh() {
 
     <!-- 加载状态 -->
     <div v-if="loading && !metrics" class="space-y-4">
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
         <Skeleton v-for="i in 3" :key="i" class="h-36" />
       </div>
       <Skeleton class="h-32" />
@@ -130,7 +130,7 @@ async function handleRefresh() {
 
     <template v-else-if="metrics">
       <!-- 三个指标卡片 -->
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
         <!-- CPU -->
         <Card>
           <template #header>
@@ -202,7 +202,7 @@ async function handleRefresh() {
       </div>
 
       <!-- 网络和运行时间 -->
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
         <!-- 网络入站 -->
         <Card>
           <template #header>

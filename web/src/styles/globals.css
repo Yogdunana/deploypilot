@@ -32,6 +32,47 @@ body {
   background-color: var(--color-background);
   color: var(--color-foreground);
   font-family: var(--font-sans);
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Smooth scrolling on mobile */
+@media (max-width: 1023px) {
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
+/* Minimum touch target size for interactive elements */
+@media (pointer: coarse) {
+  button,
+  a,
+  [role="button"],
+  input[type="checkbox"],
+  input[type="radio"],
+  select,
+  summary {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* Remove hover effects on touch devices - only apply hover where pointer is available */
+  .hover\:bg-accent\/50:hover,
+  .hover\:bg-accent:hover,
+  .hover\:bg-accent\/80:hover,
+  .hover\:text-foreground:hover,
+  .hover\:text-accent-foreground:hover,
+  .hover\:bg-primary\/90:hover,
+  .hover\:bg-destructive\/90:hover,
+  .hover\:shadow-md:hover {
+    /* Reset hover styles on touch-only devices */
+  }
+}
+
+/* Only apply hover effects on devices that support hover */
+@media (hover: hover) and (pointer: fine) {
+  .hover\:bg-accent\/50:hover {
+    background-color: oklch(0.25 0 0 / 0.5);
+  }
 }
 
 /* Scrollbar styling */
@@ -48,4 +89,20 @@ body {
 }
 ::-webkit-scrollbar-thumb:hover {
   background: oklch(0.4 0 0);
+}
+
+/* Prevent text selection on interactive elements on touch */
+@media (pointer: coarse) {
+  button,
+  [role="button"] {
+    -webkit-user-select: none;
+    user-select: none;
+  }
+}
+
+/* Safe area insets for notched devices */
+@supports (padding: env(safe-area-inset-bottom)) {
+  body {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
 }

@@ -9,7 +9,7 @@ import Input from '@/components/ui/Input.vue'
 import Badge from '@/components/ui/Badge.vue'
 import Textarea from '@/components/ui/Textarea.vue'
 import Select from '@/components/ui/Select.vue'
-import Table from '@/components/ui/Table.vue'
+import Table from '@/components/ui/ResponsiveTable.vue'
 import Dialog from '@/components/ui/Dialog.vue'
 import AlertDialog from '@/components/ui/AlertDialog.vue'
 import DropdownMenu from '@/components/ui/DropdownMenu.vue'
@@ -64,9 +64,9 @@ const typeOptions = computed(() => [
 
 // Table columns
 const columns = computed(() => [
-  { key: 'name', label: t('credentials.name') },
-  { key: 'type', label: t('credentials.type') },
-  { key: 'expiry_status', label: t('credentials.expiryStatus') },
+  { key: 'name', label: t('credentials.name'), mobile: true },
+  { key: 'type', label: t('credentials.type'), mobile: true },
+  { key: 'expiry_status', label: t('credentials.expiryStatus'), mobile: true },
   { key: 'created_at', label: t('credentials.createdAt') },
   { key: 'actions', label: t('credentials.actions'), width: '80px' },
 ])
@@ -402,7 +402,7 @@ onMounted(fetchCredentials)
       :description="t('credentials.configDesc')"
     >
       <div v-if="detailItem" class="space-y-4">
-        <div class="grid grid-cols-2 gap-4">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div class="space-y-1">
             <p class="text-sm text-muted-foreground">{{ t('credentials.name') }}</p>
             <p class="text-sm font-medium">{{ detailItem.name }}</p>

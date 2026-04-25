@@ -931,6 +931,7 @@ export default {
     settings: 'Settings',
     logout: 'Logout',
     collapseSidebar: 'Collapse Sidebar',
+    expandSidebar: 'Expand Sidebar',
     profile: 'Profile',
     searchPlaceholder: 'Search pages or enter commands...',
     search: 'Search...',
@@ -938,6 +939,8 @@ export default {
     infrastructure: 'Infrastructure',
     ops: 'Operations',
     management: 'Management',
+    openMenu: 'Open Menu',
+    closeMenu: 'Close Menu',
   },
 
   status: {

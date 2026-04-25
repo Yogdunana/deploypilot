@@ -52,7 +52,7 @@ func New(addr string, db *gorm.DB, bridge *service.Bridge, cfg *config.Config) *
 	wsHub := api.NewWSHub()
 	go wsHub.Run()
 
-	api.RegisterRoutes(r, db, bridge, wsHub, auditSvc)
+	api.RegisterRoutes(r, db, bridge, wsHub, auditSvc, nil)
 
 	// Serve embedded frontend static files
 	serveStaticFiles(r)

@@ -40,6 +40,18 @@
   "error.registry.deleted": "registry deleted",
   "error.registry.name_and_provider_required": "name and provider are required",
 
+  "error.cluster.not_found": "cluster not found",
+  "error.cluster.deleted": "cluster deleted",
+  "error.cluster.name_required": "cluster name is required",
+  "error.cluster.api_server_required": "cluster api_server is required",
+  "cluster.status.connected": "connected",
+  "cluster.status.disconnected": "disconnected",
+  "cluster.status.unknown": "unknown",
+  "cluster.status.error": "error",
+  "error.cluster.connection_failed": "failed to connect to kubernetes cluster",
+  "error.cluster.create_failed": "failed to create cluster",
+  "error.cluster.update_failed": "failed to update cluster",
+
   "error.dns.domain_required": "domain query parameter is required",
   "error.dns.record_deleted": "DNS record deleted",
   "error.dns.westdns_config_required": "WestDNS requires API Token and API Secret configuration",
@@ -161,5 +173,27 @@
   "build.push.push_failed": "docker push failed: %s",
   "build.push.success": "image pushed to %s",
   "build.push.warning": "image push failed (build succeeded): %s",
-  "build.push.registry_not_found": "failed to load registry %s: %s"
+  "build.push.registry_not_found": "failed to load registry %s: %s",
+
+  "error.plugin.not_found": "plugin not found",
+  "error.plugin.deleted": "plugin deleted",
+  "error.plugin.name_required": "name is required",
+  "error.plugin.provider_and_type_required": "provider and type are required",
+  "error.plugin.already_registered": "plugin already registered: %s",
+  "error.plugin.not_registered": "plugin not registered: %s",
+  "error.plugin.create_failed": "failed to create plugin: %s",
+  "error.plugin.instance_create_failed": "failed to create plugin instance: %s",
+  "error.plugin.enable_failed": "failed to enable plugin: %s",
+  "error.plugin.disable_failed": "failed to disable plugin: %s",
+  "error.plugin.reload_failed": "failed to reload plugin: %s",
+  "error.plugin.load_failed": "failed to load plugin: %s",
+  "error.plugin.invalid_action": "invalid plugin action: %s",
+
+  "plugin.status.active": "active",
+  "plugin.status.error": "error",
+  "plugin.status.disabled": "disabled",
+  "plugin.enabled": "plugin enabled",
+  "plugin.disabled": "plugin disabled",
+  "plugin.reloaded": "plugin reloaded",
+  "plugin.deleted": "plugin deleted"
 }

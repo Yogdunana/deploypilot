@@ -8,7 +8,7 @@ import Button from '@/components/ui/Button.vue'
 import Input from '@/components/ui/Input.vue'
 import Badge from '@/components/ui/Badge.vue'
 import Select from '@/components/ui/Select.vue'
-import Table from '@/components/ui/Table.vue'
+import Table from '@/components/ui/ResponsiveTable.vue'
 import Dialog from '@/components/ui/Dialog.vue'
 import AlertDialog from '@/components/ui/AlertDialog.vue'
 import DropdownMenu from '@/components/ui/DropdownMenu.vue'
@@ -54,10 +54,10 @@ const typeOptions = [
 
 // Table columns
 const columns = computed(() => [
-  { key: 'domain', label: t('dns.domain') },
-  { key: 'subdomain', label: t('dns.subdomain') },
-  { key: 'type', label: t('dns.type') },
-  { key: 'value', label: t('dns.value') },
+  { key: 'domain', label: t('dns.domain'), mobile: true },
+  { key: 'subdomain', label: t('dns.subdomain'), mobile: true },
+  { key: 'type', label: t('dns.type'), mobile: true },
+  { key: 'value', label: t('dns.value'), mobile: true },
   { key: 'created_at', label: t('dns.createdAt') },
   { key: 'actions', label: t('dns.actions'), width: '80px' },
 ])
@@ -186,8 +186,8 @@ onMounted(fetchRecords)
     </PageHeader>
 
     <!-- Filter -->
-    <div class="flex items-center gap-4">
-      <div class="relative w-72">
+    <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
+      <div class="relative w-full sm:w-72">
         <Search class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
         <Input
           v-model="domainFilter"
@@ -229,7 +229,7 @@ onMounted(fetchRecords)
         </Badge>
       </template>
       <template #cell-value="{ row }">
-        <span class="text-sm text-muted-foreground font-mono truncate max-w-[200px] inline-block">{{ row.value }}</span>
+        <span class="text-sm text-muted-foreground font-mono truncate max-w-[120px] sm:max-w-[200px] inline-block">{{ row.value }}</span>
       </template>
       <template #cell-created_at="{ row }">
         <RelativeTime :date="row.created_at" />

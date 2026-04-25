@@ -9,16 +9,17 @@ import (
 
 // Config is the root configuration structure.
 type Config struct {
-	Server   ServerConfig   `mapstructure:"server"`
-	Database DatabaseConfig `mapstructure:"database"`
-	Auth     AuthConfig     `mapstructure:"auth"`
-	Deploy   DeployConfig   `mapstructure:"deploy"`
-	Cache    CacheConfig    `mapstructure:"cache"`
-	Security SecurityConfig `mapstructure:"security"`
-	Log      LogConfig      `mapstructure:"log"`
-	Notify   NotifyConfig   `mapstructure:"notify"`
-	Monitor  MonitorConfig  `mapstructure:"monitor"`
-	Redis    RedisConfig    `mapstructure:"redis"`
+	Server    ServerConfig    `mapstructure:"server"`
+	Database  DatabaseConfig  `mapstructure:"database"`
+	Auth      AuthConfig      `mapstructure:"auth"`
+	Deploy    DeployConfig    `mapstructure:"deploy"`
+	Cache     CacheConfig     `mapstructure:"cache"`
+	Security  SecurityConfig  `mapstructure:"security"`
+	Log       LogConfig       `mapstructure:"log"`
+	Notify    NotifyConfig    `mapstructure:"notify"`
+	Monitor   MonitorConfig   `mapstructure:"monitor"`
+	Redis     RedisConfig     `mapstructure:"redis"`
+	Kubernetes KubernetesConfig `mapstructure:"kubernetes"`
 }
 
 // RedisConfig holds Redis connection settings for Pub/Sub.
@@ -96,6 +97,21 @@ type NotifyConfig struct {
 type MonitorConfig struct {
 	Enabled     bool `mapstructure:"enabled"`
 	MetricsPort int  `mapstructure:"metrics_port"`
+}
+
+// KubernetesConfig holds Kubernetes cluster settings.
+type KubernetesConfig struct {
+	Enabled          bool            `mapstructure:"enabled"`
+	DefaultNamespace string          `mapstructure:"default_namespace"`
+	Clusters         []ClusterConfig `mapstructure:"clusters"`
+}
+
+// ClusterConfig holds a single Kubernetes cluster configuration.
+type ClusterConfig struct {
+	Name      string `mapstructure:"name"`
+	APIServer string `mapstructure:"api_server"`
+	Context   string `mapstructure:"context"`
+	Namespace string `mapstructure:"namespace"`
 }
 
 // Load reads the configuration file and applies environment variable overrides.
@@ -196,4 +212,8 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("redis.addr", "localhost:6379")
 	v.SetDefault("redis.password", "")
 	v.SetDefault("redis.db", 0)
+
+	// Kubernetes
+	v.SetDefault("kubernetes.enabled", false)
+	v.SetDefault("kubernetes.default_namespace", "default")
 }

@@ -12,6 +12,7 @@ var ToolPermissions = map[string]int{
 	"get_system_metrics": 1, "list_alerts": 1, "list_alert_rules": 1,
 	"get_ci_build_status": 1, "list_ssl_certificates": 1,
 	"get_context": 1, "detect_panel": 1,
+	"list_clusters": 1, "k8s_list_deployments": 1, "k8s_get_pods": 1,
 
 	// Dev-level (operations)
 	"deploy_app": 2, "create_app": 2, "update_app": 2,
@@ -24,6 +25,8 @@ var ToolPermissions = map[string]int{
 	"trigger_ci_build": 2, "search_app_logs": 2, "get_app_logs": 2,
 	"request_ssl_certificate": 2, "renew_ssl_certificate": 2,
 	"registry_login": 2, "push_image": 2, "list_registry_tags": 2, "ping_registry": 2,
+	"k8s_deploy": 2,
+	"list_plugins": 2, "manage_plugin": 2, "get_plugin_info": 2,
 
 	// Admin-level (dangerous)
 	"delete_app": 3, "delete_server": 3, "delete_credential": 3,

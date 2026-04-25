@@ -203,10 +203,10 @@ function formatTime(dateStr: string): string {
                 {{ getBuildStatusLabel(buildResult.status) }}
               </Badge>
             </div>
-            <div class="grid grid-cols-2 gap-2 text-xs">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
               <div>
                 <span class="text-muted-foreground">Run ID:</span>
-                <span class="text-foreground ml-1 font-mono">{{ buildResult.run_id }}</span>
+                <span class="text-foreground ml-1 font-mono break-all">{{ buildResult.run_id }}</span>
               </div>
               <div>
                 <span class="text-muted-foreground">Provider:</span>
@@ -284,7 +284,7 @@ function formatTime(dateStr: string): string {
               </div>
             </div>
 
-            <div class="grid grid-cols-2 gap-2 text-xs">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
               <div>
                 <span class="text-muted-foreground">Provider:</span>
                 <span class="text-foreground ml-1">{{ queryResult.provider }}</span>

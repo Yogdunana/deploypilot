@@ -81,6 +81,15 @@ func setupTestDB(t *testing.T) *gorm.DB {
 		action TEXT, resource_type TEXT, resource_id TEXT, detail TEXT,
 		ip_address TEXT, user_agent TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 	)`)
+	db.Exec(`CREATE TABLE IF NOT EXISTS clusters (
+		id TEXT PRIMARY KEY, tenant_id TEXT, name TEXT NOT NULL,
+		description TEXT, provider TEXT DEFAULT 'kubernetes', api_server TEXT NOT NULL,
+		kube_config TEXT, kube_config_path TEXT, context TEXT,
+		namespace TEXT DEFAULT 'default', token TEXT, ca_data TEXT,
+		status TEXT DEFAULT 'unknown', version TEXT, node_count INTEGER DEFAULT 0,
+		tags TEXT,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+	)`)
 
 	// Seed roles
 	db.Exec(`INSERT INTO roles (id, name, permissions) VALUES
@@ -148,7 +157,7 @@ func setupFullTestRouter(db *gorm.DB, bridge *service.Bridge) *gin.Engine {
 	wsHub := NewWSHub()
 	go wsHub.Run()
 	auditSvc := service.NewAuditService(db)
-	RegisterRoutes(r, db, bridge, wsHub, auditSvc)
+	RegisterRoutes(r, db, bridge, wsHub, auditSvc, nil)
 	return r
 }
 

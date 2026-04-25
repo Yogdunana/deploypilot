@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/Yogdunana/deploypilot/internal/auth"
+	"github.com/Yogdunana/deploypilot/internal/plugin"
 	"github.com/Yogdunana/deploypilot/internal/service"
 	"github.com/gin-gonic/gin"
 	ginSwagger "github.com/swaggo/gin-swagger"
@@ -13,7 +14,7 @@ import (
 )
 
 // RegisterRoutes registers all API routes on the given Gin engine.
-func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *WSHub, auditSvc *service.AuditService) {
+func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *WSHub, auditSvc *service.AuditService, pluginManager *plugin.Manager) {
 	// Swagger documentation
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
@@ -94,6 +95,17 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 			creds.PUT("/:id", UpdateCredential(bridge))
 			creds.DELETE("/:id", DeleteCredential(bridge))
 			creds.POST("/:id/rotate", RotateCredential(bridge, auditSvc))
+		}
+
+		// Clusters (6 endpoints)
+		clusters := protected.Group("/clusters")
+		{
+			clusters.GET("", ListClusters(bridge))
+			clusters.POST("", CreateCluster(bridge))
+			clusters.GET("/:id", GetCluster(bridge))
+			clusters.PUT("/:id", UpdateCluster(bridge))
+			clusters.DELETE("/:id", DeleteCluster(bridge))
+			clusters.POST("/:id/test", TestClusterConnection(bridge))
 		}
 
 		// Registries (5 endpoints)
@@ -205,6 +217,20 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 			ssl.POST("/certificates", RequestSSLCertificate(db))
 			ssl.DELETE("/certificates/:id", DeleteSSLCertificate(db))
 			ssl.POST("/certificates/:id/renew", RenewSSLCertificate(db))
+		}
+
+		// Plugins (8 endpoints)
+		pluginHandler := NewPluginHandler(pluginManager)
+		plugins := protected.Group("/plugins")
+		{
+			plugins.GET("", pluginHandler.ListPlugins())
+			plugins.POST("", pluginHandler.CreatePlugin())
+			plugins.GET("/:id", pluginHandler.GetPlugin())
+			plugins.PUT("/:id", pluginHandler.UpdatePlugin())
+			plugins.DELETE("/:id", pluginHandler.DeletePlugin())
+			plugins.POST("/:id/enable", pluginHandler.EnablePlugin())
+			plugins.POST("/:id/disable", pluginHandler.DisablePlugin())
+			plugins.POST("/:id/reload", pluginHandler.ReloadPlugin())
 		}
 	}
 }

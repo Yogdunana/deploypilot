@@ -73,7 +73,7 @@ onMounted(fetchSystemInfo)
 </script>
 
 <template>
-  <div class="p-6 space-y-4">
+  <div class="space-y-4">
     <!-- Header -->
     <PageHeader :title="t('system.title')" />
 

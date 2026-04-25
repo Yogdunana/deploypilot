@@ -5,7 +5,7 @@ import PageHeader from '@/components/common/PageHeader.vue'
 import Badge from '@/components/ui/Badge.vue'
 import Button from '@/components/ui/Button.vue'
 import Card from '@/components/ui/Card.vue'
-import Table from '@/components/ui/Table.vue'
+import Table from '@/components/ui/ResponsiveTable.vue'
 import Dialog from '@/components/ui/Dialog.vue'
 import AlertDialog from '@/components/ui/AlertDialog.vue'
 import Input from '@/components/ui/Input.vue'
@@ -48,10 +48,10 @@ const providerOptions = computed(() => [
 
 // 表格列
 const columns = computed(() => [
-  { key: 'domain', label: t('ssl.domain') },
-  { key: 'provider', label: t('ssl.provider') },
-  { key: 'status', label: t('ssl.status') },
-  { key: 'expires_at', label: t('ssl.expiresAt') },
+  { key: 'domain', label: t('ssl.domain'), mobile: true },
+  { key: 'provider', label: t('ssl.provider'), mobile: true },
+  { key: 'status', label: t('ssl.status'), mobile: true },
+  { key: 'expires_at', label: t('ssl.expiresAt'), mobile: true },
   { key: 'auto_renew', label: t('ssl.autoRenew') },
   { key: 'actions', label: t('ssl.actions'), width: '160px' },
 ])
@@ -208,11 +208,11 @@ onMounted(() => {
       <template #actions>
         <Button variant="outline" size="sm" :loading="loading" @click="handleRefresh">
           <template #icon><RefreshCw class="w-4 h-4" /></template>
-          {{ t('ssl.refresh') }}
+          <span class="hidden sm:inline">{{ t('ssl.refresh') }}</span>
         </Button>
         <Button size="sm" @click="openCreateDialog">
           <template #icon><Plus class="w-4 h-4" /></template>
-          {{ t('ssl.addCertificate') }}
+          <span class="hidden sm:inline">{{ t('ssl.addCertificate') }}</span>
         </Button>
       </template>
     </PageHeader>
@@ -250,22 +250,22 @@ onMounted(() => {
           <Button
             variant="ghost"
             size="sm"
-            class="h-7 text-xs"
+            class="h-8 sm:h-7 text-xs min-w-[2.5rem]"
             :loading="renewingId === row.id"
             :disabled="row.status === 'expired'"
             @click="handleRenew(row as SSLCertificate)"
           >
             <template #icon><RotateCcw class="w-3.5 h-3.5" /></template>
-            {{ t('ssl.renew') }}
+            <span class="hidden sm:inline">{{ t('ssl.renew') }}</span>
           </Button>
           <Button
             variant="ghost"
             size="sm"
-            class="h-7 text-xs text-muted-foreground hover:text-destructive"
+            class="h-8 sm:h-7 text-xs text-muted-foreground hover:text-destructive min-w-[2.5rem]"
             @click="openDeleteDialog(row as SSLCertificate)"
           >
             <template #icon><Trash2 class="w-3.5 h-3.5" /></template>
-            {{ t('ssl.delete') }}
+            <span class="hidden sm:inline">{{ t('ssl.delete') }}</span>
           </Button>
         </div>
       </template>

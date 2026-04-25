@@ -931,6 +931,7 @@ export default {
     settings: '系统设置',
     logout: '退出登录',
     collapseSidebar: '收起侧栏',
+    expandSidebar: '展开侧栏',
     profile: '个人设置',
     searchPlaceholder: '搜索页面或输入命令...',
     search: '搜索...',
@@ -938,6 +939,8 @@ export default {
     infrastructure: '基础设施',
     ops: '运维',
     management: '管理',
+    openMenu: '打开菜单',
+    closeMenu: '关闭菜单',
   },
 
   status: {

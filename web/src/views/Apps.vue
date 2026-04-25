@@ -14,7 +14,7 @@ import Button from '@/components/ui/Button.vue'
 import Input from '@/components/ui/Input.vue'
 import Badge from '@/components/ui/Badge.vue'
 import Tabs from '@/components/ui/Tabs.vue'
-import Table from '@/components/ui/Table.vue'
+import Table from '@/components/ui/ResponsiveTable.vue'
 import DropdownMenu from '@/components/ui/DropdownMenu.vue'
 import AlertDialog from '@/components/ui/AlertDialog.vue'
 import Pagination from '@/components/ui/Pagination.vue'
@@ -51,10 +51,10 @@ const statusTabs = computed(() => [
 
 // Table columns
 const columns = computed(() => [
-  { key: 'name', label: t('apps.name') },
-  { key: 'tech_stack', label: t('apps.stack') },
-  { key: 'status', label: t('apps.status') },
-  { key: 'domain', label: t('apps.domain') },
+  { key: 'name', label: t('apps.name'), mobile: true },
+  { key: 'tech_stack', label: t('apps.stack'), mobile: true },
+  { key: 'status', label: t('apps.status'), mobile: true },
+  { key: 'domain', label: t('apps.domain'), mobile: true },
   { key: 'server', label: t('apps.server') },
   { key: 'created_at', label: t('apps.createdAt') },
   { key: 'actions', label: t('apps.actions'), width: '80px' },
@@ -153,7 +153,7 @@ onMounted(fetchApps)
 </script>
 
 <template>
-  <div class="p-6 space-y-4">
+  <div class="space-y-4">
     <!-- Header -->
     <PageHeader :title="t('apps.title')">
       <template #actions>
@@ -165,8 +165,8 @@ onMounted(fetchApps)
     </PageHeader>
 
     <!-- Search & Filters -->
-    <div class="flex items-center gap-4">
-      <div class="relative w-72">
+    <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
+      <div class="relative w-full sm:w-72">
         <Search class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
         <Input
           v-model="searchQuery"
