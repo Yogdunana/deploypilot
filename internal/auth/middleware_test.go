@@ -389,3 +389,75 @@ func TestOptionalAuth_InvalidFormat(t *testing.T) {
 		t.Errorf("expected 200, got %d", w.Code)
 	}
 }
+
+func TestRoleRequired_InvalidRoleType(t *testing.T) {
+	r := setupGinTest()
+
+	r.Use(func(c *gin.Context) {
+		c.Set(string(RoleKey), 12345) // non-string role
+		c.Next()
+	})
+	r.Use(RoleRequired("admin"))
+	r.GET("/test", func(c *gin.Context) {
+		c.Status(http.StatusOK)
+	})
+
+	req := httptest.NewRequest("GET", "/test", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusInternalServerError {
+		t.Errorf("expected 500 for invalid role type, got %d", w.Code)
+	}
+}
+
+func TestRoleRequired_UnknownRole(t *testing.T) {
+	r := setupGinTest()
+
+	// Create a token with a role that doesn't exist in the hierarchy
+	unknownClaims := &Claims{
+		UserID: "user-unknown",
+		Role:   "superadmin",
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(24 * time.Hour)),
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
+		},
+	}
+	token := createTokenFromClaims(unknownClaims)
+
+	r.Use(AuthMiddleware())
+	r.Use(RoleRequired("admin"))
+	r.GET("/test", func(c *gin.Context) {
+		c.Status(http.StatusOK)
+	})
+
+	req := httptest.NewRequest("GET", "/test", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusForbidden {
+		t.Errorf("expected 403 for unknown role, got %d", w.Code)
+	}
+}
+
+func TestRoleRequired_EmptyRoles(t *testing.T) {
+	r := setupGinTest()
+
+	token, _ := GenerateToken("viewer-user", "viewer")
+	r.Use(AuthMiddleware())
+	r.Use(RoleRequired()) // no roles required
+	r.GET("/test", func(c *gin.Context) {
+		c.Status(http.StatusOK)
+	})
+
+	req := httptest.NewRequest("GET", "/test", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	// With no roles specified, none should match -> 403
+	if w.Code != http.StatusForbidden {
+		t.Errorf("expected 403 for empty roles list, got %d", w.Code)
+	}
+}

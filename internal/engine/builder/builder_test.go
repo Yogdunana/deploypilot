@@ -268,3 +268,142 @@ func TestNewBuilder(t *testing.T) {
 		t.Fatal("NewBuilder() registry is nil")
 	}
 }
+
+func TestBuilder_GitClone_PullError(t *testing.T) {
+	exec := &builderMockExecutor{
+		responses: map[string]string{
+			"test -d /tmp/builds/.git": "exists",
+		},
+		errs: map[string]error{
+			"git pull": fmt.Errorf("pull failed"),
+		},
+	}
+	b := NewBuilder(exec)
+	cfg := BuildConfig{
+		RepoURL:    "https://github.com/user/repo.git",
+		Branch:     "main",
+		AppName:    "myapp",
+		ProjectDir: "/tmp/builds",
+	}
+
+	_, err := b.gitClone(context.Background(), cfg)
+	if err == nil {
+		t.Fatal("expected error when git pull fails")
+	}
+	if !strings.Contains(err.Error(), "git pull failed") {
+		t.Errorf("expected 'git pull failed' error, got: %v", err)
+	}
+}
+
+func TestBuilder_GitClone_RevParseError(t *testing.T) {
+	exec := &builderMockExecutor{
+		responses: map[string]string{
+			"test -d /tmp/builds/.git": "",
+		},
+		errs: map[string]error{
+			"git rev-parse HEAD": fmt.Errorf("not a git repo"),
+		},
+	}
+	b := NewBuilder(exec)
+	cfg := BuildConfig{
+		RepoURL:    "https://github.com/user/repo.git",
+		Branch:     "main",
+		AppName:    "myapp",
+		ProjectDir: "/tmp/builds",
+	}
+
+	_, err := b.gitClone(context.Background(), cfg)
+	if err == nil {
+		t.Fatal("expected error when rev-parse fails")
+	}
+}
+
+func TestBuildAndDeploy_DockerfileWriteError(t *testing.T) {
+	commitHash := "a1b2c3d4e5f6g7h8i9j0"
+	exec := &builderMockExecutor{
+		responses: map[string]string{
+			"test -d /tmp/deploypilot-builds/writefail/.git": "",
+			"git rev-parse HEAD":                              commitHash,
+			"test -f /tmp/deploypilot-builds/writefail/go.mod": "exists",
+		},
+		errs: map[string]error{
+			"cat > /tmp/deploypilot-builds/writefail/Dockerfile": fmt.Errorf("permission denied"),
+		},
+	}
+	b := NewBuilder(exec)
+
+	cfg := BuildConfig{
+		RepoURL: "https://github.com/user/gorepo.git",
+		Branch:  "main",
+		AppName: "writefail",
+	}
+
+	_, err := b.BuildAndDeploy(context.Background(), cfg)
+	if err == nil {
+		t.Fatal("expected error when Dockerfile write fails")
+	}
+	if !strings.Contains(err.Error(), "failed to write Dockerfile") {
+		t.Errorf("expected 'failed to write Dockerfile' error, got: %v", err)
+	}
+}
+
+func TestBuildAndDeploy_DockerBuildError(t *testing.T) {
+	commitHash := "a1b2c3d4e5f6g7h8i9j0"
+	exec := &builderMockExecutor{
+		responses: map[string]string{
+			"test -d /tmp/deploypilot-builds/buildfail/.git": "",
+			"git rev-parse HEAD":                              commitHash,
+			"docker build": "error: no space left on device",
+		},
+		errs: map[string]error{
+			"docker build": fmt.Errorf("no space left on device"),
+		},
+	}
+	b := NewBuilder(exec)
+
+	cfg := BuildConfig{
+		RepoURL: "https://github.com/user/gorepo.git",
+		Branch:  "main",
+		AppName: "buildfail",
+	}
+
+	_, err := b.BuildAndDeploy(context.Background(), cfg)
+	if err == nil {
+		t.Fatal("expected error when docker build fails")
+	}
+	if !strings.Contains(err.Error(), "docker build failed") {
+		t.Errorf("expected 'docker build failed' error, got: %v", err)
+	}
+}
+
+func TestBuildAndDeploy_ExplicitBranchAndProjectDir(t *testing.T) {
+	commitHash := "aabbccddeeff00112233"
+	exec := &builderMockExecutor{
+		responses: map[string]string{
+			"test -d /custom/dir/.git": "",
+			"git rev-parse HEAD":       commitHash,
+			"docker build":             "built",
+			"docker inspect":           "sha256:custom",
+		},
+	}
+	b := NewBuilder(exec)
+
+	cfg := BuildConfig{
+		RepoURL:    "https://github.com/user/repo.git",
+		Branch:     "develop",
+		AppName:    "customapp",
+		ProjectDir: "/custom/dir",
+		TechStack:  "docker",
+	}
+
+	result, err := b.BuildAndDeploy(context.Background(), cfg)
+	if err != nil {
+		t.Fatalf("BuildAndDeploy() error = %v", err)
+	}
+	if result.TechStack != "docker" {
+		t.Errorf("expected tech_stack=docker, got %q", result.TechStack)
+	}
+	if result.Image != "customapp:aabbccdd" {
+		t.Errorf("expected image customapp:aabbccdd, got %q", result.Image)
+	}
+}

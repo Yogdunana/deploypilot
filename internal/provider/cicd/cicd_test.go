@@ -385,6 +385,40 @@ func TestGitHubActionsGetBuildLogsRedirectEmptyLocation(t *testing.T) {
 	_ = logs
 }
 
+func TestGitHubActionsGetBuildLogsRedirectSuccess(t *testing.T) {
+	redirectCalled := false
+	var ts *httptest.Server
+	ts = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/repos/test-owner/actions/runs/12345/logs" {
+			w.Header().Set("Location", ts.URL+"/redirect-logs")
+			w.WriteHeader(http.StatusFound)
+			return
+		}
+		if r.URL.Path == "/redirect-logs" {
+			redirectCalled = true
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte("redirected log content"))
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer ts.Close()
+
+	g := NewGitHubActionsProvider("test-token", "test-owner")
+	g.SetBaseURL(ts.URL)
+
+	logs, err := g.GetBuildLogs(context.Background(), "12345")
+	if err != nil {
+		t.Fatalf("GetBuildLogs redirect success: %v", err)
+	}
+	if !redirectCalled {
+		t.Error("expected redirect URL to be followed")
+	}
+	if logs != "redirected log content" {
+		t.Errorf("expected 'redirected log content', got %q", logs)
+	}
+}
+
 func TestGitHubActionsTriggerBuildContextCancelled(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Simulate slow response

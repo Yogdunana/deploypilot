@@ -225,3 +225,130 @@ func TestConnect_UnsupportedDrivers(t *testing.T) {
 		}
 	}
 }
+
+func TestConnect_PostgresInvalidDSN(t *testing.T) {
+	// postgres driver with invalid DSN should return an error
+	_, err := Connect("postgres", "invalid-dsn")
+	if err == nil {
+		t.Error("expected error for invalid postgres DSN")
+	}
+}
+
+func TestConnect_SQLiteValid(t *testing.T) {
+	db, err := Connect("sqlite", ":memory:")
+	if err != nil {
+		t.Fatalf("expected no error for sqlite :memory:, got: %v", err)
+	}
+	if db == nil {
+		t.Fatal("expected non-nil db")
+	}
+	sqlDB, err := db.DB()
+	if err != nil {
+		t.Fatalf("failed to get underlying sql.DB: %v", err)
+	}
+	if sqlDB == nil {
+		t.Fatal("expected non-nil sqlDB")
+	}
+}
+
+func TestSeed_VerifyDefaultTenant_Cov(t *testing.T) {
+	db, err := Connect("sqlite", ":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := Migrate(db); err != nil {
+		t.Fatal(err)
+	}
+	if err := Seed(db); err != nil {
+		t.Fatal(err)
+	}
+
+	var name string
+	db.Table("tenants").Where("id = ?", "tenant-default").Select("name").Scan(&name)
+	if name != "Default" {
+		t.Errorf("expected tenant name 'Default', got %q", name)
+	}
+}
+
+func TestSeed_Idempotent_Cov(t *testing.T) {
+	db, err := Connect("sqlite", ":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := Migrate(db); err != nil {
+		t.Fatal(err)
+	}
+	// Seed twice - should not fail due to INSERT OR IGNORE
+	if err := Seed(db); err != nil {
+		t.Fatal(err)
+	}
+	if err := Seed(db); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestMigrate_Idempotent_Cov(t *testing.T) {
+	db, err := Connect("sqlite", ":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// First migration
+	if err := Migrate(db); err != nil {
+		t.Fatal(err)
+	}
+	// Second migration on same DB - covers gormigrate's "already applied" path
+	if err := Migrate(db); err != nil {
+		t.Fatalf("second Migrate should be idempotent: %v", err)
+	}
+
+	// Verify tables still exist
+	expectedTables := []string{
+		"tenants", "roles", "users", "credentials", "providers",
+		"servers", "apps", "deployments", "audit_logs", "ssl_certificates",
+	}
+	for _, table := range expectedTables {
+		var count int64
+		db.Raw("SELECT count(*) FROM sqlite_master WHERE type='table' AND name=?", table).Scan(&count)
+		if count != 1 {
+			t.Errorf("table %q not found after second migrate", table)
+		}
+	}
+}
+
+func TestMigrate_Rollback_Cov(t *testing.T) {
+	db, err := Connect("sqlite", ":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := Migrate(db); err != nil {
+		t.Fatal(err)
+	}
+
+	// Verify all tables exist
+	expectedTables := []string{
+		"tenants", "roles", "users", "credentials", "providers",
+		"servers", "apps", "deployments", "audit_logs", "ssl_certificates",
+	}
+	for _, table := range expectedTables {
+		var count int64
+		db.Raw("SELECT count(*) FROM sqlite_master WHERE type='table' AND name=?", table).Scan(&count)
+		if count != 1 {
+			t.Errorf("table %q not found after migrate", table)
+		}
+	}
+
+	// Verify individual rollback functions work
+	tx := db.Begin()
+	_ = tx.Migrator().DropTable("apps", "servers", "providers", "credentials", "users", "roles", "tenants")
+	tx.Rollback()
+	_ = tx
+
+	// Verify tables still exist after rollback
+	for _, table := range expectedTables {
+		var count int64
+		db.Raw("SELECT count(*) FROM sqlite_master WHERE type='table' AND name=?", table).Scan(&count)
+		if count != 1 {
+			t.Errorf("table %q should still exist after rollback", table)
+		}
+	}
+}

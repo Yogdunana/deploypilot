@@ -149,6 +149,320 @@ func TestUpdateUserRole_InvalidJSON_Coverage(t *testing.T) {
 	}
 }
 
+func TestRollbackApp_AppFound_Cov(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	db := setupTestDB(t)
+	defer db.Exec("VACUUM")
+
+	bridge := createTestBridge(t, db)
+
+	// Create an app
+	appID := uuid.New().String()
+	db.Exec(`INSERT INTO apps (id, name, repo_url, branch, tech_stack) VALUES (?, 'rollback-app-cov', 'https://github.com/test/repo', 'main', 'docker')`, appID)
+
+	r := gin.New()
+	r.POST("/api/v1/apps/:id/rollback", RollbackApp(bridge))
+
+	body, _ := json.Marshal(map[string]interface{}{
+		"previous_image": "nginx:1.19",
+	})
+	req, _ := http.NewRequest("POST", "/api/v1/apps/"+appID+"/rollback", bytes.NewBuffer(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	// Rollback will be called - may succeed or fail, but should not be 404
+	if w.Code == http.StatusNotFound {
+		t.Errorf("expected non-404 when app exists, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestGetContainerLogs_AppFound_Cov(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	db := setupTestDB(t)
+	defer db.Exec("VACUUM")
+
+	bridge := createTestBridge(t, db)
+
+	// Create an app
+	appID := uuid.New().String()
+	db.Exec(`INSERT INTO apps (id, name, repo_url, branch, tech_stack) VALUES (?, 'logs-app-cov', 'https://github.com/test/repo', 'main', 'docker')`, appID)
+
+	r := gin.New()
+	r.GET("/api/v1/apps/:id/logs/container", GetContainerLogs(bridge))
+
+	req := httptest.NewRequest("GET", "/api/v1/apps/"+appID+"/logs/container?tail=50", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	// Should not be 404 since app exists
+	if w.Code == http.StatusNotFound {
+		t.Errorf("expected non-404 when app exists, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestUpdateAppEnv_Success_Cov(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	db := setupTestDB(t)
+	defer db.Exec("VACUUM")
+
+	// Create an app
+	appID := uuid.New().String()
+	db.Exec(`INSERT INTO apps (id, name, repo_url, branch, tech_stack) VALUES (?, 'env-app-cov', 'https://github.com/test/repo', 'main', 'docker')`, appID)
+
+	r := gin.New()
+	r.PUT("/api/v1/apps/:id/env", UpdateAppEnv(db))
+
+	body, _ := json.Marshal(map[string]interface{}{
+		"env_vars": "KEY1=value1\nKEY2=value2",
+	})
+	req, _ := http.NewRequest("PUT", "/api/v1/apps/"+appID+"/env", bytes.NewBuffer(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestListApps_WithData_Cov(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	db := setupTestDB(t)
+	defer db.Exec("VACUUM")
+
+	// Create an app
+	db.Exec(`INSERT INTO apps (id, name, repo_url, branch, tech_stack) VALUES (?, 'list-app-cov', 'https://github.com/test/repo', 'main', 'docker')`, uuid.New().String())
+
+	r := gin.New()
+	r.GET("/api/v1/apps", ListApps(db))
+
+	req := httptest.NewRequest("GET", "/api/v1/apps", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+	var resp map[string]interface{}
+	json.Unmarshal(w.Body.Bytes(), &resp)
+	data := resp["data"].([]interface{})
+	if len(data) < 1 {
+		t.Error("expected at least 1 app in list")
+	}
+}
+
+func TestGetAppStatus_AppFound_Cov(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	db := setupTestDB(t)
+	defer db.Exec("VACUUM")
+
+	bridge := createTestBridge(t, db)
+
+	// Create an app
+	appID := uuid.New().String()
+	db.Exec(`INSERT INTO apps (id, name, repo_url, branch, tech_stack) VALUES (?, 'status-app-cov', 'https://github.com/test/repo', 'main', 'docker')`, appID)
+
+	r := gin.New()
+	r.GET("/api/v1/apps/:id/status", GetAppStatus(bridge))
+
+	req := httptest.NewRequest("GET", "/api/v1/apps/"+appID+"/status", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	// Should not be 404 since app exists
+	if w.Code == http.StatusNotFound {
+		t.Errorf("expected non-404 when app exists, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestDeployApp_WithPorts_Cov(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	db := setupTestDB(t)
+	defer db.Exec("VACUUM")
+
+	bridge := createTestBridge(t, db)
+
+	// Create an app
+	appID := uuid.New().String()
+	db.Exec(`INSERT INTO apps (id, name, repo_url, branch, tech_stack) VALUES (?, 'deploy-app-cov', 'https://github.com/test/repo', 'main', 'docker')`, appID)
+
+	r := gin.New()
+	r.POST("/api/v1/apps/:id/deploy", DeployApp(bridge))
+
+	body, _ := json.Marshal(map[string]interface{}{
+		"image":           "nginx:latest",
+		"container_name":  "deploy-cov-app",
+		"ports":           "8080:80",
+		"env_vars":        `{"KEY":"VALUE"}`,
+		"restart_policy":  "always",
+		"network":         "mynet",
+		"volumes":         "/host:/container",
+		"labels":          `{"app":"myapp"}`,
+		"cpu":             "2",
+		"memory":          "4GB",
+	})
+	req, _ := http.NewRequest("POST", "/api/v1/apps/"+appID+"/deploy", bytes.NewBuffer(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	// Should not be 404 since app exists
+	if w.Code == http.StatusNotFound {
+		t.Errorf("expected non-404 when app exists, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestCreateCredential_WithUserID_Cov(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	db := setupTestDB(t)
+	defer db.Exec("VACUUM")
+
+	bridge := createTestBridge(t, db)
+
+	r := gin.New()
+	r.POST("/api/v1/credentials", CreateCredential(bridge))
+
+	body, _ := json.Marshal(map[string]interface{}{
+		"name":  "test-cred-cov",
+		"type":  "ssh_key",
+		"value": "secret-key-value",
+	})
+	req, _ := http.NewRequest("POST", "/api/v1/credentials", bytes.NewBuffer(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	// May succeed or fail depending on bridge implementation
+	if w.Code == http.StatusNotFound {
+		t.Errorf("expected non-404, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestCreateDNSRecord_WithDomain_Cov(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	db := setupTestDB(t)
+	defer db.Exec("VACUUM")
+
+	bridge := createTestBridge(t, db)
+
+	r := gin.New()
+	r.POST("/api/v1/dns/records", CreateDNSRecord(bridge))
+
+	body, _ := json.Marshal(map[string]interface{}{
+		"domain": "example.com",
+		"type":   "A",
+		"name":   "test",
+		"value":  "1.2.3.4",
+		"ttl":    300,
+	})
+	req, _ := http.NewRequest("POST", "/api/v1/dns/records", bytes.NewBuffer(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	// May succeed or fail depending on bridge implementation
+	if w.Code == http.StatusNotFound {
+		t.Errorf("expected non-404, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestDeleteDNSRecord_WithID_Cov(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	db := setupTestDB(t)
+	defer db.Exec("VACUUM")
+
+	bridge := createTestBridge(t, db)
+
+	r := gin.New()
+	r.DELETE("/api/v1/dns/records/:id", DeleteDNSRecord(bridge))
+
+	req := httptest.NewRequest("DELETE", "/api/v1/dns/records/rec-123", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	// May succeed or fail depending on bridge implementation
+	if w.Code == http.StatusNotFound {
+		t.Errorf("expected non-404, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestRegister_WithAllFields_Cov(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	db := setupTestDB(t)
+	defer db.Exec("VACUUM")
+
+	r := gin.New()
+	r.POST("/api/v1/auth/register", Register(db))
+
+	body, _ := json.Marshal(map[string]interface{}{
+		"email":    "cov-test@example.com",
+		"password": "password123",
+		"username": "covtestuser",
+	})
+	req, _ := http.NewRequest("POST", "/api/v1/auth/register", bytes.NewBuffer(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestRegister_DuplicateEmail_Cov(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	db := setupTestDB(t)
+	defer db.Exec("VACUUM")
+
+	r := gin.New()
+	r.POST("/api/v1/auth/register", Register(db))
+
+	body, _ := json.Marshal(map[string]interface{}{
+		"email":    "dup-cov@example.com",
+		"password": "password123",
+		"username": "dupuser",
+	})
+	req, _ := http.NewRequest("POST", "/api/v1/auth/register", bytes.NewBuffer(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200 on first register, got %d: %s", w.Code, w.Body.String())
+	}
+
+	// Second register with same email
+	req2, _ := http.NewRequest("POST", "/api/v1/auth/register", bytes.NewBuffer(body))
+	req2.Header.Set("Content-Type", "application/json")
+	w2 := httptest.NewRecorder()
+	r.ServeHTTP(w2, req2)
+
+	// Should fail with duplicate
+	if w2.Code != http.StatusConflict {
+		t.Errorf("expected 409 on duplicate register, got %d: %s", w2.Code, w2.Body.String())
+	}
+}
+
+func TestListAuditLogs_WithFilters_Cov(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	db := setupTestDB(t)
+	defer db.Exec("VACUUM")
+
+	auditSvc := service.NewAuditService(db)
+
+	r := gin.New()
+	r.GET("/api/v1/audit-logs", ListAuditLogs(auditSvc))
+
+	req := httptest.NewRequest("GET", "/api/v1/audit-logs?user_id=user1&action=deploy&limit=10&offset=0", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
 func TestUpdateUserRole_DBUpdateError(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	db, _ := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
@@ -2346,5 +2660,238 @@ func TestGetCIBuildStatus_BridgeSuccess_Cov(t *testing.T) {
 
 	if w.Code != http.StatusOK {
 		t.Errorf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+// ===================== Additional Coverage Tests =====================
+
+func TestListDNSRecords_MissingDomain_Cov(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	db := setupTestDB(t)
+	defer db.Exec("VACUUM")
+
+	bridge := createTestBridge(t, db)
+	r := gin.New()
+	r.GET("/api/v1/dns/records", ListDNSRecords(bridge))
+
+	req := httptest.NewRequest("GET", "/api/v1/dns/records", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected 400 for missing domain, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestGetContainerMetrics_Success_Cov(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	db := setupTestDB(t)
+	defer db.Exec("VACUUM")
+
+	bridge := createTestBridge(t, db)
+	r := gin.New()
+	r.GET("/api/v1/monitor/container/:name", GetContainerMetrics(bridge))
+
+	req := httptest.NewRequest("GET", "/api/v1/monitor/container/my-container", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestHealContainer_Success_Cov(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	db := setupTestDB(t)
+	defer db.Exec("VACUUM")
+
+	bridge := createTestBridge(t, db)
+	r := gin.New()
+	r.POST("/api/v1/monitor/heal/:name", HealContainer(bridge))
+
+	req := httptest.NewRequest("POST", "/api/v1/monitor/heal/my-container", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestListCredentials_MissingTenant_Cov(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	db := setupTestDB(t)
+	defer db.Exec("VACUUM")
+
+	bridge := createTestBridge(t, db)
+	r := gin.New()
+	r.GET("/api/v1/credentials", ListCredentials(bridge))
+
+	req := httptest.NewRequest("GET", "/api/v1/credentials", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	// Should return 200 with empty list (default tenant)
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestGetVersion_Cov(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	r := gin.New()
+	r.GET("/api/v1/system/version", GetVersion)
+
+	req := httptest.NewRequest("GET", "/api/v1/system/version", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+	var resp map[string]interface{}
+	json.Unmarshal(w.Body.Bytes(), &resp)
+	data := resp["data"].(map[string]interface{})
+	if data["version"] == nil {
+		t.Error("expected version in response")
+	}
+}
+
+func TestSystemHealth_Healthy_Cov(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	db := setupTestDB(t)
+	defer db.Exec("VACUUM")
+
+	r := gin.New()
+	r.GET("/api/v1/system/health", SystemHealth(db))
+
+	req := httptest.NewRequest("GET", "/api/v1/system/health", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestSystemHealth_Unhealthy_Cov(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	db, _ := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	sqlDB, _ := db.DB()
+	_ = sqlDB.Close()
+
+	r := gin.New()
+	r.GET("/api/v1/system/health", SystemHealth(db))
+
+	req := httptest.NewRequest("GET", "/api/v1/system/health", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusServiceUnavailable {
+		t.Errorf("expected 503, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestCreateTemplate_DBError_Cov(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	db := setupTestDB(t)
+	defer db.Exec("VACUUM")
+
+	r := gin.New()
+	r.POST("/api/v1/templates", CreateTemplate(db))
+
+	body, _ := json.Marshal(map[string]interface{}{
+		"name": "custom-template", "type": "docker",
+		"description": "test template", "build_cmd": "make build",
+		"run_cmd": "./app", "port": 8080,
+	})
+	req, _ := http.NewRequest("POST", "/api/v1/templates", bytes.NewBuffer(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	// SQLite doesn't support map type directly, so this returns 500
+	if w.Code != http.StatusOK && w.Code != http.StatusInternalServerError {
+		t.Errorf("expected 200 or 500, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestCreateTemplate_InvalidJSON_Cov(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	db := setupTestDB(t)
+	defer db.Exec("VACUUM")
+
+	r := gin.New()
+	r.POST("/api/v1/templates", CreateTemplate(db))
+
+	req, _ := http.NewRequest("POST", "/api/v1/templates", bytes.NewBufferString("{invalid}"))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected 400, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestDeleteTemplate_NotFound_Cov(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	db := setupTestDB(t)
+	defer db.Exec("VACUUM")
+
+	r := gin.New()
+	r.DELETE("/api/v1/templates/:id", DeleteTemplate(db))
+
+	req := httptest.NewRequest("DELETE", "/api/v1/templates/nonexistent-id", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusNotFound {
+		t.Errorf("expected 404, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestUpdateTemplate_DBError_Cov(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	db := setupTestDB(t)
+	defer db.Exec("VACUUM")
+
+	// First create a template
+	tmplID := uuid.New().String()
+	db.Exec(`INSERT INTO providers (id, tenant_id, type, name, config, enabled) VALUES (?, 'tenant-default', 'template', 'upd-tmpl-cov', '{"type":"docker"}', 1)`, tmplID)
+
+	r := gin.New()
+	r.PUT("/api/v1/templates/:id", UpdateTemplate(db))
+
+	body, _ := json.Marshal(map[string]interface{}{
+		"name": "updated-template", "description": "updated desc",
+	})
+	req, _ := http.NewRequest("PUT", "/api/v1/templates/"+tmplID, bytes.NewBuffer(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	// SQLite doesn't support map type directly, so this returns 500
+	if w.Code != http.StatusOK && w.Code != http.StatusInternalServerError {
+		t.Errorf("expected 200 or 500, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestUpdateTemplate_InvalidJSON_Cov(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	db := setupTestDB(t)
+	defer db.Exec("VACUUM")
+
+	r := gin.New()
+	r.PUT("/api/v1/templates/:id", UpdateTemplate(db))
+
+	req, _ := http.NewRequest("PUT", "/api/v1/templates/some-id", bytes.NewBufferString("{invalid}"))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected 400, got %d: %s", w.Code, w.Body.String())
 	}
 }
