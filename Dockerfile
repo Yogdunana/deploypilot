@@ -8,19 +8,19 @@ RUN npm run build
 
 # Stage 2: Build Go backend
 FROM golang:1.23.6 AS backend
-RUN apt-get update && apt-get install -y --no-install-recommends gcc-aarch64-linux-gnu && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends gcc && rm -rf /var/lib/apt/lists/*
+RUN go install github.com/swaggo/swag/cmd/swag@v1.16.6
 WORKDIR /app
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
 COPY --from=frontend /app/web/dist ./web/dist
 
-ARG GOARCH=amd64
-ENV CGO_ENABLED=1
+# Generate swagger docs (excluded by .dockerignore)
+RUN swag init -g cmd/api-server/main.go -o docs/swagger
 
-# Write CC to go env based on GOARCH, then build
-RUN test "$GOARCH" = "arm64" && go env -w CC=aarch64-linux-gnu-gcc || go env -w CC=gcc && \
-    go build -ldflags="-s -w" -o /deploypilot ./cmd/deploypilot/ && \
+ENV CGO_ENABLED=1
+RUN go build -ldflags="-s -w" -o /deploypilot ./cmd/deploypilot/ && \
     go build -ldflags="-s -w" -o /api-server ./cmd/api-server/ && \
     go build -ldflags="-s -w" -o /mcp-server ./cmd/mcp-server/
 
