@@ -38,7 +38,6 @@ func seedPlugin(t *testing.T, db *gorm.DB, id, tenantID, name, provider, pluginT
 
 func TestNewManager(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.DB.Close()
 
 	r := NewRegistry()
 	m := NewManager(r, db, "")
@@ -53,7 +52,6 @@ func TestNewManager(t *testing.T) {
 
 func TestLoadAll(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.DB.Close()
 
 	r := NewRegistry()
 	r.Register(&PluginDescriptor{
@@ -97,7 +95,6 @@ func TestLoadAll(t *testing.T) {
 
 func TestLoadAllWithFactoryError(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.DB.Close()
 
 	r := NewRegistry()
 	r.Register(&PluginDescriptor{
@@ -128,7 +125,6 @@ func TestLoadAllWithFactoryError(t *testing.T) {
 
 func TestLoadPlugin(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.DB.Close()
 
 	r := NewRegistry()
 	r.Register(&PluginDescriptor{
@@ -159,7 +155,6 @@ func TestLoadPlugin(t *testing.T) {
 
 func TestLoadPluginDisabled(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.DB.Close()
 
 	r := NewRegistry()
 	r.Register(&PluginDescriptor{
@@ -182,7 +177,6 @@ func TestLoadPluginDisabled(t *testing.T) {
 
 func TestLoadPluginNotFound(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.DB.Close()
 
 	r := NewRegistry()
 	m := NewManager(r, db, "")
@@ -195,7 +189,6 @@ func TestLoadPluginNotFound(t *testing.T) {
 
 func TestLoadPluginNoDescriptor(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.DB.Close()
 
 	r := NewRegistry()
 	// No descriptors registered
@@ -210,7 +203,6 @@ func TestLoadPluginNoDescriptor(t *testing.T) {
 
 func TestUnloadPlugin(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.DB.Close()
 
 	r := NewRegistry()
 	r.Register(&PluginDescriptor{
@@ -247,7 +239,6 @@ func TestUnloadPlugin(t *testing.T) {
 
 func TestReloadPlugin(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.DB.Close()
 
 	loadCount := 0
 	r := NewRegistry()
@@ -288,7 +279,6 @@ func TestReloadPlugin(t *testing.T) {
 
 func TestEnablePlugin(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.DB.Close()
 
 	r := NewRegistry()
 	r.Register(&PluginDescriptor{
@@ -327,7 +317,6 @@ func TestEnablePlugin(t *testing.T) {
 
 func TestDisablePlugin(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.DB.Close()
 
 	r := NewRegistry()
 	r.Register(&PluginDescriptor{
@@ -366,7 +355,6 @@ func TestDisablePlugin(t *testing.T) {
 
 func TestGetPluginInstance(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.DB.Close()
 
 	r := NewRegistry()
 	r.Register(&PluginDescriptor{
@@ -399,7 +387,6 @@ func TestGetPluginInstance(t *testing.T) {
 
 func TestGetPluginStatus(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.DB.Close()
 
 	r := NewRegistry()
 	r.Register(&PluginDescriptor{
@@ -441,7 +428,6 @@ func TestGetPluginStatus(t *testing.T) {
 
 func TestEnablePluginNotFound(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.DB.Close()
 
 	r := NewRegistry()
 	m := NewManager(r, db, "")
@@ -454,7 +440,6 @@ func TestEnablePluginNotFound(t *testing.T) {
 
 func TestDisablePluginNotFound(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.DB.Close()
 
 	r := NewRegistry()
 	m := NewManager(r, db, "")

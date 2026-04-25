@@ -160,7 +160,6 @@ func makePluginRequest(r *gin.Engine, method, path string, body interface{}) *ht
 
 func TestListPlugins(t *testing.T) {
 	db := setupPluginTestDB(t)
-	defer db.DB.Close()
 
 	// Seed plugins
 	db.Exec(`INSERT INTO plugins (id, tenant_id, name, provider, type, enabled, status) VALUES
@@ -187,7 +186,6 @@ func TestListPlugins(t *testing.T) {
 
 func TestListPluginsWithFilter(t *testing.T) {
 	db := setupPluginTestDB(t)
-	defer db.DB.Close()
 
 	db.Exec(`INSERT INTO plugins (id, tenant_id, name, provider, type, enabled, status) VALUES
 		('plg-1', 'tenant-default', 'dns-cf', 'dns', 'cloudflare', 1, 'active'),
@@ -210,7 +208,6 @@ func TestListPluginsWithFilter(t *testing.T) {
 
 func TestCreatePlugin(t *testing.T) {
 	db := setupPluginTestDB(t)
-	defer db.DB.Close()
 
 	router := setupPluginTestRouter(db)
 
@@ -247,7 +244,6 @@ func TestCreatePlugin(t *testing.T) {
 
 func TestCreatePluginMissingFields(t *testing.T) {
 	db := setupPluginTestDB(t)
-	defer db.DB.Close()
 
 	router := setupPluginTestRouter(db)
 
@@ -264,7 +260,6 @@ func TestCreatePluginMissingFields(t *testing.T) {
 
 func TestGetPlugin(t *testing.T) {
 	db := setupPluginTestDB(t)
-	defer db.DB.Close()
 
 	db.Exec(`INSERT INTO plugins (id, tenant_id, name, provider, type, enabled, status) VALUES
 		('plg-get', 'tenant-default', 'dns-cf', 'dns', 'cloudflare', 1, 'active')`)
@@ -289,7 +284,6 @@ func TestGetPlugin(t *testing.T) {
 
 func TestGetPluginNotFound(t *testing.T) {
 	db := setupPluginTestDB(t)
-	defer db.DB.Close()
 
 	router := setupPluginTestRouter(db)
 
@@ -301,7 +295,6 @@ func TestGetPluginNotFound(t *testing.T) {
 
 func TestUpdatePlugin(t *testing.T) {
 	db := setupPluginTestDB(t)
-	defer db.DB.Close()
 
 	db.Exec(`INSERT INTO plugins (id, tenant_id, name, provider, type, enabled, status) VALUES
 		('plg-update', 'tenant-default', 'dns-cf', 'dns', 'cloudflare', 1, 'active')`)
@@ -331,7 +324,6 @@ func TestUpdatePlugin(t *testing.T) {
 
 func TestDeletePlugin(t *testing.T) {
 	db := setupPluginTestDB(t)
-	defer db.DB.Close()
 
 	db.Exec(`INSERT INTO plugins (id, tenant_id, name, provider, type, enabled, status) VALUES
 		('plg-delete', 'tenant-default', 'dns-cf', 'dns', 'cloudflare', 1, 'active')`)
@@ -363,7 +355,6 @@ func TestDeletePlugin(t *testing.T) {
 
 func TestEnablePluginNoManager(t *testing.T) {
 	db := setupPluginTestDB(t)
-	defer db.DB.Close()
 
 	router := setupPluginTestRouter(db) // nil lifecycle manager
 
@@ -375,7 +366,6 @@ func TestEnablePluginNoManager(t *testing.T) {
 
 func TestDisablePluginNoManager(t *testing.T) {
 	db := setupPluginTestDB(t)
-	defer db.DB.Close()
 
 	router := setupPluginTestRouter(db) // nil lifecycle manager
 
@@ -387,7 +377,6 @@ func TestDisablePluginNoManager(t *testing.T) {
 
 func TestReloadPluginNoManager(t *testing.T) {
 	db := setupPluginTestDB(t)
-	defer db.DB.Close()
 
 	router := setupPluginTestRouter(db) // nil lifecycle manager
 

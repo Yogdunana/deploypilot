@@ -9,6 +9,7 @@ import (
 	k8sapi "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	k8sclient "k8s.io/client-go/kubernetes"
 
 	"github.com/Yogdunana/deploypilot/internal/model"
@@ -356,8 +357,8 @@ func (k *K8sProvider) GetClusterInfo(ctx context.Context) (map[string]interface{
 }
 
 // getTargetPort converts a service port to an intstr.IntOrString target port.
-func getTargetPort(port int32) metav1.IntOrString {
-	return metav1.IntOrString{
+func getTargetPort(port int32) intstr.IntOrString {
+	return intstr.IntOrString{
 		IntVal: port,
 	}
 }

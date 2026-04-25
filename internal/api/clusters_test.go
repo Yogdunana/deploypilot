@@ -3,11 +3,13 @@ package api
 import (
 	"encoding/json"
 	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/Yogdunana/deploypilot/internal/crypto"
 	"github.com/Yogdunana/deploypilot/internal/model"
 	"github.com/Yogdunana/deploypilot/internal/service"
+	"github.com/gin-gonic/gin"
 )
 
 func setupClusterTest(t *testing.T) (*gin.Engine, *service.Bridge, string) {

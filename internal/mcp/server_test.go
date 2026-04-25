@@ -525,6 +525,54 @@ func (m *mockDeployer) RegistryOps(registryID string, operation string, args map
 	return map[string]interface{}{"registry_id": registryID, "operation": operation}, nil
 }
 
+func (m *mockDeployer) CreateCluster(_ context.Context, cluster *model.Cluster) (*model.Cluster, error) {
+	return cluster, nil
+}
+
+func (m *mockDeployer) GetCluster(_ context.Context, id string) (*model.Cluster, error) {
+	return &model.Cluster{ID: id, Name: "test-cluster"}, nil
+}
+
+func (m *mockDeployer) ListClusters(_ context.Context, tenantID string) ([]model.Cluster, error) {
+	return []model.Cluster{{ID: "c1", Name: "cluster-1", TenantID: tenantID}}, nil
+}
+
+func (m *mockDeployer) UpdateCluster(_ context.Context, id string, updates map[string]interface{}) (*model.Cluster, error) {
+	return &model.Cluster{ID: id, Name: "updated-cluster"}, nil
+}
+
+func (m *mockDeployer) DeleteCluster(_ context.Context, id string) error {
+	return nil
+}
+
+func (m *mockDeployer) TestClusterConnection(_ context.Context, id string) (interface{}, error) {
+	return map[string]interface{}{"cluster_id": id, "connected": true}, nil
+}
+
+func (m *mockDeployer) K8sDeploy(_ context.Context, clusterID string, app *K8sDeployConfig) error {
+	return nil
+}
+
+func (m *mockDeployer) K8sListDeployments(_ context.Context, clusterID string) (interface{}, error) {
+	return []map[string]interface{}{{"name": "test-deploy", "cluster_id": clusterID}}, nil
+}
+
+func (m *mockDeployer) K8sGetPods(_ context.Context, clusterID, labelSelector string) (interface{}, error) {
+	return []map[string]interface{}{{"name": "test-pod", "cluster_id": clusterID}}, nil
+}
+
+func (m *mockDeployer) PluginOps(pluginID string, action string) (interface{}, error) {
+	return map[string]interface{}{"plugin_id": pluginID, "action": action}, nil
+}
+
+func (m *mockDeployer) ListPlugins(provider string) (interface{}, error) {
+	return []map[string]interface{}{{"name": "test-plugin", "provider": provider}}, nil
+}
+
+func (m *mockDeployer) GetPluginInfo(pluginID string) (interface{}, error) {
+	return map[string]interface{}{"plugin_id": pluginID, "name": "test-plugin"}, nil
+}
+
 // extractText gets the text content from a CallToolResult.
 func extractText(result *mcp.CallToolResult) (string, error) {
 	if result.IsError {
