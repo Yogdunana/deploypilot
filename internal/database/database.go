@@ -261,6 +261,26 @@ func Migrate(db *gorm.DB) error {
 				return nil
 			},
 		},
+		// 202604250003: Create registries table
+		{
+			ID: "202604250003",
+			Migrate: func(tx *gorm.DB) error {
+				return tx.Exec(`CREATE TABLE IF NOT EXISTS registries (
+					id TEXT PRIMARY KEY,
+					tenant_id TEXT REFERENCES tenants(id),
+					name TEXT NOT NULL,
+					provider TEXT NOT NULL,
+					url TEXT NOT NULL,
+					username TEXT,
+					password TEXT,
+					created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+					updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+				)`).Error
+			},
+			Rollback: func(tx *gorm.DB) error {
+				return tx.Migrator().DropTable("registries")
+			},
+		},
 	})
 
 	// Use InitSchema for initial creation (faster than Migrate)

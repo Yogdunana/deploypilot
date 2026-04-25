@@ -23,6 +23,7 @@ var ToolPermissions = map[string]int{
 	"heal_container": 2, "check_deploy_readiness": 2,
 	"trigger_ci_build": 2, "search_app_logs": 2, "get_app_logs": 2,
 	"request_ssl_certificate": 2, "renew_ssl_certificate": 2,
+	"registry_login": 2, "push_image": 2, "list_registry_tags": 2, "ping_registry": 2,
 
 	// Admin-level (dangerous)
 	"delete_app": 3, "delete_server": 3, "delete_credential": 3,

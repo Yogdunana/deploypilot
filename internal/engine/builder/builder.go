@@ -3,6 +3,7 @@ package builder
 import (
 	"context"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 
@@ -21,23 +22,33 @@ type BuildConfig struct {
 	Ports               string            // Port mappings (e.g. "8080:80")
 	ServerID            string            // Target server ID (deploy locally if empty)
 	DockerfileOverrides map[string]string // Override template placeholders
+
+	// Registry configuration for pushing the built image
+	RegistryID   string `json:"registry_id,omitempty"`   // ID of the registry to push to
+	RegistryURL  string `json:"registry_url,omitempty"`   // Override registry URL
+	RegistryUser string `json:"registry_user,omitempty"`  // Override registry username
+	RegistryPass string `json:"registry_pass,omitempty"`  // Override registry password
+	PushImage    bool   `json:"push_image,omitempty"`     // Whether to push after build
+	ImageTag     string `json:"image_tag,omitempty"`      // Custom image tag (default: appname:latest)
 }
 
 // BuildResult holds the result of a build operation.
 type BuildResult struct {
-	Image      string  `json:"image"`
-	Digest     string  `json:"digest,omitempty"`
-	Size       string  `json:"size,omitempty"`
-	BuildLog   string  `json:"build_log"`
-	Duration   float64 `json:"duration_seconds"`
-	TechStack  string  `json:"tech_stack"`
-	CommitHash string  `json:"commit_hash"`
+	Image       string  `json:"image"`
+	PushedImage string  `json:"pushed_image,omitempty"`
+	Digest      string  `json:"digest,omitempty"`
+	Size        string  `json:"size,omitempty"`
+	BuildLog    string  `json:"build_log"`
+	Duration    float64 `json:"duration_seconds"`
+	TechStack   string  `json:"tech_stack"`
+	CommitHash  string  `json:"commit_hash"`
 }
 
 // Builder orchestrates the build process.
 type Builder struct {
-	executor deployer.CommandExecutor
-	registry *TemplateRegistry
+	executor    deployer.CommandExecutor
+	registry    *TemplateRegistry
+	dockerRunner dockerRunner
 }
 
 // NewBuilder creates a new Builder.
@@ -45,6 +56,15 @@ func NewBuilder(executor deployer.CommandExecutor) *Builder {
 	return &Builder{
 		executor: executor,
 		registry: NewRegistry(),
+	}
+}
+
+// NewBuilderWithDocker creates a new Builder with a custom dockerRunner for testing.
+func NewBuilderWithDocker(executor deployer.CommandExecutor, runner dockerRunner) *Builder {
+	return &Builder{
+		executor:    executor,
+		registry:    NewRegistry(),
+		dockerRunner: runner,
 	}
 }
 
@@ -96,14 +116,26 @@ func (b *Builder) BuildAndDeploy(ctx context.Context, cfg BuildConfig) (*BuildRe
 
 	duration := time.Since(start).Seconds()
 
-	return &BuildResult{
+	result := &BuildResult{
 		Image:      imageTag,
 		Digest:     strings.TrimSpace(digest),
 		BuildLog:   buildLog,
 		Duration:   duration,
 		TechStack:  cfg.TechStack,
 		CommitHash: commitHash,
-	}, nil
+	}
+
+	// 7. Optionally push image to registry
+	if cfg.PushImage {
+		pushedRef, pushErr := b.PushImage(ctx, &cfg, imageTag)
+		if pushErr != nil {
+			log.Printf("warning: image push failed (build succeeded): %v", pushErr)
+		} else if pushedRef != "" {
+			result.PushedImage = pushedRef
+		}
+	}
+
+	return result, nil
 }
 
 // gitClone clones or pulls a git repository.

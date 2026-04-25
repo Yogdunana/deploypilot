@@ -24,6 +24,7 @@ import (
 	"github.com/Yogdunana/deploypilot/internal/provider/cicd"
 	"github.com/Yogdunana/deploypilot/internal/provider/dns"
 	"github.com/Yogdunana/deploypilot/internal/provider/notify"
+	registry "github.com/Yogdunana/deploypilot/internal/provider/registry"
 	"github.com/Yogdunana/deploypilot/internal/provider/server"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -532,6 +533,9 @@ func (b *Bridge) BuildAndDeploy(ctx context.Context, cfg mcp.BuildAndDeployConfi
 		Ports:               cfg.Ports,
 		ServerID:            cfg.ServerID,
 		DockerfileOverrides: cfg.DockerfileOverrides,
+		RegistryID:          cfg.RegistryID,
+		PushImage:           cfg.PushImage,
+		ImageTag:            cfg.ImageTag,
 	}
 
 	bld := builder.NewBuilder(exec)
@@ -1437,40 +1441,24 @@ func (b *Bridge) CheckDeployReadiness(ctx context.Context, appConfig map[string]
 
 // ---------- 34. BatchDeploy ----------
 
+// BatchDeploy deploys multiple applications using the configured strategy.
+// It accepts the legacy []map[string]interface{} parameter (backward compatible)
+// and defaults to sequential strategy.
 func (b *Bridge) BatchDeploy(ctx context.Context, apps []map[string]interface{}) (interface{}, error) {
-	results := make([]map[string]interface{}, 0, len(apps))
-	for i, appCfg := range apps {
-		cfg := mcp.DeployConfig{
-			Image:         toStringOrDefault(appCfg["image"], ""),
-			ContainerName: toStringOrDefault(appCfg["container_name"], fmt.Sprintf("batch-app-%d", i)),
-			Ports:         toStringOrDefault(appCfg["ports"], ""),
-			RestartPolicy: toStringOrDefault(appCfg["restart_policy"], "unless-stopped"),
-		}
-		if envRaw, ok := appCfg["env_vars"]; ok {
-			if s, ok := envRaw.(string); ok && s != "" {
-				var m map[string]string
-				if json.Unmarshal([]byte(s), &m) == nil {
-					cfg.EnvVars = m
-				}
-			}
-		}
-
-		cs, err := b.Deploy(ctx, cfg)
-		entry := map[string]interface{}{"index": i, "container_name": cfg.ContainerName}
-		if err != nil {
-			entry["status"] = "failed"
-			entry["error"] = err.Error()
-		} else {
-			entry["status"] = "success"
-			entry["container_id"] = cs.ID
-		}
-		results = append(results, entry)
+	config := mcp.BatchDeployConfig{
+		Apps:     apps,
+		Strategy: mcp.StrategySequential, // default
 	}
+	d := &bridgeDeployer{bridge: b}
+	result := executeBatchDeploy(ctx, d, config)
+	return result, nil
+}
 
-	return map[string]interface{}{
-		"total":   len(apps),
-		"results": results,
-	}, nil
+// BatchDeployWithConfig deploys multiple applications using the given configuration.
+func (b *Bridge) BatchDeployWithConfig(ctx context.Context, config mcp.BatchDeployConfig) (*mcp.BatchDeployResult, error) {
+	d := &bridgeDeployer{bridge: b}
+	result := executeBatchDeploy(ctx, d, config)
+	return result, nil
 }
 
 // ---------- 35. Backup ----------
@@ -1858,6 +1846,175 @@ func (b *Bridge) TriggerCIBuild(ctx context.Context, providerType, repo, branch 
 	default:
 		return nil, fmt.Errorf("unsupported CI/CD provider type: %s", providerType)
 	}
+}
+
+// ---------- RegistryOps ----------
+
+// RegistryOps handles registry operations (login, push, list_tags, ping).
+func (b *Bridge) RegistryOps(registryID string, operation string, args map[string]interface{}) (interface{}, error) {
+	if b.DB == nil {
+		return nil, fmt.Errorf("database not available")
+	}
+
+	// Load registry from DB
+	var reg model.Registry
+	if err := b.DB.Where("id = ?", registryID).First(&reg).Error; err != nil {
+		return nil, fmt.Errorf("registry not found: %w", err)
+	}
+
+	// Decrypt password
+	var row struct {
+		Password string `gorm:"column:password"`
+	}
+	if err := b.DB.Table("registries").Where("id = ?", registryID).Select("password").Take(&row).Error; err != nil {
+		return nil, fmt.Errorf("failed to load registry credentials: %w", err)
+	}
+	plainPassword := ""
+	if b.EncryptionKey != nil && row.Password != "" {
+		if decrypted, err := crypto.Decrypt(b.EncryptionKey, row.Password); err == nil {
+			plainPassword = decrypted
+		}
+	}
+
+	// Allow args to override registry fields (for inline auth)
+	regURL := reg.URL
+	regUser := reg.Username
+	regPass := plainPassword
+	if args != nil {
+		if v, ok := args["registry_url"].(string); ok && v != "" {
+			regURL = v
+		}
+		if v, ok := args["username"].(string); ok && v != "" {
+			regUser = v
+		}
+		if v, ok := args["password"].(string); ok && v != "" {
+			regPass = v
+		}
+	}
+
+	// Create registry provider
+	provider, err := registry.NewRegistryProvider(reg.Provider, regURL, regUser, regPass)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create registry provider: %w", err)
+	}
+
+	ctx := context.Background()
+
+	switch operation {
+	case "login":
+		if err := provider.Login(ctx); err != nil {
+			return nil, fmt.Errorf("registry login failed: %w", err)
+		}
+		return map[string]interface{}{
+			"status":  "success",
+			"message": fmt.Sprintf("successfully authenticated with registry %s", reg.Name),
+			"registry_id": reg.ID,
+		}, nil
+
+	case "push":
+		localImage, _ := args["local_image"].(string)
+		remoteTag, _ := args["remote_tag"].(string)
+		if localImage == "" {
+			return nil, fmt.Errorf("local_image is required")
+		}
+		if err := provider.Push(ctx, localImage, remoteTag); err != nil {
+			return nil, fmt.Errorf("push failed: %w", err)
+		}
+		result := map[string]interface{}{
+			"status":      "success",
+			"message":     "image pushed successfully",
+			"local_image": localImage,
+			"registry_id": reg.ID,
+		}
+		if remoteTag != "" {
+			result["remote_tag"] = remoteTag
+		}
+		return result, nil
+
+	case "list_tags":
+		repo, _ := args["repository"].(string)
+		if repo == "" {
+			return nil, fmt.Errorf("repository is required")
+		}
+		tags, err := provider.ListTags(ctx, repo)
+		if err != nil {
+			return nil, fmt.Errorf("list tags failed: %w", err)
+		}
+		return map[string]interface{}{
+			"status":     "success",
+			"repository": repo,
+			"tags":       tags,
+			"total":      len(tags),
+		}, nil
+
+	case "ping":
+		if err := provider.Ping(ctx); err != nil {
+			return map[string]interface{}{
+				"status":  "unreachable",
+				"message": err.Error(),
+				"registry_id": reg.ID,
+			}, nil
+		}
+		return map[string]interface{}{
+			"status":      "reachable",
+			"message":     "registry is accessible",
+			"registry_id": reg.ID,
+		}, nil
+
+	default:
+		return nil, fmt.Errorf("unknown registry operation: %s", operation)
+	}
+}
+
+// ---------- GetServersByTags ----------
+
+// GetServersByTags returns server IDs that match any of the given tags.
+// It queries all servers for the tenant, parses each server's Tags field
+// (JSON array or comma-separated), and returns IDs of servers that have
+// at least one matching tag.
+func (b *Bridge) GetServersByTags(ctx context.Context, tenantID string, tags []string) ([]string, error) {
+	if b.DB == nil {
+		return nil, fmt.Errorf("database not available")
+	}
+
+	var servers []model.Server
+	if err := b.DB.Where("tenant_id = ?", tenantID).Find(&servers).Error; err != nil {
+		return nil, fmt.Errorf("failed to query servers: %w", err)
+	}
+
+	// Build a set of target tags for fast lookup
+	tagSet := make(map[string]bool, len(tags))
+	for _, t := range tags {
+		tagSet[strings.ToLower(t)] = true
+	}
+
+	var matchedIDs []string
+	for _, srv := range servers {
+		if srv.Tags == "" {
+			continue
+		}
+
+		// Parse tags: try JSON array first, then fall back to comma-separated
+		var serverTags []string
+		if err := json.Unmarshal([]byte(srv.Tags), &serverTags); err != nil {
+			// Fall back to comma-separated
+			for _, t := range strings.Split(srv.Tags, ",") {
+				t = strings.TrimSpace(t)
+				if t != "" {
+					serverTags = append(serverTags, t)
+				}
+			}
+		}
+
+		for _, st := range serverTags {
+			if tagSet[strings.ToLower(strings.TrimSpace(st))] {
+				matchedIDs = append(matchedIDs, srv.ID)
+				break
+			}
+		}
+	}
+
+	return matchedIDs, nil
 }
 
 // ---------- 47. ListSSLCertificates ----------

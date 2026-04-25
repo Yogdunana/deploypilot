@@ -96,6 +96,16 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 			creds.POST("/:id/rotate", RotateCredential(bridge, auditSvc))
 		}
 
+		// Registries (5 endpoints)
+		registries := protected.Group("/registries")
+		{
+			registries.GET("", ListRegistries())
+			registries.POST("", CreateRegistry())
+			registries.GET("/:id", GetRegistry())
+			registries.PUT("/:id", UpdateRegistry())
+			registries.DELETE("/:id", DeleteRegistry())
+		}
+
 		// DNS (4 endpoints)
 		dns := protected.Group("/dns")
 		{

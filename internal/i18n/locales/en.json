@@ -36,6 +36,10 @@
   "error.credential.expired": "credential has expired",
   "error.credential.rotate_failed": "failed to rotate credential",
 
+  "error.registry.not_found": "registry not found",
+  "error.registry.deleted": "registry deleted",
+  "error.registry.name_and_provider_required": "name and provider are required",
+
   "error.dns.domain_required": "domain query parameter is required",
   "error.dns.record_deleted": "DNS record deleted",
   "error.dns.westdns_config_required": "WestDNS requires API Token and API Secret configuration",
@@ -139,5 +143,23 @@
   "credential.rotation_days": "Rotation Days",
   "credential.never_expires": "Never",
   "credential.expired": "Expired",
-  "credential.expiring_soon": "Expiring Soon"
+  "credential.expiring_soon": "Expiring Soon",
+
+  "batch_deploy.strategy_sequential": "Sequential",
+  "batch_deploy.strategy_parallel": "Parallel",
+  "batch_deploy.strategy_rolling": "Rolling",
+  "batch_deploy.unknown_strategy": "Unknown deployment strategy '%s', falling back to sequential",
+  "batch_deploy.rolling_batch_starting": "Rolling batch %d starting (range: %s)",
+  "batch_deploy.app_deployed": "App '%s' deployed successfully",
+  "batch_deploy.app_failed": "App '%s' deployment failed: %s",
+  "batch_deploy.context_cancelled": "Deployment cancelled for app '%s'",
+  "batch_deploy.summary": "Batch deploy completed: %d total, %d succeeded, %d failed (%.2fs)",
+
+  "build.push.no_registry": "no registry configured: set registry_id or registry_url",
+  "build.push.tag_failed": "docker tag failed: %s",
+  "build.push.login_failed": "docker login failed: %s",
+  "build.push.push_failed": "docker push failed: %s",
+  "build.push.success": "image pushed to %s",
+  "build.push.warning": "image push failed (build succeeded): %s",
+  "build.push.registry_not_found": "failed to load registry %s: %s"
 }

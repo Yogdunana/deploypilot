@@ -36,6 +36,10 @@
   "error.credential.expired": "凭据已过期",
   "error.credential.rotate_failed": "轮换凭据失败",
 
+  "error.registry.not_found": "镜像仓库不存在",
+  "error.registry.deleted": "镜像仓库已删除",
+  "error.registry.name_and_provider_required": "name 和 provider 为必填项",
+
   "error.dns.domain_required": "domain 查询参数为必填项",
   "error.dns.record_deleted": "DNS 记录已删除",
   "error.dns.westdns_config_required": "西部数码 DNS 需要配置 API Token 和 API Secret",
@@ -139,5 +143,23 @@
   "credential.rotation_days": "轮换周期",
   "credential.never_expires": "永不过期",
   "credential.expired": "已过期",
-  "credential.expiring_soon": "即将过期"
+  "credential.expiring_soon": "即将过期",
+
+  "batch_deploy.strategy_sequential": "顺序部署",
+  "batch_deploy.strategy_parallel": "并行部署",
+  "batch_deploy.strategy_rolling": "滚动部署",
+  "batch_deploy.unknown_strategy": "未知的部署策略 '%s'，回退到顺序部署",
+  "batch_deploy.rolling_batch_starting": "滚动批次 %d 开始部署 (范围: %s)",
+  "batch_deploy.app_deployed": "应用 '%s' 部署成功",
+  "batch_deploy.app_failed": "应用 '%s' 部署失败: %s",
+  "batch_deploy.context_cancelled": "应用 '%s' 部署已取消",
+  "batch_deploy.summary": "批量部署完成: 共 %d 个, 成功 %d 个, 失败 %d 个 (%.2f秒)",
+
+  "build.push.no_registry": "未配置镜像仓库: 请设置 registry_id 或 registry_url",
+  "build.push.tag_failed": "docker tag 失败: %s",
+  "build.push.login_failed": "docker login 失败: %s",
+  "build.push.push_failed": "docker push 失败: %s",
+  "build.push.success": "镜像已推送到 %s",
+  "build.push.warning": "镜像推送失败 (构建成功): %s",
+  "build.push.registry_not_found": "加载镜像仓库 %s 失败: %s"
 }

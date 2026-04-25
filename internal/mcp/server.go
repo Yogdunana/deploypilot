@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"strconv"
 	"strings"
 
 	"github.com/mark3labs/mcp-go/mcp"
@@ -91,6 +92,7 @@ type Deployer interface {
 	UpdateServer(ctx context.Context, serverID string, config map[string]interface{}) (interface{}, error)
 	CheckDeployReadiness(ctx context.Context, appConfig map[string]interface{}) (interface{}, error)
 	BatchDeploy(ctx context.Context, apps []map[string]interface{}) (interface{}, error)
+	BatchDeployWithConfig(ctx context.Context, config BatchDeployConfig) (*BatchDeployResult, error)
 	BatchBackup(ctx context.Context, appIDs []string) (interface{}, error)
 	BatchDNS(ctx context.Context, records []map[string]interface{}) (interface{}, error)
 	CheckSystemUpdate(ctx context.Context) (interface{}, error)
@@ -107,6 +109,7 @@ type Deployer interface {
 	RequestSSLCertificate(ctx context.Context, domain, email string) (interface{}, error)
 	RenewSSLCertificate(ctx context.Context, domain string) (interface{}, error)
 	DeleteSSLCertificate(ctx context.Context, domain string) (interface{}, error)
+	RegistryOps(registryID string, operation string, args map[string]interface{}) (interface{}, error)
 }
 
 // DeployConfig mirrors deployer.DeployConfig to avoid circular imports.
@@ -133,6 +136,41 @@ type ContainerStatus struct {
 	Ports     string            `json:"ports,omitempty"`
 	CreatedAt string            `json:"created_at,omitempty"`
 	Labels    map[string]string `json:"labels,omitempty"`
+}
+
+// DeployStrategy defines the deployment strategy type.
+type DeployStrategy string
+
+const (
+	StrategySequential DeployStrategy = "sequential"
+	StrategyParallel   DeployStrategy = "parallel"
+	StrategyRolling    DeployStrategy = "rolling"
+)
+
+// BatchDeployConfig holds configuration for batch deployment.
+type BatchDeployConfig struct {
+	Apps          []map[string]interface{} `json:"apps"`
+	Strategy      DeployStrategy           `json:"strategy"`
+	MaxConcurrent int                      `json:"max_concurrent"`
+	BatchSize     int                      `json:"batch_size"`
+	ServerIDs     []string                 `json:"server_ids"`
+}
+
+// BatchDeployResult holds the result of a batch deployment.
+type BatchDeployResult struct {
+	Total    int                        `json:"total"`
+	Success  int                        `json:"success"`
+	Failed   int                        `json:"failed"`
+	Results  []BatchDeployItemResult    `json:"results"`
+	Duration float64                    `json:"duration_seconds"`
+}
+
+// BatchDeployItemResult holds the result of a single app deployment within a batch.
+type BatchDeployItemResult struct {
+	Index   int    `json:"index"`
+	AppName string `json:"app_name"`
+	Success bool   `json:"success"`
+	Error   string `json:"error,omitempty"`
 }
 
 // ServerInfo represents a registered server.
@@ -167,6 +205,9 @@ type BuildAndDeployConfig struct {
 	Ports               string            `json:"ports,omitempty"`
 	ServerID            string            `json:"server_id,omitempty"`
 	DockerfileOverrides map[string]string `json:"dockerfile_overrides,omitempty"`
+	RegistryID          string            `json:"registry_id,omitempty"`
+	PushImage           bool              `json:"push_image,omitempty"`
+	ImageTag            string            `json:"image_tag,omitempty"`
 }
 
 // BuildAndDeployResult holds the result of a build-and-deploy operation.
@@ -613,8 +654,12 @@ func NewServer(deployer Deployer) *server.MCPServer {
 
 	// Register batch_deploy
 	batchDeployTool := mcp.NewTool("batch_deploy",
-		mcp.WithDescription("Deploy multiple applications at once"),
+		mcp.WithDescription("Deploy multiple applications at once with configurable strategy (sequential, parallel, rolling)"),
 		mcp.WithString("apps", mcp.Required(), mcp.Description("JSON array of app configs: [{repo, branch, domain, stack}]")),
+		mcp.WithString("strategy", mcp.Description("Deployment strategy: sequential (default), parallel, or rolling")),
+		mcp.WithNumber("max_concurrent", mcp.Description("Max concurrent deployments for parallel strategy (default: 5)")),
+		mcp.WithNumber("batch_size", mcp.Description("Batch size for rolling strategy (default: 3)")),
+		mcp.WithString("server_ids", mcp.Description("Comma-separated target server IDs")),
 	)
 	s.AddTool(batchDeployTool, withPermissionCheck("batch_deploy", withValidation("batch_deploy", batchDeployTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return handleBatchDeploy(ctx, deployer, request)
@@ -664,6 +709,9 @@ func NewServer(deployer Deployer) *server.MCPServer {
 		mcp.WithString("ports", mcp.Description("Port mappings (e.g. '8080:80')")),
 		mcp.WithString("server_id", mcp.Description("Target server ID (deploy locally if empty)")),
 		mcp.WithString("env_vars", mcp.Description("JSON object of environment variables")),
+		mcp.WithString("registry_id", mcp.Description("Registry ID to push the built image to")),
+		mcp.WithBoolean("push_image", mcp.Description("Whether to push the built image to the registry after build")),
+		mcp.WithString("image_tag", mcp.Description("Custom image tag (default: appname:latest)")),
 	)
 	s.AddTool(buildAndDeployTool, withPermissionCheck("build_and_deploy", withValidation("build_and_deploy", buildAndDeployTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return handleBuildAndDeploy(ctx, deployer, request)
@@ -782,6 +830,45 @@ func NewServer(deployer Deployer) *server.MCPServer {
 		return handleDetectPanel(ctx, deployer, request)
 	})))
 
+	// Register registry_login tool
+	registryLoginTool := mcp.NewTool("registry_login",
+		mcp.WithDescription("Authenticate with a container registry"),
+		mcp.WithString("registry_id", mcp.Required(), mcp.Description("Registry ID to authenticate with")),
+	)
+	s.AddTool(registryLoginTool, withPermissionCheck("registry_login", withValidation("registry_login", registryLoginTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleRegistryLogin(ctx, deployer, request)
+	})))
+
+	// Register push_image tool
+	pushImageTool := mcp.NewTool("push_image",
+		mcp.WithDescription("Push a Docker image to a container registry"),
+		mcp.WithString("registry_id", mcp.Required(), mcp.Description("Registry ID to push to")),
+		mcp.WithString("local_image", mcp.Required(), mcp.Description("Local image name (e.g. myapp:latest)")),
+		mcp.WithString("remote_tag", mcp.Description("Remote tag for the image (e.g. registry.example.com/myapp:v1)")),
+	)
+	s.AddTool(pushImageTool, withPermissionCheck("push_image", withValidation("push_image", pushImageTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handlePushImage(ctx, deployer, request)
+	})))
+
+	// Register list_registry_tags tool
+	listRegistryTagsTool := mcp.NewTool("list_registry_tags",
+		mcp.WithDescription("List tags for a repository in a container registry"),
+		mcp.WithString("registry_id", mcp.Required(), mcp.Description("Registry ID")),
+		mcp.WithString("repository", mcp.Required(), mcp.Description("Repository name (e.g. myuser/myapp)")),
+	)
+	s.AddTool(listRegistryTagsTool, withPermissionCheck("list_registry_tags", withValidation("list_registry_tags", listRegistryTagsTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleListRegistryTags(ctx, deployer, request)
+	})))
+
+	// Register ping_registry tool
+	pingRegistryTool := mcp.NewTool("ping_registry",
+		mcp.WithDescription("Check if a container registry is accessible"),
+		mcp.WithString("registry_id", mcp.Required(), mcp.Description("Registry ID to ping")),
+	)
+	s.AddTool(pingRegistryTool, withPermissionCheck("ping_registry", withValidation("ping_registry", pingRegistryTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handlePingRegistry(ctx, deployer, request)
+	})))
+
 	return s
 }
 
@@ -816,6 +903,12 @@ func handleBuildAndDeploy(ctx context.Context, deployer Deployer, request mcp.Ca
 		Ports:     ports,
 		ServerID:  serverID,
 		EnvVars:   envVars,
+		RegistryID: request.GetString("registry_id", ""),
+		ImageTag:   request.GetString("image_tag", ""),
+	}
+
+	if v := request.GetString("push_image", ""); v != "" {
+		cfg.PushImage = strings.ToLower(v) == "true"
 	}
 
 	result, err := deployer.BuildAndDeploy(ctx, cfg)
@@ -1678,7 +1771,40 @@ func handleBatchDeploy(ctx context.Context, deployer Deployer, request mcp.CallT
 	if err := json.Unmarshal([]byte(appsStr), &apps); err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("invalid apps JSON: %v", err)), nil
 	}
-	res, err := deployer.BatchDeploy(ctx, apps)
+
+	// Parse optional strategy parameters
+	strategy := DeployStrategy(request.GetString("strategy", "sequential"))
+	maxConcurrent := 0
+	if s := request.GetString("max_concurrent", ""); s != "" {
+		if v, err := strconv.Atoi(s); err == nil {
+			maxConcurrent = v
+		}
+	}
+	batchSize := 0
+	if s := request.GetString("batch_size", ""); s != "" {
+		if v, err := strconv.Atoi(s); err == nil {
+			batchSize = v
+		}
+	}
+	var serverIDs []string
+	if sidStr := request.GetString("server_ids", ""); sidStr != "" {
+		for _, s := range strings.Split(sidStr, ",") {
+			s = strings.TrimSpace(s)
+			if s != "" {
+				serverIDs = append(serverIDs, s)
+			}
+		}
+	}
+
+	config := BatchDeployConfig{
+		Apps:          apps,
+		Strategy:      strategy,
+		MaxConcurrent: maxConcurrent,
+		BatchSize:     batchSize,
+		ServerIDs:     serverIDs,
+	}
+
+	res, err := deployer.BatchDeployWithConfig(ctx, config)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("batch deploy failed: %v", err)), nil
 	}
@@ -1921,6 +2047,89 @@ func handleDetectPanel(ctx context.Context, deployer Deployer, request mcp.CallT
 		"status":    "success",
 		"server_id": serverID,
 		"message":   "Panel detection initiated. Use detect_environment for full environment details.",
+	}
+
+	data, _ := json.MarshalIndent(result, "", "  ")
+	return mcp.NewToolResultText(string(data)), nil
+}
+
+func handleRegistryLogin(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	registryID, err := request.RequireString("registry_id")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	args := map[string]interface{}{
+		"registry_url": request.GetString("registry_url", ""),
+		"username":     request.GetString("username", ""),
+		"password":     request.GetString("password", ""),
+	}
+
+	result, err := deployer.RegistryOps(registryID, "login", args)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("registry login failed: %v", err)), nil
+	}
+
+	data, _ := json.MarshalIndent(result, "", "  ")
+	return mcp.NewToolResultText(string(data)), nil
+}
+
+func handlePushImage(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	registryID, err := request.RequireString("registry_id")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+	localImage, err := request.RequireString("local_image")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	args := map[string]interface{}{
+		"local_image": localImage,
+		"remote_tag":  request.GetString("remote_tag", ""),
+	}
+
+	result, err := deployer.RegistryOps(registryID, "push", args)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("push image failed: %v", err)), nil
+	}
+
+	data, _ := json.MarshalIndent(result, "", "  ")
+	return mcp.NewToolResultText(string(data)), nil
+}
+
+func handleListRegistryTags(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	registryID, err := request.RequireString("registry_id")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+	repository, err := request.RequireString("repository")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	args := map[string]interface{}{
+		"repository": repository,
+	}
+
+	result, err := deployer.RegistryOps(registryID, "list_tags", args)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("list registry tags failed: %v", err)), nil
+	}
+
+	data, _ := json.MarshalIndent(result, "", "  ")
+	return mcp.NewToolResultText(string(data)), nil
+}
+
+func handlePingRegistry(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	registryID, err := request.RequireString("registry_id")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	result, err := deployer.RegistryOps(registryID, "ping", nil)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("ping registry failed: %v", err)), nil
 	}
 
 	data, _ := json.MarshalIndent(result, "", "  ")
