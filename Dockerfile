@@ -18,8 +18,8 @@ COPY --from=frontend /app/web/dist ./web/dist
 ARG GOARCH=amd64
 ENV CGO_ENABLED=1
 
-# Set CC for cross-compilation
-RUN if [ "$GOARCH" = "arm64" ]; then export CC=aarch64-linux-gnu-gcc; fi && \
+# Write CC to go env based on GOARCH, then build
+RUN test "$GOARCH" = "arm64" && go env -w CC=aarch64-linux-gnu-gcc || go env -w CC=gcc && \
     go build -ldflags="-s -w" -o /deploypilot ./cmd/deploypilot/ && \
     go build -ldflags="-s -w" -o /api-server ./cmd/api-server/ && \
     go build -ldflags="-s -w" -o /mcp-server ./cmd/mcp-server/
