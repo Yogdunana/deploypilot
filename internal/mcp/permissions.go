@@ -10,7 +10,7 @@ var ToolPermissions = map[string]int{
 	"list_tasks": 1, "list_deployments": 1, "detect_environment": 1,
 	"health_check": 1, "doctor": 1, "get_container_metrics": 1,
 	"get_system_metrics": 1, "list_alerts": 1, "list_alert_rules": 1,
-	"get_ci_build_status": 1,
+	"get_ci_build_status": 1, "list_ssl_certificates": 1,
 
 	// Dev-level (operations)
 	"deploy_app": 2, "create_app": 2, "update_app": 2,
@@ -21,11 +21,12 @@ var ToolPermissions = map[string]int{
 	"build_and_deploy": 2, "send_notification": 2,
 	"heal_container": 2, "check_deploy_readiness": 2,
 	"trigger_ci_build": 2, "search_app_logs": 2, "get_app_logs": 2,
+	"request_ssl_certificate": 2, "renew_ssl_certificate": 2,
 
 	// Admin-level (dangerous)
 	"delete_app": 3, "delete_server": 3, "delete_credential": 3,
 	"delete_dns_record": 3, "batch_deploy": 3, "batch_dns": 3,
-	"batch_backup": 3,
+	"batch_backup": 3, "delete_ssl_certificate": 3,
 
 	// Owner-level (system)
 	"update_user_role": 4, "delete_user": 4,

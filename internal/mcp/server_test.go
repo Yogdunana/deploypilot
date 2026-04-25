@@ -460,6 +460,32 @@ func (m *mockDeployer) GetCIBuildStatus(ctx context.Context, provider, runID str
 	}, nil
 }
 
+func (m *mockDeployer) ListSSLCertificates(ctx context.Context) (interface{}, error) {
+	return []interface{}{}, nil
+}
+
+func (m *mockDeployer) RequestSSLCertificate(ctx context.Context, domain, email string) (interface{}, error) {
+	return map[string]interface{}{
+		"domain":  domain,
+		"email":   email,
+		"status":  "pending",
+	}, nil
+}
+
+func (m *mockDeployer) RenewSSLCertificate(ctx context.Context, domain string) (interface{}, error) {
+	return map[string]interface{}{
+		"domain":  domain,
+		"status":  "renewing",
+	}, nil
+}
+
+func (m *mockDeployer) DeleteSSLCertificate(ctx context.Context, domain string) (interface{}, error) {
+	return map[string]interface{}{
+		"domain":  domain,
+		"message": "deleted",
+	}, nil
+}
+
 // extractText gets the text content from a CallToolResult.
 func extractText(result *mcp.CallToolResult) (string, error) {
 	if result.IsError {

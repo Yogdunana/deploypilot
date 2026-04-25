@@ -179,5 +179,14 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 			cicd.POST("/trigger", TriggerCIBuild(bridge))
 			cicd.GET("/status/:runID", GetCIBuildStatus(bridge))
 		}
+
+		// SSL (4 endpoints)
+		ssl := protected.Group("/ssl")
+		{
+			ssl.GET("/certificates", ListSSLCertificates(db))
+			ssl.POST("/certificates", RequestSSLCertificate(db))
+			ssl.DELETE("/certificates/:id", DeleteSSLCertificate(db))
+			ssl.POST("/certificates/:id/renew", RenewSSLCertificate(db))
+		}
 	}
 }

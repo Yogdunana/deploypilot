@@ -103,6 +103,10 @@ type Deployer interface {
 	ListAlertRules(ctx context.Context) (interface{}, error)
 	TriggerCIBuild(ctx context.Context, provider, repo, branch string) (interface{}, error)
 	GetCIBuildStatus(ctx context.Context, provider, runID string) (interface{}, error)
+	ListSSLCertificates(ctx context.Context) (interface{}, error)
+	RequestSSLCertificate(ctx context.Context, domain, email string) (interface{}, error)
+	RenewSSLCertificate(ctx context.Context, domain string) (interface{}, error)
+	DeleteSSLCertificate(ctx context.Context, domain string) (interface{}, error)
 }
 
 // DeployConfig mirrors deployer.DeployConfig to avoid circular imports.
@@ -726,6 +730,39 @@ func NewServer(deployer Deployer) *server.MCPServer {
 	)
 	s.AddTool(getCIStatusTool, withPermissionCheck("get_ci_build_status", func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return handleGetCIBuildStatus(ctx, deployer, request)
+	}))
+
+	// Register SSL certificate management tools
+	listSSLCertsTool := mcp.NewTool("list_ssl_certificates",
+		mcp.WithDescription("List all SSL certificates"),
+	)
+	s.AddTool(listSSLCertsTool, withPermissionCheck("list_ssl_certificates", func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleListSSLCertificates(ctx, deployer, request)
+	}))
+
+	requestSSLCertTool := mcp.NewTool("request_ssl_certificate",
+		mcp.WithDescription("Request a new SSL certificate for a domain"),
+		mcp.WithString("domain", mcp.Required(), mcp.Description("Domain name")),
+		mcp.WithString("email", mcp.Required(), mcp.Description("Email for certificate registration")),
+	)
+	s.AddTool(requestSSLCertTool, withPermissionCheck("request_ssl_certificate", func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleRequestSSLCertificate(ctx, deployer, request)
+	}))
+
+	renewSSLCertTool := mcp.NewTool("renew_ssl_certificate",
+		mcp.WithDescription("Renew an SSL certificate"),
+		mcp.WithString("domain", mcp.Required(), mcp.Description("Domain name")),
+	)
+	s.AddTool(renewSSLCertTool, withPermissionCheck("renew_ssl_certificate", func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleRenewSSLCertificate(ctx, deployer, request)
+	}))
+
+	deleteSSLCertTool := mcp.NewTool("delete_ssl_certificate",
+		mcp.WithDescription("Delete an SSL certificate"),
+		mcp.WithString("domain", mcp.Required(), mcp.Description("Domain name")),
+	)
+	s.AddTool(deleteSSLCertTool, withPermissionCheck("delete_ssl_certificate", func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleDeleteSSLCertificate(ctx, deployer, request)
 	}))
 
 	return s
@@ -1768,6 +1805,65 @@ func handleListAlertRules(ctx context.Context, deployer Deployer, request mcp.Ca
 	result, err := deployer.ListAlertRules(ctx)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("failed to list alert rules: %v", err)), nil
+	}
+
+	data, _ := json.MarshalIndent(result, "", "  ")
+	return mcp.NewToolResultText(string(data)), nil
+}
+
+func handleListSSLCertificates(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	result, err := deployer.ListSSLCertificates(ctx)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("failed to list SSL certificates: %v", err)), nil
+	}
+
+	data, _ := json.MarshalIndent(result, "", "  ")
+	return mcp.NewToolResultText(string(data)), nil
+}
+
+func handleRequestSSLCertificate(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	domain, err := request.RequireString("domain")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+	email, err := request.RequireString("email")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	result, err := deployer.RequestSSLCertificate(ctx, domain, email)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("failed to request SSL certificate: %v", err)), nil
+	}
+
+	data, _ := json.MarshalIndent(result, "", "  ")
+	return mcp.NewToolResultText(string(data)), nil
+}
+
+func handleRenewSSLCertificate(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	domain, err := request.RequireString("domain")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	result, err := deployer.RenewSSLCertificate(ctx, domain)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("failed to renew SSL certificate: %v", err)), nil
+	}
+
+	data, _ := json.MarshalIndent(result, "", "  ")
+	return mcp.NewToolResultText(string(data)), nil
+}
+
+func handleDeleteSSLCertificate(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	domain, err := request.RequireString("domain")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	result, err := deployer.DeleteSSLCertificate(ctx, domain)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("failed to delete SSL certificate: %v", err)), nil
 	}
 
 	data, _ := json.MarshalIndent(result, "", "  ")

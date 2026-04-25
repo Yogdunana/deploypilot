@@ -155,3 +155,23 @@ type AuditLog struct {
 }
 
 func (AuditLog) TableName() string { return "audit_logs" }
+
+// SSLCertificate represents an SSL/TLS certificate managed via ACME.
+type SSLCertificate struct {
+	ID          uint       `gorm:"primaryKey" json:"id"`
+	Domain      string     `gorm:"uniqueIndex;not null" json:"domain"`
+	Email       string     `gorm:"not null" json:"email"`
+	Provider    string     `gorm:"not null;default:cloudflare" json:"provider"` // cloudflare, aliyun, tencent
+	Status      string     `gorm:"not null;default:pending" json:"status"`      // pending, active, expired, failed
+	CertPath    string     `json:"cert_path"`
+	KeyPath     string     `json:"key_path"`
+	IssuedAt    *time.Time `json:"issued_at"`
+	ExpiresAt   *time.Time `json:"expires_at"`
+	AutoRenew   bool       `gorm:"default:true" json:"auto_renew"`
+	LastRenewed *time.Time `json:"last_renewed"`
+	RetryCount  int        `gorm:"default:0" json:"retry_count"`
+	CreatedAt   time.Time  `json:"created_at"`
+	UpdatedAt   time.Time  `json:"updated_at"`
+}
+
+func (SSLCertificate) TableName() string { return "ssl_certificates" }
