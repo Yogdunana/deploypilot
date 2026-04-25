@@ -48,10 +48,10 @@ func TestRequestCertificate(t *testing.T) {
 	if cert.Domain != "example.com" {
 		t.Errorf("expected domain example.com, got %s", cert.Domain)
 	}
-	if cert.CertPEM == nil || len(cert.CertPEM) == 0 {
+	if len(cert.CertPEM) == 0 {
 		t.Error("expected non-empty cert PEM")
 	}
-	if cert.KeyPEM == nil || len(cert.KeyPEM) == 0 {
+	if len(cert.KeyPEM) == 0 {
 		t.Error("expected non-empty key PEM")
 	}
 	if cert.IssuedAt.IsZero() {

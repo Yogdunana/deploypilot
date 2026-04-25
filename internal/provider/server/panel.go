@@ -77,10 +77,11 @@ func (p *PanelProvider) GetPanelInfo(_ context.Context) (map[string]interface{},
 		"base_url": p.baseURL,
 	}
 
-	if p.panelType == Panel1Panel {
+	switch p.panelType {
+	case Panel1Panel:
 		info["name"] = "1Panel"
 		info["features"] = []string{"container_management", "website_management", "firewall", "database"}
-	} else if p.panelType == PanelBTPanel {
+	case PanelBTPanel:
 		info["name"] = "BT-Panel (宝塔)"
 		info["features"] = []string{"website_management", "database", "ftp", "ssl", "cron"}
 	}
