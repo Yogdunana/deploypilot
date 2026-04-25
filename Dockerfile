@@ -6,30 +6,23 @@ RUN npm ci
 COPY web/ ./
 RUN npm run build
 
-# Stage 2: Build Go backend (multi-arch with CGO)
-FROM --platform=$BUILDPLATFORM tonistiigi/xx AS xx
-FROM --platform=$BUILDPLATFORM golang:1.23 AS backend
-
-# Install xx-go for CGO cross-compilation
-COPY --from=xx / /
-
-ARG TARGETPLATFORM
+# Stage 2: Build Go backend
+FROM golang:1.23 AS backend
+RUN apt-get update && apt-get install -y --no-install-recommends gcc-aarch64-linux-gnu && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
-
-# Install cross-compilation C toolchain
-RUN apt-get update && apt-get install -y --no-install-recommends clang lld && rm -rf /var/lib/apt/lists/*
-RUN xx-apt install -y gcc libc6-dev
-
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
 COPY --from=frontend /app/web/dist ./web/dist
 
-# Enable CGO and build with xx-go
+ARG GOARCH=amd64
 ENV CGO_ENABLED=1
-RUN xx-go build -ldflags="-s -w" -o /deploypilot ./cmd/deploypilot/ && \
-    xx-go build -ldflags="-s -w" -o /api-server ./cmd/api-server/ && \
-    xx-go build -ldflags="-s -w" -o /mcp-server ./cmd/mcp-server/
+
+# Set CC for cross-compilation
+RUN if [ "$GOARCH" = "arm64" ]; then export CC=aarch64-linux-gnu-gcc; fi && \
+    go build -ldflags="-s -w" -o /deploypilot ./cmd/deploypilot/ && \
+    go build -ldflags="-s -w" -o /api-server ./cmd/api-server/ && \
+    go build -ldflags="-s -w" -o /mcp-server ./cmd/mcp-server/
 
 # Stage 3: Runtime
 FROM alpine:3.20
