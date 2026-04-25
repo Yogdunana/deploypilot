@@ -11,6 +11,7 @@ var ToolPermissions = map[string]int{
 	"health_check": 1, "doctor": 1, "get_container_metrics": 1,
 	"get_system_metrics": 1, "list_alerts": 1, "list_alert_rules": 1,
 	"get_ci_build_status": 1, "list_ssl_certificates": 1,
+	"get_context": 1, "detect_panel": 1,
 
 	// Dev-level (operations)
 	"deploy_app": 2, "create_app": 2, "update_app": 2,

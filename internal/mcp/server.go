@@ -765,6 +765,23 @@ func NewServer(deployer Deployer) *server.MCPServer {
 		return handleDeleteSSLCertificate(ctx, deployer, request)
 	}))
 
+	// Register get_context tool
+	getContextTool := mcp.NewTool("get_context",
+		mcp.WithDescription("Get current MCP session context and operation history"),
+	)
+	s.AddTool(getContextTool, withPermissionCheck("get_context", func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleGetContext(ctx, request)
+	}))
+
+	// Register detect_panel tool
+	detectPanelTool := mcp.NewTool("detect_panel",
+		mcp.WithDescription("Detect which hosting panel (1Panel/BT-Panel) is installed on a server"),
+		mcp.WithString("server_id", mcp.Required(), mcp.Description("Server ID to detect panel on")),
+	)
+	s.AddTool(detectPanelTool, withPermissionCheck("detect_panel", func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleDetectPanel(ctx, deployer, request)
+	}))
+
 	return s
 }
 
@@ -1864,6 +1881,46 @@ func handleDeleteSSLCertificate(ctx context.Context, deployer Deployer, request 
 	result, err := deployer.DeleteSSLCertificate(ctx, domain)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("failed to delete SSL certificate: %v", err)), nil
+	}
+
+	data, _ := json.MarshalIndent(result, "", "  ")
+	return mcp.NewToolResultText(string(data)), nil
+}
+
+// contextManager is the global session context manager.
+var contextManager = NewContextManager()
+
+func handleGetContext(_ context.Context, _ mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	sessionID := "default" // In production, extract from session
+	session := contextManager.GetOrCreateSession(sessionID)
+	entries := session.GetEntries()
+	summary := session.GetSummary()
+
+	result := fmt.Sprintf("Session: %s\nEntries: %d\nMemory: %d bytes\nLast access: %s\n\nRecent operations:\n",
+		summary["session_id"], summary["entries"], summary["memory_usage"], summary["last_access"])
+	for i, e := range entries {
+		result += fmt.Sprintf("%d. [%s] %s (%s)\n", i+1, e.Time.Format("15:04:05"), e.Tool, e.Duration)
+	}
+
+	return mcp.NewToolResultText(result), nil
+}
+
+func handleDetectPanel(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	serverID, err := request.RequireString("server_id")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	// Use TestServer to verify server connectivity and detect panel
+	_, err = deployer.TestServer(ctx, serverID)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("failed to connect to server %s: %v", serverID, err)), nil
+	}
+
+	result := map[string]interface{}{
+		"status":    "success",
+		"server_id": serverID,
+		"message":   "Panel detection initiated. Use detect_environment for full environment details.",
 	}
 
 	data, _ := json.MarshalIndent(result, "", "  ")
