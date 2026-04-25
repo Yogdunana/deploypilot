@@ -3,7 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
-	"log"
+	"log/slog"
 
 	"github.com/redis/go-redis/v9"
 )
@@ -33,7 +33,7 @@ func NewRedisEventBus(client *redis.Client) *RedisEventBus {
 func (r *RedisEventBus) Publish(event DeployEvent) {
 	data, err := json.Marshal(event)
 	if err != nil {
-		log.Printf("[redis-eventbus] failed to marshal event: %v", err)
+		slog.Error("failed to marshal redis eventbus event", "error", err)
 		return
 	}
 	// Publish to Redis for other instances (fire-and-forget)

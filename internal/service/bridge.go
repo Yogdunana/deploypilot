@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"path/filepath"
 	"sort"
@@ -167,7 +167,7 @@ func (b *Bridge) getNotifiers(ctx context.Context) ([]notify.Notifier, error) {
 			Secret   string            `json:"secret"`
 		}
 		if err := json.Unmarshal([]byte(p.Config), &cfg); err != nil {
-			log.Printf("[notify] failed to parse provider %s config: %v", p.Name, err)
+			slog.Error("failed to parse notify provider config", "provider", p.Name, "error", err)
 			continue
 		}
 		switch cfg.Channel {
@@ -383,7 +383,7 @@ func (b *Bridge) Deploy(ctx context.Context, cfg mcp.DeployConfig) (*mcp.Contain
 		}
 		defer func() {
 			if cerr := remoteExec.Close(); cerr != nil {
-				log.Printf("failed to close remote executor: %v", cerr)
+				slog.Warn("failed to close remote executor", "error", cerr)
 			}
 		}()
 		executor = remoteExec
@@ -457,7 +457,7 @@ func (b *Bridge) Deploy(ctx context.Context, cfg mcp.DeployConfig) (*mcp.Contain
 	if err != nil {
 		// Save deployment failure
 		b.saveDeploymentRecord(ctx, cfg, "failed", nil)
-		log.Printf("[deploy] container %s deployment failed: %v", cfg.ContainerName, err)
+		slog.Error("container deployment failed", "container", cfg.ContainerName, "error", err)
 
 		b.EventBus.Publish(DeployEvent{
 			TaskID:    "", AppID: cfg.ContainerName,
@@ -470,7 +470,7 @@ func (b *Bridge) Deploy(ctx context.Context, cfg mcp.DeployConfig) (*mcp.Contain
 	}
 	// Save deployment success
 	b.saveDeploymentRecord(ctx, cfg, "success", nil)
-	log.Printf("[deploy] container %s deployed successfully (id: %s)", cfg.ContainerName, cs.ID)
+	slog.Info("container deployed successfully", "container", cfg.ContainerName, "container_id", cs.ID)
 
 	b.EventBus.Publish(DeployEvent{
 		TaskID:    "", AppID: cfg.ContainerName,
@@ -683,10 +683,10 @@ func (b *Bridge) GetContainerLogs(ctx context.Context, name string, tail int) (s
 func (b *Bridge) Rollback(ctx context.Context, containerName, previousImage string) (*mcp.ContainerStatus, error) {
 	// Stop and remove the current container
 	if err := b.d().Stop(ctx, containerName); err != nil {
-		log.Printf("rollback: stop warning: %v", err)
+		slog.Warn("rollback: stop warning", "error", err)
 	}
 	if err := b.d().Remove(ctx, containerName); err != nil {
-		log.Printf("rollback: remove warning: %v", err)
+		slog.Warn("rollback: remove warning", "error", err)
 	}
 
 	// Re-deploy with the previous image
@@ -949,7 +949,7 @@ func (b *Bridge) DeleteCredential(ctx context.Context, credID string) error {
 func (b *Bridge) DNSCreateRecord(ctx context.Context, domain, recordType, name, value string) (interface{}, error) {
 	provider, err := b.getDNSProvider(ctx)
 	if err != nil {
-		log.Printf("[dns] %v", err)
+		slog.Error("DNS provider error", "error", err)
 		return map[string]interface{}{
 			"status":  "error",
 			"domain":  domain,
@@ -1036,11 +1036,11 @@ func (b *Bridge) DNSListRecords(ctx context.Context, domain string) (interface{}
 // ---------- 22. SendNotification ----------
 
 func (b *Bridge) SendNotification(ctx context.Context, nType, appName, server, status, message string) (interface{}, error) {
-	log.Printf("[notification] type=%s app=%s server=%s status=%s message=%s", nType, appName, server, status, message)
+	slog.Info("notification sent", "type", nType, "app", appName, "server", server, "status", status, "message", message)
 
 	notifiers, err := b.getNotifiers(ctx)
 	if err != nil {
-		log.Printf("[notification] failed to load notifiers: %v", err)
+		slog.Error("failed to load notifiers", "error", err)
 	}
 
 	if len(notifiers) == 0 {
@@ -1403,10 +1403,10 @@ func (b *Bridge) Backup(ctx context.Context, appID string) (string, error) {
 	cmd := fmt.Sprintf("docker exec %s sh -c 'tar czf - /app /data 2>/dev/null' > %s 2>/dev/null || echo 'no_backup_paths'", containerName, backupFile)
 	out, err := b.Executor.RunCommand(ctx, cmd)
 	if err != nil {
-		log.Printf("backup: container exec failed (may be expected): %v, output: %s", err, out)
+		slog.Warn("backup: container exec failed (may be expected)", "error", err, "output", out)
 	}
 
-	log.Printf("[backup] app_id=%s container=%s backup_id=%s file=%s", appID, containerName, backupID, backupFile)
+	slog.Info("backup completed", "app_id", appID, "container", containerName, "backup_id", backupID, "file", backupFile)
 
 	// Store backup-to-app mapping for Restore
 	backupMu.Lock()
@@ -1454,9 +1454,9 @@ func (b *Bridge) Restore(ctx context.Context, backupID string) (*mcp.ContainerSt
 		containerName, filepath.Base(backupFile))
 	output, err := exec.RunCommand(ctx, cmd)
 	if err != nil {
-		log.Printf("[restore] restore extract warning: %v, output: %s", err, output)
+		slog.Warn("restore extract warning", "error", err, "output", output)
 	}
-	log.Printf("[restore] container %s restore attempted from %s: %s", containerName, backupFile, output)
+	slog.Info("restore attempted", "container", containerName, "backup_file", backupFile, "output", output)
 
 	// Re-deploy the app using its current version
 	image := app.CurrentVersion
@@ -1632,7 +1632,7 @@ func (b *Bridge) saveDeploymentRecord(ctx context.Context, cfg mcp.DeployConfig,
 		record.PreflightChecks = string(checksJSON)
 	}
 	if err := b.DB.Create(record).Error; err != nil {
-		log.Printf("[deploy] failed to save deployment record: %v", err)
+		slog.Error("failed to save deployment record", "error", err)
 	}
 }
 
@@ -1643,11 +1643,9 @@ func generateID() string {
 
 // logPreflightResult logs structured preflight check results.
 func logPreflightResult(containerName string, result *PreflightResult) {
-	log.Printf("[preflight] container=%s passed=%v code=%s message=%q",
-		containerName, result.Passed, result.Code, result.Message)
+	slog.Info("preflight result", "container", containerName, "passed", result.Passed, "code", result.Code, "message", result.Message)
 	for _, c := range result.Checks {
-		log.Printf("[preflight]   check: name=%s passed=%v message=%q suggestion=%q",
-			c.Name, c.Passed, c.Message, c.Suggestion)
+		slog.Info("preflight check", "name", c.Name, "passed", c.Passed, "message", c.Message, "suggestion", c.Suggestion)
 	}
 }
 

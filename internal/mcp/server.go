@@ -5,12 +5,44 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
 
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 	"github.com/Yogdunana/deploypilot/internal/model"
 )
+
+// contextKeyRole is the context key for the user role.
+type contextKeyRole struct{}
+
+// ContextWithRole returns a new context carrying the given user role.
+func ContextWithRole(ctx context.Context, role string) context.Context {
+	return context.WithValue(ctx, contextKeyRole{}, role)
+}
+
+// RoleFromContext extracts the user role from context. Returns "dev" as default.
+func RoleFromContext(ctx context.Context) string {
+	if role, ok := ctx.Value(contextKeyRole{}).(string); ok {
+		return role
+	}
+	return "dev"
+}
+
+// withPermissionCheck wraps a tool handler with a permission check.
+// If the user's role (from context) does not meet the minimum requirement,
+// a permission denied error is returned.
+func withPermissionCheck(toolName string, handler server.ToolHandlerFunc) server.ToolHandlerFunc {
+	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		userRole := RoleFromContext(ctx)
+		if !CheckPermission(toolName, userRole) {
+			required := ToolPermissions[toolName]
+			slog.Warn("permission denied for tool", "tool", toolName, "role", userRole, "required", RequiredRoleName(required))
+			return mcp.NewToolResultError(fmt.Sprintf("permission denied: %s requires role %s or higher, current role: %s", toolName, RequiredRoleName(required), userRole)), nil
+		}
+		return handler(ctx, request)
+	}
+}
 
 // PreflightErrorInfo is an interface used to detect preflight errors from the deployer.
 // The service package's PreflightError implements this interface.
@@ -192,9 +224,9 @@ func NewServer(deployer Deployer) *server.MCPServer {
 		),
 	)
 
-	s.AddTool(deployTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	s.AddTool(deployTool, withPermissionCheck("deploy_app", func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return handleDeployApp(ctx, deployer, request)
-	})
+	}))
 
 	// Register get_deploy_status tool
 	statusTool := mcp.NewTool("get_deploy_status",
@@ -205,27 +237,27 @@ func NewServer(deployer Deployer) *server.MCPServer {
 		),
 	)
 
-	s.AddTool(statusTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	s.AddTool(statusTool, withPermissionCheck("get_deploy_status", func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return handleGetDeployStatus(ctx, deployer, request)
-	})
+	}))
 
 	// Register list_apps tool
 	listAppsTool := mcp.NewTool("list_apps",
 		mcp.WithDescription("List all deployed applications"),
 	)
 
-	s.AddTool(listAppsTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	s.AddTool(listAppsTool, withPermissionCheck("list_apps", func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return handleListApps(ctx, deployer, request)
-	})
+	}))
 
 	// Register list_servers tool
 	listServersTool := mcp.NewTool("list_servers",
 		mcp.WithDescription("List all registered servers"),
 	)
 
-	s.AddTool(listServersTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	s.AddTool(listServersTool, withPermissionCheck("list_servers", func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return handleListServers(ctx, deployer, request)
-	})
+	}))
 
 	// Register create_app tool
 	createAppTool := mcp.NewTool("create_app",
@@ -255,9 +287,9 @@ func NewServer(deployer Deployer) *server.MCPServer {
 		),
 	)
 
-	s.AddTool(createAppTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	s.AddTool(createAppTool, withPermissionCheck("create_app", func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return handleCreateApp(ctx, deployer, request)
-	})
+	}))
 
 	// Register delete_app tool
 	deleteAppTool := mcp.NewTool("delete_app",
@@ -268,9 +300,9 @@ func NewServer(deployer Deployer) *server.MCPServer {
 		),
 	)
 
-	s.AddTool(deleteAppTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	s.AddTool(deleteAppTool, withPermissionCheck("delete_app", func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return handleDeleteApp(ctx, deployer, request)
-	})
+	}))
 
 	// Register rollback tool
 	rollbackTool := mcp.NewTool("rollback_app",
@@ -285,9 +317,9 @@ func NewServer(deployer Deployer) *server.MCPServer {
 		),
 	)
 
-	s.AddTool(rollbackTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	s.AddTool(rollbackTool, withPermissionCheck("rollback_app", func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return handleRollback(ctx, deployer, request)
-	})
+	}))
 
 	// Register backup tool
 	backupTool := mcp.NewTool("backup_database",
@@ -298,9 +330,9 @@ func NewServer(deployer Deployer) *server.MCPServer {
 		),
 	)
 
-	s.AddTool(backupTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	s.AddTool(backupTool, withPermissionCheck("backup_database", func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return handleBackup(ctx, deployer, request)
-	})
+	}))
 
 	// Register restore tool
 	restoreTool := mcp.NewTool("restore_database",
@@ -311,9 +343,9 @@ func NewServer(deployer Deployer) *server.MCPServer {
 		),
 	)
 
-	s.AddTool(restoreTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	s.AddTool(restoreTool, withPermissionCheck("restore_database", func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return handleRestore(ctx, deployer, request)
-	})
+	}))
 
 	// Register get_app_logs tool
 	getLogsTool := mcp.NewTool("get_app_logs",
@@ -327,9 +359,9 @@ func NewServer(deployer Deployer) *server.MCPServer {
 		),
 	)
 
-	s.AddTool(getLogsTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	s.AddTool(getLogsTool, withPermissionCheck("get_app_logs", func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return handleGetAppLogs(ctx, deployer, request)
-	})
+	}))
 
 	// Register detect_env tool
 	detectEnvTool := mcp.NewTool("detect_environment",
@@ -345,9 +377,9 @@ func NewServer(deployer Deployer) *server.MCPServer {
 		),
 	)
 
-	s.AddTool(detectEnvTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	s.AddTool(detectEnvTool, withPermissionCheck("detect_environment", func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return handleDetectEnv(ctx, deployer, request)
-	})
+	}))
 
 	// Register health_check tool
 	healthCheckTool := mcp.NewTool("health_check",
@@ -361,9 +393,9 @@ func NewServer(deployer Deployer) *server.MCPServer {
 		),
 	)
 
-	s.AddTool(healthCheckTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	s.AddTool(healthCheckTool, withPermissionCheck("health_check", func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return handleHealthCheck(ctx, deployer, request)
-	})
+	}))
 
 	// Register add_server tool
 	addServerTool := mcp.NewTool("add_server",
@@ -373,27 +405,27 @@ func NewServer(deployer Deployer) *server.MCPServer {
 		mcp.WithString("port", mcp.Description("SSH port. Default: 22. Cloud providers often use custom ports (e.g. 23196, 2222). Check your security group settings.")),
 		mcp.WithString("user", mcp.Description("SSH username (default: root)")),
 	)
-	s.AddTool(addServerTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	s.AddTool(addServerTool, withPermissionCheck("add_server", func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return handleAddServer(ctx, deployer, request)
-	})
+	}))
 
 	// Register remove_server tool
 	removeServerTool := mcp.NewTool("delete_server",
 		mcp.WithDescription("Remove a registered server"),
 		mcp.WithString("server_id", mcp.Required(), mcp.Description("Server ID to remove")),
 	)
-	s.AddTool(removeServerTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	s.AddTool(removeServerTool, withPermissionCheck("delete_server", func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return handleRemoveServer(ctx, deployer, request)
-	})
+	}))
 
 	// Register test_server tool
 	testServerTool := mcp.NewTool("test_server",
 		mcp.WithDescription("Test SSH connectivity to a registered server. Returns latency and actionable suggestions if unreachable."),
 		mcp.WithString("server_id", mcp.Required(), mcp.Description("Server ID to test")),
 	)
-	s.AddTool(testServerTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	s.AddTool(testServerTool, withPermissionCheck("test_server", func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return handleTestServer(ctx, deployer, request)
-	})
+	}))
 
 	// Register create_credential tool
 	createCredTool := mcp.NewTool("add_credential",
@@ -403,27 +435,27 @@ func NewServer(deployer Deployer) *server.MCPServer {
 		mcp.WithString("type", mcp.Required(), mcp.Description("Credential type: ssh, api_key, token, password")),
 		mcp.WithString("value", mcp.Required(), mcp.Description("Plain credential value (will be encrypted)")),
 	)
-	s.AddTool(createCredTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	s.AddTool(createCredTool, withPermissionCheck("add_credential", func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return handleCreateCredential(ctx, deployer, request)
-	})
+	}))
 
 	// Register list_credentials tool
 	listCredsTool := mcp.NewTool("list_credentials",
 		mcp.WithDescription("List all credentials for a tenant"),
 		mcp.WithString("tenant_id", mcp.Required(), mcp.Description("Tenant ID")),
 	)
-	s.AddTool(listCredsTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	s.AddTool(listCredsTool, withPermissionCheck("list_credentials", func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return handleListCredentials(ctx, deployer, request)
-	})
+	}))
 
 	// Register delete_credential tool
 	deleteCredTool := mcp.NewTool("delete_credential",
 		mcp.WithDescription("Delete a credential"),
 		mcp.WithString("credential_id", mcp.Required(), mcp.Description("Credential ID to delete")),
 	)
-	s.AddTool(deleteCredTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	s.AddTool(deleteCredTool, withPermissionCheck("delete_credential", func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return handleDeleteCredential(ctx, deployer, request)
-	})
+	}))
 
 	// Register dns_create_record tool
 	dnsCreateTool := mcp.NewTool("add_dns_record",
@@ -433,27 +465,27 @@ func NewServer(deployer Deployer) *server.MCPServer {
 		mcp.WithString("name", mcp.Required(), mcp.Description("Record name (e.g. @ or subdomain)")),
 		mcp.WithString("value", mcp.Required(), mcp.Description("Record value (e.g. IP address)")),
 	)
-	s.AddTool(dnsCreateTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	s.AddTool(dnsCreateTool, withPermissionCheck("add_dns_record", func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return handleDNSCreateRecord(ctx, deployer, request)
-	})
+	}))
 
 	// Register dns_delete_record tool
 	dnsDeleteTool := mcp.NewTool("delete_dns_record",
 		mcp.WithDescription("Delete a DNS record"),
 		mcp.WithString("record_id", mcp.Required(), mcp.Description("DNS record ID to delete")),
 	)
-	s.AddTool(dnsDeleteTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	s.AddTool(dnsDeleteTool, withPermissionCheck("delete_dns_record", func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return handleDNSDeleteRecord(ctx, deployer, request)
-	})
+	}))
 
 	// Register dns_list_records tool
 	dnsListTool := mcp.NewTool("list_dns_records",
 		mcp.WithDescription("List DNS records for a domain"),
 		mcp.WithString("domain", mcp.Required(), mcp.Description("Domain name")),
 	)
-	s.AddTool(dnsListTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	s.AddTool(dnsListTool, withPermissionCheck("list_dns_records", func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return handleDNSListRecords(ctx, deployer, request)
-	})
+	}))
 
 	// Register send_notification tool
 	sendNotifyTool := mcp.NewTool("send_notification",
@@ -464,35 +496,35 @@ func NewServer(deployer Deployer) *server.MCPServer {
 		mcp.WithString("status", mcp.Required(), mcp.Description("Status: success, failed, warning")),
 		mcp.WithString("message", mcp.Description("Notification message")),
 	)
-	s.AddTool(sendNotifyTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	s.AddTool(sendNotifyTool, withPermissionCheck("send_notification", func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return handleSendNotification(ctx, deployer, request)
-	})
+	}))
 
 	// Register list_templates tool
 	listTmplTool := mcp.NewTool("list_templates",
 		mcp.WithDescription("List all available application templates"),
 	)
-	s.AddTool(listTmplTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	s.AddTool(listTmplTool, withPermissionCheck("list_templates", func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return handleListTemplates(ctx, deployer, request)
-	})
+	}))
 
 	// Register get_template tool
 	getTmplTool := mcp.NewTool("get_template",
 		mcp.WithDescription("Get details of a specific application template"),
 		mcp.WithString("type", mcp.Required(), mcp.Description("Template type: node, python, go, java, php, ruby, rust, static, docker")),
 	)
-	s.AddTool(getTmplTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	s.AddTool(getTmplTool, withPermissionCheck("get_template", func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return handleGetTemplate(ctx, deployer, request)
-	})
+	}))
 
 	// Register get_app_detail tool
 	getAppDetailTool := mcp.NewTool("get_app_detail",
 		mcp.WithDescription("Get detailed information about a deployed application"),
 		mcp.WithString("app_id", mcp.Required(), mcp.Description("Application ID")),
 	)
-	s.AddTool(getAppDetailTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	s.AddTool(getAppDetailTool, withPermissionCheck("get_app_detail", func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return handleGetAppDetail(ctx, deployer, request)
-	})
+	}))
 
 	// Register update_app tool
 	updateAppTool := mcp.NewTool("update_app",
@@ -500,18 +532,18 @@ func NewServer(deployer Deployer) *server.MCPServer {
 		mcp.WithString("app_id", mcp.Required(), mcp.Description("Application ID")),
 		mcp.WithString("config", mcp.Required(), mcp.Description("JSON string of configuration to update")),
 	)
-	s.AddTool(updateAppTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	s.AddTool(updateAppTool, withPermissionCheck("update_app", func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return handleUpdateApp(ctx, deployer, request)
-	})
+	}))
 
 	// Register get_task_status tool
 	getTaskStatusTool := mcp.NewTool("get_task_status",
 		mcp.WithDescription("Get status of an async task"),
 		mcp.WithString("task_id", mcp.Required(), mcp.Description("Task ID")),
 	)
-	s.AddTool(getTaskStatusTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	s.AddTool(getTaskStatusTool, withPermissionCheck("get_task_status", func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return handleGetTaskStatus(ctx, deployer, request)
-	})
+	}))
 
 	// Register list_tasks tool
 	listTasksTool := mcp.NewTool("list_tasks",
@@ -519,9 +551,9 @@ func NewServer(deployer Deployer) *server.MCPServer {
 		mcp.WithString("limit", mcp.Description("Maximum number of tasks to return (default: 20)")),
 		mcp.WithString("status_filter", mcp.Description("Filter by status: running, completed, failed")),
 	)
-	s.AddTool(listTasksTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	s.AddTool(listTasksTool, withPermissionCheck("list_tasks", func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return handleListTasks(ctx, deployer, request)
-	})
+	}))
 
 	// Register search_app_logs
 	searchLogsTool := mcp.NewTool("search_app_logs",
@@ -530,9 +562,9 @@ func NewServer(deployer Deployer) *server.MCPServer {
 		mcp.WithString("keyword", mcp.Required(), mcp.Description("Search keyword")),
 		mcp.WithString("limit", mcp.Description("Max results (default: 50)")),
 	)
-	s.AddTool(searchLogsTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	s.AddTool(searchLogsTool, withPermissionCheck("search_app_logs", func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return handleSearchAppLogs(ctx, deployer, request)
-	})
+	}))
 
 	// Register update_dns_record
 	updateDNSTool := mcp.NewTool("update_dns_record",
@@ -542,9 +574,9 @@ func NewServer(deployer Deployer) *server.MCPServer {
 		mcp.WithString("type", mcp.Required(), mcp.Description("Record type: A, AAAA, CNAME, TXT")),
 		mcp.WithString("new_value", mcp.Required(), mcp.Description("New record value")),
 	)
-	s.AddTool(updateDNSTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	s.AddTool(updateDNSTool, withPermissionCheck("update_dns_record", func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return handleUpdateDNSRecord(ctx, deployer, request)
-	})
+	}))
 
 	// Register update_credential
 	updateCredTool := mcp.NewTool("update_credential",
@@ -552,9 +584,9 @@ func NewServer(deployer Deployer) *server.MCPServer {
 		mcp.WithString("credential_id", mcp.Required(), mcp.Description("Credential ID")),
 		mcp.WithString("value", mcp.Required(), mcp.Description("New credential value")),
 	)
-	s.AddTool(updateCredTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	s.AddTool(updateCredTool, withPermissionCheck("update_credential", func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return handleUpdateCredential(ctx, deployer, request)
-	})
+	}))
 
 	// Register update_server
 	updateSrvTool := mcp.NewTool("update_server",
@@ -562,61 +594,61 @@ func NewServer(deployer Deployer) *server.MCPServer {
 		mcp.WithString("server_id", mcp.Required(), mcp.Description("Server ID")),
 		mcp.WithString("config", mcp.Required(), mcp.Description("JSON string of config to update")),
 	)
-	s.AddTool(updateSrvTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	s.AddTool(updateSrvTool, withPermissionCheck("update_server", func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return handleUpdateServer(ctx, deployer, request)
-	})
+	}))
 
 	// Register check_deploy_readiness
 	checkReadinessTool := mcp.NewTool("check_deploy_readiness",
 		mcp.WithDescription("Check if deployment prerequisites are met"),
 		mcp.WithString("app_config", mcp.Required(), mcp.Description("JSON string of app configuration to validate")),
 	)
-	s.AddTool(checkReadinessTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	s.AddTool(checkReadinessTool, withPermissionCheck("check_deploy_readiness", func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return handleCheckDeployReadiness(ctx, deployer, request)
-	})
+	}))
 
 	// Register batch_deploy
 	batchDeployTool := mcp.NewTool("batch_deploy",
 		mcp.WithDescription("Deploy multiple applications at once"),
 		mcp.WithString("apps", mcp.Required(), mcp.Description("JSON array of app configs: [{repo, branch, domain, stack}]")),
 	)
-	s.AddTool(batchDeployTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	s.AddTool(batchDeployTool, withPermissionCheck("batch_deploy", func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return handleBatchDeploy(ctx, deployer, request)
-	})
+	}))
 
 	// Register batch_backup
 	batchBackupTool := mcp.NewTool("batch_backup",
 		mcp.WithDescription("Backup multiple applications at once"),
 		mcp.WithString("app_ids", mcp.Required(), mcp.Description("JSON array of app IDs: [\"id1\", \"id2\"]")),
 	)
-	s.AddTool(batchBackupTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	s.AddTool(batchBackupTool, withPermissionCheck("batch_backup", func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return handleBatchBackup(ctx, deployer, request)
-	})
+	}))
 
 	// Register batch_dns
 	batchDNSTool := mcp.NewTool("batch_dns",
 		mcp.WithDescription("Add multiple DNS records at once"),
 		mcp.WithString("records", mcp.Required(), mcp.Description("JSON array of DNS records: [{domain, sub, type, value}]")),
 	)
-	s.AddTool(batchDNSTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	s.AddTool(batchDNSTool, withPermissionCheck("batch_dns", func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return handleBatchDNS(ctx, deployer, request)
-	})
+	}))
 
 	// Register check_system_update
 	checkSysUpdateTool := mcp.NewTool("check_system_update",
 		mcp.WithDescription("Check if a newer version of DeployPilot is available"),
 	)
-	s.AddTool(checkSysUpdateTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	s.AddTool(checkSysUpdateTool, withPermissionCheck("check_system_update", func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return handleCheckSystemUpdate(ctx, deployer, request)
-	})
+	}))
 
 	// Register doctor tool
 	doctorTool := mcp.NewTool("doctor",
 		mcp.WithDescription("Check DeployPilot prerequisites: Docker availability, database connectivity, and SSH configuration."),
 	)
-	s.AddTool(doctorTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	s.AddTool(doctorTool, withPermissionCheck("doctor", func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return handleDoctor(ctx, deployer, request)
-	})
+	}))
 
 	// Register build_and_deploy tool
 	buildAndDeployTool := mcp.NewTool("build_and_deploy",
@@ -629,51 +661,51 @@ func NewServer(deployer Deployer) *server.MCPServer {
 		mcp.WithString("server_id", mcp.Description("Target server ID (deploy locally if empty)")),
 		mcp.WithString("env_vars", mcp.Description("JSON object of environment variables")),
 	)
-	s.AddTool(buildAndDeployTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	s.AddTool(buildAndDeployTool, withPermissionCheck("build_and_deploy", func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return handleBuildAndDeploy(ctx, deployer, request)
-	})
+	}))
 
 	// Register heal_container tool
 	healContainerTool := mcp.NewTool("heal_container",
 		mcp.WithDescription("Trigger self-healing for a container. Inspects the container state and takes corrective action (restart or rollback) if needed."),
 		mcp.WithString("container_name", mcp.Required(), mcp.Description("Name of the container to heal")),
 	)
-	s.AddTool(healContainerTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	s.AddTool(healContainerTool, withPermissionCheck("heal_container", func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return handleHealContainer(ctx, deployer, request)
-	})
+	}))
 
 	// Register get_container_metrics tool
 	getContainerMetricsTool := mcp.NewTool("get_container_metrics",
 		mcp.WithDescription("Get resource usage metrics (CPU, memory) for a specific container."),
 		mcp.WithString("container_name", mcp.Required(), mcp.Description("Name of the container")),
 	)
-	s.AddTool(getContainerMetricsTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	s.AddTool(getContainerMetricsTool, withPermissionCheck("get_container_metrics", func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return handleGetContainerMetrics(ctx, deployer, request)
-	})
+	}))
 
 	// Register get_system_metrics tool
 	getSystemMetricsTool := mcp.NewTool("get_system_metrics",
 		mcp.WithDescription("Get system-level metrics (CPU, memory, disk usage)."),
 	)
-	s.AddTool(getSystemMetricsTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	s.AddTool(getSystemMetricsTool, withPermissionCheck("get_system_metrics", func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return handleGetSystemMetrics(ctx, deployer, request)
-	})
+	}))
 
 	// Register list_alerts tool
 	listAlertsTool := mcp.NewTool("list_alerts",
 		mcp.WithDescription("List all currently active (firing) alerts."),
 	)
-	s.AddTool(listAlertsTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	s.AddTool(listAlertsTool, withPermissionCheck("list_alerts", func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return handleListAlerts(ctx, deployer, request)
-	})
+	}))
 
 	// Register list_alert_rules tool
 	listAlertRulesTool := mcp.NewTool("list_alert_rules",
 		mcp.WithDescription("List all configured alert rules."),
 	)
-	s.AddTool(listAlertRulesTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	s.AddTool(listAlertRulesTool, withPermissionCheck("list_alert_rules", func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return handleListAlertRules(ctx, deployer, request)
-	})
+	}))
 
 	// Register trigger_ci_build tool
 	triggerCITool := mcp.NewTool("trigger_ci_build",
@@ -682,9 +714,9 @@ func NewServer(deployer Deployer) *server.MCPServer {
 		mcp.WithString("repo", mcp.Required(), mcp.Description("Repository name (e.g. my-project)")),
 		mcp.WithString("branch", mcp.Required(), mcp.Description("Git branch to build (e.g. main)")),
 	)
-	s.AddTool(triggerCITool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	s.AddTool(triggerCITool, withPermissionCheck("trigger_ci_build", func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return handleTriggerCIBuild(ctx, deployer, request)
-	})
+	}))
 
 	// Register get_ci_build_status tool
 	getCIStatusTool := mcp.NewTool("get_ci_build_status",
@@ -692,9 +724,9 @@ func NewServer(deployer Deployer) *server.MCPServer {
 		mcp.WithString("provider", mcp.Required(), mcp.Description("CI/CD provider type: github-actions")),
 		mcp.WithString("run_id", mcp.Required(), mcp.Description("Build run ID")),
 	)
-	s.AddTool(getCIStatusTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	s.AddTool(getCIStatusTool, withPermissionCheck("get_ci_build_status", func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return handleGetCIBuildStatus(ctx, deployer, request)
-	})
+	}))
 
 	return s
 }

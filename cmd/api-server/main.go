@@ -5,7 +5,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -56,9 +56,12 @@ func run(cliDriver, cliDSN, cliAddr string) error {
 	// Load config
 	cfg, err := config.Load("")
 	if err != nil {
-		log.Printf("warning: config load failed, using defaults: %v", err)
+		fmt.Fprintf(os.Stderr, "warning: config load failed, using defaults: %v\n", err)
 		cfg = config.DefaultConfig()
 	}
+
+	// Initialize structured logger
+	config.InitLogger(cfg.Log)
 
 	// CLI flags override config
 	if cliDriver != "" {
@@ -90,7 +93,7 @@ func run(cliDriver, cliDSN, cliAddr string) error {
 	// Seed
 	if err := database.Seed(db); err != nil {
 		if !errors.Is(err, gorm.ErrDuplicatedKey) {
-			log.Printf("warning: database seed: %v", err)
+			slog.Warn("database seed error", "error", err)
 		}
 	}
 
@@ -104,7 +107,7 @@ func run(cliDriver, cliDSN, cliAddr string) error {
 	}
 	if encKey == nil {
 		encKey = crypto.NewEncryptionKey()
-		log.Printf("warning: DEPLOYPILOT_ENCRYPTION_KEY not set, generated a temporary key (credentials will be lost on restart)")
+		slog.Warn("DEPLOYPILOT_ENCRYPTION_KEY not set, generated a temporary key (credentials will be lost on restart)")
 	}
 
 	// Initialize event bus (Redis if available, otherwise in-memory)
@@ -116,11 +119,11 @@ func run(cliDriver, cliDSN, cliAddr string) error {
 			DB:       cfg.Redis.DB,
 		})
 		if err := rdb.Ping(context.Background()).Err(); err != nil {
-			log.Printf("Redis unavailable, falling back to in-memory event bus: %v", err)
+			slog.Warn("Redis unavailable, falling back to in-memory event bus", "error", err)
 			eventBus = service.NewInMemoryEventBus()
 		} else {
 			eventBus = service.NewRedisEventBus(rdb)
-			log.Println("Using Redis Pub/Sub event bus")
+			slog.Info("using Redis Pub/Sub event bus")
 		}
 	} else {
 		eventBus = service.NewInMemoryEventBus()
@@ -141,7 +144,7 @@ func run(cliDriver, cliDSN, cliAddr string) error {
 
 	srv := server.New(listenAddr, db, bridge, cfg)
 
-	log.Printf("DeployPilot API server v%s starting on %s", version, listenAddr)
-	log.Printf("database: %s (%s)", cfg.Database.Type, cfg.Database.DSN)
+	slog.Info("DeployPilot API server starting", "version", version, "addr", listenAddr)
+	slog.Info("database configured", "type", cfg.Database.Type, "dsn", cfg.Database.DSN)
 	return srv.Run()
 }

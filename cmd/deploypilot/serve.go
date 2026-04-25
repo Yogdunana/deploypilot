@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -43,7 +43,7 @@ var serveCmd = &cobra.Command{
 		// Load config
 		cfg, err := config.Load("")
 		if err != nil {
-			log.Printf("warning: config load failed, using defaults: %v", err)
+			slog.Warn("config load failed, using defaults", "error", err)
 			cfg = config.DefaultConfig()
 		}
 
@@ -69,7 +69,7 @@ var serveCmd = &cobra.Command{
 		// Seed
 		if err := database.Seed(db); err != nil {
 			if !errors.Is(err, gorm.ErrDuplicatedKey) {
-				log.Printf("warning: database seed: %v", err)
+				slog.Warn("database seed error", "error", err)
 			}
 		}
 
@@ -83,14 +83,14 @@ var serveCmd = &cobra.Command{
 		}
 		if encKey == nil {
 			encKey = crypto.NewEncryptionKey()
-			log.Printf("warning: DEPLOYPILOT_ENCRYPTION_KEY not set, generated a temporary key (credentials will be lost on restart)")
+			slog.Warn("DEPLOYPILOT_ENCRYPTION_KEY not set, generated a temporary key (credentials will be lost on restart)")
 		}
 		bridge := service.NewBridge(db, executor, encKey, nil)
 
 		// Create MCP server
 		mcpServer := mcp.NewServer(bridge)
 
-		log.Printf("DeployPilot MCP server v%s starting (stdio)", version)
+		slog.Info("DeployPilot MCP server starting", "version", version, "transport", "stdio")
 		return server.ServeStdio(mcpServer)
 	},
 }

@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"sync"
 	"time"
@@ -62,7 +62,7 @@ func NewTunnelManager() *TunnelManager {
 func (tm *TunnelManager) HandleTunnel(w http.ResponseWriter, r *http.Request, serverID string) {
 	conn, err := tm.upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		log.Printf("[agent-tunnel] upgrade failed for server %s: %v", serverID, err)
+		slog.Error("agent tunnel upgrade failed", "server_id", serverID, "error", err)
 		return
 	}
 	defer func() { _ = conn.Close() }()
@@ -81,7 +81,7 @@ func (tm *TunnelManager) HandleTunnel(w http.ResponseWriter, r *http.Request, se
 	tm.agents[serverID] = ac
 	tm.mu.Unlock()
 
-	log.Printf("[agent-tunnel] agent connected: server_id=%s", serverID)
+	slog.Info("agent connected", "server_id", serverID)
 
 	// Send registration acknowledgment
 	ac.writeMu.Lock()
@@ -101,7 +101,7 @@ func (tm *TunnelManager) HandleTunnel(w http.ResponseWriter, r *http.Request, se
 
 		var tunnelMsg TunnelMessage
 		if err := json.Unmarshal(msg, &tunnelMsg); err != nil {
-			log.Printf("[agent-tunnel] invalid message from server %s: %v", serverID, err)
+			slog.Warn("invalid message from agent", "server_id", serverID, "error", err)
 			continue
 		}
 
@@ -118,7 +118,7 @@ func (tm *TunnelManager) HandleTunnel(w http.ResponseWriter, r *http.Request, se
 		case "heartbeat":
 			// Agent heartbeat, nothing to do
 		default:
-			log.Printf("[agent-tunnel] unknown message type from server %s: %s", serverID, tunnelMsg.Type)
+			slog.Warn("unknown message type from agent", "server_id", serverID, "type", tunnelMsg.Type)
 		}
 	}
 
@@ -129,7 +129,7 @@ func (tm *TunnelManager) HandleTunnel(w http.ResponseWriter, r *http.Request, se
 	}
 	tm.mu.Unlock()
 
-	log.Printf("[agent-tunnel] agent disconnected: server_id=%s", serverID)
+	slog.Info("agent disconnected", "server_id", serverID)
 }
 
 // handleResult routes a command result to the waiting caller.
@@ -142,7 +142,7 @@ func (tm *TunnelManager) handleResult(msg TunnelMessage) {
 	tm.mu.Unlock()
 
 	if !ok {
-		log.Printf("[agent-tunnel] no pending command for command_id=%s", msg.CommandID)
+		slog.Warn("no pending command for result", "command_id", msg.CommandID)
 		return
 	}
 
@@ -154,7 +154,7 @@ func (tm *TunnelManager) handleResult(msg TunnelMessage) {
 	select {
 	case ch <- result:
 	default:
-		log.Printf("[agent-tunnel] result channel full for command_id=%s", msg.CommandID)
+		slog.Warn("result channel full, dropping command result", "command_id", msg.CommandID)
 	}
 }
 
@@ -254,7 +254,7 @@ func (tm *TunnelManager) cleanup() {
 	now := time.Now()
 	for id, ac := range tm.agents {
 		if now.Sub(ac.lastSeen) > 5*time.Minute {
-			log.Printf("[agent-tunnel] cleaning up stale connection: server_id=%s", id)
+			slog.Info("cleaning up stale agent connection", "server_id", id)
 			if ac.conn != nil {
 				_ = ac.conn.Close()
 			}

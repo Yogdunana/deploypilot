@@ -5,7 +5,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -68,7 +68,7 @@ func run(cliDriver, cliDSN string) error {
 	// Load config (optional — falls back to defaults)
 	cfg, err := config.Load("")
 	if err != nil {
-		log.Printf("warning: config load failed, using defaults: %v", err)
+		slog.Warn("config load failed, using defaults", "error", err)
 		cfg = config.DefaultConfig()
 	}
 
@@ -102,7 +102,7 @@ func run(cliDriver, cliDSN string) error {
 	// Seed (ignore "already exists" errors)
 	if err := database.Seed(db); err != nil {
 		if !errors.Is(err, gorm.ErrDuplicatedKey) {
-			log.Printf("warning: database seed: %v", err)
+			slog.Warn("database seed error", "error", err)
 		}
 	}
 
@@ -116,7 +116,7 @@ func run(cliDriver, cliDSN string) error {
 	}
 	if encKey == nil {
 		encKey = crypto.NewEncryptionKey()
-		log.Printf("warning: DEPLOYPILOT_ENCRYPTION_KEY not set, generated a temporary key (credentials will be lost on restart)")
+		slog.Warn("DEPLOYPILOT_ENCRYPTION_KEY not set, generated a temporary key (credentials will be lost on restart)")
 	}
 	bridge := service.NewBridge(db, executor, encKey, nil)
 
@@ -124,7 +124,7 @@ func run(cliDriver, cliDSN string) error {
 	mcpServer := mcp.NewServer(bridge)
 
 	// Start stdio transport
-	log.Printf("DeployPilot MCP server v%s starting (stdio)", version)
-	log.Printf("database: %s (%s)", cfg.Database.Type, cfg.Database.DSN)
+	slog.Info("DeployPilot MCP server starting", "version", version, "transport", "stdio")
+	slog.Info("database configured", "type", cfg.Database.Type, "dsn", cfg.Database.DSN)
 	return server.ServeStdio(mcpServer)
 }

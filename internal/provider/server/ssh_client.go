@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"log"
+	"log/slog"
 	"net"
 	"strings"
 	"time"
@@ -92,7 +92,7 @@ func (c *Client) RunCommand(ctx context.Context, cmd string) (string, error) {
 	}
 	defer func() {
 		if cerr := session.Close(); cerr != nil {
-			log.Printf("failed to close SSH session: %v", cerr)
+			slog.Warn("failed to close SSH session after RunCommand", "error", cerr)
 		}
 	}()
 
@@ -127,7 +127,7 @@ func (c *Client) RunCommandWithStdio(ctx context.Context, cmd string, stdout, st
 	}
 	defer func() {
 		if cerr := session.Close(); cerr != nil {
-			log.Printf("failed to close SSH session: %v", cerr)
+			slog.Warn("failed to close SSH session after RunCommandWithStdio", "error", cerr)
 		}
 	}()
 
@@ -208,7 +208,7 @@ func (c *Client) RunCommandSplit(ctx context.Context, cmd string) (stdout, stder
 	}
 	defer func() {
 		if cerr := session.Close(); cerr != nil {
-			log.Printf("failed to close SSH session: %v", cerr)
+			slog.Warn("failed to close SSH session after RunCommandSplit", "error", cerr)
 		}
 	}()
 

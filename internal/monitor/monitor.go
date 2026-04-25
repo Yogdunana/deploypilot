@@ -2,7 +2,7 @@ package monitor
 
 import (
 	"context"
-	"log"
+	"log/slog"
 	"sync"
 	"time"
 
@@ -61,7 +61,7 @@ func (m *Monitor) Start(ctx context.Context, interval time.Duration) {
 		for {
 			select {
 			case <-childCtx.Done():
-				log.Println("[monitor] stopped")
+				slog.Info("monitor stopped")
 				return
 			case <-ticker.C:
 				m.collectAndEvaluate(childCtx)
@@ -69,7 +69,7 @@ func (m *Monitor) Start(ctx context.Context, interval time.Duration) {
 		}
 	}()
 
-	log.Printf("[monitor] started with interval %v", interval)
+	slog.Info("monitor started", "interval", interval)
 }
 
 // Stop stops the monitor.
@@ -100,7 +100,7 @@ func (m *Monitor) CheckApp(ctx context.Context, containerName string) (*CheckRes
 	// Collect container metrics
 	metrics, err := m.collector.CollectContainerMetrics(ctx, containerName)
 	if err != nil {
-		log.Printf("[monitor] failed to collect container metrics for %s: %v", containerName, err)
+		slog.Error("failed to collect container metrics", "container", containerName, "error", err)
 	} else {
 		result.Metrics = metrics
 	}
@@ -108,7 +108,7 @@ func (m *Monitor) CheckApp(ctx context.Context, containerName string) (*CheckRes
 	// Collect container health
 	healthMetric, err := m.collector.CollectContainerHealth(ctx, containerName)
 	if err != nil {
-		log.Printf("[monitor] failed to collect health for %s: %v", containerName, err)
+		slog.Error("failed to collect container health", "container", containerName, "error", err)
 		result.Healthy = false
 	} else {
 		result.Healthy = healthMetric.Value == 1
@@ -127,7 +127,7 @@ func (m *Monitor) CheckApp(ctx context.Context, containerName string) (*CheckRes
 	if m.healer != nil && !result.Healthy {
 		healingResult, err := m.healer.CheckAndHeal(ctx, containerName)
 		if err != nil {
-			log.Printf("[monitor] healing failed for %s: %v", containerName, err)
+			slog.Error("healing failed", "container", containerName, "error", err)
 		} else {
 			result.Healing = healingResult
 		}
@@ -165,12 +165,12 @@ func (m *Monitor) GetAlertManager() *AlertManager {
 func (m *Monitor) collectAndEvaluate(ctx context.Context) {
 	metrics, err := m.collector.CollectSystemMetrics(ctx)
 	if err != nil {
-		log.Printf("[monitor] system metric collection failed: %v", err)
+		slog.Error("system metric collection failed", "error", err)
 		return
 	}
 
 	newAlerts := m.alertManager.Evaluate(metrics)
 	for _, alert := range newAlerts {
-		log.Printf("[monitor] alert fired: %s (severity: %s)", alert.Message, alert.Severity)
+		slog.Warn("alert fired", "message", alert.Message, "severity", alert.Severity)
 	}
 }

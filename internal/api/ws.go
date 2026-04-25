@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"sync"
 	"time"
@@ -90,7 +90,7 @@ func (h *WSHub) Unregister(conn *websocket.Conn, appID string) {
 func (h *WSHub) Broadcast(appID string, msg WSMessage) {
 	data, err := json.Marshal(msg)
 	if err != nil {
-		log.Printf("[ws] failed to marshal broadcast message: %v", err)
+		slog.Error("failed to marshal broadcast message", "error", err)
 		return
 	}
 
@@ -105,7 +105,7 @@ func (h *WSHub) Broadcast(appID string, msg WSMessage) {
 
 	for _, c := range keys {
 		if err := c.WriteMessage(websocket.TextMessage, data); err != nil {
-			log.Printf("[ws] broadcast write error: %v", err)
+			slog.Warn("broadcast write error", "error", err)
 		}
 	}
 }
@@ -114,7 +114,7 @@ func (h *WSHub) Broadcast(appID string, msg WSMessage) {
 func (h *WSHub) Send(conn *websocket.Conn, msg WSMessage) {
 	data, err := json.Marshal(msg)
 	if err != nil {
-		log.Printf("[ws] failed to marshal message: %v", err)
+		slog.Error("failed to marshal ws message", "error", err)
 		return
 	}
 	_ = conn.WriteMessage(websocket.TextMessage, data)
@@ -147,7 +147,7 @@ func LogStreamWS(bridge *service.Bridge, hub *WSHub) gin.HandlerFunc {
 		// 2. Upgrade to WebSocket
 		conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 		if err != nil {
-			log.Printf("[ws] upgrade failed: %v", err)
+			slog.Error("ws upgrade failed", "error", err)
 			return
 		}
 		defer func() { _ = conn.Close() }()
@@ -301,7 +301,7 @@ func TerminalWS(bridge *service.Bridge, hub *WSHub) gin.HandlerFunc {
 		// 2. Upgrade to WebSocket
 		conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 		if err != nil {
-			log.Printf("[ws] terminal upgrade failed: %v", err)
+			slog.Error("terminal ws upgrade failed", "error", err)
 			return
 		}
 		defer func() { _ = conn.Close() }()
