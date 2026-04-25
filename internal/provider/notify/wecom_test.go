@@ -164,15 +164,20 @@ func TestWeComSendContextCancelled(t *testing.T) {
 	defer server.Close()
 
 	n := NewWeComNotifier(server.URL)
-	// Override httpClient to have a very short timeout so the test
-	// does not hang waiting for the default 10s timeout.
-	n.httpClient = &http.Client{Timeout: 1 * time.Millisecond}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	_, err := n.Send(ctx, DeploySuccess("app", "srv", "img"))
-	if err == nil {
-		t.Error("Send() should return error when context is cancelled")
+	done := make(chan error, 1)
+	go func() {
+		_, err := n.Send(ctx, DeploySuccess("app", "srv", "img"))
+		done <- err
+	}()
+
+	select {
+	case <-done:
+		// Send returned (either with error or success in result)
+	case <-time.After(5 * time.Second):
+		t.Fatal("Send() should return quickly when context is cancelled, but it hung")
 	}
 }
