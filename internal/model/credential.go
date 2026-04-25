@@ -3,6 +3,7 @@ package model
 import (
 	"crypto/rand"
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/Yogdunana/deploypilot/internal/crypto"
@@ -136,4 +137,64 @@ func generateUUID() string {
 	b := make([]byte, 16)
 	_, _ = rand.Read(b)
 	return fmt.Sprintf("%x", b)
+}
+
+// ---------- Credential Lifecycle Methods ----------
+
+// IsExpired returns true if the credential's ExpiresAt is set and before time.Now().
+func IsExpired(cred *Credential) bool {
+	if cred.ExpiresAt == nil {
+		return false
+	}
+	return cred.ExpiresAt.Before(time.Now())
+}
+
+// DaysUntilExpiry returns the number of days until the credential expires.
+// Returns -1 if the credential never expires (ExpiresAt is nil).
+func DaysUntilExpiry(cred *Credential) int {
+	if cred.ExpiresAt == nil {
+		return -1
+	}
+	duration := time.Until(*cred.ExpiresAt)
+	days := int(duration.Hours() / 24)
+	return days
+}
+
+// ListExpiringCredentials finds credentials that will expire within the given duration.
+func ListExpiringCredentials(db *gorm.DB, within time.Duration) ([]Credential, error) {
+	var creds []Credential
+	threshold := time.Now().Add(within)
+	result := db.Where("expires_at IS NOT NULL AND expires_at <= ?", threshold).Find(&creds)
+	if result.Error != nil {
+		return nil, fmt.Errorf("failed to list expiring credentials: %w", result.Error)
+	}
+	return creds, nil
+}
+
+// RotateCredential encrypts a new value, updates the credential's encrypted_value
+// and LastRotated to now, while preserving the existing ExpiresAt.
+func RotateCredential(db *gorm.DB, encKey []byte, id string, newPlainValue string) (*Credential, error) {
+	encrypted, err := crypto.Encrypt(encKey, newPlainValue)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encrypt credential value: %w", err)
+	}
+
+	now := time.Now()
+	result := db.Model(&Credential{}).Where("id = ?", id).
+		Updates(map[string]interface{}{
+			"encrypted_value": encrypted,
+			"last_rotated":    now,
+		})
+	if result.Error != nil {
+		return nil, fmt.Errorf("failed to rotate credential: %w", result.Error)
+	}
+	if result.RowsAffected == 0 {
+		return nil, fmt.Errorf("credential not found")
+	}
+
+	var cred Credential
+	if err := db.Where("id = ?", id).First(&cred).Error; err != nil {
+		return nil, fmt.Errorf("failed to retrieve credential after rotation: %w", err)
+	}
+	return &cred, nil
 }

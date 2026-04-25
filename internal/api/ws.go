@@ -128,21 +128,17 @@ func (h *WSHub) ClientCount(appID string) int {
 }
 
 // LogStreamWS handles WebSocket connections for real-time container logs.
-// GET /ws/logs/:app_id?token=xxx
-func LogStreamWS(bridge *service.Bridge, hub *WSHub) gin.HandlerFunc {
+// GET /ws/logs/:app_id?ticket=xxx
+func LogStreamWS(bridge *service.Bridge, hub *WSHub, ticketStore *auth.WSTicketStore) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// 1. Authenticate via query param token (JWT)
-		token := c.Query("token")
-		if token == "" {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "token required"})
-			return
-		}
-		claims, err := auth.ParseToken(token)
+		// 1. Authenticate via ticket (preferred) or JWT token (backward compat)
+		userID, role, err := authenticateWS(c, ticketStore)
 		if err != nil {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid token"})
+			c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 			return
 		}
-		_ = claims // authenticated
+		_ = userID
+		_ = role
 
 		// 2. Upgrade to WebSocket
 		conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
@@ -209,19 +205,42 @@ func LogStreamWS(bridge *service.Bridge, hub *WSHub) gin.HandlerFunc {
 	}
 }
 
-// AgentTunnelWS handles WebSocket connections for agent reverse tunnels.
-// GET /ws/agent/:server_id?token=xxx
-func AgentTunnelWS(bridge *service.Bridge) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		// Authenticate via query param token (JWT)
-		token := c.Query("token")
-		if token == "" {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "token required"})
-			return
-		}
-		_, err := auth.ParseToken(token)
+// authenticateWS authenticates a WebSocket connection using a one-time ticket (preferred)
+// or falls back to JWT token query param for backward compatibility.
+// Returns userID, role, and an error if authentication fails.
+func authenticateWS(c *gin.Context, ticketStore *auth.WSTicketStore) (string, string, error) {
+	// Prefer ticket-based authentication
+	ticket := c.Query("ticket")
+	if ticket != "" {
+		userID, role, err := ticketStore.ValidateTicket(ticket)
 		if err != nil {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid token"})
+			return "", "", fmt.Errorf("invalid or expired websocket ticket")
+		}
+		return userID, role, nil
+	}
+
+	// Fallback: JWT token in query param (backward compatibility)
+	token := c.Query("token")
+	if token == "" {
+		return "", "", fmt.Errorf("websocket ticket is required")
+	}
+
+	claims, err := auth.ParseToken(token)
+	if err != nil {
+		return "", "", fmt.Errorf("invalid or expired websocket ticket")
+	}
+
+	return claims.UserID, claims.Role, nil
+}
+
+// AgentTunnelWS handles WebSocket connections for agent reverse tunnels.
+// GET /ws/agent/:server_id?ticket=xxx
+func AgentTunnelWS(bridge *service.Bridge, ticketStore *auth.WSTicketStore) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// Authenticate via ticket (preferred) or JWT token (backward compat)
+		_, _, err := authenticateWS(c, ticketStore)
+		if err != nil {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 			return
 		}
 
@@ -282,21 +301,17 @@ func streamContainerLogs(ctx context.Context, bridge *service.Bridge, containerN
 }
 
 // TerminalWS handles WebSocket connections for SSH terminal.
-// GET /ws/terminal/:server_id?token=xxx
-func TerminalWS(bridge *service.Bridge, hub *WSHub) gin.HandlerFunc {
+// GET /ws/terminal/:server_id?ticket=xxx
+func TerminalWS(bridge *service.Bridge, hub *WSHub, ticketStore *auth.WSTicketStore) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// 1. Authenticate
-		token := c.Query("token")
-		if token == "" {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "token required"})
-			return
-		}
-		claims, err := auth.ParseToken(token)
+		// 1. Authenticate via ticket (preferred) or JWT token (backward compat)
+		userID, role, err := authenticateWS(c, ticketStore)
 		if err != nil {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid token"})
+			c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 			return
 		}
-		_ = claims
+		_ = userID
+		_ = role
 
 		// 2. Upgrade to WebSocket
 		conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)

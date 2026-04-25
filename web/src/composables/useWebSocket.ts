@@ -21,6 +21,26 @@ export interface UseWebSocketOptions {
   autoConnect?: boolean
 }
 
+/** Fetch a one-time WebSocket ticket from the API. */
+async function fetchWSTicket(): Promise<string> {
+  const token = localStorage.getItem('deploypilot_token') || ''
+  const resp = await fetch('/api/v1/auth/ws-ticket', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+  })
+  if (!resp.ok) {
+    throw new Error(`Failed to fetch WebSocket ticket: ${resp.status}`)
+  }
+  const body = await resp.json()
+  if (body.status !== 'success' || !body.data?.ticket) {
+    throw new Error('Invalid ticket response')
+  }
+  return body.data.ticket as string
+}
+
 export function useWebSocket(options: UseWebSocketOptions) {
   const {
     path,
@@ -42,20 +62,30 @@ export function useWebSocket(options: UseWebSocketOptions) {
   let retryTimer: ReturnType<typeof setTimeout> | null = null
   let manuallyClosed = false
 
-  function buildUrl(): string {
-    const token = localStorage.getItem('deploypilot_token') || ''
+  function buildUrl(ticket: string): string {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
     const host = window.location.host
-    return `${protocol}//${host}${path}?token=${encodeURIComponent(token)}`
+    return `${protocol}//${host}${path}?ticket=${encodeURIComponent(ticket)}`
   }
 
-  function connect() {
+  async function connect() {
     if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
       return
     }
 
     manuallyClosed = false
-    const url = buildUrl()
+
+    // Fetch a one-time ticket before connecting
+    let ticket: string
+    try {
+      ticket = await fetchWSTicket()
+    } catch (err) {
+      console.error('[WebSocket] Failed to fetch ticket:', err)
+      scheduleReconnect()
+      return
+    }
+
+    const url = buildUrl(ticket)
 
     try {
       ws = new WebSocket(url)

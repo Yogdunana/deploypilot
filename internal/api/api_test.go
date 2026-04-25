@@ -47,6 +47,7 @@ func setupTestDB(t *testing.T) *gorm.DB {
 	db.Exec(`CREATE TABLE IF NOT EXISTS credentials (
 		id TEXT PRIMARY KEY, tenant_id TEXT, name TEXT NOT NULL,
 		type TEXT NOT NULL, encrypted_value TEXT NOT NULL,
+		expires_at DATETIME, last_rotated DATETIME, rotation_days INTEGER DEFAULT 90,
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 	)`)
 	db.Exec(`CREATE TABLE IF NOT EXISTS providers (

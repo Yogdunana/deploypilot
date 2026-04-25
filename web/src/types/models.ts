@@ -53,6 +53,11 @@ export interface Credential {
   tenant_id: number
   name: string
   type: string
+  expires_at?: string
+  last_rotated?: string
+  rotation_days: number
+  is_expired?: boolean
+  days_until_expiry?: number
   created_at: string
   updated_at: string
 }

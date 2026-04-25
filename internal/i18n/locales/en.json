@@ -11,6 +11,9 @@
   "error.auth.username_or_email_exists": "username or email already exists",
   "error.auth.failed_to_hash_password": "failed to hash password",
   "error.auth.failed_to_generate_token": "failed to generate token",
+  "error.auth.ws_ticket_required": "WebSocket ticket is required",
+  "error.auth.ws_ticket_invalid": "Invalid or expired WebSocket ticket",
+  "error.auth.ws_ticket_generate_failed": "Failed to generate WebSocket ticket",
 
   "error.app.invalid_request": "invalid request: %s",
   "error.app.name_and_repo_required": "name and repo_url are required",
@@ -26,6 +29,8 @@
   "error.deployment.not_found": "deployment not found",
 
   "error.credential.deleted": "credential deleted",
+  "error.credential.expired": "credential has expired",
+  "error.credential.rotate_failed": "failed to rotate credential",
 
   "error.dns.domain_required": "domain query parameter is required",
   "error.dns.record_deleted": "DNS record deleted",
@@ -77,6 +82,7 @@
   "notify.deploy_failed": "Deploy failed: %s",
   "notify.health_check_failed": "Health check failed for %s on %s",
   "notify.rollback": "Rolled back %s to %s: %s",
+  "notify.credential.expiring_soon": "Credential '{name}' expires in {days} days",
 
   "notify.field.server": "Server",
   "notify.field.status": "Status",
@@ -117,5 +123,13 @@
   "app_error.E016.message": "DNS provider error",
   "app_error.E016.suggestion": "verify API token, check provider status page, retry later",
   "app_error.E017.message": "permission denied",
-  "app_error.E017.suggestion": "verify user role and permissions, contact administrator if needed"
+  "app_error.E017.suggestion": "verify user role and permissions, contact administrator if needed",
+
+  "credential.rotate": "Rotate",
+  "credential.expires_at": "Expires At",
+  "credential.last_rotated": "Last Rotated",
+  "credential.rotation_days": "Rotation Days",
+  "credential.never_expires": "Never",
+  "credential.expired": "Expired",
+  "credential.expiring_soon": "Expiring Soon"
 }

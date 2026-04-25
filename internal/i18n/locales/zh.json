@@ -11,6 +11,9 @@
   "error.auth.username_or_email_exists": "用户名或邮箱已存在",
   "error.auth.failed_to_hash_password": "密码加密失败",
   "error.auth.failed_to_generate_token": "生成 Token 失败",
+  "error.auth.ws_ticket_required": "需要 WebSocket 票据",
+  "error.auth.ws_ticket_invalid": "WebSocket 票据无效或已过期",
+  "error.auth.ws_ticket_generate_failed": "生成 WebSocket 票据失败",
 
   "error.app.invalid_request": "无效请求: %s",
   "error.app.name_and_repo_required": "name 和 repo_url 为必填项",
@@ -26,6 +29,8 @@
   "error.deployment.not_found": "部署记录不存在",
 
   "error.credential.deleted": "凭证已删除",
+  "error.credential.expired": "凭据已过期",
+  "error.credential.rotate_failed": "轮换凭据失败",
 
   "error.dns.domain_required": "domain 查询参数为必填项",
   "error.dns.record_deleted": "DNS 记录已删除",
@@ -77,6 +82,7 @@
   "notify.deploy_failed": "部署失败: %s",
   "notify.health_check_failed": "%s 在 %s 上的健康检查失败",
   "notify.rollback": "已将 %s 回滚到 %s: %s",
+  "notify.credential.expiring_soon": "凭据 '{name}' 将在 {days} 天后过期",
 
   "notify.field.server": "服务器",
   "notify.field.status": "状态",
@@ -117,5 +123,13 @@
   "app_error.E016.message": "DNS 服务商错误",
   "app_error.E016.suggestion": "请验证 API Token，检查服务商状态页面，稍后重试",
   "app_error.E017.message": "权限被拒绝",
-  "app_error.E017.suggestion": "请验证用户角色和权限，如需要请联系管理员"
+  "app_error.E017.suggestion": "请验证用户角色和权限，如需要请联系管理员",
+
+  "credential.rotate": "轮换",
+  "credential.expires_at": "过期时间",
+  "credential.last_rotated": "上次轮换",
+  "credential.rotation_days": "轮换周期",
+  "credential.never_expires": "永不过期",
+  "credential.expired": "已过期",
+  "credential.expiring_soon": "即将过期"
 }

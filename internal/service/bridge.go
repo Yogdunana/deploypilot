@@ -1288,6 +1288,77 @@ func (b *Bridge) UpdateCredential(ctx context.Context, credID string, value stri
 	}, nil
 }
 
+// ---------- 31b. CreateCredentialWithExpiry ----------
+
+func (b *Bridge) CreateCredentialWithExpiry(ctx context.Context, tenantID, name, credType, plainValue string, expiresInDays int) (interface{}, error) {
+	id := uuid.New().String()
+
+	// Encrypt the value before storing
+	encrypted, err := crypto.Encrypt(b.EncryptionKey, plainValue)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encrypt credential: %w", err)
+	}
+
+	createData := map[string]interface{}{
+		"id":              id,
+		"tenant_id":       tenantID,
+		"name":            name,
+		"type":            credType,
+		"encrypted_value": encrypted,
+		"rotation_days":   expiresInDays,
+	}
+
+	// Set expires_at if expiresInDays > 0
+	if expiresInDays > 0 {
+		expiresAt := time.Now().Add(time.Duration(expiresInDays) * 24 * time.Hour)
+		createData["expires_at"] = expiresAt
+	}
+
+	if err := b.DB.Table("credentials").Create(createData).Error; err != nil {
+		return nil, fmt.Errorf("failed to create credential: %w", err)
+	}
+
+	result := map[string]interface{}{
+		"id":            id,
+		"tenant_id":     tenantID,
+		"name":          name,
+		"type":          credType,
+		"rotation_days": expiresInDays,
+	}
+	if expiresInDays > 0 {
+		result["expires_at"] = time.Now().Add(time.Duration(expiresInDays) * 24 * time.Hour).Format(time.RFC3339)
+	}
+	return result, nil
+}
+
+// ---------- 31c. RotateCredential ----------
+
+func (b *Bridge) RotateCredential(ctx context.Context, credID string, newPlainValue string) (interface{}, error) {
+	// Check credential exists
+	var row map[string]interface{}
+	if err := b.DB.Table("credentials").Where("id = ?", credID).Take(&row).Error; err != nil {
+		return nil, fmt.Errorf("credential not found: %w", err)
+	}
+
+	// Encrypt the new value
+	encrypted, err := crypto.Encrypt(b.EncryptionKey, newPlainValue)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encrypt credential: %w", err)
+	}
+
+	now := time.Now()
+	updates := map[string]interface{}{
+		"encrypted_value": encrypted,
+		"last_rotated":    now,
+	}
+
+	if err := b.DB.Table("credentials").Where("id = ?", credID).Updates(updates).Error; err != nil {
+		return nil, fmt.Errorf("failed to rotate credential: %w", err)
+	}
+
+	return toString(row["name"]), nil
+}
+
 // ---------- 32. UpdateServer ----------
 
 func (b *Bridge) UpdateServer(ctx context.Context, serverID string, config map[string]interface{}) (interface{}, error) {

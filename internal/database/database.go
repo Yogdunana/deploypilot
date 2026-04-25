@@ -241,6 +241,26 @@ func Migrate(db *gorm.DB) error {
 				return tx.Migrator().DropTable("ssl_certificates")
 			},
 		},
+		// 202604250002: Add credential lifecycle fields
+		{
+			ID: "202604250002",
+			Migrate: func(tx *gorm.DB) error {
+				// Add lifecycle columns to credentials table (safe to run if columns already exist)
+				tx.Exec(`ALTER TABLE credentials ADD COLUMN expires_at DATETIME`)
+				tx.Exec(`ALTER TABLE credentials ADD COLUMN last_rotated DATETIME`)
+				tx.Exec(`ALTER TABLE credentials ADD COLUMN rotation_days INTEGER DEFAULT 90`)
+				// Create index on expires_at for expiry queries
+				tx.Exec(`CREATE INDEX IF NOT EXISTS idx_credentials_expires_at ON credentials(expires_at)`)
+				return nil
+			},
+			Rollback: func(tx *gorm.DB) error {
+				// SQLite does not support DROP COLUMN easily, so we recreate the table
+				tx.Exec(`CREATE TABLE credentials_backup AS SELECT id, tenant_id, name, type, encrypted_value, created_at, updated_at FROM credentials`)
+				tx.Exec(`DROP TABLE credentials`)
+				tx.Exec(`ALTER TABLE credentials_backup RENAME TO credentials`)
+				return nil
+			},
+		},
 	})
 
 	// Use InitSchema for initial creation (faster than Migrate)

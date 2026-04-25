@@ -3246,3 +3246,194 @@ func TestHandleSearchAppLogs_Failure(t *testing.T) {
 		t.Error("should return error when search logs fails")
 	}
 }
+
+// --- Validation integration tests ---
+
+func TestWithValidation_MissingRequiredParam_ReturnsInvalidParams(t *testing.T) {
+	// Test that calling deploy_app without required "image" param returns INVALID_PARAMS
+	deployTool := mcp.NewTool("deploy_app",
+		mcp.WithDescription("Deploy a Docker container"),
+		mcp.WithString("image", mcp.Required(), mcp.Description("Docker image to deploy")),
+		mcp.WithString("container_name", mcp.Required(), mcp.Description("Name for the container")),
+	)
+
+	handlerCalled := false
+	handler := func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		handlerCalled = true
+		return mcp.NewToolResultText("should not reach here"), nil
+	}
+
+	wrapped := withValidation("deploy_app", deployTool, handler)
+	request := mcp.CallToolRequest{
+		Params: mcp.CallToolParams{
+			Name:      "deploy_app",
+			Arguments: map[string]interface{}{"container_name": "my-app"},
+		},
+	}
+
+	result, err := wrapped(context.Background(), request)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if handlerCalled {
+		t.Error("handler should NOT be called when validation fails")
+	}
+	if !result.IsError {
+		t.Fatal("expected error result")
+	}
+
+	// Verify the response contains INVALID_PARAMS structured error
+	textContent, ok := result.Content[0].(mcp.TextContent)
+	if !ok {
+		t.Fatalf("expected TextContent, got %T", result.Content[0])
+	}
+
+	var parsed map[string]interface{}
+	if err := json.Unmarshal([]byte(textContent.Text), &parsed); err != nil {
+		t.Fatalf("failed to parse content as JSON: %v", err)
+	}
+
+	if parsed["code"] != "INVALID_PARAMS" {
+		t.Errorf("code = %v, want INVALID_PARAMS", parsed["code"])
+	}
+
+	details, ok := parsed["details"].(map[string]interface{})
+	if !ok {
+		t.Fatal("expected details to be a map")
+	}
+
+	if _, exists := details["image"]; !exists {
+		t.Error("expected 'image' field in details")
+	}
+}
+
+func TestWithValidation_WrongTypeParam_ReturnsInvalidParams(t *testing.T) {
+	// Test that passing a number where a string is expected returns INVALID_PARAMS
+	deployTool := mcp.NewTool("deploy_app",
+		mcp.WithDescription("Deploy a Docker container"),
+		mcp.WithString("image", mcp.Required(), mcp.Description("Docker image to deploy")),
+		mcp.WithString("container_name", mcp.Required(), mcp.Description("Name for the container")),
+	)
+
+	handlerCalled := false
+	handler := func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		handlerCalled = true
+		return mcp.NewToolResultText("should not reach here"), nil
+	}
+
+	wrapped := withValidation("deploy_app", deployTool, handler)
+	request := mcp.CallToolRequest{
+		Params: mcp.CallToolParams{
+			Name:      "deploy_app",
+			Arguments: map[string]interface{}{
+				"image":          12345,
+				"container_name": "my-app",
+			},
+		},
+	}
+
+	result, err := wrapped(context.Background(), request)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if handlerCalled {
+		t.Error("handler should NOT be called when validation fails")
+	}
+	if !result.IsError {
+		t.Fatal("expected error result")
+	}
+
+	textContent, ok := result.Content[0].(mcp.TextContent)
+	if !ok {
+		t.Fatalf("expected TextContent, got %T", result.Content[0])
+	}
+
+	var parsed map[string]interface{}
+	if err := json.Unmarshal([]byte(textContent.Text), &parsed); err != nil {
+		t.Fatalf("failed to parse content as JSON: %v", err)
+	}
+
+	if parsed["code"] != "INVALID_PARAMS" {
+		t.Errorf("code = %v, want INVALID_PARAMS", parsed["code"])
+	}
+
+	details := parsed["details"].(map[string]interface{})
+	imageDetail := details["image"].(map[string]interface{})
+	if !strings.Contains(imageDetail["reason"].(string), "expected type string") {
+		t.Errorf("reason = %v, want to contain 'expected type string'", imageDetail["reason"])
+	}
+}
+
+func TestWithValidation_ValidParams_PassesThrough(t *testing.T) {
+	// Test that valid params pass through to the handler
+	deployTool := mcp.NewTool("deploy_app",
+		mcp.WithDescription("Deploy a Docker container"),
+		mcp.WithString("image", mcp.Required(), mcp.Description("Docker image to deploy")),
+		mcp.WithString("container_name", mcp.Required(), mcp.Description("Name for the container")),
+	)
+
+	handlerCalled := false
+	handler := func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		handlerCalled = true
+		// Verify the arguments are accessible
+		img := request.GetString("image", "")
+		if img != "nginx:latest" {
+			t.Errorf("image = %q, want %q", img, "nginx:latest")
+		}
+		return mcp.NewToolResultText("deployed"), nil
+	}
+
+	wrapped := withValidation("deploy_app", deployTool, handler)
+	request := mcp.CallToolRequest{
+		Params: mcp.CallToolParams{
+			Name:      "deploy_app",
+			Arguments: map[string]interface{}{
+				"image":          "nginx:latest",
+				"container_name": "my-app",
+			},
+		},
+	}
+
+	result, err := wrapped(context.Background(), request)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !handlerCalled {
+		t.Error("handler should be called when validation passes")
+	}
+	if result.IsError {
+		t.Errorf("expected success, got error: %v", result.Content)
+	}
+}
+
+func TestWithValidation_ToolWithNoParams_PassesThrough(t *testing.T) {
+	// Test that tools with no required params (like list_apps) pass through
+	listTool := mcp.NewTool("list_apps",
+		mcp.WithDescription("List all deployed applications"),
+	)
+
+	handlerCalled := false
+	handler := func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		handlerCalled = true
+		return mcp.NewToolResultText("[]"), nil
+	}
+
+	wrapped := withValidation("list_apps", listTool, handler)
+	request := mcp.CallToolRequest{
+		Params: mcp.CallToolParams{
+			Name:      "list_apps",
+			Arguments: map[string]interface{}{},
+		},
+	}
+
+	result, err := wrapped(context.Background(), request)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !handlerCalled {
+		t.Error("handler should be called for tool with no params")
+	}
+	if result.IsError {
+		t.Errorf("expected success, got error: %v", result.Content)
+	}
+}

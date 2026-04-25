@@ -92,13 +92,16 @@ func (App) TableName() string { return "apps" }
 
 // Credential represents encrypted credentials for server access.
 type Credential struct {
-	ID             string    `gorm:"primaryKey" json:"id"`
-	TenantID       string    `gorm:"index" json:"tenant_id"`
-	Name           string    `gorm:"not null" json:"name"`
-	Type           string    `gorm:"not null" json:"type"` // ssh, api_key, token
-	EncryptedValue string    `gorm:"not null" json:"-"`
-	CreatedAt      time.Time `gorm:"autoCreateTime" json:"created_at"`
-	UpdatedAt      time.Time `gorm:"autoUpdateTime" json:"updated_at"`
+	ID             string     `gorm:"primaryKey" json:"id"`
+	TenantID       string     `gorm:"index" json:"tenant_id"`
+	Name           string     `gorm:"not null" json:"name"`
+	Type           string     `gorm:"not null" json:"type"` // ssh, api_key, token
+	EncryptedValue string     `gorm:"not null" json:"-"`
+	ExpiresAt      *time.Time `gorm:"index" json:"expires_at,omitempty"`
+	LastRotated    *time.Time `json:"last_rotated,omitempty"`
+	RotationDays   int        `gorm:"default:90" json:"rotation_days"` // 0 = never expires
+	CreatedAt      time.Time  `gorm:"autoCreateTime" json:"created_at"`
+	UpdatedAt      time.Time  `gorm:"autoUpdateTime" json:"updated_at"`
 
 	Tenant Tenant `gorm:"foreignKey:TenantID" json:"tenant,omitempty"`
 }

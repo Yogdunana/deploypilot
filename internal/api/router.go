@@ -1,6 +1,9 @@
 package api
 
 import (
+	"context"
+	"time"
+
 	"github.com/Yogdunana/deploypilot/internal/auth"
 	"github.com/Yogdunana/deploypilot/internal/service"
 	"github.com/gin-gonic/gin"
@@ -22,12 +25,15 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 		c.Next()
 	})
 
-	// WebSocket routes (auth via query param token, not middleware)
+	// WebSocket routes (auth via ticket or JWT query param)
+	ticketStore := auth.NewWSTicketStore()
+	go ticketStore.StartCleanup(context.Background(), 1*time.Minute)
+
 	wsGroup := r.Group("/ws")
 	{
-		wsGroup.GET("/logs/:app_id", LogStreamWS(bridge, wsHub))
-		wsGroup.GET("/terminal/:server_id", TerminalWS(bridge, wsHub))
-		wsGroup.GET("/agent/:server_id", AgentTunnelWS(bridge))
+		wsGroup.GET("/logs/:app_id", LogStreamWS(bridge, wsHub, ticketStore))
+		wsGroup.GET("/terminal/:server_id", TerminalWS(bridge, wsHub, ticketStore))
+		wsGroup.GET("/agent/:server_id", AgentTunnelWS(bridge, ticketStore))
 	}
 
 	// SSE routes (requires auth)
@@ -42,6 +48,7 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 	{
 		authGroup.POST("/register", Register(db))
 		authGroup.POST("/login", Login(db))
+		authGroup.POST("/ws-ticket", WSTicket(ticketStore, 30*time.Second))
 	}
 
 	// Protected routes
@@ -79,13 +86,14 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 			servers.POST("/:id/test", TestServer(bridge))
 		}
 
-		// Credentials (4 endpoints)
+		// Credentials (5 endpoints)
 		creds := protected.Group("/credentials")
 		{
 			creds.GET("", ListCredentials(bridge))
 			creds.POST("", CreateCredential(bridge))
 			creds.PUT("/:id", UpdateCredential(bridge))
 			creds.DELETE("/:id", DeleteCredential(bridge))
+			creds.POST("/:id/rotate", RotateCredential(bridge, auditSvc))
 		}
 
 		// DNS (4 endpoints)

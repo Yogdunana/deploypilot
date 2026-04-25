@@ -70,10 +70,11 @@ func setupWSRouter(db *gorm.DB, bridge *service.Bridge, hub *WSHub) *gin.Engine 
 		c.Set("db", db)
 		c.Next()
 	})
+	ticketStore := auth.NewWSTicketStore()
 	wsGroup := r.Group("/ws")
 	{
-		wsGroup.GET("/logs/:app_id", LogStreamWS(bridge, hub))
-		wsGroup.GET("/terminal/:server_id", TerminalWS(bridge, hub))
+		wsGroup.GET("/logs/:app_id", LogStreamWS(bridge, hub, ticketStore))
+		wsGroup.GET("/terminal/:server_id", TerminalWS(bridge, hub, ticketStore))
 	}
 	return r
 }
@@ -625,7 +626,8 @@ func TestAgentTunnelWS_NoToken(t *testing.T) {
 
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
-	r.GET("/ws/agent/:server_id", AgentTunnelWS(bridge))
+	ticketStore := auth.NewWSTicketStore()
+	r.GET("/ws/agent/:server_id", AgentTunnelWS(bridge, ticketStore))
 
 	server := httptest.NewServer(r)
 	defer server.Close()
@@ -648,7 +650,8 @@ func TestAgentTunnelWS_InvalidToken(t *testing.T) {
 
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
-	r.GET("/ws/agent/:server_id", AgentTunnelWS(bridge))
+	ticketStore := auth.NewWSTicketStore()
+	r.GET("/ws/agent/:server_id", AgentTunnelWS(bridge, ticketStore))
 
 	server := httptest.NewServer(r)
 	defer server.Close()
@@ -671,7 +674,8 @@ func TestAgentTunnelWS_NoTunnelManager(t *testing.T) {
 
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
-	r.GET("/ws/agent/:server_id", AgentTunnelWS(bridge))
+	ticketStore := auth.NewWSTicketStore()
+	r.GET("/ws/agent/:server_id", AgentTunnelWS(bridge, ticketStore))
 
 	server := httptest.NewServer(r)
 	defer server.Close()

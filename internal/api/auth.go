@@ -2,6 +2,8 @@ package api
 
 import (
 	"net/http"
+	"strings"
+	"time"
 
 	"github.com/Yogdunana/deploypilot/internal/auth"
 	"github.com/Yogdunana/deploypilot/internal/crypto"
@@ -79,6 +81,52 @@ func Register(db *gorm.DB) gin.HandlerFunc {
 				Email:    user.Email,
 			},
 			"token": token,
+		})
+	}
+}
+
+// WSTicket generates a one-time WebSocket authentication ticket.
+// The client must present a valid JWT in the Authorization header.
+// The returned ticket can be used once within the expiration window to authenticate a WebSocket connection.
+// @Summary      Generate WebSocket ticket
+// @Description  Exchange a valid JWT for a one-time WebSocket authentication ticket (valid for 30 seconds)
+// @Tags         Auth
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200 {object} map[string]interface{} "status, data.ticket, data.expires_in"
+// @Failure      401 {object} map[string]interface{} "unauthorized"
+// @Failure      500 {object} map[string]interface{} "internal error"
+// @Router       /auth/ws-ticket [post]
+func WSTicket(ticketStore *auth.WSTicketStore, expire time.Duration) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		authHeader := c.GetHeader("Authorization")
+		if authHeader == "" {
+			respondErrori18n(c, http.StatusUnauthorized, "error.auth.authorization_header_required")
+			return
+		}
+
+		parts := strings.SplitN(authHeader, " ", 2)
+		if len(parts) != 2 || !strings.EqualFold(parts[0], "bearer") {
+			respondErrori18n(c, http.StatusUnauthorized, "error.auth.invalid_authorization_format")
+			return
+		}
+
+		claims, err := auth.ParseToken(parts[1])
+		if err != nil {
+			respondErrori18n(c, http.StatusUnauthorized, "error.auth.invalid_or_expired_token")
+			return
+		}
+
+		ticket, err := ticketStore.GenerateTicket(claims.UserID, claims.Role, expire)
+		if err != nil {
+			respondErrori18n(c, http.StatusInternalServerError, "error.auth.ws_ticket_generate_failed")
+			return
+		}
+
+		respondSuccess(c, gin.H{
+			"ticket":     ticket,
+			"expires_in": int(expire.Seconds()),
 		})
 	}
 }
