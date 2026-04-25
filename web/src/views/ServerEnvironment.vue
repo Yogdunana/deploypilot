@@ -13,9 +13,11 @@ import Separator from '@/components/ui/Separator.vue'
 import Badge from '@/components/ui/Badge.vue'
 import * as serversApi from '@/api/modules/servers'
 import type { Server } from '@/types/models'
+import { useI18n } from 'vue-i18n'
 
 const props = defineProps<{ id: string }>()
 const router = useRouter()
+const { t } = useI18n()
 const { toast } = inject<any>('toast')!
 
 const serverName = ref('')
@@ -42,26 +44,26 @@ const infoSections = computed(() => {
   if (!envInfo.value) return []
   return [
     {
-      title: '系统信息',
+      title: t('serverEnvironment.systemInfo'),
       items: [
-        { label: '操作系统', value: envInfo.value.os || '-', icon: Monitor },
-        { label: '架构', value: envInfo.value.arch || '-', icon: Layers },
-        { label: '内核版本', value: envInfo.value.kernel_version || '-', icon: Shield },
+        { label: t('serverEnvironment.os'), value: envInfo.value.os || '-', icon: Monitor },
+        { label: t('serverEnvironment.arch'), value: envInfo.value.arch || '-', icon: Layers },
+        { label: t('serverEnvironment.kernelVersion'), value: envInfo.value.kernel_version || '-', icon: Shield },
       ],
     },
     {
-      title: '硬件资源',
+      title: t('serverEnvironment.hardwareResources'),
       items: [
-        { label: 'CPU 核心', value: String(envInfo.value.cpu_cores || '-'), icon: Cpu },
-        { label: '内存', value: envInfo.value.memory_total || '-', icon: HardDrive },
-        { label: '磁盘', value: envInfo.value.disk_total || '-', icon: HardDrive },
+        { label: t('serverEnvironment.cpuCores'), value: String(envInfo.value.cpu_cores || '-'), icon: Cpu },
+        { label: t('serverEnvironment.memory'), value: envInfo.value.memory_total || '-', icon: HardDrive },
+        { label: t('serverEnvironment.disk'), value: envInfo.value.disk_total || '-', icon: HardDrive },
       ],
     },
     {
-      title: '容器环境',
+      title: t('serverEnvironment.containerEnv'),
       items: [
-        { label: 'Docker 版本', value: envInfo.value.docker_version || '-', icon: ServerIcon },
-        { label: 'Docker Compose 版本', value: envInfo.value.docker_compose_version || '-', icon: Layers },
+        { label: t('serverEnvironment.dockerVersion'), value: envInfo.value.docker_version || '-', icon: ServerIcon },
+        { label: t('serverEnvironment.dockerComposeVersion'), value: envInfo.value.docker_compose_version || '-', icon: Layers },
       ],
     },
   ]
@@ -76,7 +78,7 @@ async function fetchEnvironment() {
       envInfo.value = res.data.data || null
     }
   } catch (err: any) {
-    toast(err.response?.data?.message || '获取环境信息失败', 'destructive')
+    toast(err.response?.data?.message || t('serverEnvironment.fetchFailed'), 'destructive')
   } finally {
     loading.value = false
   }
@@ -92,7 +94,7 @@ async function handleRedetect() {
       const found = (serverRes.data.data as Server[]).find((s) => s.id === Number(props.id))
       if (found) {
         await serversApi.detect(found.id, { host: found.host, port: found.port })
-        toast('环境检测已触发', 'success')
+        toast(t('serverEnvironment.detectTriggered'), 'success')
         // 等待一会儿再刷新
         setTimeout(() => {
           fetchEnvironment()
@@ -100,7 +102,7 @@ async function handleRedetect() {
       }
     }
   } catch (err: any) {
-    toast(err.response?.data?.message || '环境检测失败', 'destructive')
+    toast(err.response?.data?.message || t('serverEnvironment.detectFailed'), 'destructive')
   } finally {
     detecting.value = false
   }
@@ -115,7 +117,7 @@ async function fetchServer() {
       if (found) {
         serverName.value = found.name
       } else {
-        toast('服务器不存在', 'destructive')
+        toast(t('serverEnvironment.serverNotFound'), 'destructive')
         router.push('/servers')
       }
     }
@@ -141,10 +143,10 @@ onMounted(() => {
           </Button>
           <div>
             <h1 class="text-xl font-semibold text-foreground">
-              环境检测 - {{ serverName || '加载中...' }}
+{{ t('serverEnvironment.title', { name: serverName }) }}
             </h1>
             <p class="mt-0.5 text-sm text-muted-foreground">
-              查看服务器环境信息与检测结果
+{{ t('serverEnvironment.subtitle') }}
             </p>
           </div>
         </div>
@@ -152,7 +154,7 @@ onMounted(() => {
       <template #actions>
         <Button variant="outline" :loading="detecting" @click="handleRedetect">
           <template #icon><RefreshCw class="w-4 h-4" /></template>
-          重新检测
+          {{ t('serverEnvironment.redetect') }}
         </Button>
       </template>
     </PageHeader>
@@ -190,7 +192,7 @@ onMounted(() => {
         <template #header>
           <div class="flex items-center gap-2">
             <Network class="w-4 h-4 text-muted-foreground" />
-            <h3 class="text-sm font-medium text-foreground">开放端口</h3>
+            <h3 class="text-sm font-medium text-foreground">{{ t('serverEnvironment.openPorts') }}</h3>
           </div>
         </template>
         <div class="flex flex-wrap gap-2">
@@ -210,7 +212,7 @@ onMounted(() => {
         <template #header>
           <div class="flex items-center gap-2">
             <ServerIcon class="w-4 h-4 text-muted-foreground" />
-            <h3 class="text-sm font-medium text-foreground">已安装服务</h3>
+            <h3 class="text-sm font-medium text-foreground">{{ t('serverEnvironment.installedServices') }}</h3>
           </div>
         </template>
         <div class="flex flex-wrap gap-2">
@@ -229,8 +231,8 @@ onMounted(() => {
     <Card v-else>
       <div class="flex flex-col items-center justify-center py-16 text-center">
         <Monitor class="w-12 h-12 text-muted-foreground mb-4" />
-        <h3 class="text-sm font-medium text-foreground">暂无环境信息</h3>
-        <p class="mt-1 text-sm text-muted-foreground">请点击"重新检测"按钮获取服务器环境信息</p>
+        <h3 class="text-sm font-medium text-foreground">{{ t('serverEnvironment.noEnvInfo') }}</h3>
+        <p class="mt-1 text-sm text-muted-foreground">{{ t('serverEnvironment.noEnvInfoDesc') }}</p>
       </div>
     </Card>
   </div>

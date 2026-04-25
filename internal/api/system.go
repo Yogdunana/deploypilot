@@ -42,7 +42,7 @@ func CheckUpdate(bridge *service.Bridge) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		result, err := bridge.CheckSystemUpdate(c.Request.Context())
 		if err != nil {
-			respondError(c, http.StatusInternalServerError, err.Error())
+			respondErrori18n(c, http.StatusInternalServerError, "error.common.internal_error")
 			return
 		}
 		respondSuccess(c, result)

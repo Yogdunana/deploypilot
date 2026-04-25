@@ -11,8 +11,10 @@ import Skeleton from '@/components/ui/Skeleton.vue'
 import { usePolling } from '@/composables/usePolling'
 import * as monitorApi from '@/api/modules/monitor'
 import type { Alert } from '@/types/models'
+import { useI18n } from 'vue-i18n'
 
 const { toast } = inject<any>('toast')!
+const { t } = useI18n()
 
 // 轮询告警列表，每 30 秒刷新
 const { data: alerts, loading, refresh } = usePolling<Alert[]>({
@@ -32,11 +34,11 @@ function getLevelBadge(level: string) {
   const l = (level || '').toLowerCase()
   switch (l) {
     case 'critical':
-      return { variant: 'destructive' as const, label: '严重' }
+      return { variant: 'destructive' as const, label: t('monitorAlerts.critical') }
     case 'warning':
-      return { variant: 'warning' as const, label: '警告' }
+      return { variant: 'warning' as const, label: t('monitorAlerts.warning') }
     case 'info':
-      return { variant: 'default' as const, label: '信息' }
+      return { variant: 'default' as const, label: t('monitorAlerts.info') }
     default:
       return { variant: 'secondary' as const, label: l }
   }
@@ -61,9 +63,9 @@ function getLevelBorderColor(level: string): string {
 async function handleRefresh() {
   try {
     await refresh()
-    toast('数据已刷新', 'success')
+    toast(t('monitorAlerts.dataRefreshed'), 'success')
   } catch {
-    toast('刷新失败', 'destructive')
+    toast(t('monitorAlerts.refreshFailed'), 'destructive')
   }
 }
 </script>
@@ -71,11 +73,11 @@ async function handleRefresh() {
 <template>
   <div class="p-6 space-y-4">
     <!-- 页面头部 -->
-    <PageHeader title="活跃告警" description="系统当前触发的告警信息">
+    <PageHeader :title="t('monitorAlerts.title')" :description="t('monitorAlerts.description')">
       <template #actions>
         <Button variant="outline" size="sm" :loading="loading" @click="handleRefresh">
           <template #icon><RefreshCw class="w-4 h-4" /></template>
-          刷新
+          {{ t('monitorAlerts.refresh') }}
         </Button>
       </template>
     </PageHeader>
@@ -88,8 +90,8 @@ async function handleRefresh() {
     <!-- 空状态 -->
     <EmptyState
       v-else-if="alerts.value && alerts.value.length === 0"
-      title="系统运行正常，没有活跃告警"
-      description="所有监控指标均在正常范围内"
+      :title="t('monitorAlerts.noAlerts')"
+      :description="t('monitorAlerts.noAlertsDesc')"
     />
 
     <!-- 告警列表 -->
@@ -104,7 +106,7 @@ async function handleRefresh() {
           <div class="flex-1 min-w-0 space-y-1">
             <div class="flex items-center gap-2">
               <span class="text-sm font-medium text-foreground">
-                告警规则 #{{ alert.rule_id }}
+{{ t('monitorAlerts.alertRule') }} #{{ alert.rule_id }}
               </span>
               <Badge :variant="getLevelBadge(alert.level).variant">
                 {{ getLevelBadge(alert.level).label }}
@@ -114,7 +116,7 @@ async function handleRefresh() {
               {{ alert.message }}
             </p>
             <p class="text-xs text-muted-foreground">
-              触发时间: <RelativeTime :date="alert.created_at" />
+{{ t('monitorAlerts.triggerTime') }}: <RelativeTime :date="alert.created_at" />
             </p>
           </div>
         </div>

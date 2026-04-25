@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, inject, onMounted } from 'vue'
+import { ref, computed, inject, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ArrowLeft, Plus, RotateCcw, Trash2, Loader2 } from 'lucide-vue-next'
 import PageHeader from '@/components/common/PageHeader.vue'
@@ -9,9 +9,11 @@ import Table from '@/components/ui/Table.vue'
 import AlertDialog from '@/components/ui/AlertDialog.vue'
 import Skeleton from '@/components/ui/Skeleton.vue'
 import * as appsApi from '@/api/modules/apps'
+import { useI18n } from 'vue-i18n'
 
 const props = defineProps<{ id: string }>()
 const router = useRouter()
+const { t } = useI18n()
 const { toast } = inject<any>('toast')!
 
 const appName = ref('')
@@ -35,12 +37,12 @@ const deleteDialogOpen = ref(false)
 const selectedBackup = ref<Backup | null>(null)
 
 // 表格列
-const columns = [
-  { key: 'id', label: '备份 ID' },
-  { key: 'app_id', label: '应用 ID' },
-  { key: 'created_at', label: '创建时间' },
-  { key: 'actions', label: '操作', width: '160px' },
-]
+const columns = computed(() => [
+  { key: 'id', label: t('appBackups.appName') },
+  { key: 'app_id', label: t('appBackups.image') },
+  { key: 'created_at', label: t('appBackups.createdAt') },
+  { key: 'actions', label: t('appBackups.restore'), width: '160px' },
+])
 
 // 获取备份列表
 async function fetchBackups() {
@@ -51,7 +53,7 @@ async function fetchBackups() {
       backups.value = res.data.data || []
     }
   } catch (err: any) {
-    toast(err.response?.data?.message || '获取备份列表失败', 'destructive')
+    toast(err.response?.data?.message || t('appBackups.fetchFailed'), 'destructive')
   } finally {
     loading.value = false
   }
@@ -62,10 +64,10 @@ async function createBackup() {
   creating.value = true
   try {
     await appsApi.backup(Number(props.id))
-    toast('备份创建成功', 'success')
+    toast(t('appBackups.backupCreated'), 'success')
     fetchBackups()
   } catch (err: any) {
-    toast(err.response?.data?.message || '创建备份失败', 'destructive')
+    toast(err.response?.data?.message || t('appBackups.backupCreateFailed'), 'destructive')
   } finally {
     creating.value = false
   }
@@ -82,10 +84,10 @@ async function confirmRestore() {
   restoring.value = true
   try {
     await appsApi.restore(Number(props.id), { backup_id: selectedBackup.value.id })
-    toast('备份恢复成功', 'success')
+    toast(t('appBackups.restored'), 'success')
     restoreDialogOpen.value = false
   } catch (err: any) {
-    toast(err.response?.data?.message || '恢复备份失败', 'destructive')
+    toast(err.response?.data?.message || t('appBackups.restoreFailed'), 'destructive')
   } finally {
     restoring.value = false
   }
@@ -102,11 +104,11 @@ async function confirmDelete() {
   deleting.value = true
   try {
     await appsApi.deleteBackup(Number(props.id), selectedBackup.value.id)
-    toast('备份删除成功', 'success')
+    toast(t('appBackups.deleted'), 'success')
     deleteDialogOpen.value = false
     fetchBackups()
   } catch (err: any) {
-    toast(err.response?.data?.message || '删除备份失败', 'destructive')
+    toast(err.response?.data?.message || t('appBackups.deleteFailed'), 'destructive')
   } finally {
     deleting.value = false
   }
@@ -141,10 +143,10 @@ onMounted(() => {
           </Button>
           <div>
             <h1 class="text-xl font-semibold text-foreground">
-              备份 - {{ appName || '加载中...' }}
+              {{ t('appBackups.title', { name: appName }) }}
             </h1>
             <p class="mt-0.5 text-sm text-muted-foreground">
-              共 {{ backups.length }} 个备份
+              {{ t('appBackups.totalBackups', { count: backups.length }) }}
             </p>
           </div>
         </div>
@@ -152,7 +154,7 @@ onMounted(() => {
       <template #actions>
         <Button :loading="creating" @click="createBackup">
           <template #icon><Plus class="w-4 h-4" /></template>
-          创建备份
+          {{ t('appBackups.createBackup') }}
         </Button>
       </template>
     </PageHeader>
@@ -181,7 +183,7 @@ onMounted(() => {
             @click="openRestoreDialog(row)"
           >
             <template #icon><RotateCcw class="w-3.5 h-3.5" /></template>
-            恢复
+            {{ t('appBackups.restore') }}
           </Button>
           <Button
             variant="ghost"
@@ -190,7 +192,7 @@ onMounted(() => {
             @click="openDeleteDialog(row)"
           >
             <template #icon><Trash2 class="w-3.5 h-3.5" /></template>
-            删除
+            {{ t('appBackups.delete') }}
           </Button>
         </div>
       </template>
@@ -199,10 +201,10 @@ onMounted(() => {
     <!-- 恢复确认对话框 -->
     <AlertDialog
       v-model:open="restoreDialogOpen"
-      title="恢复备份"
-      :description="`确定要恢复备份「${selectedBackup?.id}」吗？此操作将覆盖当前应用状态。`"
-      confirm-text="确认恢复"
-      cancel-text="取消"
+      :title="t('appBackups.restoreConfirm')"
+      :description="t('appBackups.restoreConfirmDesc', { id: selectedBackup?.id || '' })"
+      :confirm-text="t('appBackups.confirmRestore')"
+      :cancel-text="t('common.cancel')"
       variant="destructive"
       @confirm="confirmRestore"
     />
@@ -210,10 +212,10 @@ onMounted(() => {
     <!-- 删除确认对话框 -->
     <AlertDialog
       v-model:open="deleteDialogOpen"
-      title="删除备份"
-      :description="`确定要删除备份「${selectedBackup?.id}」吗？此操作不可撤销。`"
-      confirm-text="确认删除"
-      cancel-text="取消"
+      :title="t('appBackups.deleteConfirm')"
+      :description="t('appBackups.deleteConfirmDesc', { id: selectedBackup?.id || '' })"
+      :confirm-text="t('appBackups.confirmDelete')"
+      :cancel-text="t('common.cancel')"
       variant="destructive"
       @confirm="confirmDelete"
     />

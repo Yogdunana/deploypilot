@@ -31,11 +31,11 @@ func CreateApp(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var input mcp.CreateAppConfig
 		if err := c.ShouldBindJSON(&input); err != nil {
-			respondError(c, http.StatusBadRequest, "invalid request: "+err.Error())
+			respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request", err.Error())
 			return
 		}
 		if input.Name == "" || input.RepoURL == "" {
-			respondError(c, http.StatusBadRequest, "name and repo_url are required")
+			respondErrori18n(c, http.StatusBadRequest, "error.app.name_and_repo_required")
 			return
 		}
 
@@ -68,7 +68,7 @@ func CreateApp(db *gorm.DB) gin.HandlerFunc {
 		}
 
 		if err := db.Create(&app).Error; err != nil {
-			respondError(c, http.StatusInternalServerError, err.Error())
+			respondErrori18n(c, http.StatusInternalServerError, "error.common.internal_error")
 			return
 		}
 		respondSuccess(c, app)
@@ -89,7 +89,7 @@ func ListApps(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var apps []model.App
 		if err := db.Find(&apps).Error; err != nil {
-			respondError(c, http.StatusInternalServerError, err.Error())
+			respondErrori18n(c, http.StatusInternalServerError, "error.common.internal_error")
 			return
 		}
 		if apps == nil {
@@ -115,7 +115,7 @@ func GetApp(db *gorm.DB) gin.HandlerFunc {
 		id := c.Param("id")
 		var app model.App
 		if err := db.Where("id = ?", id).First(&app).Error; err != nil {
-			respondError(c, http.StatusNotFound, "app not found")
+			respondErrori18n(c, http.StatusNotFound, "error.app.not_found")
 			return
 		}
 		respondSuccess(c, app)
@@ -141,12 +141,12 @@ func UpdateApp(db *gorm.DB) gin.HandlerFunc {
 		id := c.Param("id")
 		var updates map[string]interface{}
 		if err := c.ShouldBindJSON(&updates); err != nil {
-			respondError(c, http.StatusBadRequest, "invalid request: "+err.Error())
+			respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request", err.Error())
 			return
 		}
 
 		if err := db.Model(&model.App{}).Where("id = ?", id).Updates(updates).Error; err != nil {
-			respondError(c, http.StatusInternalServerError, err.Error())
+			respondErrori18n(c, http.StatusInternalServerError, "error.common.internal_error")
 			return
 		}
 
@@ -174,7 +174,7 @@ func DeleteApp(bridge *service.Bridge) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		id := c.Param("id")
 		if err := bridge.DeleteApp(c.Request.Context(), id); err != nil {
-			respondError(c, http.StatusInternalServerError, err.Error())
+			respondErrori18n(c, http.StatusInternalServerError, "error.common.internal_error")
 			return
 		}
 		respondSuccess(c, gin.H{"message": "app deleted", "id": id})
@@ -206,7 +206,7 @@ func DeployApp(bridge *service.Bridge) gin.HandlerFunc {
 
 		var cfg mcp.DeployConfig
 		if err := c.ShouldBindJSON(&cfg); err != nil {
-			respondError(c, http.StatusBadRequest, "invalid request: "+err.Error())
+			respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request", err.Error())
 			return
 		}
 
@@ -223,7 +223,7 @@ func DeployApp(bridge *service.Bridge) gin.HandlerFunc {
 				})
 				return
 			}
-			respondError(c, http.StatusInternalServerError, err.Error())
+			respondErrori18n(c, http.StatusInternalServerError, "error.common.internal_error")
 			return
 		}
 		respondSuccess(c, cs)
@@ -247,7 +247,7 @@ func GetAppStatus(bridge *service.Bridge) gin.HandlerFunc {
 		id := c.Param("id")
 		var app model.App
 		if err := bridge.DB.Where("id = ?", id).First(&app).Error; err != nil {
-			respondError(c, http.StatusNotFound, "app not found")
+			respondErrori18n(c, http.StatusNotFound, "error.app.not_found")
 			return
 		}
 
@@ -258,7 +258,7 @@ func GetAppStatus(bridge *service.Bridge) gin.HandlerFunc {
 
 		cs, err := bridge.GetContainerStatus(c.Request.Context(), containerName)
 		if err != nil {
-			respondError(c, http.StatusInternalServerError, err.Error())
+			respondErrori18n(c, http.StatusInternalServerError, "error.common.internal_error")
 			return
 		}
 		respondSuccess(c, cs)
@@ -287,13 +287,13 @@ func RollbackApp(bridge *service.Bridge) gin.HandlerFunc {
 			PreviousImage string `json:"previous_image"`
 		}
 		if err := c.ShouldBindJSON(&input); err != nil {
-			respondError(c, http.StatusBadRequest, "previous_image is required")
+			respondErrori18n(c, http.StatusBadRequest, "error.app.previous_image_required")
 			return
 		}
 
 		var app model.App
 		if err := bridge.DB.Where("id = ?", id).First(&app).Error; err != nil {
-			respondError(c, http.StatusNotFound, "app not found")
+			respondErrori18n(c, http.StatusNotFound, "error.app.not_found")
 			return
 		}
 
@@ -304,7 +304,7 @@ func RollbackApp(bridge *service.Bridge) gin.HandlerFunc {
 
 		cs, err := bridge.Rollback(c.Request.Context(), containerName, input.PreviousImage)
 		if err != nil {
-			respondError(c, http.StatusInternalServerError, err.Error())
+			respondErrori18n(c, http.StatusInternalServerError, "error.common.internal_error")
 			return
 		}
 		respondSuccess(c, cs)
@@ -336,7 +336,7 @@ func GetContainerLogs(bridge *service.Bridge) gin.HandlerFunc {
 
 		var app model.App
 		if err := bridge.DB.Where("id = ?", id).First(&app).Error; err != nil {
-			respondError(c, http.StatusNotFound, "app not found")
+			respondErrori18n(c, http.StatusNotFound, "error.app.not_found")
 			return
 		}
 
@@ -347,7 +347,7 @@ func GetContainerLogs(bridge *service.Bridge) gin.HandlerFunc {
 
 		logs, err := bridge.GetContainerLogs(c.Request.Context(), containerName, tail)
 		if err != nil {
-			respondError(c, http.StatusInternalServerError, err.Error())
+			respondErrori18n(c, http.StatusInternalServerError, "error.common.internal_error")
 			return
 		}
 		respondSuccess(c, gin.H{
@@ -374,7 +374,7 @@ func BackupApp(bridge *service.Bridge) gin.HandlerFunc {
 		id := c.Param("id")
 		backupID, err := bridge.Backup(c.Request.Context(), id)
 		if err != nil {
-			respondError(c, http.StatusInternalServerError, err.Error())
+			respondErrori18n(c, http.StatusInternalServerError, "error.common.internal_error")
 			return
 		}
 		respondSuccess(c, gin.H{"backup_id": backupID, "app_id": id})
@@ -401,13 +401,13 @@ func RestoreApp(bridge *service.Bridge) gin.HandlerFunc {
 			BackupID string `json:"backup_id"`
 		}
 		if err := c.ShouldBindJSON(&input); err != nil || input.BackupID == "" {
-			respondError(c, http.StatusBadRequest, "backup_id is required")
+			respondErrori18n(c, http.StatusBadRequest, "error.app.backup_id_required")
 			return
 		}
 
 		cs, err := bridge.Restore(c.Request.Context(), input.BackupID)
 		if err != nil {
-			respondError(c, http.StatusInternalServerError, err.Error())
+			respondErrori18n(c, http.StatusInternalServerError, "error.common.internal_error")
 			return
 		}
 		respondSuccess(c, cs)
@@ -430,7 +430,7 @@ func GetAppEnv(db *gorm.DB) gin.HandlerFunc {
 		id := c.Param("id")
 		var app model.App
 		if err := db.Select("id, env_vars").Where("id = ?", id).First(&app).Error; err != nil {
-			respondError(c, http.StatusNotFound, "app not found")
+			respondErrori18n(c, http.StatusNotFound, "error.app.not_found")
 			return
 		}
 		respondSuccess(c, gin.H{
@@ -461,12 +461,12 @@ func UpdateAppEnv(db *gorm.DB) gin.HandlerFunc {
 			EnvVars string `json:"env_vars"`
 		}
 		if err := c.ShouldBindJSON(&input); err != nil {
-			respondError(c, http.StatusBadRequest, "invalid request: "+err.Error())
+			respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request", err.Error())
 			return
 		}
 
 		if err := db.Model(&model.App{}).Where("id = ?", id).Update("env_vars", input.EnvVars).Error; err != nil {
-			respondError(c, http.StatusInternalServerError, err.Error())
+			respondErrori18n(c, http.StatusInternalServerError, "error.common.internal_error")
 			return
 		}
 		respondSuccess(c, gin.H{"app_id": id, "message": "env vars updated"})
@@ -504,7 +504,7 @@ func BuildAndDeployApp(bridge *service.Bridge) gin.HandlerFunc {
 		// Get app from DB
 		var app model.App
 		if err := bridge.DB.Where("id = ?", appID).First(&app).Error; err != nil {
-			respondError(c, http.StatusNotFound, "app not found")
+			respondErrori18n(c, http.StatusNotFound, "error.app.not_found")
 			return
 		}
 
@@ -530,7 +530,7 @@ func BuildAndDeployApp(bridge *service.Bridge) gin.HandlerFunc {
 
 		result, err := bridge.BuildAndDeploy(c.Request.Context(), cfg)
 		if err != nil {
-			respondError(c, http.StatusInternalServerError, err.Error())
+			respondErrori18n(c, http.StatusInternalServerError, "error.common.internal_error")
 			return
 		}
 

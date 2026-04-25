@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, inject, onMounted } from 'vue'
+import { ref, computed, inject, onMounted } from 'vue'
 import { RefreshCw, HeartPulse, Wrench } from 'lucide-vue-next'
 import PageHeader from '@/components/common/PageHeader.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
@@ -12,8 +12,10 @@ import Skeleton from '@/components/ui/Skeleton.vue'
 import * as appsApi from '@/api/modules/apps'
 import * as monitorApi from '@/api/modules/monitor'
 import type { App, ContainerMetrics } from '@/types/models'
+import { useI18n } from 'vue-i18n'
 
 const { toast } = inject<any>('toast')!
+const { t } = useI18n()
 
 const loading = ref(true)
 const apps = ref<App[]>([])
@@ -28,14 +30,14 @@ const healing = ref(false)
 const checkingName = ref<string | null>(null)
 
 // 表格列
-const columns = [
-  { key: 'container_name', label: '容器名' },
-  { key: 'app_name', label: '应用名' },
-  { key: 'cpu_usage', label: 'CPU 使用率' },
-  { key: 'memory_usage', label: '内存使用率' },
-  { key: 'status', label: '状态' },
-  { key: 'actions', label: '操作', width: '180px' },
-]
+const columns = computed(() => [
+  { key: 'container_name', label: t('monitorContainers.name') },
+  { key: 'app_name', label: t('monitorContainers.appName') },
+  { key: 'cpu_usage', label: t('monitorContainers.cpu') },
+  { key: 'memory_usage', label: t('monitorContainers.memory') },
+  { key: 'status', label: t('monitorContainers.status') },
+  { key: 'actions', label: t('monitorContainers.actions'), width: '180px' },
+])
 
 // 根据使用率获取进度条颜色
 function getVariant(usage: number): 'success' | 'warning' | 'destructive' {
@@ -76,7 +78,7 @@ async function fetchApps() {
       apps.value = res.data.data || []
     }
   } catch (err: any) {
-    toast(err.response?.data?.message || '获取应用列表失败', 'destructive')
+    toast(err.response?.data?.message || t('monitorContainers.fetchAppsFailed'), 'destructive')
   } finally {
     loading.value = false
   }
@@ -105,13 +107,13 @@ async function handleCheck(name: string) {
     if (res.data.status === 'success') {
       const result = res.data.data
       if (result.healthy) {
-        toast(`容器「${name}」健康检查通过`, 'success')
+        toast(t('monitorContainers.healthCheckPassed', { name }), 'success')
       } else {
-        toast(`容器「${name}」健康检查失败: ${result.message}`, 'destructive')
+        toast(t('monitorContainers.healthCheckFailed', { name, message: result.message }), 'destructive')
       }
     }
   } catch (err: any) {
-    toast(err.response?.data?.message || '健康检查失败', 'destructive')
+    toast(err.response?.data?.message || t('monitorContainers.healthCheckFailedGeneric'), 'destructive')
   } finally {
     checkingName.value = null
   }
@@ -128,11 +130,11 @@ async function confirmHeal() {
   healing.value = true
   try {
     await monitorApi.heal(healingName.value)
-    toast(`容器「${healingName.value}」自愈操作已触发`, 'success')
+    toast(t('monitorContainers.healTriggered', { name: healingName.value }), 'success')
     // 刷新指标
     fetchAllMetrics()
   } catch (err: any) {
-    toast(err.response?.data?.message || '自愈操作失败', 'destructive')
+    toast(err.response?.data?.message || t('monitorContainers.healFailed'), 'destructive')
   } finally {
     healing.value = false
   }
@@ -142,7 +144,7 @@ async function confirmHeal() {
 async function handleRefresh() {
   await fetchApps()
   await fetchAllMetrics()
-  toast('数据已刷新', 'success')
+  toast(t('monitorContainers.dataRefreshed'), 'success')
 }
 
 onMounted(async () => {
@@ -154,11 +156,11 @@ onMounted(async () => {
 <template>
   <div class="p-6 space-y-4">
     <!-- 页面头部 -->
-    <PageHeader title="容器监控" description="所有运行中容器的资源使用情况">
+    <PageHeader :title="t('monitorContainers.title')" :description="t('monitorContainers.description')">
       <template #actions>
         <Button variant="outline" size="sm" :loading="loading" @click="handleRefresh">
           <template #icon><RefreshCw class="w-4 h-4" /></template>
-          刷新
+          {{ t('monitorContainers.refresh') }}
         </Button>
       </template>
     </PageHeader>
@@ -212,7 +214,7 @@ onMounted(async () => {
             @click="handleCheck(row.container_name)"
           >
             <template #icon><HeartPulse class="w-3.5 h-3.5" /></template>
-            健康检查
+            {{ t('monitorContainers.healthCheck') }}
           </Button>
           <Button
             variant="ghost"
@@ -221,7 +223,7 @@ onMounted(async () => {
             @click="openHealDialog(row.container_name)"
           >
             <template #icon><Wrench class="w-3.5 h-3.5" /></template>
-            自愈
+            {{ t('monitorContainers.heal') }}
           </Button>
         </div>
       </template>
@@ -230,10 +232,10 @@ onMounted(async () => {
     <!-- 自愈确认对话框 -->
     <AlertDialog
       v-model:open="healDialogOpen"
-      title="容器自愈"
-      :description="`确定要对容器「${healingName}」执行自愈操作吗？此操作将尝试自动修复容器问题。`"
-      confirm-text="确认自愈"
-      cancel-text="取消"
+      :title="t('monitorContainers.healConfirm')"
+      :description="t('monitorContainers.healConfirmDesc', { name: healingName })"
+      :confirm-text="t('monitorContainers.confirmHeal')"
+      :cancel-text="t('common.cancel')"
       variant="destructive"
       @confirm="confirmHeal"
     />

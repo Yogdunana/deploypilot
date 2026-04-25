@@ -9,8 +9,10 @@ import Skeleton from '@/components/ui/Skeleton.vue'
 import { usePolling } from '@/composables/usePolling'
 import * as monitorApi from '@/api/modules/monitor'
 import type { SystemMetrics } from '@/types/models'
+import { useI18n } from 'vue-i18n'
 
 const { toast } = inject<any>('toast')!
+const { t } = useI18n()
 
 // 轮询系统指标，每 30 秒刷新
 const { data: metrics, loading, error, refresh } = usePolling<SystemMetrics>({
@@ -19,7 +21,7 @@ const { data: metrics, loading, error, refresh } = usePolling<SystemMetrics>({
     if (res.data.status === 'success') {
       return res.data.data
     }
-    throw new Error('获取系统指标失败')
+    throw new Error(t('monitor.loadMetricsFailed'))
   },
   interval: 30000,
   autoStart: true,
@@ -52,9 +54,9 @@ function formatUptime(seconds: number): string {
   const days = Math.floor(seconds / 86400)
   const hours = Math.floor((seconds % 86400) / 3600)
   const minutes = Math.floor((seconds % 3600) / 60)
-  if (days > 0) return `${days} 天 ${hours} 小时 ${minutes} 分钟`
-  if (hours > 0) return `${hours} 小时 ${minutes} 分钟`
-  return `${minutes} 分钟`
+  if (days > 0) return `${days} ${t('monitor.days')} ${hours} ${t('monitor.hours')} ${minutes} ${t('monitor.minutes')}`
+  if (hours > 0) return `${hours} ${t('monitor.hours')} ${minutes} ${t('monitor.minutes')}`
+  return `${minutes} ${t('monitor.minutes')}`
 }
 
 // CPU 指标
@@ -63,7 +65,7 @@ const cpuMetrics = computed(() => {
   return {
     usage: metrics.value.cpu_usage,
     label: `${metrics.value.cpu_usage.toFixed(1)}%`,
-    detail: `CPU 使用率`,
+    detail: t('monitor.cpuUsage'),
   }
 })
 
@@ -91,9 +93,9 @@ const diskMetrics = computed(() => {
 async function handleRefresh() {
   try {
     await refresh()
-    toast('数据已刷新', 'success')
+    toast(t('monitor.dataRefreshed'), 'success')
   } catch {
-    toast('刷新失败', 'destructive')
+    toast(t('monitor.refreshFailed'), 'destructive')
   }
 }
 </script>
@@ -101,11 +103,11 @@ async function handleRefresh() {
 <template>
   <div class="p-6 space-y-6">
     <!-- 页面头部 -->
-    <PageHeader title="系统监控" description="服务器资源使用情况实时监控">
+    <PageHeader :title="t('monitor.title')" :description="t('monitor.description')">
       <template #actions>
         <Button variant="outline" size="sm" :loading="loading" @click="handleRefresh">
           <template #icon><RefreshCw class="w-4 h-4" /></template>
-          刷新
+          {{ t('monitor.refresh') }}
         </Button>
       </template>
     </PageHeader>
@@ -121,7 +123,7 @@ async function handleRefresh() {
     <!-- 错误状态 -->
     <Card v-else-if="error" class="p-8">
       <div class="flex flex-col items-center justify-center text-center">
-        <p class="text-sm text-destructive">加载系统指标失败</p>
+        <p class="text-sm text-destructive">{{ t('monitor.loadMetricsFailed') }}</p>
         <p class="mt-1 text-xs text-muted-foreground">{{ error.message }}</p>
       </div>
     </Card>
@@ -134,7 +136,7 @@ async function handleRefresh() {
           <template #header>
             <div class="flex items-center gap-2">
               <Cpu class="w-4 h-4 text-muted-foreground" />
-              <h3 class="text-sm font-medium text-foreground">CPU 使用率</h3>
+              <h3 class="text-sm font-medium text-foreground">{{ t('monitor.cpuUsage') }}</h3>
             </div>
           </template>
           <div class="space-y-3">
@@ -157,7 +159,7 @@ async function handleRefresh() {
           <template #header>
             <div class="flex items-center gap-2">
               <MemoryStick class="w-4 h-4 text-muted-foreground" />
-              <h3 class="text-sm font-medium text-foreground">内存使用率</h3>
+              <h3 class="text-sm font-medium text-foreground">{{ t('monitor.memoryUsage') }}</h3>
             </div>
           </template>
           <div class="space-y-3">
@@ -180,7 +182,7 @@ async function handleRefresh() {
           <template #header>
             <div class="flex items-center gap-2">
               <HardDrive class="w-4 h-4 text-muted-foreground" />
-              <h3 class="text-sm font-medium text-foreground">磁盘使用率</h3>
+              <h3 class="text-sm font-medium text-foreground">{{ t('monitor.diskUsage') }}</h3>
             </div>
           </template>
           <div class="space-y-3">
@@ -206,7 +208,7 @@ async function handleRefresh() {
           <template #header>
             <div class="flex items-center gap-2">
               <ArrowDown class="w-4 h-4 text-success" />
-              <h3 class="text-sm font-medium text-foreground">网络入站</h3>
+              <h3 class="text-sm font-medium text-foreground">{{ t('monitor.networkIn') }}</h3>
             </div>
           </template>
           <p class="text-2xl font-bold text-foreground">
@@ -219,7 +221,7 @@ async function handleRefresh() {
           <template #header>
             <div class="flex items-center gap-2">
               <ArrowUp class="w-4 h-4 text-primary" />
-              <h3 class="text-sm font-medium text-foreground">网络出站</h3>
+              <h3 class="text-sm font-medium text-foreground">{{ t('monitor.networkOut') }}</h3>
             </div>
           </template>
           <p class="text-2xl font-bold text-foreground">
@@ -232,7 +234,7 @@ async function handleRefresh() {
           <template #header>
             <div class="flex items-center gap-2">
               <Clock class="w-4 h-4 text-muted-foreground" />
-              <h3 class="text-sm font-medium text-foreground">系统运行时间</h3>
+              <h3 class="text-sm font-medium text-foreground">{{ t('monitor.systemUptime') }}</h3>
             </div>
           </template>
           <p class="text-2xl font-bold text-foreground">

@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { RouterView, RouterLink, useRoute, useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
+import { useLocale } from '@/composables/useLocale'
 import { cn } from '@/lib/utils'
 import Avatar from '@/components/ui/Avatar.vue'
 import DropdownMenu from '@/components/ui/DropdownMenu.vue'
@@ -30,61 +32,64 @@ import {
   User,
   LogOut,
   ChevronRight,
+  Languages,
 } from 'lucide-vue-next'
 
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
+const { t } = useI18n()
+const { currentLocale, toggleLocale, localeName } = useLocale()
 
 const collapsed = ref(false)
 
-const navGroups = [
+const navGroups = computed(() => [
   {
-    label: '概览',
+    label: t('layout.overview'),
     items: [
-      { path: '/', label: '仪表盘', icon: LayoutDashboard },
+      { path: '/', label: t('layout.dashboard'), icon: LayoutDashboard },
     ],
   },
   {
-    label: '应用',
+    label: t('layout.apps'),
     items: [
-      { path: '/apps', label: '应用管理', icon: Rocket },
-      { path: '/servers', label: '服务器', icon: Server },
-      { path: '/deployments', label: '部署记录', icon: GitBranch },
+      { path: '/apps', label: t('layout.apps'), icon: Rocket },
+      { path: '/servers', label: t('layout.servers'), icon: Server },
+      { path: '/deployments', label: t('layout.deployments'), icon: GitBranch },
     ],
   },
   {
-    label: '基础设施',
+    label: t('layout.infrastructure'),
     items: [
-      { path: '/credentials', label: '凭证管理', icon: Key },
-      { path: '/dns', label: 'DNS 管理', icon: Globe },
-      { path: '/ssl', label: 'SSL 证书', icon: Shield },
-      { path: '/providers', label: '服务提供商', icon: Cloud },
+      { path: '/credentials', label: t('layout.credentials'), icon: Key },
+      { path: '/dns', label: t('layout.dns'), icon: Globe },
+      { path: '/ssl', label: t('layout.ssl'), icon: Shield },
+      { path: '/providers', label: t('layout.providers'), icon: Cloud },
     ],
   },
   {
-    label: '运维',
+    label: t('layout.ops'),
     items: [
-      { path: '/cicd', label: 'CI/CD', icon: FileCode },
-      { path: '/monitor', label: '监控', icon: Activity },
-      { path: '/notifications', label: '通知', icon: Bell },
-      { path: '/templates', label: '模板', icon: FileCode },
+      { path: '/cicd', label: t('layout.cicd'), icon: FileCode },
+      { path: '/monitor', label: t('layout.monitor'), icon: Activity },
+      { path: '/notifications', label: t('layout.notifications'), icon: Bell },
+      { path: '/templates', label: t('layout.templates'), icon: FileCode },
     ],
   },
   {
-    label: '管理',
+    label: t('layout.management'),
     items: [
-      { path: '/users', label: '用户管理', icon: Users },
-      { path: '/audit', label: '审计日志', icon: ScrollText },
-      { path: '/system', label: '系统设置', icon: Settings },
+      { path: '/users', label: t('layout.users'), icon: Users },
+      { path: '/audit', label: t('layout.audit'), icon: ScrollText },
+      { path: '/system', label: t('layout.system'), icon: Settings },
     ],
   },
-]
+])
 
 const commandOpen = ref(false)
 
 const commandItems = computed(() =>
-  navGroups.flatMap((group) =>
+  navGroups.value.flatMap((group) =>
     group.items.map((item) => ({
       label: item.label,
       icon: item.icon,
@@ -94,10 +99,11 @@ const commandItems = computed(() =>
 )
 
 const breadcrumb = computed(() => {
-  const matched = route.matched.filter((r) => r.meta?.title || r.name)
+  const matched = route.matched.filter((r) => r.meta?.titleKey || r.name)
   const crumbs: { label: string; path?: string }[] = []
   matched.forEach((r) => {
-    const label = (r.meta?.title as string) || (r.name as string)
+    const titleKey = r.meta?.titleKey as string | undefined
+    const label = titleKey ? t(titleKey) : (r.name as string)
     if (label && label !== 'MainLayout') {
       crumbs.push({
         label,
@@ -129,9 +135,7 @@ function handleLogout() {
     >
       <!-- Logo -->
       <div class="flex h-12 items-center gap-2 px-4 border-b border-border">
-        <div class="flex items-center justify-center w-7 h-7 rounded-md bg-primary text-primary-foreground font-bold text-sm shrink-0">
-          D
-        </div>
+        <img src="/logo.png" alt="DeployPilot" class="h-7 w-7 rounded shrink-0 object-contain" />
         <Transition
           enter-active-class="transition duration-150 ease-out"
           enter-from-class="opacity-0"
@@ -208,14 +212,14 @@ function handleLogout() {
             leave-from-class="opacity-100"
             leave-to-class="opacity-0"
           >
-            <span v-if="!collapsed">收起侧栏</span>
+            <span v-if="!collapsed">{{ t('layout.collapseSidebar') }}</span>
           </Transition>
         </button>
         <Separator class="my-2" />
         <DropdownMenu
           :items="[
-            { label: '个人设置', icon: User, action: () => {} },
-            { label: '退出登录', icon: LogOut, action: handleLogout, danger: true },
+            { label: t('layout.profile'), icon: User, action: () => {} },
+            { label: t('layout.logout'), icon: LogOut, action: handleLogout, danger: true },
           ]"
         >
           <template #trigger>
@@ -239,7 +243,7 @@ function handleLogout() {
               >
                 <div v-if="!collapsed" class="flex flex-col items-start min-w-0">
                   <span class="truncate text-foreground text-xs font-medium">
-                    {{ authStore.currentUser?.username || '用户' }}
+                    {{ authStore.currentUser?.username || t('layout.profile') }}
                   </span>
                   <span class="truncate text-[11px]">
                     {{ authStore.currentUser?.email || '' }}
@@ -273,12 +277,20 @@ function handleLogout() {
           </template>
         </div>
         <div class="flex items-center gap-2">
+          <!-- Language Switcher -->
+          <button
+            class="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-2.5 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-foreground transition-colors duration-150 cursor-pointer"
+            @click="toggleLocale"
+          >
+            <Languages class="w-3.5 h-3.5" />
+            <span class="hidden sm:inline">{{ localeName }}</span>
+          </button>
           <button
             class="inline-flex items-center gap-2 rounded-md border border-border bg-background px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-foreground transition-colors duration-150 cursor-pointer"
             @click="commandOpen = true"
           >
             <Search class="w-3.5 h-3.5" />
-            <span class="hidden sm:inline">搜索...</span>
+            <span class="hidden sm:inline">{{ t('layout.search') }}</span>
             <kbd class="hidden sm:inline-flex h-5 items-center gap-1 rounded border border-border bg-card px-1.5 text-[10px] font-medium text-muted-foreground">
               <span class="text-xs">&#8984;</span>K
             </kbd>
@@ -310,7 +322,7 @@ function handleLogout() {
     <Command
       v-model:open="commandOpen"
       :items="commandItems"
-      placeholder="搜索页面或输入命令..."
+      :placeholder="t('layout.searchPlaceholder')"
     />
 
     <!-- Toast provider -->

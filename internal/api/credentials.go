@@ -27,7 +27,7 @@ func ListCredentials(bridge *service.Bridge) gin.HandlerFunc {
 
 		creds, err := bridge.ListCredentials(c.Request.Context(), tenantID)
 		if err != nil {
-			respondError(c, http.StatusInternalServerError, err.Error())
+			respondErrori18n(c, http.StatusInternalServerError, "error.common.internal_error")
 			return
 		}
 		respondSuccess(c, creds)
@@ -56,7 +56,7 @@ func CreateCredential(bridge *service.Bridge) gin.HandlerFunc {
 			Value    string `json:"value" binding:"required"`
 		}
 		if err := c.ShouldBindJSON(&input); err != nil {
-			respondError(c, http.StatusBadRequest, "invalid request: "+err.Error())
+			respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request", err.Error())
 			return
 		}
 		if input.TenantID == "" {
@@ -65,7 +65,7 @@ func CreateCredential(bridge *service.Bridge) gin.HandlerFunc {
 
 		cred, err := bridge.CreateCredential(c.Request.Context(), input.TenantID, input.Name, input.Type, input.Value)
 		if err != nil {
-			respondError(c, http.StatusInternalServerError, err.Error())
+			respondErrori18n(c, http.StatusInternalServerError, "error.common.internal_error")
 			return
 		}
 		respondSuccess(c, cred)
@@ -93,13 +93,13 @@ func UpdateCredential(bridge *service.Bridge) gin.HandlerFunc {
 			Value string `json:"value" binding:"required"`
 		}
 		if err := c.ShouldBindJSON(&input); err != nil {
-			respondError(c, http.StatusBadRequest, "invalid request: "+err.Error())
+			respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request", err.Error())
 			return
 		}
 
 		result, err := bridge.UpdateCredential(c.Request.Context(), id, input.Value)
 		if err != nil {
-			respondError(c, http.StatusInternalServerError, err.Error())
+			respondErrori18n(c, http.StatusInternalServerError, "error.common.internal_error")
 			return
 		}
 		respondSuccess(c, result)
@@ -121,7 +121,7 @@ func DeleteCredential(bridge *service.Bridge) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		id := c.Param("id")
 		if err := bridge.DeleteCredential(c.Request.Context(), id); err != nil {
-			respondError(c, http.StatusInternalServerError, err.Error())
+			respondErrori18n(c, http.StatusInternalServerError, "error.common.internal_error")
 			return
 		}
 		respondSuccess(c, gin.H{"message": "credential deleted", "id": id})

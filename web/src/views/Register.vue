@@ -1,14 +1,15 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
 import Card from '@/components/ui/Card.vue'
 import Input from '@/components/ui/Input.vue'
 import Button from '@/components/ui/Button.vue'
-import { Rocket } from 'lucide-vue-next'
 
 const router = useRouter()
 const authStore = useAuthStore()
+const { t } = useI18n()
 
 const username = ref('')
 const email = ref('')
@@ -29,9 +30,9 @@ const passwordStrength = computed(() => {
   if (/[0-9]/.test(pwd)) score++
   if (/[^A-Za-z0-9]/.test(pwd)) score++
 
-  if (score <= 2) return { level: 1, label: '弱', color: 'bg-destructive' }
-  if (score <= 3) return { level: 2, label: '中', color: 'bg-warning' }
-  return { level: 3, label: '强', color: 'bg-success' }
+  if (score <= 2) return { level: 1, label: t('register.weak'), color: 'bg-destructive' }
+  if (score <= 3) return { level: 2, label: t('register.medium'), color: 'bg-warning' }
+  return { level: 3, label: t('register.strong'), color: 'bg-success' }
 })
 
 const strengthBarWidth = computed(() => {
@@ -42,27 +43,27 @@ async function handleRegister() {
   error.value = ''
 
   if (!username.value.trim()) {
-    error.value = '请输入用户名'
+    error.value = t('register.usernameRequired')
     return
   }
   if (!email.value.trim()) {
-    error.value = '请输入邮箱'
+    error.value = t('register.emailRequired')
     return
   }
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.value)) {
-    error.value = '请输入有效的邮箱地址'
+    error.value = t('register.emailInvalid')
     return
   }
   if (!password.value) {
-    error.value = '请输入密码'
+    error.value = t('register.passwordRequired')
     return
   }
   if (password.value.length < 6) {
-    error.value = '密码长度至少为 6 位'
+    error.value = t('register.passwordTooShort')
     return
   }
   if (password.value !== confirmPassword.value) {
-    error.value = '两次输入的密码不一致'
+    error.value = t('register.passwordMismatch')
     return
   }
 
@@ -75,7 +76,7 @@ async function handleRegister() {
     })
     router.push('/login')
   } catch (err: any) {
-    const msg = err?.response?.data?.message || err?.message || '注册失败，请稍后重试'
+    const msg = err?.response?.data?.message || err?.message || t('register.failed')
     error.value = msg
   } finally {
     loading.value = false
@@ -94,11 +95,9 @@ function handleKeydown(e: KeyboardEvent) {
     <div class="w-full max-w-sm">
       <!-- Logo & Title -->
       <div class="text-center mb-8">
-        <div class="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-primary/10 mb-4">
-          <Rocket class="w-6 h-6 text-primary" />
-        </div>
+        <img src="/logo.png" alt="DeployPilot" class="h-12 mx-auto mb-4" />
         <h1 class="text-2xl font-bold text-foreground">DeployPilot</h1>
-        <p class="mt-1 text-sm text-muted-foreground">创建新账号</p>
+        <p class="mt-1 text-sm text-muted-foreground">{{ t('register.title') }}</p>
       </div>
 
       <!-- Register Card -->
@@ -106,10 +105,10 @@ function handleKeydown(e: KeyboardEvent) {
         <form class="space-y-4" @submit.prevent="handleRegister">
           <!-- Username -->
           <div>
-            <label class="block text-sm font-medium text-foreground mb-1.5">用户名</label>
+            <label class="block text-sm font-medium text-foreground mb-1.5">{{ t('register.username') }}</label>
             <Input
               v-model="username"
-              placeholder="请输入用户名"
+              :placeholder="t('register.usernamePlaceholder')"
               :error="!!error"
               @keydown="handleKeydown"
             />
@@ -117,11 +116,11 @@ function handleKeydown(e: KeyboardEvent) {
 
           <!-- Email -->
           <div>
-            <label class="block text-sm font-medium text-foreground mb-1.5">邮箱</label>
+            <label class="block text-sm font-medium text-foreground mb-1.5">{{ t('register.email') }}</label>
             <Input
               v-model="email"
               type="email"
-              placeholder="请输入邮箱"
+              :placeholder="t('register.emailPlaceholder')"
               :error="!!error"
               @keydown="handleKeydown"
             />
@@ -129,18 +128,18 @@ function handleKeydown(e: KeyboardEvent) {
 
           <!-- Password -->
           <div>
-            <label class="block text-sm font-medium text-foreground mb-1.5">密码</label>
+            <label class="block text-sm font-medium text-foreground mb-1.5">{{ t('register.password') }}</label>
             <Input
               v-model="password"
               type="password"
-              placeholder="请输入密码（至少 6 位）"
+              :placeholder="t('register.passwordPlaceholder')"
               :error="!!error"
               @keydown="handleKeydown"
             />
             <!-- Password Strength Indicator -->
             <div v-if="password" class="mt-2">
               <div class="flex items-center justify-between mb-1">
-                <span class="text-xs text-muted-foreground">密码强度</span>
+                <span class="text-xs text-muted-foreground">{{ t('register.passwordStrength') }}</span>
                 <span
                   class="text-xs font-medium"
                   :class="{
@@ -164,11 +163,11 @@ function handleKeydown(e: KeyboardEvent) {
 
           <!-- Confirm Password -->
           <div>
-            <label class="block text-sm font-medium text-foreground mb-1.5">确认密码</label>
+            <label class="block text-sm font-medium text-foreground mb-1.5">{{ t('register.confirmPassword') }}</label>
             <Input
               v-model="confirmPassword"
               type="password"
-              placeholder="请再次输入密码"
+              :placeholder="t('register.confirmPasswordPlaceholder')"
               :error="!!error && confirmPassword !== password"
               @keydown="handleKeydown"
             />
@@ -187,14 +186,14 @@ function handleKeydown(e: KeyboardEvent) {
             :loading="loading"
             :disabled="loading"
           >
-            注册
+            {{ t('register.submit') }}
           </Button>
 
           <!-- Login Link -->
           <p class="text-center text-sm text-muted-foreground pt-2">
-            已有账号？
+            {{ t('register.hasAccount') }}
             <RouterLink to="/login" class="text-primary hover:underline font-medium">
-              立即登录
+              {{ t('register.loginNow') }}
             </RouterLink>
           </p>
         </form>

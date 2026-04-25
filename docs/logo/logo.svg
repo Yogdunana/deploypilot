@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1376" height="768" viewBox="0 0 1376 768">
+  <title>DeployPilot wordmark</title>
+  <defs>
+    <clipPath id="dp-rocket" clipPathUnits="userSpaceOnUse">
+      <rect x="0" y="0" width="622" height="768"/>
+    </clipPath>
+    <clipPath id="dp-wordmark" clipPathUnits="userSpaceOnUse">
+      <rect x="622" y="0" width="754" height="768"/>
+    </clipPath>
+  </defs>
+  <g transform="translate(100,84.48) scale(0.78)">
+    <image
+      width="1376"
+      height="768"
+      href="deploypilot-logo-concept-pro-a.png"
+      clip-path="url(#dp-rocket)"
+      preserveAspectRatio="xMidYMid meet"/>
+  </g>
+  <g transform="translate(12.92,30.72) scale(0.92)">
+    <image
+      width="1376"
+      height="768"
+      href="deploypilot-logo-concept-pro-a.png"
+      clip-path="url(#dp-wordmark)"
+      preserveAspectRatio="xMidYMid meet"/>
+  </g>
+  <text
+    x="1149"
+    y="360"
+    font-family="Segoe UI, system-ui, Arial, sans-serif"
+    font-size="36"
+    font-weight="600"
+    fill="#142558">™</text>
+</svg>

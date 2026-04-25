@@ -28,7 +28,7 @@ func ListProviders(db *gorm.DB) gin.HandlerFunc {
 			query = query.Where("type = ?", pType)
 		}
 		if err := query.Find(&providers).Error; err != nil {
-			respondError(c, http.StatusInternalServerError, err.Error())
+			respondErrori18n(c, http.StatusInternalServerError, "error.common.internal_error")
 			return
 		}
 		if providers == nil {
@@ -55,11 +55,11 @@ func CreateProvider(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var input model.Provider
 		if err := c.ShouldBindJSON(&input); err != nil {
-			respondError(c, http.StatusBadRequest, "invalid request: "+err.Error())
+			respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request", err.Error())
 			return
 		}
 		if input.Name == "" || input.Type == "" {
-			respondError(c, http.StatusBadRequest, "name and type are required")
+			respondErrori18n(c, http.StatusBadRequest, "error.provider.name_and_type_required")
 			return
 		}
 
@@ -70,7 +70,7 @@ func CreateProvider(db *gorm.DB) gin.HandlerFunc {
 		input.Enabled = true
 
 		if err := db.Create(&input).Error; err != nil {
-			respondError(c, http.StatusInternalServerError, err.Error())
+			respondErrori18n(c, http.StatusInternalServerError, "error.common.internal_error")
 			return
 		}
 		respondSuccess(c, input)
@@ -96,12 +96,12 @@ func UpdateProvider(db *gorm.DB) gin.HandlerFunc {
 		id := c.Param("id")
 		var input model.Provider
 		if err := c.ShouldBindJSON(&input); err != nil {
-			respondError(c, http.StatusBadRequest, "invalid request: "+err.Error())
+			respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request", err.Error())
 			return
 		}
 
 		if err := db.Model(&model.Provider{}).Where("id = ?", id).Updates(input).Error; err != nil {
-			respondError(c, http.StatusInternalServerError, err.Error())
+			respondErrori18n(c, http.StatusInternalServerError, "error.common.internal_error")
 			return
 		}
 
@@ -131,11 +131,11 @@ func DeleteProvider(db *gorm.DB) gin.HandlerFunc {
 		id := c.Param("id")
 		result := db.Where("id = ?", id).Delete(&model.Provider{})
 		if result.Error != nil {
-			respondError(c, http.StatusInternalServerError, result.Error.Error())
+			respondErrori18n(c, http.StatusInternalServerError, "error.common.internal_error")
 			return
 		}
 		if result.RowsAffected == 0 {
-			respondError(c, http.StatusNotFound, "provider not found")
+			respondErrori18n(c, http.StatusNotFound, "error.provider.not_found")
 			return
 		}
 		respondSuccess(c, gin.H{"message": "provider deleted", "id": id})

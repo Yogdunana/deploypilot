@@ -6,8 +6,10 @@ import Card from '@/components/ui/Card.vue'
 import Skeleton from '@/components/ui/Skeleton.vue'
 import Button from '@/components/ui/Button.vue'
 import * as systemApi from '@/api/modules/system'
+import { useI18n } from 'vue-i18n'
 
 const { toast } = inject<any>('toast')!
+const { t } = useI18n()
 
 // State
 const loading = ref(true)
@@ -31,7 +33,7 @@ async function fetchSystemInfo() {
       healthInfo.value = healthRes.data.data
     }
   } catch (err: any) {
-    toast(err.response?.data?.message || '获取系统信息失败', 'destructive')
+    toast(err.response?.data?.message || t('system.fetchFailed'), 'destructive')
   } finally {
     loading.value = false
   }
@@ -45,13 +47,13 @@ async function handleCheckUpdate() {
     if (res.data.status === 'success') {
       updateInfo.value = res.data.data
       if (res.data.data.has_update) {
-        toast(`发现新版本 ${res.data.data.latest}`, 'warning')
+        toast(t('system.updateAvailable', { version: res.data.data.latest }), 'warning')
       } else {
-        toast('当前已是最新版本', 'success')
+        toast(t('system.alreadyLatest'), 'success')
       }
     }
   } catch (err: any) {
-    toast(err.response?.data?.message || '检查更新失败', 'destructive')
+    toast(err.response?.data?.message || t('system.checkFailed'), 'destructive')
   } finally {
     checkingUpdate.value = false
   }
@@ -62,9 +64,9 @@ function formatUptime(seconds: number): string {
   const days = Math.floor(seconds / 86400)
   const hours = Math.floor((seconds % 86400) / 3600)
   const minutes = Math.floor((seconds % 3600) / 60)
-  if (days > 0) return `${days} 天 ${hours} 小时 ${minutes} 分钟`
-  if (hours > 0) return `${hours} 小时 ${minutes} 分钟`
-  return `${minutes} 分钟`
+  if (days > 0) return `${days} ${t('system.days')} ${hours} ${t('system.hours')} ${minutes} ${t('system.minutes')}`
+  if (hours > 0) return `${hours} ${t('system.hours')} ${minutes} ${t('system.minutes')}`
+  return `${minutes} ${t('system.minutes')}`
 }
 
 onMounted(fetchSystemInfo)
@@ -73,7 +75,7 @@ onMounted(fetchSystemInfo)
 <template>
   <div class="p-6 space-y-4">
     <!-- Header -->
-    <PageHeader title="系统信息" />
+    <PageHeader :title="t('system.title')" />
 
     <!-- Loading skeleton -->
     <div v-if="loading" class="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -94,20 +96,20 @@ onMounted(fetchSystemInfo)
         <template #header>
           <div class="flex items-center gap-2">
             <Info class="w-4 h-4 text-muted-foreground" />
-            <h3 class="text-sm font-semibold text-foreground">版本信息</h3>
+            <h3 class="text-sm font-semibold text-foreground">{{ t('system.versionInfo') }}</h3>
           </div>
         </template>
         <div class="space-y-3">
           <div class="flex items-center justify-between">
-            <span class="text-sm text-muted-foreground">版本号</span>
+            <span class="text-sm text-muted-foreground">{{ t('system.versionNumber') }}</span>
             <code class="text-sm font-mono text-foreground">{{ versionInfo?.version || '-' }}</code>
           </div>
           <div class="flex items-center justify-between">
-            <span class="text-sm text-muted-foreground">构建时间</span>
+            <span class="text-sm text-muted-foreground">{{ t('system.buildTime') }}</span>
             <span class="text-sm text-foreground">{{ versionInfo?.build_time || '-' }}</span>
           </div>
           <div class="flex items-center justify-between">
-            <span class="text-sm text-muted-foreground">Git Commit</span>
+            <span class="text-sm text-muted-foreground">{{ t('system.gitCommit') }}</span>
             <code class="text-xs font-mono text-foreground truncate max-w-[140px]">{{ versionInfo?.git_commit || '-' }}</code>
           </div>
         </div>
@@ -118,20 +120,20 @@ onMounted(fetchSystemInfo)
         <template #header>
           <div class="flex items-center gap-2">
             <HeartPulse class="w-4 h-4 text-muted-foreground" />
-            <h3 class="text-sm font-semibold text-foreground">健康状态</h3>
+            <h3 class="text-sm font-semibold text-foreground">{{ t('system.healthStatus') }}</h3>
           </div>
         </template>
         <div class="space-y-3">
           <div class="flex items-center justify-between">
-            <span class="text-sm text-muted-foreground">系统状态</span>
+            <span class="text-sm text-muted-foreground">{{ t('system.systemStatus') }}</span>
             <div class="flex items-center gap-1.5">
               <CheckCircle v-if="healthInfo?.status === 'healthy'" class="w-4 h-4 text-success" />
               <XCircle v-else class="w-4 h-4 text-destructive" />
-              <span class="text-sm text-foreground">{{ healthInfo?.status === 'healthy' ? '正常' : '异常' }}</span>
+              <span class="text-sm text-foreground">{{ healthInfo?.status === 'healthy' ? t('system.normal') : t('system.abnormal') }}</span>
             </div>
           </div>
           <div class="flex items-center justify-between">
-            <span class="text-sm text-muted-foreground">运行时间</span>
+            <span class="text-sm text-muted-foreground">{{ t('system.runningTime') }}</span>
             <span class="text-sm text-foreground">{{ healthInfo ? formatUptime(healthInfo.uptime) : '-' }}</span>
           </div>
           <div v-if="healthInfo?.components" class="space-y-2">
@@ -144,7 +146,7 @@ onMounted(fetchSystemInfo)
               <div class="flex items-center gap-1.5">
                 <CheckCircle v-if="status === 'healthy'" class="w-3.5 h-3.5 text-success" />
                 <XCircle v-else class="w-3.5 h-3.5 text-destructive" />
-                <span class="text-xs text-foreground">{{ status === 'healthy' ? '正常' : '异常' }}</span>
+                <span class="text-xs text-foreground">{{ status === 'healthy' ? t('system.normal') : t('system.abnormal') }}</span>
               </div>
             </div>
           </div>
@@ -156,24 +158,24 @@ onMounted(fetchSystemInfo)
         <template #header>
           <div class="flex items-center gap-2">
             <RefreshCw class="w-4 h-4 text-muted-foreground" />
-            <h3 class="text-sm font-semibold text-foreground">更新检查</h3>
+            <h3 class="text-sm font-semibold text-foreground">{{ t('system.updateCheck') }}</h3>
           </div>
         </template>
         <div class="space-y-3">
           <div class="flex items-center justify-between">
-            <span class="text-sm text-muted-foreground">当前版本</span>
+            <span class="text-sm text-muted-foreground">{{ t('system.currentVersion') }}</span>
             <code class="text-sm font-mono text-foreground">{{ versionInfo?.version || '-' }}</code>
           </div>
           <div class="flex items-center justify-between">
-            <span class="text-sm text-muted-foreground">最新版本</span>
+            <span class="text-sm text-muted-foreground">{{ t('system.latestVersion') }}</span>
             <code class="text-sm font-mono text-foreground">{{ updateInfo?.latest || '-' }}</code>
           </div>
           <div class="flex items-center justify-between">
-            <span class="text-sm text-muted-foreground">状态</span>
+            <span class="text-sm text-muted-foreground">{{ t('system.status') }}</span>
             <span v-if="updateInfo" class="text-sm" :class="updateInfo.has_update ? 'text-warning' : 'text-success'">
-              {{ updateInfo.has_update ? '有新版本可用' : '已是最新' }}
+              {{ updateInfo.has_update ? t('system.newVersionAvailable') : t('system.isLatest') }}
             </span>
-            <span v-else class="text-sm text-muted-foreground">未检查</span>
+            <span v-else class="text-sm text-muted-foreground">{{ t('system.notChecked') }}</span>
           </div>
           <Button
             variant="outline"
@@ -183,7 +185,7 @@ onMounted(fetchSystemInfo)
             @click="handleCheckUpdate"
           >
             <template #icon><RefreshCw class="w-3.5 h-3.5" /></template>
-            检查更新
+            {{ t('system.checkUpdate') }}
           </Button>
         </div>
       </Card>

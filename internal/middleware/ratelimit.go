@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Yogdunana/deploypilot/internal/i18n"
 	"github.com/gin-gonic/gin"
 )
 
@@ -50,12 +51,13 @@ func (rl *RateLimiter) Middleware() gin.HandlerFunc {
 		role := c.GetString("role")
 
 		if !rl.allow(key, role) {
+			locale := i18n.GetLocaleFromContext(c)
 			c.Header("X-RateLimit-Remaining", "0")
 			c.Header("Retry-After", "60")
 			c.JSON(http.StatusTooManyRequests, gin.H{
-				"error":   "rate limit exceeded",
+				"status":  "error",
 				"code":    "E017",
-				"message": "too many requests, please try again later",
+				"message": i18n.T(locale, "error.rate_limit.too_many_requests"),
 			})
 			c.Abort()
 			return

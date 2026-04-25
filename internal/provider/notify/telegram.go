@@ -86,6 +86,11 @@ func (t *TelegramNotifier) Send(ctx context.Context, notification Notification) 
 
 // formatMessage formats a notification as a Telegram Markdown message.
 func (t *TelegramNotifier) formatMessage(n Notification) string {
+	locale := n.Metadata["locale"]
+	if locale == "" {
+		locale = "en"
+	}
+
 	var icon string
 	switch n.Status {
 	case "success":
@@ -99,12 +104,12 @@ func (t *TelegramNotifier) formatMessage(n Notification) string {
 	}
 
 	msg := fmt.Sprintf("%s *[%s]* %s\n", icon, n.Type, n.AppName)
-	msg += fmt.Sprintf("*Server:* %s\n", n.Server)
-	msg += fmt.Sprintf("*Status:* %s\n", n.Status)
+	msg += fmt.Sprintf("*%s:* %s\n", FieldLabel(locale, "server"), n.Server)
+	msg += fmt.Sprintf("*%s:* %s\n", FieldLabel(locale, "status"), n.Status)
 	if n.Message != "" {
-		msg += fmt.Sprintf("*Message:* %s\n", n.Message)
+		msg += fmt.Sprintf("*%s:* %s\n", FieldLabel(locale, "message"), n.Message)
 	}
-	msg += fmt.Sprintf("*Time:* %s", n.Timestamp.Format(time.RFC3339))
+	msg += fmt.Sprintf("*%s:* %s", FieldLabel(locale, "time"), n.Timestamp.Format(time.RFC3339))
 
 	return msg
 }

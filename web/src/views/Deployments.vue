@@ -14,8 +14,10 @@ import Pagination from '@/components/ui/Pagination.vue'
 import Skeleton from '@/components/ui/Skeleton.vue'
 import * as deploymentsApi from '@/api/modules/deployments'
 import type { DeploymentRecord } from '@/types/models'
+import { useI18n } from 'vue-i18n'
 
 const { toast } = inject<any>('toast')!
+const { t } = useI18n()
 
 // State
 const deployments = ref<DeploymentRecord[]>([])
@@ -27,24 +29,24 @@ const pageSize = ref(10)
 const total = ref(0)
 
 // Status filter options
-const statusOptions = [
-  { label: '全部状态', value: '' },
-  { label: '成功', value: 'success' },
-  { label: '失败', value: 'failed' },
-  { label: '部署中', value: 'deploying' },
-  { label: '等待中', value: 'pending' },
-  { label: '构建中', value: 'building' },
-]
+const statusOptions = computed(() => [
+  { label: t('deployments.allStatus'), value: '' },
+  { label: t('deployments.success'), value: 'success' },
+  { label: t('deployments.failed'), value: 'failed' },
+  { label: t('deployments.deploying'), value: 'deploying' },
+  { label: t('deployments.pending'), value: 'pending' },
+  { label: t('deployments.building'), value: 'building' },
+])
 
 // Table columns
-const columns = [
-  { key: 'app_name', label: '应用名' },
-  { key: 'container_name', label: '容器名' },
-  { key: 'image', label: '镜像' },
-  { key: 'status', label: '状态' },
-  { key: 'error_message', label: '错误信息' },
-  { key: 'created_at', label: '创建时间' },
-]
+const columns = computed(() => [
+  { key: 'app_name', label: t('deployments.appName') },
+  { key: 'container_name', label: t('deployments.containerName') },
+  { key: 'image', label: t('deployments.image') },
+  { key: 'status', label: t('deployments.status') },
+  { key: 'error_message', label: t('deployments.errorMessage') },
+  { key: 'created_at', label: t('deployments.createdAt') },
+])
 
 // Filtered deployments
 const filteredDeployments = computed(() => {
@@ -79,7 +81,7 @@ async function fetchDeployments() {
       total.value = res.data.pagination?.total || deployments.value.length
     }
   } catch (err: any) {
-    toast(err.response?.data?.message || '获取部署记录失败', 'destructive')
+    toast(err.response?.data?.message || t('deployments.fetchFailed'), 'destructive')
   } finally {
     loading.value = false
   }
@@ -87,7 +89,7 @@ async function fetchDeployments() {
 
 // Click row
 function handleRowClick(row: DeploymentRecord) {
-  toast(`部署记录 #${row.id} 详情功能开发中`)
+  toast(t('deployments.detailInDev', { id: row.id }))
 }
 
 onMounted(fetchDeployments)
@@ -96,7 +98,7 @@ onMounted(fetchDeployments)
 <template>
   <div class="p-6 space-y-4">
     <!-- Header -->
-    <PageHeader title="部署记录" />
+    <PageHeader :title="t('deployments.title')" />
 
     <!-- Search & Filters -->
     <div class="flex items-center gap-4">
@@ -104,14 +106,14 @@ onMounted(fetchDeployments)
         <Search class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
         <Input
           v-model="searchQuery"
-          placeholder="搜索应用名或容器名..."
+          :placeholder="t('deployments.searchPlaceholder')"
           class="pl-9"
         />
       </div>
       <Select
         v-model="statusFilter"
         :options="statusOptions"
-        placeholder="全部状态"
+        :placeholder="t('deployments.allStatus')"
         class="w-40"
       />
     </div>
@@ -172,8 +174,8 @@ onMounted(fetchDeployments)
     <EmptyState
       v-else
       :icon="Rocket"
-      title="暂无部署记录"
-      description="部署应用后将在此显示部署记录"
+      :title="t('deployments.noDeployments')"
+      :description="t('deployments.noDeploymentsDesc')"
     />
 
     <!-- Pagination -->

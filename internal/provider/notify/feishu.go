@@ -82,6 +82,11 @@ func (f *FeishuNotifier) Send(ctx context.Context, notification Notification) (*
 
 // buildCard builds an interactive card payload for Feishu.
 func (f *FeishuNotifier) buildCard(n Notification) map[string]interface{} {
+	locale := n.Metadata["locale"]
+	if locale == "" {
+		locale = "en"
+	}
+
 	// Color based on status
 	var headerColor string
 	switch n.Status {
@@ -112,15 +117,15 @@ func (f *FeishuNotifier) buildCard(n Notification) map[string]interface{} {
 		{
 			"tag": "div",
 			"fields": []map[string]interface{}{
-				{"is_short": true, "text": map[string]string{"tag": "lark_md", "content": fmt.Sprintf("**App:**\n%s", n.AppName)}},
-				{"is_short": true, "text": map[string]string{"tag": "lark_md", "content": fmt.Sprintf("**Server:**\n%s", n.Server)}},
+				{"is_short": true, "text": map[string]string{"tag": "lark_md", "content": fmt.Sprintf("**%s:**\n%s", FieldLabel(locale, "app"), n.AppName)}},
+				{"is_short": true, "text": map[string]string{"tag": "lark_md", "content": fmt.Sprintf("**%s:**\n%s", FieldLabel(locale, "server"), n.Server)}},
 			},
 		},
 		{
 			"tag": "div",
 			"fields": []map[string]interface{}{
-				{"is_short": true, "text": map[string]string{"tag": "lark_md", "content": fmt.Sprintf("**Status:**\n%s", n.Status)}},
-				{"is_short": true, "text": map[string]string{"tag": "lark_md", "content": fmt.Sprintf("**Time:**\n%s", n.Timestamp.Format("15:04:05"))}},
+				{"is_short": true, "text": map[string]string{"tag": "lark_md", "content": fmt.Sprintf("**%s:**\n%s", FieldLabel(locale, "status"), n.Status)}},
+				{"is_short": true, "text": map[string]string{"tag": "lark_md", "content": fmt.Sprintf("**%s:**\n%s", FieldLabel(locale, "time"), n.Timestamp.Format("15:04:05"))}},
 			},
 		},
 	}
@@ -128,7 +133,7 @@ func (f *FeishuNotifier) buildCard(n Notification) map[string]interface{} {
 	if n.Message != "" {
 		elements = append(elements, map[string]interface{}{
 			"tag": "div",
-			"text": map[string]string{"tag": "lark_md", "content": fmt.Sprintf("**Message:**\n%s", n.Message)},
+			"text": map[string]string{"tag": "lark_md", "content": fmt.Sprintf("**%s:**\n%s", FieldLabel(locale, "message"), n.Message)},
 		})
 	}
 

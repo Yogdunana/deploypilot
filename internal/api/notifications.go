@@ -23,7 +23,7 @@ func ListNotifications(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var providers []model.Provider
 		if err := db.Where("type = ?", "notify").Find(&providers).Error; err != nil {
-			respondError(c, http.StatusInternalServerError, err.Error())
+			respondErrori18n(c, http.StatusInternalServerError, "error.common.internal_error")
 			return
 		}
 		if providers == nil {
@@ -50,11 +50,11 @@ func CreateNotification(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var input model.Provider
 		if err := c.ShouldBindJSON(&input); err != nil {
-			respondError(c, http.StatusBadRequest, "invalid request: "+err.Error())
+			respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request", err.Error())
 			return
 		}
 		if input.Name == "" {
-			respondError(c, http.StatusBadRequest, "name is required")
+			respondErrori18n(c, http.StatusBadRequest, "error.notification.name_required")
 			return
 		}
 
@@ -66,7 +66,7 @@ func CreateNotification(db *gorm.DB) gin.HandlerFunc {
 		input.Enabled = true
 
 		if err := db.Create(&input).Error; err != nil {
-			respondError(c, http.StatusInternalServerError, err.Error())
+			respondErrori18n(c, http.StatusInternalServerError, "error.common.internal_error")
 			return
 		}
 		respondSuccess(c, input)
@@ -92,12 +92,12 @@ func UpdateNotification(db *gorm.DB) gin.HandlerFunc {
 		id := c.Param("id")
 		var input model.Provider
 		if err := c.ShouldBindJSON(&input); err != nil {
-			respondError(c, http.StatusBadRequest, "invalid request: "+err.Error())
+			respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request", err.Error())
 			return
 		}
 
 		if err := db.Model(&model.Provider{}).Where("id = ? AND type = ?", id, "notify").Updates(input).Error; err != nil {
-			respondError(c, http.StatusInternalServerError, err.Error())
+			respondErrori18n(c, http.StatusInternalServerError, "error.common.internal_error")
 			return
 		}
 
@@ -127,11 +127,11 @@ func DeleteNotification(db *gorm.DB) gin.HandlerFunc {
 		id := c.Param("id")
 		result := db.Where("id = ? AND type = ?", id, "notify").Delete(&model.Provider{})
 		if result.Error != nil {
-			respondError(c, http.StatusInternalServerError, result.Error.Error())
+			respondErrori18n(c, http.StatusInternalServerError, "error.common.internal_error")
 			return
 		}
 		if result.RowsAffected == 0 {
-			respondError(c, http.StatusNotFound, "notification provider not found")
+			respondErrori18n(c, http.StatusNotFound, "error.notification.not_found")
 			return
 		}
 		respondSuccess(c, gin.H{"message": "notification provider deleted", "id": id})

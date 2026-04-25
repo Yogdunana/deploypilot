@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/Yogdunana/deploypilot/internal/i18n"
 	"github.com/gin-gonic/gin"
 )
 
@@ -32,21 +33,24 @@ func AuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		authHeader := c.GetHeader("Authorization")
 		if authHeader == "" {
-			c.JSON(http.StatusUnauthorized, gin.H{"status": "error", "message": "authorization header required"})
+			locale := i18n.GetLocaleFromContext(c)
+			c.JSON(http.StatusUnauthorized, gin.H{"status": "error", "message": i18n.T(locale, "error.auth.authorization_header_required")})
 			c.Abort()
 			return
 		}
 
 		parts := strings.SplitN(authHeader, " ", 2)
 		if len(parts) != 2 || !strings.EqualFold(parts[0], "bearer") {
-			c.JSON(http.StatusUnauthorized, gin.H{"status": "error", "message": "invalid authorization format, expected Bearer token"})
+			locale := i18n.GetLocaleFromContext(c)
+			c.JSON(http.StatusUnauthorized, gin.H{"status": "error", "message": i18n.T(locale, "error.auth.invalid_authorization_format")})
 			c.Abort()
 			return
 		}
 
 		claims, err := ParseToken(parts[1])
 		if err != nil {
-			c.JSON(http.StatusUnauthorized, gin.H{"status": "error", "message": "invalid or expired token"})
+			locale := i18n.GetLocaleFromContext(c)
+			c.JSON(http.StatusUnauthorized, gin.H{"status": "error", "message": i18n.T(locale, "error.auth.invalid_or_expired_token")})
 			c.Abort()
 			return
 		}
@@ -64,21 +68,24 @@ func RoleRequired(roles ...string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userRole, exists := c.Get(string(RoleKey))
 		if !exists {
-			c.JSON(http.StatusUnauthorized, gin.H{"status": "error", "message": "authentication required"})
+			locale := i18n.GetLocaleFromContext(c)
+			c.JSON(http.StatusUnauthorized, gin.H{"status": "error", "message": i18n.T(locale, "error.auth.authentication_required")})
 			c.Abort()
 			return
 		}
 
 		roleStr, ok := userRole.(string)
 		if !ok {
-			c.JSON(http.StatusInternalServerError, gin.H{"status": "error", "message": "invalid role in context"})
+			locale := i18n.GetLocaleFromContext(c)
+			c.JSON(http.StatusInternalServerError, gin.H{"status": "error", "message": i18n.T(locale, "error.auth.invalid_role_in_context")})
 			c.Abort()
 			return
 		}
 
 		userLevel, ok := roleHierarchy[roleStr]
 		if !ok {
-			c.JSON(http.StatusForbidden, gin.H{"status": "error", "message": "unknown user role"})
+			locale := i18n.GetLocaleFromContext(c)
+			c.JSON(http.StatusForbidden, gin.H{"status": "error", "message": i18n.T(locale, "error.auth.unknown_user_role")})
 			c.Abort()
 			return
 		}
@@ -94,7 +101,8 @@ func RoleRequired(roles ...string) gin.HandlerFunc {
 			}
 		}
 
-		c.JSON(http.StatusForbidden, gin.H{"status": "error", "message": "insufficient permissions"})
+		locale := i18n.GetLocaleFromContext(c)
+		c.JSON(http.StatusForbidden, gin.H{"status": "error", "message": i18n.T(locale, "error.auth.insufficient_permissions")})
 		c.Abort()
 	}
 }

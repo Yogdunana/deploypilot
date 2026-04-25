@@ -21,7 +21,7 @@ func ListSSLCertificates(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var certs []model.SSLCertificate
 		if result := db.Find(&certs); result.Error != nil {
-			respondError(c, http.StatusInternalServerError, "failed to list certificates")
+			respondErrori18n(c, http.StatusInternalServerError, "error.ssl.failed_to_list_certificates")
 			return
 		}
 		respondSuccess(c, certs)
@@ -46,7 +46,7 @@ func RequestSSLCertificate(db *gorm.DB) gin.HandlerFunc {
 			Provider string `json:"provider"`
 		}
 		if err := c.ShouldBindJSON(&req); err != nil {
-			respondError(c, http.StatusBadRequest, "invalid request: "+err.Error())
+			respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request", err.Error())
 			return
 		}
 
@@ -58,7 +58,7 @@ func RequestSSLCertificate(db *gorm.DB) gin.HandlerFunc {
 			AutoRenew: true,
 		}
 		if result := db.Create(&cert); result.Error != nil {
-			respondError(c, http.StatusInternalServerError, "failed to create certificate record")
+			respondErrori18n(c, http.StatusInternalServerError, "error.ssl.failed_to_create_certificate")
 			return
 		}
 		c.JSON(http.StatusCreated, gin.H{"status": "success", "data": cert})
@@ -77,11 +77,11 @@ func DeleteSSLCertificate(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		id, err := strconv.Atoi(c.Param("id"))
 		if err != nil {
-			respondError(c, http.StatusBadRequest, "invalid id")
+			respondErrori18n(c, http.StatusBadRequest, "error.ssl.invalid_id")
 			return
 		}
 		if result := db.Delete(&model.SSLCertificate{}, id); result.RowsAffected == 0 {
-			respondError(c, http.StatusNotFound, "certificate not found")
+			respondErrori18n(c, http.StatusNotFound, "error.ssl.certificate_not_found")
 			return
 		}
 		respondSuccess(c, gin.H{"message": "deleted"})
@@ -100,12 +100,12 @@ func RenewSSLCertificate(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		id, err := strconv.Atoi(c.Param("id"))
 		if err != nil {
-			respondError(c, http.StatusBadRequest, "invalid id")
+			respondErrori18n(c, http.StatusBadRequest, "error.ssl.invalid_id")
 			return
 		}
 		var cert model.SSLCertificate
 		if result := db.First(&cert, id); result.Error != nil {
-			respondError(c, http.StatusNotFound, "certificate not found")
+			respondErrori18n(c, http.StatusNotFound, "error.ssl.certificate_not_found")
 			return
 		}
 		now := time.Now()

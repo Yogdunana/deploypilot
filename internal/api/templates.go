@@ -23,7 +23,7 @@ func ListTemplates(bridge *service.Bridge) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		templates, err := bridge.ListTemplates(c.Request.Context())
 		if err != nil {
-			respondError(c, http.StatusInternalServerError, err.Error())
+			respondErrori18n(c, http.StatusInternalServerError, "error.common.internal_error")
 			return
 		}
 		respondSuccess(c, templates)
@@ -54,7 +54,7 @@ func CreateTemplate(db *gorm.DB) gin.HandlerFunc {
 			Port        int    `json:"port"`
 		}
 		if err := c.ShouldBindJSON(&input); err != nil {
-			respondError(c, http.StatusBadRequest, "invalid request: "+err.Error())
+			respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request", err.Error())
 			return
 		}
 
@@ -71,7 +71,7 @@ func CreateTemplate(db *gorm.DB) gin.HandlerFunc {
 				"port":        input.Port,
 			},
 		).Error; err != nil {
-			respondError(c, http.StatusInternalServerError, err.Error())
+			respondErrori18n(c, http.StatusInternalServerError, "error.common.internal_error")
 			return
 		}
 		respondSuccess(c, gin.H{"id": id, "name": input.Name, "type": input.Type})
@@ -103,7 +103,7 @@ func UpdateTemplate(db *gorm.DB) gin.HandlerFunc {
 			Port        int    `json:"port"`
 		}
 		if err := c.ShouldBindJSON(&input); err != nil {
-			respondError(c, http.StatusBadRequest, "invalid request: "+err.Error())
+			respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request", err.Error())
 			return
 		}
 
@@ -117,7 +117,7 @@ func UpdateTemplate(db *gorm.DB) gin.HandlerFunc {
 			},
 			input.Name, id,
 		).Error; err != nil {
-			respondError(c, http.StatusInternalServerError, err.Error())
+			respondErrori18n(c, http.StatusInternalServerError, "error.common.internal_error")
 			return
 		}
 		respondSuccess(c, gin.H{"id": id, "message": "template updated"})
@@ -141,11 +141,11 @@ func DeleteTemplate(db *gorm.DB) gin.HandlerFunc {
 		id := c.Param("id")
 		result := db.Exec(`DELETE FROM providers WHERE id = ? AND type = 'template'`, id)
 		if result.Error != nil {
-			respondError(c, http.StatusInternalServerError, result.Error.Error())
+			respondErrori18n(c, http.StatusInternalServerError, "error.common.internal_error")
 			return
 		}
 		if result.RowsAffected == 0 {
-			respondError(c, http.StatusNotFound, "template not found")
+			respondErrori18n(c, http.StatusNotFound, "error.template.not_found")
 			return
 		}
 		respondSuccess(c, gin.H{"message": "template deleted", "id": id})

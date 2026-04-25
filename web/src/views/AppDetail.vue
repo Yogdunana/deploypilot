@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, inject, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import {
   ArrowLeft, Rocket, Hammer, RotateCcw, Shield,
   Clock, GitBranch, Globe, Server, Layers,
@@ -28,6 +29,7 @@ import type { LogEntry } from '@/components/common/LogViewer.vue'
 
 const props = defineProps<{ id: string }>()
 const router = useRouter()
+const { t } = useI18n()
 const { toast } = inject<any>('toast')!
 
 // State
@@ -84,11 +86,11 @@ async function loadHistory() {
           data: line,
         }))
         logs.value = [...historyLogs, ...logs.value]
-        toast(`已加载 ${historyLogs.length} 条历史日志`, 'success')
+        toast(t('appDetail.historyLogsLoaded', { count: historyLogs.length }), 'success')
       }
     }
   } catch (err: any) {
-    toast(err.response?.data?.message || '加载历史日志失败', 'destructive')
+    toast(err.response?.data?.message || t('appDetail.loadHistoryFailed'), 'destructive')
   } finally {
     loadingHistory.value = false
   }
@@ -123,7 +125,7 @@ async function fetchEnv() {
       }))
     }
   } catch (err: any) {
-    toast(err.response?.data?.message || '加载环境变量失败', 'destructive')
+    toast(err.response?.data?.message || t('appDetail.envLoadFailed'), 'destructive')
   } finally {
     envLoading.value = false
   }
@@ -144,13 +146,13 @@ function toggleVisibility(index: number) {
 async function saveEnv() {
   const emptyKeys = envList.value.filter((item) => !item.key.trim())
   if (emptyKeys.length > 0) {
-    toast('存在空的变量名', 'destructive')
+    toast(t('appDetail.emptyVarName'), 'destructive')
     return
   }
   const keys = envList.value.map((item) => item.key.trim())
   const duplicates = keys.filter((key, index) => keys.indexOf(key) !== index)
   if (duplicates.length > 0) {
-    toast(`存在重复的变量名: ${duplicates.join(', ')}`, 'destructive')
+    toast(t('appDetail.duplicateVarName', { names: duplicates.join(', ') }), 'destructive')
     return
   }
 
@@ -163,9 +165,9 @@ async function saveEnv() {
       }
     })
     await appsApi.updateEnv(Number(props.id), { env_vars: JSON.stringify(envObject) })
-    toast('环境变量保存成功', 'success')
+    toast(t('appDetail.envSaved'), 'success')
   } catch (err: any) {
-    toast(err.response?.data?.message || '保存环境变量失败', 'destructive')
+    toast(err.response?.data?.message || t('appDetail.envSaveFailed'), 'destructive')
   } finally {
     envSaving.value = false
   }
@@ -189,12 +191,12 @@ const restoreDialogOpen = ref(false)
 const deleteDialogOpen = ref(false)
 const selectedBackup = ref<Backup | null>(null)
 
-const backupColumns = [
-  { key: 'id', label: '备份 ID' },
-  { key: 'app_id', label: '应用 ID' },
-  { key: 'created_at', label: '创建时间' },
-  { key: 'actions', label: '操作', width: '160px' },
-]
+const backupColumns = computed(() => [
+  { key: 'id', label: t('appDetail.backupId') },
+  { key: 'app_id', label: t('appDetail.appId') },
+  { key: 'created_at', label: t('appDetail.createdAt') },
+  { key: 'actions', label: t('appDetail.actions'), width: '160px' },
+])
 
 async function fetchBackups() {
   backupsLoading.value = true
@@ -204,7 +206,7 @@ async function fetchBackups() {
       backups.value = res.data.data || []
     }
   } catch (err: any) {
-    toast(err.response?.data?.message || '获取备份列表失败', 'destructive')
+    toast(err.response?.data?.message || t('appDetail.backupFetchFailed'), 'destructive')
   } finally {
     backupsLoading.value = false
   }
@@ -214,10 +216,10 @@ async function createBackup() {
   creating.value = true
   try {
     await appsApi.backup(Number(props.id))
-    toast('备份创建成功', 'success')
+    toast(t('appDetail.backupCreated'), 'success')
     fetchBackups()
   } catch (err: any) {
-    toast(err.response?.data?.message || '创建备份失败', 'destructive')
+    toast(err.response?.data?.message || t('appDetail.backupCreateFailed'), 'destructive')
   } finally {
     creating.value = false
   }
@@ -233,10 +235,10 @@ async function confirmRestore() {
   restoring.value = true
   try {
     await appsApi.restore(Number(props.id), { backup_id: selectedBackup.value.id })
-    toast('备份恢复成功', 'success')
+    toast(t('appDetail.backupRestored'), 'success')
     restoreDialogOpen.value = false
   } catch (err: any) {
-    toast(err.response?.data?.message || '恢复备份失败', 'destructive')
+    toast(err.response?.data?.message || t('appDetail.backupRestoreFailed'), 'destructive')
   } finally {
     restoring.value = false
   }
@@ -252,33 +254,33 @@ async function confirmDelete() {
   deleting.value = true
   try {
     await appsApi.deleteBackup(Number(props.id), selectedBackup.value.id)
-    toast('备份删除成功', 'success')
+    toast(t('appDetail.backupDeleted'), 'success')
     deleteDialogOpen.value = false
     fetchBackups()
   } catch (err: any) {
-    toast(err.response?.data?.message || '删除备份失败', 'destructive')
+    toast(err.response?.data?.message || t('appDetail.backupDeleteFailed'), 'destructive')
   } finally {
     deleting.value = false
   }
 }
 
 // Tabs
-const detailTabs = [
-  { key: 'overview', label: '概览' },
-  { key: 'logs', label: '日志' },
-  { key: 'env', label: '环境变量' },
-  { key: 'backups', label: '备份' },
-  { key: 'deployments', label: '部署历史' },
-]
+const detailTabs = computed(() => [
+  { key: 'overview', label: t('appDetail.overview') },
+  { key: 'logs', label: t('appDetail.logs') },
+  { key: 'env', label: t('appDetail.envVars') },
+  { key: 'backups', label: t('appDetail.backups') },
+  { key: 'deployments', label: t('appDetail.deploymentHistory') },
+])
 
 // Deployment history columns
-const deploymentColumns = [
-  { key: 'container_name', label: '容器名' },
-  { key: 'image', label: '镜像' },
-  { key: 'status', label: '状态' },
-  { key: 'error_message', label: '错误信息' },
-  { key: 'created_at', label: '时间' },
-]
+const deploymentColumns = computed(() => [
+  { key: 'container_name', label: t('appDetail.deployContainerName') },
+  { key: 'image', label: t('appDetail.image') },
+  { key: 'status', label: t('appDetail.status') },
+  { key: 'error_message', label: t('appDetail.errorMessage') },
+  { key: 'created_at', label: t('appDetail.time') },
+])
 
 // Fetch app detail
 async function fetchApp() {
@@ -289,7 +291,7 @@ async function fetchApp() {
       app.value = res.data.data
     }
   } catch (err: any) {
-    toast(err.response?.data?.message || '获取应用详情失败', 'destructive')
+    toast(err.response?.data?.message || t('appDetail.fetchFailed'), 'destructive')
   } finally {
     loading.value = false
   }
@@ -304,7 +306,7 @@ async function fetchDeployments() {
       deployments.value = res.data.data
     }
   } catch (err: any) {
-    toast(err.response?.data?.message || '获取部署记录失败', 'destructive')
+    toast(err.response?.data?.message || t('appDetail.fetchDeployFailed'), 'destructive')
   } finally {
     deploymentsLoading.value = false
   }
@@ -316,11 +318,11 @@ async function handleDeploy() {
   deploying.value = true
   try {
     await appsApi.deploy(app.value.id)
-    toast('部署已触发', 'success')
+    toast(t('appDetail.deployTriggered'), 'success')
     fetchApp()
     if (activeTab.value === 'deployments') fetchDeployments()
   } catch (err: any) {
-    toast(err.response?.data?.message || '部署失败', 'destructive')
+    toast(err.response?.data?.message || t('appDetail.deployFailed'), 'destructive')
   } finally {
     deploying.value = false
   }
@@ -332,9 +334,9 @@ async function handleBuild() {
   building.value = true
   try {
     await appsApi.build(app.value.id, {})
-    toast('构建已触发', 'success')
+    toast(t('appDetail.buildTriggered'), 'success')
   } catch (err: any) {
-    toast(err.response?.data?.message || '构建失败', 'destructive')
+    toast(err.response?.data?.message || t('appDetail.buildFailed'), 'destructive')
   } finally {
     building.value = false
   }
@@ -350,11 +352,11 @@ async function confirmRollback() {
   rollingBack.value = true
   try {
     await appsApi.rollback(app.value.id, { version: app.value.current_version })
-    toast('回滚已触发', 'success')
+    toast(t('appDetail.rollbackTriggered'), 'success')
     fetchApp()
     if (activeTab.value === 'deployments') fetchDeployments()
   } catch (err: any) {
-    toast(err.response?.data?.message || '回滚失败', 'destructive')
+    toast(err.response?.data?.message || t('appDetail.rollbackFailed'), 'destructive')
   } finally {
     rollingBack.value = false
   }
@@ -364,17 +366,17 @@ async function confirmRollback() {
 const infoItems = computed(() => {
   if (!app.value) return []
   return [
-    { label: '应用名称', value: app.value.name, icon: Layers },
-    { label: '仓库地址', value: app.value.repo_url, icon: GitBranch },
-    { label: '分支', value: app.value.branch, icon: GitBranch },
-    { label: '技术栈', value: app.value.tech_stack, icon: Layers },
-    { label: '域名', value: app.value.domain, icon: Globe },
-    { label: '服务器', value: String(app.value.server_id), icon: Server },
-    { label: '状态', value: app.value.status, icon: Shield },
-    { label: '当前版本', value: app.value.current_version || '-', icon: Layers },
-    { label: '容器名', value: app.value.container_name || '-', icon: Server },
-    { label: '创建时间', value: app.value.created_at, icon: Clock, isTime: true },
-    { label: '更新时间', value: app.value.updated_at, icon: Clock, isTime: true },
+    { label: t('appDetail.appName'), value: app.value.name, icon: Layers },
+    { label: t('appDetail.repoUrl'), value: app.value.repo_url, icon: GitBranch },
+    { label: t('appDetail.branch'), value: app.value.branch, icon: GitBranch },
+    { label: t('appDetail.stack'), value: app.value.tech_stack, icon: Layers },
+    { label: t('appDetail.domain'), value: app.value.domain, icon: Globe },
+    { label: t('appDetail.server'), value: String(app.value.server_id), icon: Server },
+    { label: t('appDetail.status'), value: app.value.status, icon: Shield, isStatus: true },
+    { label: t('appDetail.currentVersion'), value: app.value.current_version || '-', icon: Layers },
+    { label: t('appDetail.containerName'), value: app.value.container_name || '-', icon: Server },
+    { label: t('appDetail.createdAt'), value: app.value.created_at, icon: Clock, isTime: true },
+    { label: t('appDetail.updatedAt'), value: app.value.updated_at, icon: Clock, isTime: true },
   ]
 })
 
@@ -413,7 +415,7 @@ onMounted(() => {
           <div>
             <div class="flex items-center gap-2">
               <h1 class="text-xl font-semibold text-foreground">
-                {{ app?.name || '加载中...' }}
+                {{ app?.name || t('appDetail.loading') }}
               </h1>
               <StatusBadge v-if="app" :status="app.status" />
             </div>
@@ -426,15 +428,15 @@ onMounted(() => {
       <template #actions>
         <Button :loading="deploying" @click="handleDeploy">
           <template #icon><Rocket class="w-4 h-4" /></template>
-          部署
+          {{ t('appDetail.deploy') }}
         </Button>
         <Button variant="outline" :loading="building" @click="handleBuild">
           <template #icon><Hammer class="w-4 h-4" /></template>
-          构建
+          {{ t('appDetail.build') }}
         </Button>
         <Button variant="outline" @click="openRollbackDialog">
           <template #icon><RotateCcw class="w-4 h-4" /></template>
-          回滚
+          {{ t('appDetail.rollback') }}
         </Button>
       </template>
     </PageHeader>
@@ -455,7 +457,7 @@ onMounted(() => {
       <div v-if="activeTab === 'overview'" class="space-y-4">
         <Card>
           <template #header>
-            <h3 class="text-sm font-medium text-foreground">基本信息</h3>
+            <h3 class="text-sm font-medium text-foreground">{{ t('appDetail.basicInfo') }}</h3>
           </template>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-0">
             <div
@@ -467,10 +469,10 @@ onMounted(() => {
               <component :is="item.icon" class="w-4 h-4 mt-0.5 text-muted-foreground shrink-0" />
               <div class="min-w-0">
                 <p class="text-xs text-muted-foreground">{{ item.label }}</p>
-                <p v-if="item.label === '状态'" class="text-sm text-foreground mt-0.5">
+                <p v-if="item.isStatus" class="text-sm text-foreground mt-0.5">
                   <StatusBadge :status="item.value" />
                 </p>
-                <p v-else-if="item.label === '技术栈'" class="text-sm text-foreground mt-0.5">
+                <p v-else-if="item.label === t('appDetail.stack')" class="text-sm text-foreground mt-0.5">
                   <Badge v-if="item.value" variant="secondary">{{ item.value }}</Badge>
                   <span v-else>-</span>
                 </p>
@@ -486,15 +488,15 @@ onMounted(() => {
         <!-- Resource limits -->
         <Card>
           <template #header>
-            <h3 class="text-sm font-medium text-foreground">资源限制</h3>
+            <h3 class="text-sm font-medium text-foreground">{{ t('appDetail.resourceLimits') }}</h3>
           </template>
           <div class="grid grid-cols-2 gap-4">
             <div>
-              <p class="text-xs text-muted-foreground">内存</p>
+              <p class="text-xs text-muted-foreground">{{ t('appDetail.memory') }}</p>
               <p class="text-sm text-foreground mt-0.5">{{ app.resource_limits?.memory || '-' }}</p>
             </div>
             <div>
-              <p class="text-xs text-muted-foreground">CPU</p>
+              <p class="text-xs text-muted-foreground">{{ t('appDetail.cpu') }}</p>
               <p class="text-sm text-foreground mt-0.5">{{ app.resource_limits?.cpu || '-' }}</p>
             </div>
           </div>
@@ -503,7 +505,7 @@ onMounted(() => {
         <!-- Deploy Progress -->
         <Card>
           <template #header>
-            <h3 class="text-sm font-medium text-foreground">部署进度</h3>
+            <h3 class="text-sm font-medium text-foreground">{{ t('appDetail.deployProgress') }}</h3>
           </template>
           <DeployProgress :app-id="String(app.id)" />
         </Card>
@@ -511,25 +513,23 @@ onMounted(() => {
 
       <!-- Logs Tab -->
       <div v-else-if="activeTab === 'logs'" class="space-y-3">
-        <!-- 工具栏 -->
         <div class="flex items-center gap-2">
           <div class="flex items-center gap-2">
             <Radio class="w-4 h-4 text-muted-foreground" />
-            <span class="text-sm text-muted-foreground">实时日志</span>
+            <span class="text-sm text-muted-foreground">{{ t('appDetail.realtimeLogs') }}</span>
             <Switch v-model="realtimeEnabled" @update:model-value="toggleRealtime" />
           </div>
           <div class="flex-1" />
           <Button variant="outline" size="sm" :loading="loadingHistory" @click="loadHistory">
             <template #icon><History class="w-4 h-4" /></template>
-            加载历史日志
+            {{ t('appDetail.loadHistoryLogs') }}
           </Button>
           <Button variant="outline" size="sm" @click="clearLogs">
             <template #icon><Trash2 class="w-4 h-4" /></template>
-            清空
+            {{ t('appDetail.clear') }}
           </Button>
         </div>
 
-        <!-- 日志查看器 -->
         <div class="h-[calc(100vh-280px)] min-h-[400px]">
           <LogViewer
             :logs="logs"
@@ -542,34 +542,29 @@ onMounted(() => {
 
       <!-- Environment Variables Tab -->
       <div v-else-if="activeTab === 'env'" class="space-y-3">
-        <!-- 操作栏 -->
         <div class="flex items-center justify-between">
           <p class="text-sm text-muted-foreground">
-            共 {{ envList.length }} 个变量
+            {{ t('appDetail.totalVars', { count: envList.length }) }}
           </p>
           <div class="flex items-center gap-2">
             <Button :loading="envSaving" size="sm" @click="saveEnv">
               <template #icon><Save class="w-4 h-4" /></template>
-              保存
+              {{ t('appDetail.save') }}
             </Button>
           </div>
         </div>
 
-        <!-- 加载状态 -->
         <div v-if="envLoading" class="space-y-3">
           <Skeleton v-for="i in 5" :key="i" class="h-10 w-full" />
         </div>
 
-        <!-- 环境变量编辑器 -->
         <div v-else class="space-y-2">
-          <!-- 表头 -->
           <div class="grid grid-cols-[1fr_1fr_80px] gap-3 px-1">
-            <span class="text-xs font-medium text-muted-foreground uppercase tracking-wider">Key</span>
-            <span class="text-xs font-medium text-muted-foreground uppercase tracking-wider">Value</span>
-            <span class="text-xs font-medium text-muted-foreground uppercase tracking-wider text-center">操作</span>
+            <span class="text-xs font-medium text-muted-foreground uppercase tracking-wider">{{ t('appDetail.key') }}</span>
+            <span class="text-xs font-medium text-muted-foreground uppercase tracking-wider">{{ t('appDetail.value') }}</span>
+            <span class="text-xs font-medium text-muted-foreground uppercase tracking-wider text-center">{{ t('appDetail.actions') }}</span>
           </div>
 
-          <!-- 变量行 -->
           <div
             v-for="(item, index) in envList"
             :key="index"
@@ -577,14 +572,14 @@ onMounted(() => {
           >
             <Input
               v-model="item.key"
-              placeholder="变量名"
+              :placeholder="t('appDetail.varNamePlaceholder')"
               :class="item.isNew ? 'border-primary/50' : ''"
             />
             <div class="relative">
               <Input
                 v-model="item.value"
                 :type="item.visible ? 'text' : 'password'"
-                placeholder="变量值"
+                :placeholder="t('appDetail.varValuePlaceholder')"
               />
               <button
                 class="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
@@ -606,28 +601,25 @@ onMounted(() => {
             </div>
           </div>
 
-          <!-- 添加按钮 -->
           <Button variant="outline" size="sm" class="mt-2" @click="addVariable">
             <template #icon><Plus class="w-4 h-4" /></template>
-            添加变量
+            {{ t('appDetail.addVar') }}
           </Button>
         </div>
       </div>
 
       <!-- Backups Tab -->
       <div v-else-if="activeTab === 'backups'" class="space-y-3">
-        <!-- 操作栏 -->
         <div class="flex items-center justify-between">
           <p class="text-sm text-muted-foreground">
-            共 {{ backups.length }} 个备份
+            {{ t('appDetail.totalBackups', { count: backups.length }) }}
           </p>
           <Button :loading="creating" size="sm" @click="createBackup">
             <template #icon><Plus class="w-4 h-4" /></template>
-            创建备份
+            {{ t('appDetail.createBackup') }}
           </Button>
         </div>
 
-        <!-- 备份表格 -->
         <Table
           :columns="backupColumns"
           :data="backups"
@@ -651,7 +643,7 @@ onMounted(() => {
                 @click="openRestoreDialog(row)"
               >
                 <template #icon><RotateCcw class="w-3.5 h-3.5" /></template>
-                恢复
+                {{ t('appDetail.restore') }}
               </Button>
               <Button
                 variant="ghost"
@@ -660,7 +652,7 @@ onMounted(() => {
                 @click="openDeleteDialog(row)"
               >
                 <template #icon><Trash2 class="w-3.5 h-3.5" /></template>
-                删除
+                {{ t('appDetail.delete') }}
               </Button>
             </div>
           </template>
@@ -702,10 +694,10 @@ onMounted(() => {
     <!-- Rollback confirmation dialog -->
     <AlertDialog
       v-model:open="rollbackDialogOpen"
-      title="回滚应用"
-      :description="`确定要将应用「${app?.name}」回滚到上一个版本吗？当前版本：${app?.current_version || '未知'}`"
-      confirm-text="确认回滚"
-      cancel-text="取消"
+      :title="t('appDetail.rollbackConfirm')"
+      :description="t('appDetail.rollbackConfirmDesc', { name: app?.name || '', version: app?.current_version || '' })"
+      :confirm-text="t('appDetail.confirmRollback')"
+      :cancel-text="t('common.cancel')"
       variant="destructive"
       @confirm="confirmRollback"
     />
@@ -713,10 +705,10 @@ onMounted(() => {
     <!-- Restore backup dialog -->
     <AlertDialog
       v-model:open="restoreDialogOpen"
-      title="恢复备份"
-      :description="`确定要恢复备份「${selectedBackup?.id}」吗？此操作将覆盖当前应用状态。`"
-      confirm-text="确认恢复"
-      cancel-text="取消"
+      :title="t('appDetail.restoreConfirm')"
+      :description="t('appDetail.restoreConfirmDesc', { id: selectedBackup?.id || '' })"
+      :confirm-text="t('appDetail.confirmRestore')"
+      :cancel-text="t('common.cancel')"
       variant="destructive"
       @confirm="confirmRestore"
     />
@@ -724,10 +716,10 @@ onMounted(() => {
     <!-- Delete backup dialog -->
     <AlertDialog
       v-model:open="deleteDialogOpen"
-      title="删除备份"
-      :description="`确定要删除备份「${selectedBackup?.id}」吗？此操作不可撤销。`"
-      confirm-text="确认删除"
-      cancel-text="取消"
+      :title="t('appDetail.deleteBackupConfirm')"
+      :description="t('appDetail.deleteBackupConfirmDesc', { id: selectedBackup?.id || '' })"
+      :confirm-text="t('appDetail.confirmDelete')"
+      :cancel-text="t('common.cancel')"
       variant="destructive"
       @confirm="confirmDelete"
     />

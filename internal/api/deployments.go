@@ -33,7 +33,7 @@ func ListDeployments(db *gorm.DB) gin.HandlerFunc {
 		}
 
 		if err := query.Order("created_at DESC").Find(&records).Error; err != nil {
-			respondError(c, http.StatusInternalServerError, err.Error())
+			respondErrori18n(c, http.StatusInternalServerError, "error.common.internal_error")
 			return
 		}
 		if records == nil {
@@ -59,7 +59,7 @@ func GetDeployment(db *gorm.DB) gin.HandlerFunc {
 		id := c.Param("id")
 		var record model.DeploymentRecord
 		if err := db.Where("id = ?", id).First(&record).Error; err != nil {
-			respondError(c, http.StatusNotFound, "deployment not found")
+			respondErrori18n(c, http.StatusNotFound, "error.deployment.not_found")
 			return
 		}
 		respondSuccess(c, record)

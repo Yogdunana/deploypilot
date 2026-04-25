@@ -6,9 +6,11 @@ import Button from '@/components/ui/Button.vue'
 import TerminalEmulator from '@/components/common/TerminalEmulator.vue'
 import * as serversApi from '@/api/modules/servers'
 import type { Server } from '@/types/models'
+import { useI18n } from 'vue-i18n'
 
 const props = defineProps<{ id: string }>()
 const router = useRouter()
+const { t } = useI18n()
 const { toast } = inject<any>('toast')!
 
 const serverName = ref('')
@@ -26,12 +28,12 @@ async function fetchServer() {
       if (found) {
         serverName.value = found.name
       } else {
-        toast('服务器不存在', 'destructive')
+        toast(t('serverTerminal.serverNotFound'), 'destructive')
         router.push('/servers')
       }
     }
   } catch (err: any) {
-    toast(err.response?.data?.message || '获取服务器信息失败', 'destructive')
+    toast(err.response?.data?.message || t('serverTerminal.fetchFailed'), 'destructive')
   } finally {
     loading.value = false
   }
@@ -40,7 +42,7 @@ async function fetchServer() {
 function handleDisconnect() {
   terminalRef.value?.disconnect()
   isConnected.value = false
-  toast('已断开终端连接', 'default')
+  toast(t('serverTerminal.disconnectedMsg'), 'default')
 }
 
 function handleReconnect() {
@@ -72,7 +74,7 @@ onMounted(() => {
         </Button>
         <div class="flex items-center gap-2">
           <span class="text-sm font-medium text-[#d4d4d4] font-mono">
-            {{ serverName || '终端' }}
+            {{ serverName || t('serverTerminal.title') }}
           </span>
           <span
             class="inline-block w-2 h-2 rounded-full"
@@ -88,7 +90,7 @@ onMounted(() => {
           class="h-7 text-xs text-[#888888] hover:text-[#d4d4d4] hover:bg-[#222222]"
           @click="handleReconnect"
         >
-          重新连接
+          {{ t('serverTerminal.reconnect') }}
         </Button>
         <Button
           variant="ghost"
@@ -97,7 +99,7 @@ onMounted(() => {
           @click="handleDisconnect"
         >
           <template #icon><Unplug class="w-3.5 h-3.5" /></template>
-          断开
+          {{ t('serverTerminal.disconnect') }}
         </Button>
         <Button
           variant="ghost"
@@ -105,7 +107,7 @@ onMounted(() => {
           class="h-7 text-xs text-[#888888] hover:text-[#d4d4d4] hover:bg-[#222222]"
           @click="goBack"
         >
-          返回
+          {{ t('serverTerminal.back') }}
         </Button>
       </div>
     </div>
@@ -118,7 +120,7 @@ onMounted(() => {
         :server-id="props.id"
       />
       <div v-else class="flex items-center justify-center h-full">
-        <span class="text-sm text-[#555555]">加载中...</span>
+        <span class="text-sm text-[#555555]">{{ t('serverTerminal.connecting') }}</span>
       </div>
     </div>
   </div>

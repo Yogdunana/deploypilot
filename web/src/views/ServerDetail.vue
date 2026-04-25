@@ -15,9 +15,11 @@ import Skeleton from '@/components/ui/Skeleton.vue'
 import Separator from '@/components/ui/Separator.vue'
 import * as serversApi from '@/api/modules/servers'
 import type { Server } from '@/types/models'
+import { useI18n } from 'vue-i18n'
 
 const props = defineProps<{ id: string }>()
 const router = useRouter()
+const { t } = useI18n()
 const { toast } = inject<any>('toast')!
 
 // State
@@ -45,12 +47,12 @@ async function fetchServer() {
       if (found) {
         server.value = found
       } else {
-        toast('服务器不存在', 'destructive')
+        toast(t('serverDetail.serverNotFound'), 'destructive')
         router.push('/servers')
       }
     }
   } catch (err: any) {
-    toast(err.response?.data?.message || '获取服务器详情失败', 'destructive')
+    toast(err.response?.data?.message || t('serverDetail.fetchFailed'), 'destructive')
   } finally {
     loading.value = false
   }
@@ -63,12 +65,12 @@ async function handleTestConnection() {
   try {
     const res = await serversApi.test(server.value.id)
     if (res.data.status === 'success' && res.data.data.success) {
-      toast('连接成功', 'success')
+      toast(t('serverDetail.connectionSuccess'), 'success')
     } else {
-      toast(res.data.data?.message || '连接失败', 'destructive')
+      toast(res.data.data?.message || t('serverDetail.connectionFailed'), 'destructive')
     }
   } catch (err: any) {
-    toast(err.response?.data?.message || '连接测试失败', 'destructive')
+    toast(err.response?.data?.message || t('serverDetail.connectionTestFailed'), 'destructive')
   } finally {
     testing.value = false
   }
@@ -80,10 +82,10 @@ async function handleDetect() {
   detecting.value = true
   try {
     await serversApi.detect(server.value.id, { host: server.value.host, port: server.value.port })
-    toast('环境检测已触发', 'success')
+    toast(t('serverDetail.detectTriggered'), 'success')
     fetchServer()
   } catch (err: any) {
-    toast(err.response?.data?.message || '环境检测失败', 'destructive')
+    toast(err.response?.data?.message || t('serverDetail.detectFailed'), 'destructive')
   } finally {
     detecting.value = false
   }
@@ -109,7 +111,7 @@ onMounted(fetchServer)
           <div>
             <div class="flex items-center gap-2">
               <h1 class="text-xl font-semibold text-foreground">
-                {{ server?.name || '加载中...' }}
+                {{ server?.name || t('serverDetail.loading') }}
               </h1>
               <StatusBadge v-if="server" :status="mapServerStatus(server.status)" />
             </div>
@@ -122,15 +124,15 @@ onMounted(fetchServer)
       <template #actions>
         <Button :loading="testing" @click="handleTestConnection">
           <template #icon><Zap class="w-4 h-4" /></template>
-          测试连接
+          {{ t('serverDetail.testConnection') }}
         </Button>
         <Button variant="outline" :loading="detecting" @click="handleDetect">
           <template #icon><Cpu class="w-4 h-4" /></template>
-          环境检测
+          {{ t('serverDetail.detect') }}
         </Button>
         <Button variant="outline" @click="openTerminal">
           <template #icon><Terminal class="w-4 h-4" /></template>
-          打开终端
+          {{ t('serverDetail.openTerminal') }}
         </Button>
       </template>
     </PageHeader>
@@ -149,13 +151,13 @@ onMounted(fetchServer)
         <!-- Basic info card -->
         <Card>
           <template #header>
-            <h3 class="text-sm font-medium text-foreground">基本信息</h3>
+            <h3 class="text-sm font-medium text-foreground">{{ t('serverDetail.basicInfo') }}</h3>
           </template>
           <div class="space-y-3">
             <div class="flex items-start gap-3">
               <ServerIcon class="w-4 h-4 mt-0.5 text-muted-foreground shrink-0" />
               <div>
-                <p class="text-xs text-muted-foreground">名称</p>
+                <p class="text-xs text-muted-foreground">{{ t('serverDetail.name') }}</p>
                 <p class="text-sm text-foreground">{{ server.name }}</p>
               </div>
             </div>
@@ -163,7 +165,7 @@ onMounted(fetchServer)
             <div class="flex items-start gap-3">
               <Globe class="w-4 h-4 mt-0.5 text-muted-foreground shrink-0" />
               <div>
-                <p class="text-xs text-muted-foreground">主机</p>
+                <p class="text-xs text-muted-foreground">{{ t('serverDetail.host') }}</p>
                 <p class="text-sm text-foreground font-mono">{{ server.host }}</p>
               </div>
             </div>
@@ -171,7 +173,7 @@ onMounted(fetchServer)
             <div class="flex items-start gap-3">
               <Hash class="w-4 h-4 mt-0.5 text-muted-foreground shrink-0" />
               <div>
-                <p class="text-xs text-muted-foreground">端口</p>
+                <p class="text-xs text-muted-foreground">{{ t('serverDetail.port') }}</p>
                 <p class="text-sm text-foreground font-mono">{{ server.port }}</p>
               </div>
             </div>
@@ -179,7 +181,7 @@ onMounted(fetchServer)
             <div class="flex items-start gap-3">
               <Shield class="w-4 h-4 mt-0.5 text-muted-foreground shrink-0" />
               <div>
-                <p class="text-xs text-muted-foreground">状态</p>
+                <p class="text-xs text-muted-foreground">{{ t('serverDetail.status') }}</p>
                 <StatusBadge :status="mapServerStatus(server.status)" />
               </div>
             </div>
@@ -189,13 +191,13 @@ onMounted(fetchServer)
         <!-- Tags & time card -->
         <Card>
           <template #header>
-            <h3 class="text-sm font-medium text-foreground">标签与时间</h3>
+            <h3 class="text-sm font-medium text-foreground">{{ t('serverDetail.tagsAndTime') }}</h3>
           </template>
           <div class="space-y-3">
             <div class="flex items-start gap-3">
               <Tag class="w-4 h-4 mt-0.5 text-muted-foreground shrink-0" />
               <div>
-                <p class="text-xs text-muted-foreground">标签</p>
+                <p class="text-xs text-muted-foreground">{{ t('serverDetail.tags') }}</p>
                 <div v-if="server.tags && server.tags.length > 0" class="flex items-center gap-1 flex-wrap mt-1">
                   <Badge v-for="tag in server.tags" :key="tag" variant="outline">
                     {{ tag }}
@@ -208,7 +210,7 @@ onMounted(fetchServer)
             <div class="flex items-start gap-3">
               <Clock class="w-4 h-4 mt-0.5 text-muted-foreground shrink-0" />
               <div>
-                <p class="text-xs text-muted-foreground">创建时间</p>
+                <p class="text-xs text-muted-foreground">{{ t('serverDetail.createdAt') }}</p>
                 <p class="text-sm text-foreground">
                   <RelativeTime :date="server.created_at" />
                 </p>
@@ -218,7 +220,7 @@ onMounted(fetchServer)
             <div class="flex items-start gap-3">
               <Clock class="w-4 h-4 mt-0.5 text-muted-foreground shrink-0" />
               <div>
-                <p class="text-xs text-muted-foreground">更新时间</p>
+                <p class="text-xs text-muted-foreground">{{ t('serverDetail.updatedAt') }}</p>
                 <p class="text-sm text-foreground">
                   <RelativeTime :date="server.updated_at" />
                 </p>
@@ -231,62 +233,62 @@ onMounted(fetchServer)
       <!-- Detected environment info -->
       <Card v-if="server.detected_info">
         <template #header>
-          <h3 class="text-sm font-medium text-foreground">环境信息</h3>
+          <h3 class="text-sm font-medium text-foreground">{{ t('serverDetail.envInfo') }}</h3>
         </template>
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <div class="flex items-start gap-3">
             <HardDrive class="w-4 h-4 mt-0.5 text-muted-foreground shrink-0" />
             <div>
-              <p class="text-xs text-muted-foreground">操作系统</p>
+              <p class="text-xs text-muted-foreground">{{ t('serverDetail.os') }}</p>
               <p class="text-sm text-foreground">{{ server.detected_info.os || '-' }}</p>
             </div>
           </div>
           <div class="flex items-start gap-3">
             <Cpu class="w-4 h-4 mt-0.5 text-muted-foreground shrink-0" />
             <div>
-              <p class="text-xs text-muted-foreground">架构</p>
+              <p class="text-xs text-muted-foreground">{{ t('serverDetail.arch') }}</p>
               <p class="text-sm text-foreground">{{ server.detected_info.arch || '-' }}</p>
             </div>
           </div>
           <div class="flex items-start gap-3">
             <ServerIcon class="w-4 h-4 mt-0.5 text-muted-foreground shrink-0" />
             <div>
-              <p class="text-xs text-muted-foreground">Docker 版本</p>
+              <p class="text-xs text-muted-foreground">{{ t('serverDetail.dockerVersion') }}</p>
               <p class="text-sm text-foreground">{{ server.detected_info.docker_version || '-' }}</p>
             </div>
           </div>
           <div class="flex items-start gap-3">
             <ServerIcon class="w-4 h-4 mt-0.5 text-muted-foreground shrink-0" />
             <div>
-              <p class="text-xs text-muted-foreground">Docker Compose 版本</p>
+              <p class="text-xs text-muted-foreground">{{ t('serverDetail.dockerComposeVersion') }}</p>
               <p class="text-sm text-foreground">{{ server.detected_info.docker_compose_version || '-' }}</p>
             </div>
           </div>
           <div class="flex items-start gap-3">
             <HardDrive class="w-4 h-4 mt-0.5 text-muted-foreground shrink-0" />
             <div>
-              <p class="text-xs text-muted-foreground">内核版本</p>
+              <p class="text-xs text-muted-foreground">{{ t('serverDetail.kernelVersion') }}</p>
               <p class="text-sm text-foreground">{{ server.detected_info.kernel_version || '-' }}</p>
             </div>
           </div>
           <div class="flex items-start gap-3">
             <HardDrive class="w-4 h-4 mt-0.5 text-muted-foreground shrink-0" />
             <div>
-              <p class="text-xs text-muted-foreground">内存</p>
+              <p class="text-xs text-muted-foreground">{{ t('serverDetail.memory') }}</p>
               <p class="text-sm text-foreground">{{ server.detected_info.memory_total || '-' }}</p>
             </div>
           </div>
           <div class="flex items-start gap-3">
             <Cpu class="w-4 h-4 mt-0.5 text-muted-foreground shrink-0" />
             <div>
-              <p class="text-xs text-muted-foreground">CPU 核心</p>
+              <p class="text-xs text-muted-foreground">{{ t('serverDetail.cpuCores') }}</p>
               <p class="text-sm text-foreground">{{ server.detected_info.cpu_cores || '-' }}</p>
             </div>
           </div>
           <div class="flex items-start gap-3">
             <HardDrive class="w-4 h-4 mt-0.5 text-muted-foreground shrink-0" />
             <div>
-              <p class="text-xs text-muted-foreground">磁盘</p>
+              <p class="text-xs text-muted-foreground">{{ t('serverDetail.disk') }}</p>
               <p class="text-sm text-foreground">{{ server.detected_info.disk_total || '-' }}</p>
             </div>
           </div>

@@ -9,8 +9,10 @@ import Input from '@/components/ui/Input.vue'
 import Select from '@/components/ui/Select.vue'
 import * as cicdApi from '@/api/modules/cicd'
 import type { CICDBuild } from '@/types/models'
+import { useI18n } from 'vue-i18n'
 
 const { toast } = inject<any>('toast')!
+const { t } = useI18n()
 
 // 触发构建表单
 const triggerForm = ref({
@@ -59,15 +61,15 @@ function getBuildStatusVariant(status: string): 'success' | 'destructive' | 'war
 function getBuildStatusLabel(status: string): string {
   const s = (status || '').toLowerCase()
   const map: Record<string, string> = {
-    success: '成功',
-    completed: '已完成',
-    failed: '失败',
-    failure: '失败',
-    cancelled: '已取消',
-    running: '运行中',
-    in_progress: '进行中',
-    queued: '排队中',
-    pending: '等待中',
+    success: t('cicd.buildStatusLabel.success'),
+    completed: t('cicd.buildStatusLabel.completed'),
+    failed: t('cicd.buildStatusLabel.failed'),
+    failure: t('cicd.buildStatusLabel.failed'),
+    cancelled: t('cicd.buildStatusLabel.cancelled'),
+    running: t('cicd.buildStatusLabel.running'),
+    in_progress: t('cicd.buildStatusLabel.in_progress'),
+    queued: t('cicd.buildStatusLabel.queued'),
+    pending: t('cicd.buildStatusLabel.pending'),
   }
   return map[s] || s
 }
@@ -75,11 +77,11 @@ function getBuildStatusLabel(status: string): string {
 // 触发构建
 async function handleTrigger() {
   if (!triggerForm.value.repo_url.trim()) {
-    toast('请输入仓库地址', 'destructive')
+    toast(t('cicd.repoUrlRequired'), 'destructive')
     return
   }
   if (!triggerForm.value.branch.trim()) {
-    toast('请输入分支名', 'destructive')
+    toast(t('cicd.branchRequired'), 'destructive')
     return
   }
 
@@ -93,10 +95,10 @@ async function handleTrigger() {
     })
     if (res.data.status === 'success') {
       buildResult.value = res.data.data
-      toast('构建已触发', 'success')
+      toast(t('cicd.buildTriggered'), 'success')
     }
   } catch (err: any) {
-    toast(err.response?.data?.message || '触发构建失败', 'destructive')
+    toast(err.response?.data?.message || t('cicd.triggerFailed'), 'destructive')
   } finally {
     triggering.value = false
   }
@@ -105,7 +107,7 @@ async function handleTrigger() {
 // 查询构建状态
 async function handleQuery() {
   if (!queryForm.value.run_id.trim()) {
-    toast('请输入 Run ID', 'destructive')
+    toast(t('cicd.runIdRequired'), 'destructive')
     return
   }
 
@@ -115,10 +117,10 @@ async function handleQuery() {
     const res = await cicdApi.getBuildStatus(queryForm.value.run_id.trim(), queryForm.value.provider)
     if (res.data.status === 'success') {
       queryResult.value = res.data.data
-      toast('查询成功', 'success')
+      toast(t('cicd.querySuccess'), 'success')
     }
   } catch (err: any) {
-    toast(err.response?.data?.message || '查询构建状态失败', 'destructive')
+    toast(err.response?.data?.message || t('cicd.queryFailed'), 'destructive')
   } finally {
     querying.value = false
   }
@@ -146,7 +148,7 @@ function formatTime(dateStr: string): string {
 <template>
   <div class="p-6 space-y-4">
     <!-- 页面头部 -->
-    <PageHeader title="CI/CD" description="管理持续集成与持续部署流程" />
+    <PageHeader :title="t('cicd.title')" :description="t('cicd.description')" />
 
     <!-- 两列布局 -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -155,7 +157,7 @@ function formatTime(dateStr: string): string {
         <template #header>
           <div class="flex items-center gap-2">
             <Rocket class="w-4 h-4 text-muted-foreground" />
-            <h3 class="text-sm font-medium text-foreground">触发构建</h3>
+            <h3 class="text-sm font-medium text-foreground">{{ t('cicd.triggerBuild') }}</h3>
           </div>
         </template>
         <div class="space-y-4">
@@ -165,38 +167,38 @@ function formatTime(dateStr: string): string {
             <Select
               v-model="triggerForm.provider"
               :options="providerOptions"
-              placeholder="选择 CI/CD 提供商"
+              :placeholder="t('cicd.selectProvider')"
             />
           </div>
 
           <!-- 仓库地址 -->
           <div class="space-y-2">
-            <label class="text-sm font-medium text-foreground">仓库地址</label>
+            <label class="text-sm font-medium text-foreground">{{ t('cicd.repoUrl') }}</label>
             <Input
               v-model="triggerForm.repo_url"
-              placeholder="例如: https://github.com/user/repo"
+              :placeholder="t('cicd.repoUrlPlaceholder')"
             />
           </div>
 
           <!-- 分支 -->
           <div class="space-y-2">
-            <label class="text-sm font-medium text-foreground">分支</label>
+            <label class="text-sm font-medium text-foreground">{{ t('cicd.branch') }}</label>
             <Input
               v-model="triggerForm.branch"
-              placeholder="例如: main"
+              :placeholder="t('cicd.branchPlaceholder')"
             />
           </div>
 
           <!-- 触发按钮 -->
           <Button :loading="triggering" class="w-full" @click="handleTrigger">
             <template #icon><Rocket class="w-4 h-4" /></template>
-            触发构建
+            {{ t('cicd.triggerBuild') }}
           </Button>
 
           <!-- 构建结果 -->
           <div v-if="buildResult" class="rounded-md border border-border p-4 space-y-2">
             <div class="flex items-center gap-2">
-              <span class="text-sm font-medium text-foreground">构建结果</span>
+              <span class="text-sm font-medium text-foreground">{{ t('cicd.buildResult') }}</span>
               <Badge :variant="getBuildStatusVariant(buildResult.status)">
                 {{ getBuildStatusLabel(buildResult.status) }}
               </Badge>
@@ -211,11 +213,11 @@ function formatTime(dateStr: string): string {
                 <span class="text-foreground ml-1">{{ buildResult.provider }}</span>
               </div>
               <div>
-                <span class="text-muted-foreground">触发方式:</span>
+                <span class="text-muted-foreground">{{ t('cicd.triggerType') }}:</span>
                 <span class="text-foreground ml-1">{{ buildResult.trigger_type || '-' }}</span>
               </div>
               <div>
-                <span class="text-muted-foreground">开始时间:</span>
+                <span class="text-muted-foreground">{{ t('cicd.startTime') }}:</span>
                 <span class="text-foreground ml-1">{{ formatTime(buildResult.started_at) }}</span>
               </div>
             </div>
@@ -228,7 +230,7 @@ function formatTime(dateStr: string): string {
         <template #header>
           <div class="flex items-center gap-2">
             <Search class="w-4 h-4 text-muted-foreground" />
-            <h3 class="text-sm font-medium text-foreground">查询构建状态</h3>
+            <h3 class="text-sm font-medium text-foreground">{{ t('cicd.queryBuildStatus') }}</h3>
           </div>
         </template>
         <div class="space-y-4">
@@ -237,7 +239,7 @@ function formatTime(dateStr: string): string {
             <label class="text-sm font-medium text-foreground">Run ID</label>
             <Input
               v-model="queryForm.run_id"
-              placeholder="输入构建 Run ID"
+              :placeholder="t('cicd.runIdPlaceholder')"
             />
           </div>
 
@@ -247,20 +249,20 @@ function formatTime(dateStr: string): string {
             <Select
               v-model="queryForm.provider"
               :options="providerOptions"
-              placeholder="选择 CI/CD 提供商"
+              :placeholder="t('cicd.selectProvider')"
             />
           </div>
 
           <!-- 查询按钮 -->
           <Button :loading="querying" variant="outline" class="w-full" @click="handleQuery">
             <template #icon><Search class="w-4 h-4" /></template>
-            查询状态
+            {{ t('cicd.queryStatus') }}
           </Button>
 
           <!-- 查询结果 -->
           <div v-if="queryResult" class="rounded-md border border-border p-4 space-y-3">
             <div class="flex items-center gap-2">
-              <span class="text-sm font-medium text-foreground">构建状态</span>
+              <span class="text-sm font-medium text-foreground">{{ t('cicd.buildStatus') }}</span>
               <Badge :variant="getBuildStatusVariant(queryResult.status)">
                 {{ getBuildStatusLabel(queryResult.status) }}
               </Badge>
@@ -288,15 +290,15 @@ function formatTime(dateStr: string): string {
                 <span class="text-foreground ml-1">{{ queryResult.provider }}</span>
               </div>
               <div>
-                <span class="text-muted-foreground">触发方式:</span>
+                <span class="text-muted-foreground">{{ t('cicd.triggerType') }}:</span>
                 <span class="text-foreground ml-1">{{ queryResult.trigger_type || '-' }}</span>
               </div>
               <div>
-                <span class="text-muted-foreground">开始时间:</span>
+                <span class="text-muted-foreground">{{ t('cicd.startTime') }}:</span>
                 <span class="text-foreground ml-1">{{ formatTime(queryResult.started_at) }}</span>
               </div>
               <div>
-                <span class="text-muted-foreground">结束时间:</span>
+                <span class="text-muted-foreground">{{ t('cicd.endTime') }}:</span>
                 <span class="text-foreground ml-1">{{ formatTime(queryResult.finished_at) }}</span>
               </div>
             </div>

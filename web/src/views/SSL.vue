@@ -14,8 +14,10 @@ import Switch from '@/components/ui/Switch.vue'
 import Skeleton from '@/components/ui/Skeleton.vue'
 import * as sslApi from '@/api/modules/ssl'
 import type { SSLCertificate } from '@/types/models'
+import { useI18n } from 'vue-i18n'
 
 const { toast } = inject<any>('toast')!
+const { t } = useI18n()
 
 const loading = ref(true)
 const certificates = ref<SSLCertificate[]>([])
@@ -38,21 +40,21 @@ const selectedCert = ref<SSLCertificate | null>(null)
 const renewingId = ref<number | null>(null)
 
 // Provider 选项
-const providerOptions = [
+const providerOptions = computed(() => [
   { label: 'Cloudflare', value: 'cloudflare' },
-  { label: '阿里云', value: 'aliyun' },
-  { label: '腾讯云', value: 'tencent' },
-]
+  { label: t('ssl.aliyun'), value: 'aliyun' },
+  { label: t('ssl.tencent'), value: 'tencent' },
+])
 
 // 表格列
-const columns = [
-  { key: 'domain', label: '域名' },
-  { key: 'provider', label: 'Provider' },
-  { key: 'status', label: '状态' },
-  { key: 'expires_at', label: '过期时间' },
-  { key: 'auto_renew', label: '自动续期' },
-  { key: 'actions', label: '操作', width: '160px' },
-]
+const columns = computed(() => [
+  { key: 'domain', label: t('ssl.domain') },
+  { key: 'provider', label: t('ssl.provider') },
+  { key: 'status', label: t('ssl.status') },
+  { key: 'expires_at', label: t('ssl.expiresAt') },
+  { key: 'auto_renew', label: t('ssl.autoRenew') },
+  { key: 'actions', label: t('ssl.actions'), width: '160px' },
+])
 
 // 证书状态样式
 function getStatusVariant(status: string): 'success' | 'destructive' | 'warning' | 'default' | 'secondary' {
@@ -74,11 +76,11 @@ function getStatusVariant(status: string): 'success' | 'destructive' | 'warning'
 function getStatusLabel(status: string): string {
   const s = (status || '').toLowerCase()
   const map: Record<string, string> = {
-    active: '有效',
-    expired: '已过期',
-    pending: '申请中',
-    renewing: '续期中',
-    failed: '失败',
+    active: t('ssl.active'),
+    expired: t('ssl.expired'),
+    pending: t('ssl.pending'),
+    renewing: t('ssl.renewing'),
+    failed: t('ssl.failed'),
   }
   return map[s] || s
 }
@@ -95,11 +97,11 @@ function getDaysUntilExpiry(expiresAt: string): number {
 // 格式化过期时间显示
 function formatExpiry(expiresAt: string): { text: string; urgent: boolean } {
   const days = getDaysUntilExpiry(expiresAt)
-  if (days < 0) return { text: `已过期 ${Math.abs(days)} 天`, urgent: true }
-  if (days === 0) return { text: '今天过期', urgent: true }
-  if (days <= 15) return { text: `还有 ${days} 天过期`, urgent: true }
-  if (days <= 30) return { text: `还有 ${days} 天过期`, urgent: false }
-  return { text: `还有 ${days} 天过期`, urgent: false }
+  if (days < 0) return { text: `${t('ssl.expiredDays', { days: Math.abs(days) })}`, urgent: true }
+  if (days === 0) return { text: t('ssl.expiresToday'), urgent: true }
+  if (days <= 15) return { text: t('ssl.expiresInDays', { days }), urgent: true }
+  if (days <= 30) return { text: t('ssl.expiresInDays', { days }), urgent: false }
+  return { text: t('ssl.expiresInDays', { days }), urgent: false }
 }
 
 // 获取证书列表
@@ -111,7 +113,7 @@ async function fetchCertificates() {
       certificates.value = res.data.data || []
     }
   } catch (err: any) {
-    toast(err.response?.data?.message || '获取证书列表失败', 'destructive')
+    toast(err.response?.data?.message || t('ssl.fetchFailed'), 'destructive')
   } finally {
     loading.value = false
   }
@@ -126,11 +128,11 @@ function openCreateDialog() {
 // 创建证书
 async function handleCreate() {
   if (!createForm.value.domain.trim()) {
-    toast('请输入域名', 'destructive')
+    toast(t('ssl.domainRequired'), 'destructive')
     return
   }
   if (!createForm.value.email.trim()) {
-    toast('请输入邮箱', 'destructive')
+    toast(t('ssl.emailRequired'), 'destructive')
     return
   }
 
@@ -142,11 +144,11 @@ async function handleCreate() {
       provider: createForm.value.provider,
       auto_renew: true,
     })
-    toast('证书申请已提交', 'success')
+    toast(t('ssl.requestSubmitted'), 'success')
     createDialogOpen.value = false
     fetchCertificates()
   } catch (err: any) {
-    toast(err.response?.data?.message || '申请证书失败', 'destructive')
+    toast(err.response?.data?.message || t('ssl.requestFailed'), 'destructive')
   } finally {
     creating.value = false
   }
@@ -157,10 +159,10 @@ async function handleRenew(cert: SSLCertificate) {
   renewingId.value = cert.id
   try {
     await sslApi.renewCertificate(cert.id)
-    toast(`证书「${cert.domain}」续期已触发`, 'success')
+    toast(t('ssl.renewTriggered', { domain: cert.domain }), 'success')
     fetchCertificates()
   } catch (err: any) {
-    toast(err.response?.data?.message || '续期失败', 'destructive')
+    toast(err.response?.data?.message || t('ssl.renewFailed'), 'destructive')
   } finally {
     renewingId.value = null
   }
@@ -178,11 +180,11 @@ async function confirmDelete() {
   deleting.value = true
   try {
     await sslApi.deleteCertificate(selectedCert.value.id)
-    toast('证书已删除', 'success')
+    toast(t('ssl.deleted'), 'success')
     deleteDialogOpen.value = false
     fetchCertificates()
   } catch (err: any) {
-    toast(err.response?.data?.message || '删除证书失败', 'destructive')
+    toast(err.response?.data?.message || t('ssl.deleteFailed'), 'destructive')
   } finally {
     deleting.value = false
   }
@@ -191,7 +193,7 @@ async function confirmDelete() {
 // 刷新
 async function handleRefresh() {
   await fetchCertificates()
-  toast('数据已刷新', 'success')
+  toast(t('ssl.dataRefreshed'), 'success')
 }
 
 onMounted(() => {
@@ -202,15 +204,15 @@ onMounted(() => {
 <template>
   <div class="p-6 space-y-4">
     <!-- 页面头部 -->
-    <PageHeader title="SSL 证书" description="管理域名 SSL 证书的申请、续期和删除">
+    <PageHeader :title="t('ssl.title')" :description="t('ssl.description')">
       <template #actions>
         <Button variant="outline" size="sm" :loading="loading" @click="handleRefresh">
           <template #icon><RefreshCw class="w-4 h-4" /></template>
-          刷新
+          {{ t('ssl.refresh') }}
         </Button>
         <Button size="sm" @click="openCreateDialog">
           <template #icon><Plus class="w-4 h-4" /></template>
-          申请证书
+          {{ t('ssl.addCertificate') }}
         </Button>
       </template>
     </PageHeader>
@@ -254,7 +256,7 @@ onMounted(() => {
             @click="handleRenew(row as SSLCertificate)"
           >
             <template #icon><RotateCcw class="w-3.5 h-3.5" /></template>
-            续期
+            {{ t('ssl.renew') }}
           </Button>
           <Button
             variant="ghost"
@@ -263,7 +265,7 @@ onMounted(() => {
             @click="openDeleteDialog(row as SSLCertificate)"
           >
             <template #icon><Trash2 class="w-3.5 h-3.5" /></template>
-            删除
+            {{ t('ssl.delete') }}
           </Button>
         </div>
       </template>
@@ -272,36 +274,36 @@ onMounted(() => {
     <!-- 创建证书对话框 -->
     <Dialog
       v-model:open="createDialogOpen"
-      title="申请 SSL 证书"
-      description="填写域名和邮箱信息申请新的 SSL 证书"
+      :title="t('ssl.requestTitle')"
+      :description="t('ssl.requestDesc')"
     >
       <div class="space-y-4">
         <div class="space-y-2">
-          <label class="text-sm font-medium text-foreground">域名</label>
+          <label class="text-sm font-medium text-foreground">{{ t('ssl.domain') }}</label>
           <Input
             v-model="createForm.domain"
-            placeholder="例如: example.com"
+            :placeholder="t('ssl.domainPlaceholder')"
           />
         </div>
         <div class="space-y-2">
-          <label class="text-sm font-medium text-foreground">邮箱</label>
+          <label class="text-sm font-medium text-foreground">{{ t('ssl.email') }}</label>
           <Input
             v-model="createForm.email"
             type="email"
-            placeholder="例如: admin@example.com"
+            :placeholder="t('ssl.emailPlaceholder')"
           />
         </div>
         <div class="space-y-2">
-          <label class="text-sm font-medium text-foreground">Provider</label>
+          <label class="text-sm font-medium text-foreground">{{ t('ssl.provider') }}</label>
           <Select
             v-model="createForm.provider"
             :options="providerOptions"
-            placeholder="选择证书提供商"
+            :placeholder="t('ssl.selectProvider')"
           />
         </div>
         <div class="flex justify-end gap-2 pt-2">
-          <Button variant="outline" @click="createDialogOpen = false">取消</Button>
-          <Button :loading="creating" @click="handleCreate">申请证书</Button>
+          <Button variant="outline" @click="createDialogOpen = false">{{ t('common.cancel') }}</Button>
+          <Button :loading="creating" @click="handleCreate">{{ t('ssl.addCertificate') }}</Button>
         </div>
       </div>
     </Dialog>
@@ -309,10 +311,10 @@ onMounted(() => {
     <!-- 删除确认对话框 -->
     <AlertDialog
       v-model:open="deleteDialogOpen"
-      title="删除证书"
-      :description="`确定要删除域名「${selectedCert?.domain}」的 SSL 证书吗？此操作不可撤销。`"
-      confirm-text="确认删除"
-      cancel-text="取消"
+      :title="t('ssl.deleteConfirm')"
+      :description="t('ssl.deleteConfirmDesc', { domain: selectedCert?.domain || '' })"
+      :confirm-text="t('ssl.confirmDelete')"
+      :cancel-text="t('common.cancel')"
       variant="destructive"
       @confirm="confirmDelete"
     />

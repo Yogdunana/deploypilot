@@ -28,13 +28,13 @@ func TriggerCIBuild(bridge *service.Bridge) gin.HandlerFunc {
 			Branch   string `json:"branch" binding:"required"`
 		}
 		if err := c.ShouldBindJSON(&input); err != nil {
-			respondError(c, http.StatusBadRequest, "invalid request: "+err.Error())
+			respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request", err.Error())
 			return
 		}
 
 		result, err := bridge.TriggerCIBuild(c.Request.Context(), input.Provider, input.Repo, input.Branch)
 		if err != nil {
-			respondError(c, http.StatusInternalServerError, err.Error())
+			respondErrori18n(c, http.StatusInternalServerError, "error.common.internal_error")
 			return
 		}
 		respondSuccess(c, result)
@@ -58,18 +58,18 @@ func GetCIBuildStatus(bridge *service.Bridge) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		provider := c.Query("provider")
 		if provider == "" {
-			respondError(c, http.StatusBadRequest, "provider query parameter is required")
+			respondErrori18n(c, http.StatusBadRequest, "error.cicd.provider_required")
 			return
 		}
 		runID := c.Param("runID")
 		if runID == "" {
-			respondError(c, http.StatusBadRequest, "runID is required")
+			respondErrori18n(c, http.StatusBadRequest, "error.cicd.runid_required")
 			return
 		}
 
 		result, err := bridge.GetCIBuildStatus(c.Request.Context(), provider, runID)
 		if err != nil {
-			respondError(c, http.StatusInternalServerError, err.Error())
+			respondErrori18n(c, http.StatusInternalServerError, "error.common.internal_error")
 			return
 		}
 		respondSuccess(c, result)

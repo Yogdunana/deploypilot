@@ -19,8 +19,10 @@ import Pagination from '@/components/ui/Pagination.vue'
 import Skeleton from '@/components/ui/Skeleton.vue'
 import * as serversApi from '@/api/modules/servers'
 import type { Server } from '@/types/models'
+import { useI18n } from 'vue-i18n'
 
 const router = useRouter()
+const { t } = useI18n()
 const { toast } = inject<any>('toast')!
 
 // State
@@ -40,14 +42,14 @@ const deleting = ref(false)
 const testingId = ref<number | null>(null)
 
 // Table columns
-const columns = [
-  { key: 'name', label: '名称' },
-  { key: 'host_port', label: '主机:端口' },
-  { key: 'status', label: '状态' },
-  { key: 'tags', label: '标签' },
-  { key: 'created_at', label: '创建时间' },
-  { key: 'actions', label: '操作', width: '80px' },
-]
+const columns = computed(() => [
+  { key: 'name', label: t('servers.name') },
+  { key: 'host_port', label: t('servers.hostPort') },
+  { key: 'status', label: t('servers.status') },
+  { key: 'tags', label: t('servers.tags') },
+  { key: 'created_at', label: t('servers.createdAt') },
+  { key: 'actions', label: t('servers.actions'), width: '80px' },
+])
 
 // Filtered servers
 const filteredServers = computed(() => {
@@ -84,7 +86,7 @@ async function fetchServers() {
       total.value = res.data.pagination?.total || servers.value.length
     }
   } catch (err: any) {
-    toast(err.response?.data?.message || '获取服务器列表失败', 'destructive')
+    toast(err.response?.data?.message || t('servers.fetchFailed'), 'destructive')
   } finally {
     loading.value = false
   }
@@ -96,12 +98,12 @@ async function handleTestConnection(server: Server) {
   try {
     const res = await serversApi.test(server.id)
     if (res.data.status === 'success' && res.data.data.success) {
-      toast(`服务器 "${server.name}" 连接成功`, 'success')
+      toast(t('servers.connectionSuccess', { name: server.name }), 'success')
     } else {
-      toast(res.data.data?.message || `服务器 "${server.name}" 连接失败`, 'destructive')
+      toast(res.data.data?.message || t('servers.connectionFailed', { name: server.name }), 'destructive')
     }
   } catch (err: any) {
-    toast(err.response?.data?.message || `服务器 "${server.name}" 连接测试失败`, 'destructive')
+    toast(err.response?.data?.message || t('servers.connectionTestFailed', { name: server.name }), 'destructive')
   } finally {
     testingId.value = null
   }
@@ -111,9 +113,9 @@ async function handleTestConnection(server: Server) {
 async function handleDetect(server: Server) {
   try {
     await serversApi.detect(server.id, { host: server.host, port: server.port })
-    toast(`服务器 "${server.name}" 环境检测已触发`, 'success')
+    toast(t('servers.detectTriggered', { name: server.name }), 'success')
   } catch (err: any) {
-    toast(err.response?.data?.message || '环境检测失败', 'destructive')
+    toast(err.response?.data?.message || t('servers.detectFailed'), 'destructive')
   }
 }
 
@@ -128,10 +130,10 @@ async function confirmDelete() {
   deleting.value = true
   try {
     await serversApi.deleteServer(deletingServer.value.id)
-    toast(`服务器 "${deletingServer.value.name}" 已删除`, 'success')
+    toast(t('servers.deleted', { name: deletingServer.value.name }), 'success')
     fetchServers()
   } catch (err: any) {
-    toast(err.response?.data?.message || '删除失败', 'destructive')
+    toast(err.response?.data?.message || t('servers.deleteFailed'), 'destructive')
   } finally {
     deleting.value = false
     deletingServer.value = null
@@ -141,12 +143,12 @@ async function confirmDelete() {
 // Get dropdown items for a server
 function getServerActions(server: Server) {
   return [
-    { label: '详情', icon: Eye, action: () => router.push(`/servers/${server.id}`) },
-    { label: '测试连接', icon: Zap, action: () => handleTestConnection(server) },
-    { label: '终端', icon: Terminal, action: () => router.push(`/servers/${server.id}/terminal`) },
-    { label: '环境检测', icon: Cpu, action: () => handleDetect(server) },
-    { label: '编辑', icon: Pencil, action: () => router.push(`/servers/${server.id}`) },
-    { label: '删除', icon: Trash2, danger: true, action: () => openDeleteDialog(server) },
+    { label: t('servers.detail'), icon: Eye, action: () => router.push(`/servers/${server.id}`) },
+    { label: t('servers.testConnection'), icon: Zap, action: () => handleTestConnection(server) },
+    { label: t('servers.terminal'), icon: Terminal, action: () => router.push(`/servers/${server.id}/terminal`) },
+    { label: t('servers.detect'), icon: Cpu, action: () => handleDetect(server) },
+    { label: t('servers.edit'), icon: Pencil, action: () => router.push(`/servers/${server.id}`) },
+    { label: t('servers.delete'), icon: Trash2, danger: true, action: () => openDeleteDialog(server) },
   ]
 }
 
@@ -156,11 +158,11 @@ onMounted(fetchServers)
 <template>
   <div class="p-6 space-y-4">
     <!-- Header -->
-    <PageHeader title="服务器">
+    <PageHeader :title="t('servers.title')">
       <template #actions>
         <Button @click="router.push('/servers/create')">
           <template #icon><Plus class="w-4 h-4" /></template>
-          添加服务器
+          {{ t('servers.addServer') }}
         </Button>
       </template>
     </PageHeader>
@@ -171,7 +173,7 @@ onMounted(fetchServers)
         <Search class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
         <Input
           v-model="searchQuery"
-          placeholder="搜索服务器名称或主机..."
+          :placeholder="t('servers.searchPlaceholder')"
           class="pl-9"
         />
       </div>
@@ -238,9 +240,9 @@ onMounted(fetchServers)
     <EmptyState
       v-else
       :icon="ServerIcon"
-      title="暂无服务器"
-      description="点击上方按钮添加你的第一台服务器"
-      action-text="添加服务器"
+      :title="t('servers.noServers')"
+      :description="t('servers.noServersDesc')"
+      :action-text="t('servers.addServer')"
       @action="router.push('/servers/create')"
     />
 
@@ -256,10 +258,10 @@ onMounted(fetchServers)
     <!-- Delete confirmation dialog -->
     <AlertDialog
       v-model:open="deleteDialogOpen"
-      title="删除服务器"
-      :description="`确定要删除服务器「${deletingServer?.name}」吗？此操作不可撤销。`"
-      confirm-text="删除"
-      cancel-text="取消"
+      :title="t('servers.deleteConfirm')"
+      :description="t('servers.deleteConfirmDesc', { name: deletingServer?.name || '' })"
+      :confirm-text="t('servers.delete')"
+      :cancel-text="t('common.cancel')"
       variant="destructive"
       @confirm="confirmDelete"
     />

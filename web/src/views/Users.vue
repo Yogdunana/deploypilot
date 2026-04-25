@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, inject, onMounted } from 'vue'
+import { ref, computed, inject, onMounted } from 'vue'
 import { MoreHorizontal, Trash2, Users as UsersIcon, Shield } from 'lucide-vue-next'
 import PageHeader from '@/components/common/PageHeader.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
@@ -13,8 +13,10 @@ import Pagination from '@/components/ui/Pagination.vue'
 import Skeleton from '@/components/ui/Skeleton.vue'
 import * as usersApi from '@/api/modules/users'
 import type { User, Role } from '@/types/models'
+import { useI18n } from 'vue-i18n'
 
 const { toast } = inject<any>('toast')!
+const { t } = useI18n()
 
 // State
 const users = ref<User[]>([])
@@ -30,13 +32,13 @@ const deletingItem = ref<User | null>(null)
 const deleting = ref(false)
 
 // Table columns
-const columns = [
-  { key: 'username', label: '用户名' },
-  { key: 'email', label: '邮箱' },
-  { key: 'role', label: '角色' },
-  { key: 'created_at', label: '创建时间' },
-  { key: 'actions', label: '操作', width: '80px' },
-]
+const columns = computed(() => [
+  { key: 'username', label: t('users.username') },
+  { key: 'email', label: t('users.email') },
+  { key: 'role', label: t('users.role') },
+  { key: 'created_at', label: t('users.createdAt') },
+  { key: 'actions', label: t('users.actions'), width: '80px' },
+])
 
 // Role badge mapping
 function getRoleBadge(role: string) {
@@ -65,7 +67,7 @@ async function fetchUsers() {
       roles.value = rolesRes.data.data
     }
   } catch (err: any) {
-    toast(err.response?.data?.message || '获取用户列表失败', 'destructive')
+    toast(err.response?.data?.message || t('users.fetchFailed'), 'destructive')
   } finally {
     loading.value = false
   }
@@ -81,10 +83,10 @@ function getUserRoleName(user: User): string {
 async function handleChangeRole(user: User, roleId: number) {
   try {
     await usersApi.updateRole(user.id, roleId)
-    toast(`用户「${user.username}」角色已更新`, 'success')
+    toast(t('users.roleUpdated', { username: user.username }), 'success')
     fetchUsers()
   } catch (err: any) {
-    toast(err.response?.data?.message || '更新角色失败', 'destructive')
+    toast(err.response?.data?.message || t('users.roleUpdateFailed'), 'destructive')
   }
 }
 
@@ -99,10 +101,10 @@ async function confirmDelete() {
   deleting.value = true
   try {
     await usersApi.deleteUser(deletingItem.value.id)
-    toast(`用户「${deletingItem.value.username}」已删除`, 'success')
+    toast(t('users.deleted', { username: deletingItem.value.username }), 'success')
     fetchUsers()
   } catch (err: any) {
-    toast(err.response?.data?.message || '删除失败', 'destructive')
+    toast(err.response?.data?.message || t('users.deleteFailed'), 'destructive')
   } finally {
     deleting.value = false
     deletingItem.value = null
@@ -116,7 +118,7 @@ function getDropdownItems(user: User) {
   }))
   return [
     ...roleItems,
-    { label: '删除', icon: Trash2, danger: true, action: () => openDeleteDialog(user) },
+    { label: t('users.delete'), icon: Trash2, danger: true, action: () => openDeleteDialog(user) },
   ]
 }
 
@@ -126,7 +128,7 @@ onMounted(fetchUsers)
 <template>
   <div class="p-6 space-y-4">
     <!-- Header -->
-    <PageHeader title="用户管理" />
+    <PageHeader :title="t('users.title')" />
 
     <!-- Loading skeleton -->
     <div v-if="loading" class="rounded-lg border border-border bg-card">
@@ -174,8 +176,8 @@ onMounted(fetchUsers)
     <EmptyState
       v-else
       :icon="UsersIcon"
-      title="暂无用户"
-      description="暂无其他用户数据"
+      :title="t('users.noUsers')"
+      :description="t('users.noUsersDesc')"
     />
 
     <!-- Pagination -->
@@ -191,10 +193,10 @@ onMounted(fetchUsers)
     <!-- Delete AlertDialog -->
     <AlertDialog
       v-model:open="deleteDialogOpen"
-      title="删除用户"
-      :description="`确定要删除用户「${deletingItem?.username}」吗？此操作不可撤销。`"
-      confirm-text="删除"
-      cancel-text="取消"
+      :title="t('users.deleteConfirm')"
+      :description="t('users.deleteConfirmDesc', { username: deletingItem?.username || '' })"
+      :confirm-text="t('users.delete')"
+      :cancel-text="t('common.cancel')"
       variant="destructive"
       @confirm="confirmDelete"
     />

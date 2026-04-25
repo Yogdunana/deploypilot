@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, computed } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import * as appsApi from '@/api/modules/apps'
 import * as serversApi from '@/api/modules/servers'
 import * as deploymentsApi from '@/api/modules/deployments'
@@ -34,6 +35,7 @@ import {
 } from 'lucide-vue-next'
 
 const router = useRouter()
+const { t } = useI18n()
 
 // Data state
 const apps = ref<App[]>([])
@@ -90,11 +92,11 @@ function formatBytes(bytes: number): string {
 }
 
 // Table columns
-const deploymentColumns = [
-  { key: 'app_name', label: '应用名' },
-  { key: 'status', label: '状态', width: '120px' },
-  { key: 'created_at', label: '时间', width: '160px' },
-]
+const deploymentColumns = computed(() => [
+  { key: 'app_name', label: t('dashboard.appName') },
+  { key: 'status', label: t('dashboard.status'), width: '120px' },
+  { key: 'created_at', label: t('dashboard.time'), width: '160px' },
+])
 
 // Auto refresh timer
 let metricsTimer: ReturnType<typeof setInterval> | null = null
@@ -121,7 +123,7 @@ async function loadDashboardData() {
       recentDeployments.value = items.slice(0, 10)
     }
   } catch (err: any) {
-    error.value = '加载仪表盘数据失败，请刷新重试'
+    error.value = t('dashboard.loadFailed')
   } finally {
     loading.value = false
   }
@@ -192,10 +194,10 @@ onBeforeUnmount(() => {
 <template>
   <div class="p-6 space-y-6">
     <!-- Page Header -->
-    <PageHeader title="仪表盘" description="系统概览与快速操作">
+    <PageHeader :title="t('dashboard.title')" :description="t('dashboard.description')">
       <template #actions>
         <Button variant="outline" size="sm" @click="loadDashboardData">
-          刷新
+          {{ t('dashboard.refresh') }}
         </Button>
       </template>
     </PageHeader>
@@ -214,7 +216,7 @@ onBeforeUnmount(() => {
       >
         <div class="flex items-center justify-between">
           <div>
-            <p class="text-[13px] text-muted-foreground">应用总数</p>
+            <p class="text-[13px] text-muted-foreground">{{ t('dashboard.totalApps') }}</p>
             <p v-if="loading" class="mt-1">
               <Skeleton class="h-8 w-16" variant="text" />
             </p>
@@ -235,7 +237,7 @@ onBeforeUnmount(() => {
       >
         <div class="flex items-center justify-between">
           <div>
-            <p class="text-[13px] text-muted-foreground">运行中应用</p>
+            <p class="text-[13px] text-muted-foreground">{{ t('dashboard.runningApps') }}</p>
             <p v-if="loading" class="mt-1">
               <Skeleton class="h-8 w-16" variant="text" />
             </p>
@@ -256,7 +258,7 @@ onBeforeUnmount(() => {
       >
         <div class="flex items-center justify-between">
           <div>
-            <p class="text-[13px] text-muted-foreground">服务器总数</p>
+            <p class="text-[13px] text-muted-foreground">{{ t('dashboard.totalServers') }}</p>
             <p v-if="loading" class="mt-1">
               <Skeleton class="h-8 w-16" variant="text" />
             </p>
@@ -277,7 +279,7 @@ onBeforeUnmount(() => {
       >
         <div class="flex items-center justify-between">
           <div>
-            <p class="text-[13px] text-muted-foreground">最近部署</p>
+            <p class="text-[13px] text-muted-foreground">{{ t('dashboard.recentDeploys') }}</p>
             <p v-if="loading" class="mt-1">
               <Skeleton class="h-8 w-16" variant="text" />
             </p>
@@ -300,7 +302,7 @@ onBeforeUnmount(() => {
           <template #header>
             <div class="flex items-center gap-2">
               <Cpu class="w-4 h-4 text-muted-foreground" />
-              <h2 class="text-base font-semibold text-foreground">系统资源</h2>
+              <h2 class="text-base font-semibold text-foreground">{{ t('dashboard.systemResources') }}</h2>
             </div>
           </template>
 
@@ -334,7 +336,7 @@ onBeforeUnmount(() => {
               <div class="flex items-center justify-between mb-2">
                 <div class="flex items-center gap-2">
                   <Cpu class="w-4 h-4 text-muted-foreground" />
-                  <span class="text-sm font-medium text-foreground">CPU 使用率</span>
+                  <span class="text-sm font-medium text-foreground">{{ t('dashboard.cpuUsage') }}</span>
                 </div>
                 <span class="text-sm font-semibold text-foreground">
                   {{ systemMetrics.cpu_usage.toFixed(1) }}%
@@ -348,7 +350,7 @@ onBeforeUnmount(() => {
               <div class="flex items-center justify-between mb-2">
                 <div class="flex items-center gap-2">
                   <MemoryStick class="w-4 h-4 text-muted-foreground" />
-                  <span class="text-sm font-medium text-foreground">内存使用率</span>
+                  <span class="text-sm font-medium text-foreground">{{ t('dashboard.memoryUsage') }}</span>
                 </div>
                 <span class="text-sm font-semibold text-foreground">
                   {{ systemMetrics.memory_usage.toFixed(1) }}%
@@ -365,7 +367,7 @@ onBeforeUnmount(() => {
               <div class="flex items-center justify-between mb-2">
                 <div class="flex items-center gap-2">
                   <HardDrive class="w-4 h-4 text-muted-foreground" />
-                  <span class="text-sm font-medium text-foreground">磁盘使用率</span>
+                  <span class="text-sm font-medium text-foreground">{{ t('dashboard.diskUsage') }}</span>
                 </div>
                 <span class="text-sm font-semibold text-foreground">
                   {{ systemMetrics.disk_usage.toFixed(1) }}%
@@ -379,7 +381,7 @@ onBeforeUnmount(() => {
           </div>
 
           <div v-else>
-            <p class="text-sm text-muted-foreground text-center py-4">暂无系统资源数据</p>
+            <p class="text-sm text-muted-foreground text-center py-4">{{ t('dashboard.noSystemData') }}</p>
           </div>
         </Card>
       </div>
@@ -390,7 +392,7 @@ onBeforeUnmount(() => {
           <template #header>
             <div class="flex items-center gap-2">
               <ShieldAlert class="w-4 h-4 text-muted-foreground" />
-              <h2 class="text-base font-semibold text-foreground">活跃告警</h2>
+              <h2 class="text-base font-semibold text-foreground">{{ t('dashboard.activeAlerts') }}</h2>
               <Badge v-if="alerts.length > 0" variant="destructive" class="ml-auto">
                 {{ alerts.length }}
               </Badge>
@@ -406,8 +408,8 @@ onBeforeUnmount(() => {
 
           <div v-else-if="alerts.length === 0">
             <EmptyState
-              title="系统运行正常"
-              description="当前没有活跃的告警"
+              :title="t('dashboard.noAlerts')"
+              :description="t('dashboard.noAlertsDesc')"
             />
           </div>
 
@@ -427,7 +429,7 @@ onBeforeUnmount(() => {
               </div>
               <div class="flex items-center justify-between">
                 <span class="text-xs text-muted-foreground">
-                  规则 #{{ alert.rule_id }}
+                  {{ t('dashboard.rule') }} #{{ alert.rule_id }}
                 </span>
                 <RelativeTime :date="alert.created_at" class="text-xs" />
               </div>
@@ -441,9 +443,9 @@ onBeforeUnmount(() => {
     <Card>
       <template #header>
         <div class="flex items-center justify-between">
-          <h2 class="text-base font-semibold text-foreground">最近部署</h2>
+          <h2 class="text-base font-semibold text-foreground">{{ t('dashboard.recentDeploys') }}</h2>
           <Button variant="ghost" size="sm" @click="router.push('/deployments')">
-            查看全部
+            {{ t('dashboard.viewAll') }}
             <template #icon>
               <ArrowRight class="w-4 h-4" />
             </template>
@@ -471,7 +473,7 @@ onBeforeUnmount(() => {
     <!-- Quick Actions -->
     <Card>
       <template #header>
-        <h2 class="text-base font-semibold text-foreground">快速操作</h2>
+        <h2 class="text-base font-semibold text-foreground">{{ t('dashboard.quickActions') }}</h2>
       </template>
 
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -484,8 +486,8 @@ onBeforeUnmount(() => {
             <Plus class="w-4 h-4 text-primary" />
           </div>
           <div class="text-left">
-            <p class="text-sm font-medium text-foreground">创建应用</p>
-            <p class="text-xs text-muted-foreground">部署一个新的应用</p>
+            <p class="text-sm font-medium text-foreground">{{ t('dashboard.createApp') }}</p>
+            <p class="text-xs text-muted-foreground">{{ t('dashboard.createAppDesc') }}</p>
           </div>
         </Button>
 
@@ -498,8 +500,8 @@ onBeforeUnmount(() => {
             <ServerCog class="w-4 h-4 text-warning" />
           </div>
           <div class="text-left">
-            <p class="text-sm font-medium text-foreground">添加服务器</p>
-            <p class="text-xs text-muted-foreground">注册新的部署服务器</p>
+            <p class="text-sm font-medium text-foreground">{{ t('dashboard.addServer') }}</p>
+            <p class="text-xs text-muted-foreground">{{ t('dashboard.addServerDesc') }}</p>
           </div>
         </Button>
 
@@ -512,8 +514,8 @@ onBeforeUnmount(() => {
             <LayoutTemplate class="w-4 h-4 text-success" />
           </div>
           <div class="text-left">
-            <p class="text-sm font-medium text-foreground">浏览模板</p>
-            <p class="text-xs text-muted-foreground">从模板快速创建应用</p>
+            <p class="text-sm font-medium text-foreground">{{ t('dashboard.browseTemplates') }}</p>
+            <p class="text-xs text-muted-foreground">{{ t('dashboard.browseTemplatesDesc') }}</p>
           </div>
         </Button>
       </div>

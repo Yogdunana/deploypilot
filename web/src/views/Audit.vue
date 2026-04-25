@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, inject, onMounted } from 'vue'
+import { ref, computed, inject, onMounted } from 'vue'
 import { Search, FileText } from 'lucide-vue-next'
 import PageHeader from '@/components/common/PageHeader.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
@@ -12,8 +12,10 @@ import Pagination from '@/components/ui/Pagination.vue'
 import Skeleton from '@/components/ui/Skeleton.vue'
 import * as auditApi from '@/api/modules/audit'
 import type { AuditLog } from '@/types/models'
+import { useI18n } from 'vue-i18n'
 
 const { toast } = inject<any>('toast')!
+const { t } = useI18n()
 
 // State
 const logs = ref<AuditLog[]>([])
@@ -28,38 +30,38 @@ const filterAction = ref('')
 const filterResourceType = ref('')
 
 // Action options
-const actionOptions = [
-  { label: '全部操作', value: '' },
-  { label: '创建', value: 'create' },
-  { label: '更新', value: 'update' },
-  { label: '删除', value: 'delete' },
-  { label: '登录', value: 'login' },
-  { label: '部署', value: 'deploy' },
-]
+const actionOptions = computed(() => [
+  { label: t('audit.allActions'), value: '' },
+  { label: t('audit.create'), value: 'create' },
+  { label: t('audit.update'), value: 'update' },
+  { label: t('audit.delete'), value: 'delete' },
+  { label: t('audit.login'), value: 'login' },
+  { label: t('audit.deploy'), value: 'deploy' },
+])
 
 // Resource type options
-const resourceTypeOptions = [
-  { label: '全部资源', value: '' },
-  { label: '应用', value: 'app' },
-  { label: '服务器', value: 'server' },
-  { label: '凭证', value: 'credential' },
-  { label: 'DNS', value: 'dns' },
-  { label: '用户', value: 'user' },
-  { label: '模板', value: 'template' },
-  { label: '提供商', value: 'provider' },
-  { label: '通知', value: 'notification' },
-]
+const resourceTypeOptions = computed(() => [
+  { label: t('audit.allResources'), value: '' },
+  { label: t('audit.app'), value: 'app' },
+  { label: t('audit.server'), value: 'server' },
+  { label: t('audit.credential'), value: 'credential' },
+  { label: t('audit.dns'), value: 'dns' },
+  { label: t('audit.userType'), value: 'user' },
+  { label: t('audit.template'), value: 'template' },
+  { label: t('audit.provider'), value: 'provider' },
+  { label: t('audit.notification'), value: 'notification' },
+])
 
 // Table columns
-const columns = [
-  { key: 'created_at', label: '时间' },
-  { key: 'username', label: '用户' },
-  { key: 'action', label: '操作' },
-  { key: 'resource_type', label: '资源类型' },
-  { key: 'resource_id', label: '资源 ID' },
-  { key: 'detail', label: '详情' },
-  { key: 'ip_address', label: 'IP 地址' },
-]
+const columns = computed(() => [
+  { key: 'created_at', label: t('audit.time') },
+  { key: 'username', label: t('audit.user') },
+  { key: 'action', label: t('audit.action') },
+  { key: 'resource_type', label: t('audit.resourceType') },
+  { key: 'resource_id', label: t('audit.resourceId') },
+  { key: 'detail', label: t('audit.detail') },
+  { key: 'ip_address', label: t('audit.ipAddress') },
+])
 
 // Fetch logs
 async function fetchLogs() {
@@ -77,7 +79,7 @@ async function fetchLogs() {
       total.value = res.data.pagination?.total || 0
     }
   } catch (err: any) {
-    toast(err.response?.data?.message || '获取审计日志失败', 'destructive')
+    toast(err.response?.data?.message || t('audit.fetchFailed'), 'destructive')
   } finally {
     loading.value = false
   }
@@ -101,7 +103,7 @@ onMounted(fetchLogs)
 <template>
   <div class="p-6 space-y-4">
     <!-- Header -->
-    <PageHeader title="审计日志" />
+    <PageHeader :title="t('audit.title')" />
 
     <!-- Filters -->
     <div class="flex items-center gap-3 flex-wrap">
@@ -109,7 +111,7 @@ onMounted(fetchLogs)
         <Search class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
         <Input
           v-model="filterUsername"
-          placeholder="用户名..."
+          :placeholder="t('audit.searchPlaceholder')"
           class="pl-9"
           @keyup.enter="applyFilters"
         />
@@ -117,18 +119,18 @@ onMounted(fetchLogs)
       <Select
         v-model="filterAction"
         :options="actionOptions"
-        placeholder="操作类型"
+        :placeholder="t('audit.actionType')"
         class="w-36"
         @update:model-value="applyFilters"
       />
       <Select
         v-model="filterResourceType"
         :options="resourceTypeOptions"
-        placeholder="资源类型"
+        :placeholder="t('audit.resourceType')"
         class="w-36"
         @update:model-value="applyFilters"
       />
-      <Button variant="outline" size="sm" @click="applyFilters">搜索</Button>
+      <Button variant="outline" size="sm" @click="applyFilters">{{ t('audit.search') }}</Button>
     </div>
 
     <!-- Loading skeleton -->
@@ -177,8 +179,8 @@ onMounted(fetchLogs)
     <EmptyState
       v-else
       :icon="FileText"
-      title="暂无审计日志"
-      description="暂无操作日志记录"
+      :title="t('audit.noLogs')"
+      :description="t('audit.noLogsDesc')"
     />
 
     <!-- Pagination -->

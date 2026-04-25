@@ -21,7 +21,7 @@ func GetSystemMetrics(bridge *service.Bridge) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		data, err := bridge.GetSystemMetrics(c.Request.Context())
 		if err != nil {
-			respondError(c, http.StatusInternalServerError, err.Error())
+			respondErrori18n(c, http.StatusInternalServerError, "error.common.internal_error")
 			return
 		}
 		respondSuccess(c, data)
@@ -44,12 +44,12 @@ func GetContainerMetrics(bridge *service.Bridge) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		name := c.Param("name")
 		if name == "" {
-			respondError(c, http.StatusBadRequest, "container name is required")
+			respondErrori18n(c, http.StatusBadRequest, "error.monitor.container_name_required")
 			return
 		}
 		data, err := bridge.GetContainerMetrics(c.Request.Context(), name)
 		if err != nil {
-			respondError(c, http.StatusInternalServerError, err.Error())
+			respondErrori18n(c, http.StatusInternalServerError, "error.common.internal_error")
 			return
 		}
 		respondSuccess(c, data)
@@ -70,7 +70,7 @@ func ListAlerts(bridge *service.Bridge) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		data, err := bridge.ListAlerts(c.Request.Context())
 		if err != nil {
-			respondError(c, http.StatusInternalServerError, err.Error())
+			respondErrori18n(c, http.StatusInternalServerError, "error.common.internal_error")
 			return
 		}
 		respondSuccess(c, data)
@@ -91,7 +91,7 @@ func ListAlertRules(bridge *service.Bridge) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		data, err := bridge.ListAlertRules(c.Request.Context())
 		if err != nil {
-			respondError(c, http.StatusInternalServerError, err.Error())
+			respondErrori18n(c, http.StatusInternalServerError, "error.common.internal_error")
 			return
 		}
 		respondSuccess(c, data)
@@ -114,12 +114,12 @@ func HealContainer(bridge *service.Bridge) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		name := c.Param("name")
 		if name == "" {
-			respondError(c, http.StatusBadRequest, "container name is required")
+			respondErrori18n(c, http.StatusBadRequest, "error.monitor.container_name_required")
 			return
 		}
 		data, err := bridge.HealContainer(c.Request.Context(), name)
 		if err != nil {
-			respondError(c, http.StatusInternalServerError, err.Error())
+			respondErrori18n(c, http.StatusInternalServerError, "error.common.internal_error")
 			return
 		}
 		respondSuccess(c, data)
@@ -142,12 +142,12 @@ func CheckContainerHealth(bridge *service.Bridge) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		name := c.Param("name")
 		if name == "" {
-			respondError(c, http.StatusBadRequest, "container name is required")
+			respondErrori18n(c, http.StatusBadRequest, "error.monitor.container_name_required")
 			return
 		}
 		data, err := bridge.HealContainer(c.Request.Context(), name)
 		if err != nil {
-			respondError(c, http.StatusInternalServerError, err.Error())
+			respondErrori18n(c, http.StatusInternalServerError, "error.common.internal_error")
 			return
 		}
 		respondSuccess(c, data)

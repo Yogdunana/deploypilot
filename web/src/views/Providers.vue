@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, inject, onMounted, watch } from 'vue'
+import { ref, computed, inject, onMounted, watch } from 'vue'
 import { Plus, MoreHorizontal, Pencil, Trash2, Server } from 'lucide-vue-next'
 import PageHeader from '@/components/common/PageHeader.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
@@ -18,8 +18,10 @@ import Tabs from '@/components/ui/Tabs.vue'
 import Skeleton from '@/components/ui/Skeleton.vue'
 import * as providersApi from '@/api/modules/providers'
 import type { Provider } from '@/types/models'
+import { useI18n } from 'vue-i18n'
 
 const { toast } = inject<any>('toast')!
+const { t } = useI18n()
 
 // State
 const providers = ref<Provider[]>([])
@@ -28,7 +30,7 @@ const activeTab = ref('')
 
 // Dialog
 const dialogOpen = ref(false)
-const dialogTitle = ref('创建提供商')
+const dialogTitle = ref(t('providers.createTitle'))
 const editingId = ref<number | null>(null)
 const formName = ref('')
 const formType = ref('')
@@ -50,21 +52,21 @@ const typeOptions = [
 ]
 
 // Tab items
-const tabItems = [
-  { key: '', label: '全部' },
+const tabItems = computed(() => [
+  { key: '', label: t('providers.all') },
   { key: 'docker', label: 'Docker' },
   { key: 'ssh', label: 'SSH' },
   { key: '1panel', label: '1Panel' },
-]
+])
 
 // Table columns
-const columns = [
-  { key: 'name', label: '名称' },
-  { key: 'type', label: '类型' },
-  { key: 'enabled', label: '启用状态' },
-  { key: 'created_at', label: '创建时间' },
-  { key: 'actions', label: '操作', width: '80px' },
-]
+const columns = computed(() => [
+  { key: 'name', label: t('providers.name') },
+  { key: 'type', label: t('providers.type') },
+  { key: 'enabled', label: t('providers.enabledStatus') },
+  { key: 'created_at', label: t('providers.createdAt') },
+  { key: 'actions', label: t('providers.actions'), width: '80px' },
+])
 
 // Type badge mapping
 function getTypeBadge(type: string) {
@@ -87,7 +89,7 @@ function validateConfig(val: string) {
     configError.value = ''
     return true
   } catch {
-    configError.value = 'JSON 格式不正确'
+    configError.value = t('providers.jsonInvalid')
     return false
   }
 }
@@ -101,7 +103,7 @@ async function fetchProviders() {
       providers.value = res.data.data
     }
   } catch (err: any) {
-    toast(err.response?.data?.message || '获取服务提供商列表失败', 'destructive')
+    toast(err.response?.data?.message || t('providers.fetchFailed'), 'destructive')
   } finally {
     loading.value = false
   }
@@ -115,7 +117,7 @@ watch(activeTab, () => {
 // Open create dialog
 function openCreateDialog() {
   editingId.value = null
-  dialogTitle.value = '创建提供商'
+  dialogTitle.value = t('providers.createTitle')
   formName.value = ''
   formType.value = ''
   formConfig.value = ''
@@ -127,7 +129,7 @@ function openCreateDialog() {
 // Open edit dialog
 function openEditDialog(item: Provider) {
   editingId.value = item.id
-  dialogTitle.value = '编辑提供商'
+  dialogTitle.value = t('providers.editTitle')
   formName.value = item.name
   formType.value = item.type
   formConfig.value = JSON.stringify(item.config, null, 2)
@@ -139,11 +141,11 @@ function openEditDialog(item: Provider) {
 // Submit form
 async function handleSubmit() {
   if (!formName.value || !formType.value) {
-    toast('请填写名称和类型', 'destructive')
+    toast(t('providers.nameTypeRequired'), 'destructive')
     return
   }
   if (!validateConfig(formConfig.value)) {
-    toast('请输入正确的 JSON 配置', 'destructive')
+    toast(t('providers.correctJson'), 'destructive')
     return
   }
   submitting.value = true
@@ -155,15 +157,15 @@ async function handleSubmit() {
     const data = { name: formName.value, type: formType.value, config, enabled: formEnabled.value }
     if (editingId.value) {
       await providersApi.update(editingId.value, data)
-      toast('服务提供商已更新', 'success')
+      toast(t('providers.updated'), 'success')
     } else {
       await providersApi.create(data)
-      toast('服务提供商已创建', 'success')
+      toast(t('providers.created'), 'success')
     }
     dialogOpen.value = false
     fetchProviders()
   } catch (err: any) {
-    toast(err.response?.data?.message || '操作失败', 'destructive')
+    toast(err.response?.data?.message || t('common.operationFailed'), 'destructive')
   } finally {
     submitting.value = false
   }
@@ -174,9 +176,9 @@ async function handleToggleEnabled(item: Provider) {
   try {
     await providersApi.update(item.id, { enabled: !item.enabled })
     item.enabled = !item.enabled
-    toast(`服务提供商「${item.name}」已${item.enabled ? '启用' : '禁用'}`, 'success')
+    toast(t('providers.toggled', { name: item.name, status: item.enabled ? t('providers.enabled') : t('providers.disabled') }), 'success')
   } catch (err: any) {
-    toast(err.response?.data?.message || '更新状态失败', 'destructive')
+    toast(err.response?.data?.message || t('providers.toggleFailed'), 'destructive')
   }
 }
 
@@ -191,10 +193,10 @@ async function confirmDelete() {
   deleting.value = true
   try {
     await providersApi.deleteProvider(deletingItem.value.id)
-    toast(`服务提供商「${deletingItem.value.name}」已删除`, 'success')
+    toast(t('providers.deleted', { name: deletingItem.value.name }), 'success')
     fetchProviders()
   } catch (err: any) {
-    toast(err.response?.data?.message || '删除失败', 'destructive')
+    toast(err.response?.data?.message || t('providers.deleteFailed'), 'destructive')
   } finally {
     deleting.value = false
     deletingItem.value = null
@@ -203,8 +205,8 @@ async function confirmDelete() {
 
 function getDropdownItems(item: Provider) {
   return [
-    { label: '编辑', icon: Pencil, action: () => openEditDialog(item) },
-    { label: '删除', icon: Trash2, danger: true, action: () => openDeleteDialog(item) },
+    { label: t('providers.edit'), icon: Pencil, action: () => openEditDialog(item) },
+    { label: t('providers.delete'), icon: Trash2, danger: true, action: () => openDeleteDialog(item) },
   ]
 }
 
@@ -214,11 +216,11 @@ onMounted(fetchProviders)
 <template>
   <div class="p-6 space-y-4">
     <!-- Header -->
-    <PageHeader title="服务提供商">
+    <PageHeader :title="t('providers.title')">
       <template #actions>
         <Button @click="openCreateDialog">
           <template #icon><Plus class="w-4 h-4" /></template>
-          创建提供商
+          {{ t('providers.addProvider') }}
         </Button>
       </template>
     </PageHeader>
@@ -272,9 +274,9 @@ onMounted(fetchProviders)
     <EmptyState
       v-else
       :icon="Server"
-      title="暂无服务提供商"
-      description="点击上方按钮创建你的第一个服务提供商"
-      action-text="创建提供商"
+      :title="t('providers.noProviders')"
+      :description="t('providers.noProvidersDesc')"
+      :action-text="t('providers.addProvider')"
       @action="openCreateDialog"
     />
 
@@ -282,19 +284,19 @@ onMounted(fetchProviders)
     <Dialog
       v-model:open="dialogOpen"
       :title="dialogTitle"
-      description="配置服务提供商"
+      :description="t('providers.configDesc')"
     >
       <div class="space-y-4">
         <div class="space-y-2">
-          <label class="text-sm font-medium text-foreground">名称</label>
-          <Input v-model="formName" placeholder="输入提供商名称" />
+          <label class="text-sm font-medium text-foreground">{{ t('providers.name') }}</label>
+          <Input v-model="formName" :placeholder="t('providers.namePlaceholder')" />
         </div>
         <div class="space-y-2">
-          <label class="text-sm font-medium text-foreground">类型</label>
-          <Select v-model="formType" :options="typeOptions" placeholder="选择提供商类型" />
+          <label class="text-sm font-medium text-foreground">{{ t('providers.type') }}</label>
+          <Select v-model="formType" :options="typeOptions" :placeholder="t('providers.typePlaceholder')" />
         </div>
         <div class="space-y-2">
-          <label class="text-sm font-medium text-foreground">配置（JSON 格式）</label>
+          <label class="text-sm font-medium text-foreground">{{ t('providers.config') }}</label>
           <Textarea
             v-model="formConfig"
             placeholder='{"host": "192.168.1.1", "port": "22"}'
@@ -306,12 +308,12 @@ onMounted(fetchProviders)
         </div>
         <div class="flex items-center gap-2">
           <Switch v-model="formEnabled" />
-          <label class="text-sm text-foreground">启用</label>
+          <label class="text-sm text-foreground">{{ t('providers.enabled') }}</label>
         </div>
         <div class="flex justify-end gap-2 pt-2">
-          <Button variant="outline" @click="dialogOpen = false">取消</Button>
+          <Button variant="outline" @click="dialogOpen = false">{{ t('common.cancel') }}</Button>
           <Button :loading="submitting" @click="handleSubmit">
-            {{ editingId ? '保存' : '创建' }}
+            {{ editingId ? t('common.saveText') : t('common.createText') }}
           </Button>
         </div>
       </div>
@@ -320,10 +322,10 @@ onMounted(fetchProviders)
     <!-- Delete AlertDialog -->
     <AlertDialog
       v-model:open="deleteDialogOpen"
-      title="删除服务提供商"
-      :description="`确定要删除服务提供商「${deletingItem?.name}」吗？此操作不可撤销。`"
-      confirm-text="删除"
-      cancel-text="取消"
+      :title="t('providers.deleteConfirm')"
+      :description="t('providers.deleteConfirmDesc', { name: deletingItem?.name || '' })"
+      :confirm-text="t('providers.delete')"
+      :cancel-text="t('common.cancel')"
       variant="destructive"
       @confirm="confirmDelete"
     />

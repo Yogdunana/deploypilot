@@ -103,6 +103,11 @@ func (d *DingTalkNotifier) Send(ctx context.Context, notification Notification) 
 
 // formatMessage formats a notification as DingTalk Markdown.
 func (d *DingTalkNotifier) formatMessage(n Notification) (string, string) {
+	locale := n.Metadata["locale"]
+	if locale == "" {
+		locale = "en"
+	}
+
 	title := fmt.Sprintf("[%s] %s - %s", n.Type, n.AppName, n.Status)
 
 	var icon string
@@ -118,12 +123,12 @@ func (d *DingTalkNotifier) formatMessage(n Notification) (string, string) {
 	}
 
 	text := fmt.Sprintf("### %s %s %s\n\n", icon, n.Type, n.AppName)
-	text += fmt.Sprintf("- **Server:** %s\n", n.Server)
-	text += fmt.Sprintf("- **Status:** %s\n", n.Status)
+	text += fmt.Sprintf("- **%s:** %s\n", FieldLabel(locale, "server"), n.Server)
+	text += fmt.Sprintf("- **%s:** %s\n", FieldLabel(locale, "status"), n.Status)
 	if n.Message != "" {
-		text += fmt.Sprintf("- **Message:** %s\n", n.Message)
+		text += fmt.Sprintf("- **%s:** %s\n", FieldLabel(locale, "message"), n.Message)
 	}
-	text += fmt.Sprintf("- **Time:** %s", n.Timestamp.Format(time.RFC3339))
+	text += fmt.Sprintf("- **%s:** %s", FieldLabel(locale, "time"), n.Timestamp.Format(time.RFC3339))
 
 	return title, text
 }

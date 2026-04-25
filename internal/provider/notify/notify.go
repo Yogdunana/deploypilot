@@ -10,6 +10,8 @@ import (
 	"net/smtp"
 	"strings"
 	"time"
+
+	"github.com/Yogdunana/deploypilot/internal/i18n"
 )
 
 // Notification represents a deployment notification.
@@ -189,12 +191,17 @@ func (m *MultiNotifier) Send(ctx context.Context, notification Notification) ([]
 
 // DeploySuccess creates a deploy success notification.
 func DeploySuccess(appName, server, image string) Notification {
+	return DeploySuccessLocale("en", appName, server, image)
+}
+
+// DeploySuccessLocale creates a deploy success notification with i18n support.
+func DeploySuccessLocale(locale, appName, server, image string) Notification {
 	return Notification{
 		Type:      "deploy_success",
 		AppName:   appName,
 		Server:    server,
 		Status:    "success",
-		Message:   fmt.Sprintf("Successfully deployed %s to %s", image, server),
+		Message:   i18n.Tf(locale, "notify.deploy_success", image, server),
 		Timestamp: time.Now(),
 		Metadata:  map[string]string{"image": image},
 	}
@@ -202,12 +209,17 @@ func DeploySuccess(appName, server, image string) Notification {
 
 // DeployFailed creates a deploy failure notification.
 func DeployFailed(appName, server, reason string) Notification {
+	return DeployFailedLocale("en", appName, server, reason)
+}
+
+// DeployFailedLocale creates a deploy failure notification with i18n support.
+func DeployFailedLocale(locale, appName, server, reason string) Notification {
 	return Notification{
 		Type:      "deploy_failed",
 		AppName:   appName,
 		Server:    server,
 		Status:    "failed",
-		Message:   fmt.Sprintf("Deploy failed: %s", reason),
+		Message:   i18n.Tf(locale, "notify.deploy_failed", reason),
 		Timestamp: time.Now(),
 		Metadata:  map[string]string{"reason": reason},
 	}
@@ -215,12 +227,17 @@ func DeployFailed(appName, server, reason string) Notification {
 
 // HealthCheckFailed creates a health check failure notification.
 func HealthCheckFailed(appName, server, target string) Notification {
+	return HealthCheckFailedLocale("en", appName, server, target)
+}
+
+// HealthCheckFailedLocale creates a health check failure notification with i18n support.
+func HealthCheckFailedLocale(locale, appName, server, target string) Notification {
 	return Notification{
 		Type:      "health_check",
 		AppName:   appName,
 		Server:    server,
 		Status:    "warning",
-		Message:   fmt.Sprintf("Health check failed for %s on %s", appName, target),
+		Message:   i18n.Tf(locale, "notify.health_check_failed", appName, target),
 		Timestamp: time.Now(),
 		Metadata:  map[string]string{"target": target},
 	}
@@ -228,13 +245,23 @@ func HealthCheckFailed(appName, server, target string) Notification {
 
 // Rollback creates a rollback notification.
 func Rollback(appName, server, oldImage, reason string) Notification {
+	return RollbackLocale("en", appName, server, oldImage, reason)
+}
+
+// RollbackLocale creates a rollback notification with i18n support.
+func RollbackLocale(locale, appName, server, oldImage, reason string) Notification {
 	return Notification{
 		Type:      "rollback",
 		AppName:   appName,
 		Server:    server,
 		Status:    "warning",
-		Message:   fmt.Sprintf("Rolled back %s to %s: %s", appName, oldImage, reason),
+		Message:   i18n.Tf(locale, "notify.rollback", appName, oldImage, reason),
 		Timestamp: time.Now(),
 		Metadata:  map[string]string{"old_image": oldImage, "reason": reason},
 	}
+}
+
+// FieldLabel returns a localized field label for notifications.
+func FieldLabel(locale, field string) string {
+	return i18n.T(locale, "notify.field."+field)
 }

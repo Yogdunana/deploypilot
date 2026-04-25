@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, inject, onMounted } from 'vue'
+import { ref, computed, inject, onMounted } from 'vue'
 import { Plus, MoreHorizontal, Pencil, Trash2, Eye, EyeOff, KeyRound } from 'lucide-vue-next'
 import PageHeader from '@/components/common/PageHeader.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
@@ -17,8 +17,10 @@ import Pagination from '@/components/ui/Pagination.vue'
 import Skeleton from '@/components/ui/Skeleton.vue'
 import * as credentialsApi from '@/api/modules/credentials'
 import type { Credential } from '@/types/models'
+import { useI18n } from 'vue-i18n'
 
 const { toast } = inject<any>('toast')!
+const { t } = useI18n()
 
 // State
 const credentials = ref<Credential[]>([])
@@ -29,7 +31,7 @@ const total = ref(0)
 
 // Dialog
 const dialogOpen = ref(false)
-const dialogTitle = ref('创建凭证')
+const dialogTitle = ref(t('credentials.createTitle'))
 const editingId = ref<number | null>(null)
 const formName = ref('')
 const formType = ref('')
@@ -43,19 +45,19 @@ const deletingItem = ref<Credential | null>(null)
 const deleting = ref(false)
 
 // Type options
-const typeOptions = [
-  { label: 'SSH 密钥', value: 'ssh' },
-  { label: 'API Key', value: 'api_key' },
-  { label: 'Token', value: 'token' },
-]
+const typeOptions = computed(() => [
+  { label: t('credentials.ssh'), value: 'ssh' },
+  { label: t('credentials.apiKey'), value: 'api_key' },
+  { label: t('credentials.token'), value: 'token' },
+])
 
 // Table columns
-const columns = [
-  { key: 'name', label: '名称' },
-  { key: 'type', label: '类型' },
-  { key: 'created_at', label: '创建时间' },
-  { key: 'actions', label: '操作', width: '80px' },
-]
+const columns = computed(() => [
+  { key: 'name', label: t('credentials.name') },
+  { key: 'type', label: t('credentials.type') },
+  { key: 'created_at', label: t('credentials.createdAt') },
+  { key: 'actions', label: t('credentials.actions'), width: '80px' },
+])
 
 // Type badge mapping
 function getTypeBadge(type: string) {
@@ -77,7 +79,7 @@ async function fetchCredentials() {
       total.value = res.data.pagination?.total || 0
     }
   } catch (err: any) {
-    toast(err.response?.data?.message || '获取凭证列表失败', 'destructive')
+    toast(err.response?.data?.message || t('credentials.fetchFailed'), 'destructive')
   } finally {
     loading.value = false
   }
@@ -86,7 +88,7 @@ async function fetchCredentials() {
 // Open create dialog
 function openCreateDialog() {
   editingId.value = null
-  dialogTitle.value = '创建凭证'
+  dialogTitle.value = t('credentials.createTitle')
   formName.value = ''
   formType.value = ''
   formValue.value = ''
@@ -97,7 +99,7 @@ function openCreateDialog() {
 // Open edit dialog
 function openEditDialog(item: Credential) {
   editingId.value = item.id
-  dialogTitle.value = '编辑凭证'
+  dialogTitle.value = t('credentials.editTitle')
   formName.value = item.name
   formType.value = item.type
   formValue.value = ''
@@ -108,7 +110,7 @@ function openEditDialog(item: Credential) {
 // Submit form
 async function handleSubmit() {
   if (!formName.value || !formType.value) {
-    toast('请填写名称和类型', 'destructive')
+    toast(t('credentials.nameTypeRequired'), 'destructive')
     return
   }
   submitting.value = true
@@ -116,15 +118,15 @@ async function handleSubmit() {
     const data = { name: formName.value, type: formType.value, value: formValue.value }
     if (editingId.value) {
       await credentialsApi.update(editingId.value, data)
-      toast('凭证已更新', 'success')
+      toast(t('credentials.updated'), 'success')
     } else {
       await credentialsApi.create(data)
-      toast('凭证已创建', 'success')
+      toast(t('credentials.created'), 'success')
     }
     dialogOpen.value = false
     fetchCredentials()
   } catch (err: any) {
-    toast(err.response?.data?.message || '操作失败', 'destructive')
+    toast(err.response?.data?.message || t('common.operationFailed'), 'destructive')
   } finally {
     submitting.value = false
   }
@@ -141,10 +143,10 @@ async function confirmDelete() {
   deleting.value = true
   try {
     await credentialsApi.deleteCredential(deletingItem.value.id)
-    toast(`凭证「${deletingItem.value.name}」已删除`, 'success')
+    toast(t('credentials.deleted', { name: deletingItem.value.name }), 'success')
     fetchCredentials()
   } catch (err: any) {
-    toast(err.response?.data?.message || '删除失败', 'destructive')
+    toast(err.response?.data?.message || t('credentials.deleteFailed'), 'destructive')
   } finally {
     deleting.value = false
     deletingItem.value = null
@@ -153,8 +155,8 @@ async function confirmDelete() {
 
 function getDropdownItems(item: Credential) {
   return [
-    { label: '编辑', icon: Pencil, action: () => openEditDialog(item) },
-    { label: '删除', icon: Trash2, danger: true, action: () => openDeleteDialog(item) },
+    { label: t('credentials.edit'), icon: Pencil, action: () => openEditDialog(item) },
+    { label: t('credentials.delete'), icon: Trash2, danger: true, action: () => openDeleteDialog(item) },
   ]
 }
 
@@ -164,11 +166,11 @@ onMounted(fetchCredentials)
 <template>
   <div class="p-6 space-y-4">
     <!-- Header -->
-    <PageHeader title="凭证">
+    <PageHeader :title="t('credentials.title')">
       <template #actions>
         <Button @click="openCreateDialog">
           <template #icon><Plus class="w-4 h-4" /></template>
-          创建凭证
+          {{ t('credentials.addCredential') }}
         </Button>
       </template>
     </PageHeader>
@@ -215,9 +217,9 @@ onMounted(fetchCredentials)
     <EmptyState
       v-else
       :icon="KeyRound"
-      title="暂无凭证"
-      description="点击上方按钮创建你的第一个凭证"
-      action-text="创建凭证"
+      :title="t('credentials.noCredentials')"
+      :description="t('credentials.noCredentialsDesc')"
+      :action-text="t('credentials.addCredential')"
       @action="openCreateDialog"
     />
 
@@ -235,24 +237,24 @@ onMounted(fetchCredentials)
     <Dialog
       v-model:open="dialogOpen"
       :title="dialogTitle"
-      description="配置凭证信息"
+      :description="t('credentials.configDesc')"
     >
       <div class="space-y-4">
         <div class="space-y-2">
-          <label class="text-sm font-medium text-foreground">名称</label>
-          <Input v-model="formName" placeholder="输入凭证名称" />
+          <label class="text-sm font-medium text-foreground">{{ t('credentials.name') }}</label>
+          <Input v-model="formName" :placeholder="t('credentials.namePlaceholder')" />
         </div>
         <div class="space-y-2">
-          <label class="text-sm font-medium text-foreground">类型</label>
-          <Select v-model="formType" :options="typeOptions" placeholder="选择凭证类型" />
+          <label class="text-sm font-medium text-foreground">{{ t('credentials.type') }}</label>
+          <Select v-model="formType" :options="typeOptions" :placeholder="t('credentials.typePlaceholder')" />
         </div>
         <div class="space-y-2">
-          <label class="text-sm font-medium text-foreground">值</label>
+          <label class="text-sm font-medium text-foreground">{{ t('credentials.value') }}</label>
           <div class="relative">
             <Textarea
               v-model="formValue"
               :type="showValue ? 'text' : 'password'"
-              placeholder="输入凭证值"
+              :placeholder="t('credentials.valuePlaceholder')"
               :rows="3"
               class="pr-10"
             />
@@ -267,9 +269,9 @@ onMounted(fetchCredentials)
           </div>
         </div>
         <div class="flex justify-end gap-2 pt-2">
-          <Button variant="outline" @click="dialogOpen = false">取消</Button>
+          <Button variant="outline" @click="dialogOpen = false">{{ t('common.cancel') }}</Button>
           <Button :loading="submitting" @click="handleSubmit">
-            {{ editingId ? '保存' : '创建' }}
+            {{ editingId ? t('common.saveText') : t('common.createText') }}
           </Button>
         </div>
       </div>
@@ -278,10 +280,10 @@ onMounted(fetchCredentials)
     <!-- Delete AlertDialog -->
     <AlertDialog
       v-model:open="deleteDialogOpen"
-      title="删除凭证"
-      :description="`确定要删除凭证「${deletingItem?.name}」吗？此操作不可撤销。`"
-      confirm-text="删除"
-      cancel-text="取消"
+      :title="t('credentials.deleteConfirm')"
+      :description="t('credentials.deleteConfirmDesc', { name: deletingItem?.name || '' })"
+      :confirm-text="t('credentials.delete')"
+      :cancel-text="t('common.cancel')"
       variant="destructive"
       @confirm="confirmDelete"
     />

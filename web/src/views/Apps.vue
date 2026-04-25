@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, inject, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import {
   Search, Plus, MoreHorizontal, Eye, Rocket, FileText,
   RotateCcw, Trash2, Package,
@@ -22,6 +23,7 @@ import * as appsApi from '@/api/modules/apps'
 import type { App } from '@/types/models'
 
 const router = useRouter()
+const { t } = useI18n()
 const { toast } = inject<any>('toast')!
 
 // State
@@ -39,24 +41,24 @@ const deletingApp = ref<App | null>(null)
 const deleting = ref(false)
 
 // Status tabs
-const statusTabs = [
-  { key: 'all', label: '全部' },
-  { key: 'running', label: '运行中' },
-  { key: 'stopped', label: '已停止' },
-  { key: 'failed', label: '失败' },
-  { key: 'deploying', label: '部署中' },
-]
+const statusTabs = computed(() => [
+  { key: 'all', label: t('apps.all') },
+  { key: 'running', label: t('apps.running') },
+  { key: 'stopped', label: t('apps.stopped') },
+  { key: 'failed', label: t('apps.failed') },
+  { key: 'deploying', label: t('apps.deploying') },
+])
 
 // Table columns
-const columns = [
-  { key: 'name', label: '名称' },
-  { key: 'tech_stack', label: '技术栈' },
-  { key: 'status', label: '状态' },
-  { key: 'domain', label: '域名' },
-  { key: 'server', label: '服务器' },
-  { key: 'created_at', label: '创建时间' },
-  { key: 'actions', label: '操作', width: '80px' },
-]
+const columns = computed(() => [
+  { key: 'name', label: t('apps.name') },
+  { key: 'tech_stack', label: t('apps.stack') },
+  { key: 'status', label: t('apps.status') },
+  { key: 'domain', label: t('apps.domain') },
+  { key: 'server', label: t('apps.server') },
+  { key: 'created_at', label: t('apps.createdAt') },
+  { key: 'actions', label: t('apps.actions'), width: '80px' },
+])
 
 // Filtered apps
 const filteredApps = computed(() => {
@@ -89,7 +91,7 @@ async function fetchApps() {
       total.value = res.data.pagination?.total || apps.value.length
     }
   } catch (err: any) {
-    toast(err.response?.data?.message || '获取应用列表失败', 'destructive')
+    toast(err.response?.data?.message || t('apps.fetchFailed'), 'destructive')
   } finally {
     loading.value = false
   }
@@ -99,10 +101,10 @@ async function fetchApps() {
 async function handleDeploy(app: App) {
   try {
     await appsApi.deploy(app.id)
-    toast(`应用 "${app.name}" 部署已触发`, 'success')
+    toast(t('apps.deployTriggered', { name: app.name }), 'success')
     fetchApps()
   } catch (err: any) {
-    toast(err.response?.data?.message || '部署失败', 'destructive')
+    toast(err.response?.data?.message || t('apps.deployFailed'), 'destructive')
   }
 }
 
@@ -117,10 +119,10 @@ async function confirmDelete() {
   deleting.value = true
   try {
     await appsApi.deleteApp(deletingApp.value.id)
-    toast(`应用 "${deletingApp.value.name}" 已删除`, 'success')
+    toast(t('apps.deleted', { name: deletingApp.value.name }), 'success')
     fetchApps()
   } catch (err: any) {
-    toast(err.response?.data?.message || '删除失败', 'destructive')
+    toast(err.response?.data?.message || t('apps.deleteFailed'), 'destructive')
   } finally {
     deleting.value = false
     deletingApp.value = null
@@ -130,11 +132,11 @@ async function confirmDelete() {
 // Get dropdown items for an app
 function getAppActions(app: App) {
   return [
-    { label: '详情', icon: Eye, action: () => router.push(`/apps/${app.id}`) },
-    { label: '部署', icon: Rocket, action: () => handleDeploy(app) },
-    { label: '日志', icon: FileText, action: () => router.push(`/apps/${app.id}`) },
-    { label: '回滚', icon: RotateCcw, action: () => toast('回滚功能请在应用详情页操作') },
-    { label: '删除', icon: Trash2, danger: true, action: () => openDeleteDialog(app) },
+    { label: t('apps.detail'), icon: Eye, action: () => router.push(`/apps/${app.id}`) },
+    { label: t('apps.deploy'), icon: Rocket, action: () => handleDeploy(app) },
+    { label: t('apps.logs'), icon: FileText, action: () => router.push(`/apps/${app.id}`) },
+    { label: t('apps.rollback'), icon: RotateCcw, action: () => toast(t('apps.rollbackInDetail')) },
+    { label: t('apps.delete'), icon: Trash2, danger: true, action: () => openDeleteDialog(app) },
   ]
 }
 
@@ -153,11 +155,11 @@ onMounted(fetchApps)
 <template>
   <div class="p-6 space-y-4">
     <!-- Header -->
-    <PageHeader title="应用">
+    <PageHeader :title="t('apps.title')">
       <template #actions>
         <Button @click="router.push('/apps/create')">
           <template #icon><Plus class="w-4 h-4" /></template>
-          创建应用
+          {{ t('apps.createApp') }}
         </Button>
       </template>
     </PageHeader>
@@ -168,7 +170,7 @@ onMounted(fetchApps)
         <Search class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
         <Input
           v-model="searchQuery"
-          placeholder="搜索应用名称..."
+          :placeholder="t('apps.searchPlaceholder')"
           class="pl-9"
         />
       </div>
@@ -235,9 +237,9 @@ onMounted(fetchApps)
     <EmptyState
       v-else
       :icon="Package"
-      title="暂无应用"
-      description="点击上方按钮创建你的第一个应用"
-      action-text="创建应用"
+      :title="t('apps.noApps')"
+      :description="t('apps.noAppsDesc')"
+      :action-text="t('apps.createApp')"
       @action="router.push('/apps/create')"
     />
 
@@ -253,10 +255,10 @@ onMounted(fetchApps)
     <!-- Delete confirmation dialog -->
     <AlertDialog
       v-model:open="deleteDialogOpen"
-      title="删除应用"
-      :description="`确定要删除应用「${deletingApp?.name}」吗？此操作不可撤销。`"
-      confirm-text="删除"
-      cancel-text="取消"
+      :title="t('apps.deleteConfirm')"
+      :description="t('apps.deleteConfirmDesc', { name: deletingApp?.name || '' })"
+      :confirm-text="t('apps.delete')"
+      :cancel-text="t('common.cancel')"
       variant="destructive"
       @confirm="confirmDelete"
     />

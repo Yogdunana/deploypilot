@@ -15,8 +15,10 @@ import AlertDialog from '@/components/ui/AlertDialog.vue'
 import Skeleton from '@/components/ui/Skeleton.vue'
 import * as templatesApi from '@/api/modules/templates'
 import type { Template } from '@/types/models'
+import { useI18n } from 'vue-i18n'
 
 const router = useRouter()
+const { t } = useI18n()
 const { toast } = inject<any>('toast')!
 
 // State
@@ -25,7 +27,7 @@ const loading = ref(true)
 
 // Dialog
 const dialogOpen = ref(false)
-const dialogTitle = ref('创建模板')
+const dialogTitle = ref(t('templates.createTitle'))
 const editingId = ref<number | null>(null)
 const formName = ref('')
 const formType = ref('')
@@ -78,7 +80,7 @@ async function fetchTemplates() {
       templates.value = res.data.data
     }
   } catch (err: any) {
-    toast(err.response?.data?.message || '获取模板列表失败', 'destructive')
+    toast(err.response?.data?.message || t('templates.fetchFailed'), 'destructive')
   } finally {
     loading.value = false
   }
@@ -87,7 +89,7 @@ async function fetchTemplates() {
 // Open create dialog
 function openCreateDialog() {
   editingId.value = null
-  dialogTitle.value = '创建模板'
+  dialogTitle.value = t('templates.createTitle')
   formName.value = ''
   formType.value = ''
   formDescription.value = ''
@@ -100,7 +102,7 @@ function openCreateDialog() {
 // Open edit dialog
 function openEditDialog(item: Template) {
   editingId.value = item.id
-  dialogTitle.value = '编辑模板'
+  dialogTitle.value = t('templates.editTitle')
   formName.value = item.name
   formType.value = item.tech_stack
   formDescription.value = item.description
@@ -113,7 +115,7 @@ function openEditDialog(item: Template) {
 // Submit form
 async function handleSubmit() {
   if (!formName.value || !formType.value) {
-    toast('请填写名称和类型', 'destructive')
+    toast(t('templates.nameTypeRequired'), 'destructive')
     return
   }
   submitting.value = true
@@ -131,15 +133,15 @@ async function handleSubmit() {
     }
     if (editingId.value) {
       await templatesApi.update(editingId.value, data)
-      toast('模板已更新', 'success')
+      toast(t('templates.updated'), 'success')
     } else {
       await templatesApi.create(data)
-      toast('模板已创建', 'success')
+      toast(t('templates.created'), 'success')
     }
     dialogOpen.value = false
     fetchTemplates()
   } catch (err: any) {
-    toast(err.response?.data?.message || '操作失败', 'destructive')
+    toast(err.response?.data?.message || t('common.operationFailed'), 'destructive')
   } finally {
     submitting.value = false
   }
@@ -161,10 +163,10 @@ async function confirmDelete() {
   deleting.value = true
   try {
     await templatesApi.deleteTemplate(deletingItem.value.id)
-    toast(`模板「${deletingItem.value.name}」已删除`, 'success')
+    toast(t('templates.deleted', { name: deletingItem.value.name }), 'success')
     fetchTemplates()
   } catch (err: any) {
-    toast(err.response?.data?.message || '删除失败', 'destructive')
+    toast(err.response?.data?.message || t('templates.deleteFailed'), 'destructive')
   } finally {
     deleting.value = false
     deletingItem.value = null
@@ -177,11 +179,11 @@ onMounted(fetchTemplates)
 <template>
   <div class="p-6 space-y-4">
     <!-- Header -->
-    <PageHeader title="部署模板">
+    <PageHeader :title="t('templates.title')">
       <template #actions>
         <Button @click="openCreateDialog">
           <template #icon><Plus class="w-4 h-4" /></template>
-          创建模板
+          {{ t('templates.createTemplate') }}
         </Button>
       </template>
     </PageHeader>
@@ -226,20 +228,20 @@ onMounted(fetchTemplates)
           <p v-if="item.description" class="text-sm text-muted-foreground line-clamp-2">
             {{ item.description }}
           </p>
-          <p v-else class="text-sm text-muted-foreground italic">暂无描述</p>
+          <p v-else class="text-sm text-muted-foreground italic">{{ t('templates.noDescription') }}</p>
 
           <!-- Config details -->
           <div class="space-y-1.5 text-xs text-muted-foreground">
             <div v-if="item.config?.build_cmd" class="flex items-center gap-2">
-              <span class="text-foreground/60 font-medium">构建:</span>
+              <span class="text-foreground/60 font-medium">{{ t('templates.build') }}:</span>
               <code class="font-mono bg-accent/50 px-1.5 py-0.5 rounded text-foreground">{{ item.config.build_cmd }}</code>
             </div>
             <div v-if="item.config?.run_cmd" class="flex items-center gap-2">
-              <span class="text-foreground/60 font-medium">运行:</span>
+              <span class="text-foreground/60 font-medium">{{ t('templates.run') }}:</span>
               <code class="font-mono bg-accent/50 px-1.5 py-0.5 rounded text-foreground">{{ item.config.run_cmd }}</code>
             </div>
             <div v-if="item.config?.port" class="flex items-center gap-2">
-              <span class="text-foreground/60 font-medium">端口:</span>
+              <span class="text-foreground/60 font-medium">{{ t('templates.port') }}:</span>
               <code class="font-mono bg-accent/50 px-1.5 py-0.5 rounded text-foreground">{{ item.config.port }}</code>
             </div>
           </div>
@@ -247,7 +249,7 @@ onMounted(fetchTemplates)
           <!-- Use button -->
           <Button variant="outline" size="sm" class="w-full mt-2" @click="handleUseTemplate(item)">
             <template #icon><Rocket class="w-3.5 h-3.5" /></template>
-            使用此模板
+            {{ t('templates.useTemplate') }}
           </Button>
         </div>
       </Card>
@@ -257,9 +259,9 @@ onMounted(fetchTemplates)
     <EmptyState
       v-else
       :icon="FileCode"
-      title="暂无部署模板"
-      description="点击上方按钮创建你的第一个部署模板"
-      action-text="创建模板"
+      :title="t('templates.noTemplates')"
+      :description="t('templates.noTemplatesDesc')"
+      :action-text="t('templates.createTemplate')"
       @action="openCreateDialog"
     />
 
@@ -267,37 +269,37 @@ onMounted(fetchTemplates)
     <Dialog
       v-model:open="dialogOpen"
       :title="dialogTitle"
-      description="配置部署模板"
+      :description="t('templates.configDesc')"
     >
       <div class="space-y-4">
         <div class="space-y-2">
-          <label class="text-sm font-medium text-foreground">名称</label>
-          <Input v-model="formName" placeholder="输入模板名称" />
+          <label class="text-sm font-medium text-foreground">{{ t('templates.name') }}</label>
+          <Input v-model="formName" :placeholder="t('templates.namePlaceholder')" />
         </div>
         <div class="space-y-2">
-          <label class="text-sm font-medium text-foreground">类型</label>
-          <Select v-model="formType" :options="typeOptions" placeholder="选择技术栈" />
+          <label class="text-sm font-medium text-foreground">{{ t('templates.type') }}</label>
+          <Select v-model="formType" :options="typeOptions" :placeholder="t('templates.typePlaceholder')" />
         </div>
         <div class="space-y-2">
-          <label class="text-sm font-medium text-foreground">描述</label>
-          <Textarea v-model="formDescription" placeholder="描述模板用途..." :rows="3" />
+          <label class="text-sm font-medium text-foreground">{{ t('templates.description') }}</label>
+          <Textarea v-model="formDescription" :placeholder="t('templates.descriptionPlaceholder')" :rows="3" />
         </div>
         <div class="space-y-2">
-          <label class="text-sm font-medium text-foreground">构建命令</label>
-          <Input v-model="formBuildCmd" placeholder="npm run build" class="font-mono text-xs" />
+          <label class="text-sm font-medium text-foreground">{{ t('templates.buildCmd') }}</label>
+          <Input v-model="formBuildCmd" :placeholder="t('templates.buildCmdPlaceholder')" class="font-mono text-xs" />
         </div>
         <div class="space-y-2">
-          <label class="text-sm font-medium text-foreground">运行命令</label>
-          <Input v-model="formRunCmd" placeholder="node server.js" class="font-mono text-xs" />
+          <label class="text-sm font-medium text-foreground">{{ t('templates.runCmd') }}</label>
+          <Input v-model="formRunCmd" :placeholder="t('templates.runCmdPlaceholder')" class="font-mono text-xs" />
         </div>
         <div class="space-y-2">
-          <label class="text-sm font-medium text-foreground">端口</label>
-          <Input v-model="formPort" type="number" placeholder="3000" class="font-mono text-xs" />
+          <label class="text-sm font-medium text-foreground">{{ t('templates.port') }}</label>
+          <Input v-model="formPort" type="number" :placeholder="t('templates.portPlaceholder')" class="font-mono text-xs" />
         </div>
         <div class="flex justify-end gap-2 pt-2">
-          <Button variant="outline" @click="dialogOpen = false">取消</Button>
+          <Button variant="outline" @click="dialogOpen = false">{{ t('common.cancel') }}</Button>
           <Button :loading="submitting" @click="handleSubmit">
-            {{ editingId ? '保存' : '创建' }}
+            {{ editingId ? t('common.saveText') : t('common.createText') }}
           </Button>
         </div>
       </div>
@@ -306,10 +308,10 @@ onMounted(fetchTemplates)
     <!-- Delete AlertDialog -->
     <AlertDialog
       v-model:open="deleteDialogOpen"
-      title="删除模板"
-      :description="`确定要删除模板「${deletingItem?.name}」吗？此操作不可撤销。`"
-      confirm-text="删除"
-      cancel-text="取消"
+      :title="t('templates.deleteConfirm')"
+      :description="t('templates.deleteConfirmDesc', { name: deletingItem?.name || '' })"
+      :confirm-text="t('templates.delete')"
+      :cancel-text="t('common.cancel')"
       variant="destructive"
       @confirm="confirmDelete"
     />

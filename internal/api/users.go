@@ -23,24 +23,24 @@ import (
 func GetCurrentUser(c *gin.Context) {
 	userID, exists := c.Get(string(auth.UserIDKey))
 	if !exists {
-		respondError(c, http.StatusUnauthorized, "not authenticated")
+		respondErrori18n(c, http.StatusUnauthorized, "error.auth.not_authenticated")
 		return
 	}
 
 	dbVal, exists := c.Get("db")
 	if !exists {
-		respondError(c, http.StatusInternalServerError, "database not available")
+		respondErrori18n(c, http.StatusInternalServerError, "error.user.database_not_available")
 		return
 	}
 	db, ok := dbVal.(*gorm.DB)
 	if !ok {
-		respondError(c, http.StatusInternalServerError, "invalid database connection")
+		respondErrori18n(c, http.StatusInternalServerError, "error.user.invalid_database_connection")
 		return
 	}
 
 	var user model.User
 	if err := db.Preload("Role").Preload("Tenant").Where("id = ?", userID).First(&user).Error; err != nil {
-		respondError(c, http.StatusNotFound, "user not found")
+		respondErrori18n(c, http.StatusNotFound, "error.user.not_found")
 		return
 	}
 	respondSuccess(c, user)
@@ -61,7 +61,7 @@ func ListUsers(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var users []model.User
 		if err := db.Preload("Role").Find(&users).Error; err != nil {
-			respondError(c, http.StatusInternalServerError, err.Error())
+			respondErrori18n(c, http.StatusInternalServerError, "error.common.internal_error")
 			return
 		}
 		if users == nil {
@@ -89,11 +89,11 @@ func DeleteUser(db *gorm.DB) gin.HandlerFunc {
 		id := c.Param("id")
 		result := db.Where("id = ?", id).Delete(&model.User{})
 		if result.Error != nil {
-			respondError(c, http.StatusInternalServerError, result.Error.Error())
+			respondErrori18n(c, http.StatusInternalServerError, "error.common.internal_error")
 			return
 		}
 		if result.RowsAffected == 0 {
-			respondError(c, http.StatusNotFound, "user not found")
+			respondErrori18n(c, http.StatusNotFound, "error.user.not_found")
 			return
 		}
 		respondSuccess(c, gin.H{"message": "user deleted", "id": id})
@@ -122,19 +122,19 @@ func UpdateUserRole(db *gorm.DB) gin.HandlerFunc {
 			RoleID string `json:"role_id" binding:"required"`
 		}
 		if err := c.ShouldBindJSON(&input); err != nil {
-			respondError(c, http.StatusBadRequest, "invalid request: "+err.Error())
+			respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request", err.Error())
 			return
 		}
 
 		// Validate role exists
 		var role model.Role
 		if err := db.Where("id = ?", input.RoleID).First(&role).Error; err != nil {
-			respondError(c, http.StatusBadRequest, "invalid role_id")
+			respondErrori18n(c, http.StatusBadRequest, "error.user.invalid_role_id")
 			return
 		}
 
 		if err := db.Model(&model.User{}).Where("id = ?", id).Update("role_id", input.RoleID).Error; err != nil {
-			respondError(c, http.StatusInternalServerError, err.Error())
+			respondErrori18n(c, http.StatusInternalServerError, "error.common.internal_error")
 			return
 		}
 		respondSuccess(c, gin.H{"user_id": id, "role_id": input.RoleID, "role_name": role.Name})
@@ -155,7 +155,7 @@ func ListRoles(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var roles []model.Role
 		if err := db.Find(&roles).Error; err != nil {
-			respondError(c, http.StatusInternalServerError, err.Error())
+			respondErrori18n(c, http.StatusInternalServerError, "error.common.internal_error")
 			return
 		}
 		if roles == nil {

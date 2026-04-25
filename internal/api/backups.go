@@ -90,7 +90,7 @@ func ListAuditLogs(auditSvc *service.AuditService) gin.HandlerFunc {
 
 		logs, total, err := auditSvc.List(c.Request.Context(), filter)
 		if err != nil {
-			respondError(c, http.StatusInternalServerError, err.Error())
+			respondErrori18n(c, http.StatusInternalServerError, "error.common.internal_error")
 			return
 		}
 		respondSuccess(c, gin.H{

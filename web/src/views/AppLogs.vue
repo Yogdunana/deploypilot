@@ -9,9 +9,11 @@ import Button from '@/components/ui/Button.vue'
 import Switch from '@/components/ui/Switch.vue'
 import * as appsApi from '@/api/modules/apps'
 import { useWebSocket } from '@/composables/useWebSocket'
+import { useI18n } from 'vue-i18n'
 
 const props = defineProps<{ id: string }>()
 const router = useRouter()
+const { t } = useI18n()
 const { toast } = inject<any>('toast')!
 
 const appName = ref('')
@@ -56,11 +58,11 @@ async function loadHistory() {
           data: line,
         }))
         logs.value = [...historyLogs, ...logs.value]
-        toast(`已加载 ${historyLogs.length} 条历史日志`, 'success')
+        toast(t('appLogs.historyLogsLoaded', { count: historyLogs.length }), 'success')
       }
     }
   } catch (err: any) {
-    toast(err.response?.data?.message || '加载历史日志失败', 'destructive')
+    toast(err.response?.data?.message || t('appLogs.loadFailed'), 'destructive')
   } finally {
     loadingHistory.value = false
   }
@@ -100,7 +102,7 @@ onMounted(() => {
           <div>
             <div class="flex items-center gap-2">
               <h1 class="text-xl font-semibold text-foreground">
-                应用日志 - {{ appName || '加载中...' }}
+                {{ t('appLogs.title', { name: appName }) }}
               </h1>
               <span
                 class="inline-block w-2 h-2 rounded-full"
@@ -108,7 +110,7 @@ onMounted(() => {
               />
             </div>
             <p class="mt-0.5 text-sm text-muted-foreground">
-              {{ connected ? '实时日志已连接' : '实时日志未连接' }}
+              {{ connected ? t('appLogs.following') : t('appLogs.paused') }}
             </p>
           </div>
         </div>
@@ -117,7 +119,7 @@ onMounted(() => {
         <!-- 实时日志开关 -->
         <div class="flex items-center gap-2">
           <Radio class="w-4 h-4 text-muted-foreground" />
-          <span class="text-sm text-muted-foreground">实时日志</span>
+          <span class="text-sm text-muted-foreground">{{ t('appLogs.following') }}</span>
           <Switch v-model="realtimeEnabled" @update:model-value="toggleRealtime" />
         </div>
       </template>
@@ -127,11 +129,11 @@ onMounted(() => {
     <div class="flex items-center gap-2">
       <Button variant="outline" size="sm" :loading="loadingHistory" @click="loadHistory">
         <template #icon><History class="w-4 h-4" /></template>
-        加载历史日志
+        {{ t('appLogs.loadHistoryLogs') }}
       </Button>
       <Button variant="outline" size="sm" @click="clearLogs">
         <template #icon><Trash2 class="w-4 h-4" /></template>
-        清空
+        {{ t('appLogs.clear') }}
       </Button>
     </div>
 

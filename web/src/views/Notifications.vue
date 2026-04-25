@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, inject, onMounted } from 'vue'
+import { ref, computed, inject, onMounted } from 'vue'
 import { Plus, MoreHorizontal, Pencil, Trash2, Bell } from 'lucide-vue-next'
 import PageHeader from '@/components/common/PageHeader.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
@@ -17,8 +17,10 @@ import DropdownMenu from '@/components/ui/DropdownMenu.vue'
 import Skeleton from '@/components/ui/Skeleton.vue'
 import * as notificationsApi from '@/api/modules/notifications'
 import type { Notification } from '@/types/models'
+import { useI18n } from 'vue-i18n'
 
 const { toast } = inject<any>('toast')!
+const { t } = useI18n()
 
 // State
 const notifications = ref<Notification[]>([])
@@ -26,7 +28,7 @@ const loading = ref(true)
 
 // Dialog
 const dialogOpen = ref(false)
-const dialogTitle = ref('创建通知')
+const dialogTitle = ref(t('notifications.createTitle'))
 const editingId = ref<number | null>(null)
 const formName = ref('')
 const formType = ref('')
@@ -41,29 +43,29 @@ const deletingItem = ref<Notification | null>(null)
 const deleting = ref(false)
 
 // Type options
-const typeOptions = [
-  { label: '钉钉', value: 'dingtalk' },
-  { label: '飞书', value: 'feishu' },
+const typeOptions = computed(() => [
+  { label: t('notifications.dingtalk'), value: 'dingtalk' },
+  { label: t('notifications.feishu'), value: 'feishu' },
   { label: 'Telegram', value: 'telegram' },
-  { label: '邮件', value: 'email' },
-]
+  { label: t('notifications.email'), value: 'email' },
+])
 
 // Table columns
-const columns = [
-  { key: 'name', label: '名称' },
-  { key: 'type', label: '类型' },
-  { key: 'enabled', label: '启用状态' },
-  { key: 'created_at', label: '创建时间' },
-  { key: 'actions', label: '操作', width: '80px' },
-]
+const columns = computed(() => [
+  { key: 'name', label: t('notifications.name') },
+  { key: 'type', label: t('notifications.type') },
+  { key: 'enabled', label: t('notifications.enabledStatus') },
+  { key: 'created_at', label: t('notifications.createdAt') },
+  { key: 'actions', label: t('notifications.actions'), width: '80px' },
+])
 
 // Type badge mapping
 function getTypeBadge(type: string) {
   const map: Record<string, { variant: 'default' | 'secondary' | 'outline' | 'success' | 'warning'; label: string }> = {
-    dingtalk: { variant: 'default', label: '钉钉' },
-    feishu: { variant: 'success', label: '飞书' },
+    dingtalk: { variant: 'default', label: t('notifications.dingtalk') },
+    feishu: { variant: 'success', label: t('notifications.feishu') },
     telegram: { variant: 'warning', label: 'Telegram' },
-    email: { variant: 'outline', label: '邮件' },
+    email: { variant: 'outline', label: t('notifications.email') },
   }
   return map[type] || { variant: 'secondary' as const, label: type }
 }
@@ -79,7 +81,7 @@ function validateConfig(val: string) {
     configError.value = ''
     return true
   } catch {
-    configError.value = 'JSON 格式不正确'
+    configError.value = t('notifications.jsonInvalid')
     return false
   }
 }
@@ -93,7 +95,7 @@ async function fetchNotifications() {
       notifications.value = res.data.data
     }
   } catch (err: any) {
-    toast(err.response?.data?.message || '获取通知渠道列表失败', 'destructive')
+    toast(err.response?.data?.message || t('notifications.fetchFailed'), 'destructive')
   } finally {
     loading.value = false
   }
@@ -102,7 +104,7 @@ async function fetchNotifications() {
 // Open create dialog
 function openCreateDialog() {
   editingId.value = null
-  dialogTitle.value = '创建通知'
+  dialogTitle.value = t('notifications.createTitle')
   formName.value = ''
   formType.value = ''
   formConfig.value = ''
@@ -114,7 +116,7 @@ function openCreateDialog() {
 // Open edit dialog
 function openEditDialog(item: Notification) {
   editingId.value = item.id
-  dialogTitle.value = '编辑通知'
+  dialogTitle.value = t('notifications.editTitle')
   formName.value = item.name
   formType.value = item.type
   formConfig.value = JSON.stringify(item.config, null, 2)
@@ -126,11 +128,11 @@ function openEditDialog(item: Notification) {
 // Submit form
 async function handleSubmit() {
   if (!formName.value || !formType.value) {
-    toast('请填写名称和类型', 'destructive')
+    toast(t('notifications.nameRequired'), 'destructive')
     return
   }
   if (!validateConfig(formConfig.value)) {
-    toast('请输入正确的 JSON 配置', 'destructive')
+    toast(t('notifications.correctJson'), 'destructive')
     return
   }
   submitting.value = true
@@ -142,15 +144,15 @@ async function handleSubmit() {
     const data = { name: formName.value, type: formType.value, config, enabled: formEnabled.value }
     if (editingId.value) {
       await notificationsApi.update(editingId.value, data)
-      toast('通知渠道已更新', 'success')
+      toast(t('notifications.updated'), 'success')
     } else {
       await notificationsApi.create(data)
-      toast('通知渠道已创建', 'success')
+      toast(t('notifications.created'), 'success')
     }
     dialogOpen.value = false
     fetchNotifications()
   } catch (err: any) {
-    toast(err.response?.data?.message || '操作失败', 'destructive')
+    toast(err.response?.data?.message || t('common.operationFailed'), 'destructive')
   } finally {
     submitting.value = false
   }
@@ -161,9 +163,9 @@ async function handleToggleEnabled(item: Notification) {
   try {
     await notificationsApi.update(item.id, { enabled: !item.enabled })
     item.enabled = !item.enabled
-    toast(`通知渠道「${item.name}」已${item.enabled ? '启用' : '禁用'}`, 'success')
+    toast(t('notifications.toggled', { name: item.name, status: item.enabled ? t('notifications.enabled') : t('notifications.disabled') }), 'success')
   } catch (err: any) {
-    toast(err.response?.data?.message || '更新状态失败', 'destructive')
+    toast(err.response?.data?.message || t('notifications.toggleFailed'), 'destructive')
   }
 }
 
@@ -178,10 +180,10 @@ async function confirmDelete() {
   deleting.value = true
   try {
     await notificationsApi.deleteNotification(deletingItem.value.id)
-    toast(`通知渠道「${deletingItem.value.name}」已删除`, 'success')
+    toast(t('notifications.deleted', { name: deletingItem.value.name }), 'success')
     fetchNotifications()
   } catch (err: any) {
-    toast(err.response?.data?.message || '删除失败', 'destructive')
+    toast(err.response?.data?.message || t('notifications.deleteFailed'), 'destructive')
   } finally {
     deleting.value = false
     deletingItem.value = null
@@ -190,8 +192,8 @@ async function confirmDelete() {
 
 function getDropdownItems(item: Notification) {
   return [
-    { label: '编辑', icon: Pencil, action: () => openEditDialog(item) },
-    { label: '删除', icon: Trash2, danger: true, action: () => openDeleteDialog(item) },
+    { label: t('notifications.edit'), icon: Pencil, action: () => openEditDialog(item) },
+    { label: t('notifications.delete'), icon: Trash2, danger: true, action: () => openDeleteDialog(item) },
   ]
 }
 
@@ -201,11 +203,11 @@ onMounted(fetchNotifications)
 <template>
   <div class="p-6 space-y-4">
     <!-- Header -->
-    <PageHeader title="通知渠道">
+    <PageHeader :title="t('notifications.title')">
       <template #actions>
         <Button @click="openCreateDialog">
           <template #icon><Plus class="w-4 h-4" /></template>
-          创建通知
+          {{ t('notifications.addProvider') }}
         </Button>
       </template>
     </PageHeader>
@@ -256,9 +258,9 @@ onMounted(fetchNotifications)
     <EmptyState
       v-else
       :icon="Bell"
-      title="暂无通知渠道"
-      description="点击上方按钮创建你的第一个通知渠道"
-      action-text="创建通知"
+      :title="t('notifications.noProviders')"
+      :description="t('notifications.noProvidersDesc')"
+      :action-text="t('notifications.addProvider')"
       @action="openCreateDialog"
     />
 
@@ -266,19 +268,19 @@ onMounted(fetchNotifications)
     <Dialog
       v-model:open="dialogOpen"
       :title="dialogTitle"
-      description="配置通知渠道"
+      :description="t('notifications.configDesc')"
     >
       <div class="space-y-4">
         <div class="space-y-2">
-          <label class="text-sm font-medium text-foreground">名称</label>
-          <Input v-model="formName" placeholder="输入通知渠道名称" />
+          <label class="text-sm font-medium text-foreground">{{ t('notifications.name') }}</label>
+          <Input v-model="formName" :placeholder="t('notifications.namePlaceholder')" />
         </div>
         <div class="space-y-2">
-          <label class="text-sm font-medium text-foreground">类型</label>
-          <Select v-model="formType" :options="typeOptions" placeholder="选择通知类型" />
+          <label class="text-sm font-medium text-foreground">{{ t('notifications.type') }}</label>
+          <Select v-model="formType" :options="typeOptions" :placeholder="t('notifications.typePlaceholder')" />
         </div>
         <div class="space-y-2">
-          <label class="text-sm font-medium text-foreground">配置（JSON 格式）</label>
+          <label class="text-sm font-medium text-foreground">{{ t('notifications.config') }}</label>
           <Textarea
             v-model="formConfig"
             placeholder='{"webhook": "https://oapi.dingtalk.com/robot/send?access_token=xxx"}'
@@ -290,12 +292,12 @@ onMounted(fetchNotifications)
         </div>
         <div class="flex items-center gap-2">
           <Switch v-model="formEnabled" />
-          <label class="text-sm text-foreground">启用</label>
+          <label class="text-sm text-foreground">{{ t('notifications.enabled') }}</label>
         </div>
         <div class="flex justify-end gap-2 pt-2">
-          <Button variant="outline" @click="dialogOpen = false">取消</Button>
+          <Button variant="outline" @click="dialogOpen = false">{{ t('common.cancel') }}</Button>
           <Button :loading="submitting" @click="handleSubmit">
-            {{ editingId ? '保存' : '创建' }}
+            {{ editingId ? t('common.saveText') : t('common.createText') }}
           </Button>
         </div>
       </div>
@@ -304,10 +306,10 @@ onMounted(fetchNotifications)
     <!-- Delete AlertDialog -->
     <AlertDialog
       v-model:open="deleteDialogOpen"
-      title="删除通知渠道"
-      :description="`确定要删除通知渠道「${deletingItem?.name}」吗？此操作不可撤销。`"
-      confirm-text="删除"
-      cancel-text="取消"
+      :title="t('notifications.deleteConfirm')"
+      :description="t('notifications.deleteConfirmDesc', { name: deletingItem?.name || '' })"
+      :confirm-text="t('notifications.delete')"
+      :cancel-text="t('common.cancel')"
       variant="destructive"
       @confirm="confirmDelete"
     />

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, inject, onMounted } from 'vue'
+import { ref, computed, inject, onMounted } from 'vue'
 import { RefreshCw } from 'lucide-vue-next'
 import PageHeader from '@/components/common/PageHeader.vue'
 import Badge from '@/components/ui/Badge.vue'
@@ -9,8 +9,10 @@ import Skeleton from '@/components/ui/Skeleton.vue'
 import { usePolling } from '@/composables/usePolling'
 import * as monitorApi from '@/api/modules/monitor'
 import type { AlertRule } from '@/types/models'
+import { useI18n } from 'vue-i18n'
 
 const { toast } = inject<any>('toast')!
+const { t } = useI18n()
 
 // 轮询告警规则列表
 const { data: rules, loading, refresh } = usePolling<AlertRule[]>({
@@ -26,21 +28,21 @@ const { data: rules, loading, refresh } = usePolling<AlertRule[]>({
 })
 
 // 表格列
-const columns = [
-  { key: 'name', label: '规则名' },
-  { key: 'type', label: '指标类型' },
-  { key: 'condition', label: '条件' },
-  { key: 'threshold', label: '阈值' },
-  { key: 'level', label: '严重程度' },
-  { key: 'enabled', label: '启用状态' },
-]
+const columns = computed(() => [
+  { key: 'name', label: t('monitorAlertRules.name') },
+  { key: 'type', label: t('monitorAlertRules.metric') },
+  { key: 'condition', label: t('monitorAlertRules.condition') },
+  { key: 'threshold', label: t('monitorAlertRules.threshold') },
+  { key: 'level', label: t('monitorAlertRules.severity') },
+  { key: 'enabled', label: t('monitorAlertRules.enabled') },
+])
 
 // 格式化条件
 function formatCondition(condition: Record<string, any>): string {
   if (!condition) return '-'
   const op = condition.operator || condition.op || ''
   const value = condition.value ?? ''
-  const duration = condition.duration ? ` 持续 ${condition.duration}s` : ''
+  const duration = condition.duration ? ` ${t('monitorAlertRules.duration')} ${condition.duration}s` : ''
   return `${op} ${value}${duration}`
 }
 
@@ -55,11 +57,11 @@ function getLevelBadge(level: string) {
   const l = (level || '').toLowerCase()
   switch (l) {
     case 'critical':
-      return { variant: 'destructive' as const, label: '严重' }
+      return { variant: 'destructive' as const, label: t('monitorAlertRules.critical') }
     case 'warning':
-      return { variant: 'warning' as const, label: '警告' }
+      return { variant: 'warning' as const, label: t('monitorAlertRules.warning') }
     case 'info':
-      return { variant: 'default' as const, label: '信息' }
+      return { variant: 'default' as const, label: t('monitorAlertRules.info') }
     default:
       return { variant: 'secondary' as const, label: l || '-' }
   }
@@ -69,9 +71,9 @@ function getLevelBadge(level: string) {
 async function handleRefresh() {
   try {
     await refresh()
-    toast('数据已刷新', 'success')
+    toast(t('monitorAlertRules.dataRefreshed'), 'success')
   } catch {
-    toast('刷新失败', 'destructive')
+    toast(t('monitorAlertRules.refreshFailed'), 'destructive')
   }
 }
 </script>
@@ -79,11 +81,11 @@ async function handleRefresh() {
 <template>
   <div class="p-6 space-y-4">
     <!-- 页面头部 -->
-    <PageHeader title="告警规则" description="系统告警规则配置（只读）">
+    <PageHeader :title="t('monitorAlertRules.title')" :description="t('monitorAlertRules.description')">
       <template #actions>
         <Button variant="outline" size="sm" :loading="loading" @click="handleRefresh">
           <template #icon><RefreshCw class="w-4 h-4" /></template>
-          刷新
+          {{ t('monitorAlertRules.refresh') }}
         </Button>
       </template>
     </PageHeader>
@@ -117,7 +119,7 @@ async function handleRefresh() {
       </template>
       <template #cell-enabled="{ row }">
         <Badge :variant="row.enabled ? 'success' : 'destructive'">
-          {{ row.enabled ? '已启用' : '已禁用' }}
+          {{ row.enabled ? t('monitorAlertRules.enabledStatus') : t('monitorAlertRules.disabledStatus') }}
         </Badge>
       </template>
     </Table>

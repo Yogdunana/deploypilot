@@ -31,21 +31,21 @@ func Register(db *gorm.DB) gin.HandlerFunc {
 			Password string `json:"password" binding:"required"`
 		}
 		if err := c.ShouldBindJSON(&input); err != nil {
-			respondError(c, http.StatusBadRequest, "invalid request: "+err.Error())
+			respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request", err.Error())
 			return
 		}
 
 		// Check if username or email already exists
 		var existing model.User
 		if err := db.Where("username = ? OR email = ?", input.Username, input.Email).First(&existing).Error; err == nil {
-			respondError(c, http.StatusConflict, "username or email already exists")
+			respondErrori18n(c, http.StatusConflict, "error.auth.username_or_email_exists")
 			return
 		}
 
 		// Hash password
 		hash, err := crypto.HashPassword(input.Password)
 		if err != nil {
-			respondError(c, http.StatusInternalServerError, "failed to hash password")
+			respondErrori18n(c, http.StatusInternalServerError, "error.auth.failed_to_hash_password")
 			return
 		}
 
@@ -59,14 +59,14 @@ func Register(db *gorm.DB) gin.HandlerFunc {
 		}
 
 		if err := db.Create(&user).Error; err != nil {
-			respondError(c, http.StatusInternalServerError, err.Error())
+			respondErrori18n(c, http.StatusInternalServerError, "error.common.internal_error")
 			return
 		}
 
 		// Generate token
 		token, err := auth.GenerateToken(user.ID, "viewer")
 		if err != nil {
-			respondError(c, http.StatusInternalServerError, "failed to generate token")
+			respondErrori18n(c, http.StatusInternalServerError, "error.auth.failed_to_generate_token")
 			return
 		}
 
@@ -102,18 +102,18 @@ func Login(db *gorm.DB) gin.HandlerFunc {
 			Password string `json:"password" binding:"required"`
 		}
 		if err := c.ShouldBindJSON(&input); err != nil {
-			respondError(c, http.StatusBadRequest, "invalid request: "+err.Error())
+			respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request", err.Error())
 			return
 		}
 
 		var user model.User
 		if err := db.Where("username = ?", input.Username).First(&user).Error; err != nil {
-			respondError(c, http.StatusUnauthorized, "invalid credentials")
+			respondErrori18n(c, http.StatusUnauthorized, "error.auth.invalid_credentials")
 			return
 		}
 
 		if !crypto.CheckPassword(input.Password, user.PasswordHash) {
-			respondError(c, http.StatusUnauthorized, "invalid credentials")
+			respondErrori18n(c, http.StatusUnauthorized, "error.auth.invalid_credentials")
 			return
 		}
 
@@ -126,7 +126,7 @@ func Login(db *gorm.DB) gin.HandlerFunc {
 
 		token, err := auth.GenerateToken(user.ID, roleName)
 		if err != nil {
-			respondError(c, http.StatusInternalServerError, "failed to generate token")
+			respondErrori18n(c, http.StatusInternalServerError, "error.auth.failed_to_generate_token")
 			return
 		}
 

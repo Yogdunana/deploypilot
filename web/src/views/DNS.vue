@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, inject, onMounted } from 'vue'
+import { ref, computed, inject, onMounted } from 'vue'
 import { Plus, MoreHorizontal, Pencil, Trash2, Search, Globe } from 'lucide-vue-next'
 import PageHeader from '@/components/common/PageHeader.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
@@ -16,8 +16,10 @@ import Pagination from '@/components/ui/Pagination.vue'
 import Skeleton from '@/components/ui/Skeleton.vue'
 import * as dnsApi from '@/api/modules/dns'
 import type { DNSRecord } from '@/types/models'
+import { useI18n } from 'vue-i18n'
 
 const { toast } = inject<any>('toast')!
+const { t } = useI18n()
 
 // State
 const records = ref<DNSRecord[]>([])
@@ -29,7 +31,7 @@ const domainFilter = ref('')
 
 // Dialog
 const dialogOpen = ref(false)
-const dialogTitle = ref('创建记录')
+const dialogTitle = ref(t('dns.createTitle'))
 const editingId = ref<number | null>(null)
 const formDomain = ref('')
 const formSubdomain = ref('')
@@ -51,14 +53,14 @@ const typeOptions = [
 ]
 
 // Table columns
-const columns = [
-  { key: 'domain', label: '域名' },
-  { key: 'subdomain', label: '子域名' },
-  { key: 'type', label: '类型' },
-  { key: 'value', label: '值' },
-  { key: 'created_at', label: '创建时间' },
-  { key: 'actions', label: '操作', width: '80px' },
-]
+const columns = computed(() => [
+  { key: 'domain', label: t('dns.domain') },
+  { key: 'subdomain', label: t('dns.subdomain') },
+  { key: 'type', label: t('dns.type') },
+  { key: 'value', label: t('dns.value') },
+  { key: 'created_at', label: t('dns.createdAt') },
+  { key: 'actions', label: t('dns.actions'), width: '80px' },
+])
 
 // Type badge mapping
 function getTypeBadge(type: string) {
@@ -81,7 +83,7 @@ async function fetchRecords() {
       total.value = res.data.pagination?.total || 0
     }
   } catch (err: any) {
-    toast(err.response?.data?.message || '获取 DNS 记录失败', 'destructive')
+    toast(err.response?.data?.message || t('dns.fetchFailed'), 'destructive')
   } finally {
     loading.value = false
   }
@@ -96,7 +98,7 @@ function handleSearch() {
 // Open create dialog
 function openCreateDialog() {
   editingId.value = null
-  dialogTitle.value = '创建记录'
+  dialogTitle.value = t('dns.createTitle')
   formDomain.value = ''
   formSubdomain.value = ''
   formType.value = ''
@@ -107,7 +109,7 @@ function openCreateDialog() {
 // Open edit dialog
 function openEditDialog(item: DNSRecord) {
   editingId.value = item.id
-  dialogTitle.value = '编辑记录'
+  dialogTitle.value = t('dns.editTitle')
   formDomain.value = item.domain
   formSubdomain.value = item.subdomain
   formType.value = item.type
@@ -118,7 +120,7 @@ function openEditDialog(item: DNSRecord) {
 // Submit form
 async function handleSubmit() {
   if (!formDomain.value || !formType.value || !formValue.value) {
-    toast('请填写域名、类型和值', 'destructive')
+    toast(t('dns.domainRequired'), 'destructive')
     return
   }
   submitting.value = true
@@ -126,15 +128,15 @@ async function handleSubmit() {
     const data = { domain: formDomain.value, subdomain: formSubdomain.value, type: formType.value, value: formValue.value }
     if (editingId.value) {
       await dnsApi.updateRecord(editingId.value, data)
-      toast('DNS 记录已更新', 'success')
+      toast(t('dns.updated'), 'success')
     } else {
       await dnsApi.createRecord(data)
-      toast('DNS 记录已创建', 'success')
+      toast(t('dns.created'), 'success')
     }
     dialogOpen.value = false
     fetchRecords()
   } catch (err: any) {
-    toast(err.response?.data?.message || '操作失败', 'destructive')
+    toast(err.response?.data?.message || t('common.operationFailed'), 'destructive')
   } finally {
     submitting.value = false
   }
@@ -151,10 +153,10 @@ async function confirmDelete() {
   deleting.value = true
   try {
     await dnsApi.deleteRecord(deletingItem.value.id)
-    toast(`DNS 记录「${deletingItem.value.subdomain}.${deletingItem.value.domain}」已删除`, 'success')
+    toast(t('dns.deleted', { record: `${deletingItem.value.subdomain}.${deletingItem.value.domain}` }), 'success')
     fetchRecords()
   } catch (err: any) {
-    toast(err.response?.data?.message || '删除失败', 'destructive')
+    toast(err.response?.data?.message || t('dns.deleteFailed'), 'destructive')
   } finally {
     deleting.value = false
     deletingItem.value = null
@@ -163,8 +165,8 @@ async function confirmDelete() {
 
 function getDropdownItems(item: DNSRecord) {
   return [
-    { label: '编辑', icon: Pencil, action: () => openEditDialog(item) },
-    { label: '删除', icon: Trash2, danger: true, action: () => openDeleteDialog(item) },
+    { label: t('dns.edit'), icon: Pencil, action: () => openEditDialog(item) },
+    { label: t('dns.delete'), icon: Trash2, danger: true, action: () => openDeleteDialog(item) },
   ]
 }
 
@@ -174,11 +176,11 @@ onMounted(fetchRecords)
 <template>
   <div class="p-6 space-y-4">
     <!-- Header -->
-    <PageHeader title="DNS 记录">
+    <PageHeader :title="t('dns.title')">
       <template #actions>
         <Button @click="openCreateDialog">
           <template #icon><Plus class="w-4 h-4" /></template>
-          创建记录
+          {{ t('dns.addRecord') }}
         </Button>
       </template>
     </PageHeader>
@@ -189,12 +191,12 @@ onMounted(fetchRecords)
         <Search class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
         <Input
           v-model="domainFilter"
-          placeholder="按域名筛选..."
+          :placeholder="t('dns.searchPlaceholder')"
           class="pl-9"
           @keyup.enter="handleSearch"
         />
       </div>
-      <Button variant="outline" size="sm" @click="handleSearch">搜索</Button>
+      <Button variant="outline" size="sm" @click="handleSearch">{{ t('dns.search') }}</Button>
     </div>
 
     <!-- Loading skeleton -->
@@ -247,9 +249,9 @@ onMounted(fetchRecords)
     <EmptyState
       v-else
       :icon="Globe"
-      title="暂无 DNS 记录"
-      description="点击上方按钮创建你的第一条 DNS 记录"
-      action-text="创建记录"
+      :title="t('dns.noRecords')"
+      :description="t('dns.noRecordsDesc')"
+      :action-text="t('dns.addRecord')"
       @action="openCreateDialog"
     />
 
@@ -267,29 +269,29 @@ onMounted(fetchRecords)
     <Dialog
       v-model:open="dialogOpen"
       :title="dialogTitle"
-      description="配置 DNS 记录"
+      :description="t('dns.configDesc')"
     >
       <div class="space-y-4">
         <div class="space-y-2">
-          <label class="text-sm font-medium text-foreground">域名</label>
-          <Input v-model="formDomain" placeholder="example.com" />
+          <label class="text-sm font-medium text-foreground">{{ t('dns.domain') }}</label>
+          <Input v-model="formDomain" :placeholder="t('dns.domainPlaceholder')" />
         </div>
         <div class="space-y-2">
-          <label class="text-sm font-medium text-foreground">子域名</label>
-          <Input v-model="formSubdomain" placeholder="www（可选）" />
+          <label class="text-sm font-medium text-foreground">{{ t('dns.subdomain') }}</label>
+          <Input v-model="formSubdomain" :placeholder="t('dns.subdomainPlaceholder')" />
         </div>
         <div class="space-y-2">
-          <label class="text-sm font-medium text-foreground">类型</label>
-          <Select v-model="formType" :options="typeOptions" placeholder="选择记录类型" />
+          <label class="text-sm font-medium text-foreground">{{ t('dns.type') }}</label>
+          <Select v-model="formType" :options="typeOptions" :placeholder="t('dns.typePlaceholder')" />
         </div>
         <div class="space-y-2">
-          <label class="text-sm font-medium text-foreground">值</label>
-          <Input v-model="formValue" placeholder="记录值" />
+          <label class="text-sm font-medium text-foreground">{{ t('dns.value') }}</label>
+          <Input v-model="formValue" :placeholder="t('dns.valuePlaceholder')" />
         </div>
         <div class="flex justify-end gap-2 pt-2">
-          <Button variant="outline" @click="dialogOpen = false">取消</Button>
+          <Button variant="outline" @click="dialogOpen = false">{{ t('common.cancel') }}</Button>
           <Button :loading="submitting" @click="handleSubmit">
-            {{ editingId ? '保存' : '创建' }}
+            {{ editingId ? t('common.saveText') : t('common.createText') }}
           </Button>
         </div>
       </div>
@@ -298,10 +300,10 @@ onMounted(fetchRecords)
     <!-- Delete AlertDialog -->
     <AlertDialog
       v-model:open="deleteDialogOpen"
-      title="删除 DNS 记录"
-      :description="`确定要删除记录「${deletingItem?.subdomain}.${deletingItem?.domain}」吗？此操作不可撤销。`"
-      confirm-text="删除"
-      cancel-text="取消"
+      :title="t('dns.deleteConfirm')"
+      :description="t('dns.deleteConfirmDesc', { record: `${deletingItem?.subdomain || ''}.${deletingItem?.domain || ''}` })"
+      :confirm-text="t('dns.delete')"
+      :cancel-text="t('common.cancel')"
       variant="destructive"
       @confirm="confirmDelete"
     />

@@ -1,14 +1,15 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
 import Card from '@/components/ui/Card.vue'
 import Input from '@/components/ui/Input.vue'
 import Button from '@/components/ui/Button.vue'
-import { Rocket } from 'lucide-vue-next'
 
 const router = useRouter()
 const authStore = useAuthStore()
+const { t } = useI18n()
 
 const username = ref('')
 const password = ref('')
@@ -19,11 +20,11 @@ async function handleLogin() {
   error.value = ''
 
   if (!username.value.trim()) {
-    error.value = '请输入用户名'
+    error.value = t('login.usernameRequired')
     return
   }
   if (!password.value) {
-    error.value = '请输入密码'
+    error.value = t('login.passwordRequired')
     return
   }
 
@@ -32,7 +33,7 @@ async function handleLogin() {
     await authStore.login({ username: username.value.trim(), password: password.value })
     router.push('/dashboard')
   } catch (err: any) {
-    const msg = err?.response?.data?.message || err?.message || '登录失败，请检查用户名和密码'
+    const msg = err?.response?.data?.message || err?.message || t('login.failed')
     error.value = msg
   } finally {
     loading.value = false
@@ -51,11 +52,9 @@ function handleKeydown(e: KeyboardEvent) {
     <div class="w-full max-w-sm">
       <!-- Logo & Title -->
       <div class="text-center mb-8">
-        <div class="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-primary/10 mb-4">
-          <Rocket class="w-6 h-6 text-primary" />
-        </div>
+        <img src="/logo.png" alt="DeployPilot" class="h-12 mx-auto mb-4" />
         <h1 class="text-2xl font-bold text-foreground">DeployPilot</h1>
-        <p class="mt-1 text-sm text-muted-foreground">登录到 DeployPilot</p>
+        <p class="mt-1 text-sm text-muted-foreground">{{ t('login.title') }}</p>
       </div>
 
       <!-- Login Card -->
@@ -63,10 +62,10 @@ function handleKeydown(e: KeyboardEvent) {
         <form class="space-y-4" @submit.prevent="handleLogin">
           <!-- Username -->
           <div>
-            <label class="block text-sm font-medium text-foreground mb-1.5">用户名</label>
+            <label class="block text-sm font-medium text-foreground mb-1.5">{{ t('login.username') }}</label>
             <Input
               v-model="username"
-              placeholder="请输入用户名"
+              :placeholder="t('login.usernamePlaceholder')"
               :error="!!error"
               @keydown="handleKeydown"
             />
@@ -74,11 +73,11 @@ function handleKeydown(e: KeyboardEvent) {
 
           <!-- Password -->
           <div>
-            <label class="block text-sm font-medium text-foreground mb-1.5">密码</label>
+            <label class="block text-sm font-medium text-foreground mb-1.5">{{ t('login.password') }}</label>
             <Input
               v-model="password"
               type="password"
-              placeholder="请输入密码"
+              :placeholder="t('login.passwordPlaceholder')"
               :error="!!error"
               @keydown="handleKeydown"
             />
@@ -97,14 +96,14 @@ function handleKeydown(e: KeyboardEvent) {
             :loading="loading"
             :disabled="loading"
           >
-            登录
+            {{ t('login.submit') }}
           </Button>
 
           <!-- Register Link -->
           <p class="text-center text-sm text-muted-foreground pt-2">
-            还没有账号？
+            {{ t('login.noAccount') }}
             <RouterLink to="/register" class="text-primary hover:underline font-medium">
-              立即注册
+              {{ t('login.signupNow') }}
             </RouterLink>
           </p>
         </form>

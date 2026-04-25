@@ -7,9 +7,11 @@ import Button from '@/components/ui/Button.vue'
 import Input from '@/components/ui/Input.vue'
 import Skeleton from '@/components/ui/Skeleton.vue'
 import * as appsApi from '@/api/modules/apps'
+import { useI18n } from 'vue-i18n'
 
 const props = defineProps<{ id: string }>()
 const router = useRouter()
+const { t } = useI18n()
 const { toast } = inject<any>('toast')!
 
 const appName = ref('')
@@ -40,7 +42,7 @@ async function fetchEnv() {
       }))
     }
   } catch (err: any) {
-    toast(err.response?.data?.message || '加载环境变量失败', 'destructive')
+    toast(err.response?.data?.message || t('appEnv.loadFailed'), 'destructive')
   } finally {
     loading.value = false
   }
@@ -71,7 +73,7 @@ async function saveEnv() {
   // 验证
   const emptyKeys = envList.value.filter((item) => !item.key.trim())
   if (emptyKeys.length > 0) {
-    toast('存在空的变量名', 'destructive')
+    toast(t('appEnv.emptyVarName'), 'destructive')
     return
   }
 
@@ -79,7 +81,7 @@ async function saveEnv() {
   const keys = envList.value.map((item) => item.key.trim())
   const duplicates = keys.filter((key, index) => keys.indexOf(key) !== index)
   if (duplicates.length > 0) {
-    toast(`存在重复的变量名: ${duplicates.join(', ')}`, 'destructive')
+    toast(t('appEnv.duplicateVarName', { names: duplicates.join(', ') }), 'destructive')
     return
   }
 
@@ -93,9 +95,9 @@ async function saveEnv() {
     })
 
     await appsApi.updateEnv(Number(props.id), { env_vars: JSON.stringify(envObject) })
-    toast('环境变量保存成功', 'success')
+    toast(t('appEnv.saved'), 'success')
   } catch (err: any) {
-    toast(err.response?.data?.message || '保存环境变量失败', 'destructive')
+    toast(err.response?.data?.message || t('appEnv.saveFailed'), 'destructive')
   } finally {
     saving.value = false
   }
@@ -130,10 +132,10 @@ onMounted(() => {
           </Button>
           <div>
             <h1 class="text-xl font-semibold text-foreground">
-              环境变量 - {{ appName || '加载中...' }}
+              {{ t('appEnv.title', { name: appName }) }}
             </h1>
             <p class="mt-0.5 text-sm text-muted-foreground">
-              共 {{ envList.length }} 个变量
+              {{ t('appEnv.totalVars', { count: envList.length }) }}
             </p>
           </div>
         </div>
@@ -141,7 +143,7 @@ onMounted(() => {
       <template #actions>
         <Button :loading="saving" @click="saveEnv">
           <template #icon><Save class="w-4 h-4" /></template>
-          保存
+          {{ t('appEnv.saved') }}
         </Button>
       </template>
     </PageHeader>
@@ -155,9 +157,9 @@ onMounted(() => {
     <div v-else class="space-y-2">
       <!-- 表头 -->
       <div class="grid grid-cols-[1fr_1fr_80px] gap-3 px-1">
-        <span class="text-xs font-medium text-muted-foreground uppercase tracking-wider">Key</span>
-        <span class="text-xs font-medium text-muted-foreground uppercase tracking-wider">Value</span>
-        <span class="text-xs font-medium text-muted-foreground uppercase tracking-wider text-center">操作</span>
+        <span class="text-xs font-medium text-muted-foreground uppercase tracking-wider">{{ t('appEnv.key') }}</span>
+        <span class="text-xs font-medium text-muted-foreground uppercase tracking-wider">{{ t('appEnv.value') }}</span>
+        <span class="text-xs font-medium text-muted-foreground uppercase tracking-wider text-center">{{ t('appEnv.actions') }}</span>
       </div>
 
       <!-- 变量行 -->
@@ -168,14 +170,14 @@ onMounted(() => {
       >
         <Input
           v-model="item.key"
-          placeholder="变量名"
+          :placeholder="t('appEnv.keyPlaceholder')"
           :class="item.isNew ? 'border-primary/50' : ''"
         />
         <div class="relative">
           <Input
             v-model="item.value"
             :type="item.visible ? 'text' : 'password'"
-            placeholder="变量值"
+            :placeholder="t('appEnv.valuePlaceholder')"
           />
           <button
             class="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
@@ -200,7 +202,7 @@ onMounted(() => {
       <!-- 添加按钮 -->
       <Button variant="outline" size="sm" class="mt-2" @click="addVariable">
         <template #icon><Plus class="w-4 h-4" /></template>
-        添加变量
+        {{ t('appEnv.addVar') }}
       </Button>
     </div>
   </div>

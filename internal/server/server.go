@@ -7,6 +7,7 @@ import (
 
 	"github.com/Yogdunana/deploypilot/internal/api"
 	"github.com/Yogdunana/deploypilot/internal/config"
+	"github.com/Yogdunana/deploypilot/internal/i18n"
 	"github.com/Yogdunana/deploypilot/internal/middleware"
 	"github.com/Yogdunana/deploypilot/internal/service"
 	webfs "github.com/Yogdunana/deploypilot/web"
@@ -29,6 +30,9 @@ func New(addr string, db *gorm.DB, bridge *service.Bridge, cfg *config.Config) *
 	// Security middleware
 	r.Use(middleware.SecurityHeaders())
 	r.Use(corsMiddleware(cfg.Server.CORSAllowedOrigins))
+
+	// i18n locale middleware (early, before auth and rate limiting)
+	r.Use(i18n.LocaleMiddleware())
 
 	// Rate limiting
 	rateLimiter := middleware.NewRateLimiter(
