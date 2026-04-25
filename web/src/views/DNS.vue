@@ -1,149 +1,309 @@
-<template>
-  <div>
-    <div class="page-header">
-      <h2 style="margin: 0">DNS Records</h2>
-      <el-button type="primary" @click="openCreateDialog">
-        <el-icon><Plus /></el-icon> Add Record
-      </el-button>
-    </div>
+<script setup lang="ts">
+import { ref, inject, onMounted } from 'vue'
+import { Plus, MoreHorizontal, Pencil, Trash2, Search, Globe } from 'lucide-vue-next'
+import PageHeader from '@/components/common/PageHeader.vue'
+import EmptyState from '@/components/common/EmptyState.vue'
+import RelativeTime from '@/components/common/RelativeTime.vue'
+import Button from '@/components/ui/Button.vue'
+import Input from '@/components/ui/Input.vue'
+import Badge from '@/components/ui/Badge.vue'
+import Select from '@/components/ui/Select.vue'
+import Table from '@/components/ui/Table.vue'
+import Dialog from '@/components/ui/Dialog.vue'
+import AlertDialog from '@/components/ui/AlertDialog.vue'
+import DropdownMenu from '@/components/ui/DropdownMenu.vue'
+import Pagination from '@/components/ui/Pagination.vue'
+import Skeleton from '@/components/ui/Skeleton.vue'
+import * as dnsApi from '@/api/modules/dns'
+import type { DNSRecord } from '@/types/models'
 
-    <el-card shadow="hover">
-      <el-table :data="records" v-loading="loading" stripe style="width: 100%">
-        <el-table-column prop="domain" label="Domain" min-width="180" />
-        <el-table-column prop="type" label="Type" width="100">
-          <template #default="{ row }">
-            <el-tag size="small">{{ row.type }}</el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="name" label="Name" min-width="150" />
-        <el-table-column prop="value" label="Value" min-width="200" />
-        <el-table-column label="Actions" width="180" fixed="right">
-          <template #default="{ row }">
-            <el-button size="small" type="primary" @click="openEditDialog(row)">Edit</el-button>
-            <el-button size="small" type="danger" @click="handleDelete(row)">Delete</el-button>
-          </template>
-        </el-table-column>
-      </el-table>
-      <el-empty v-if="!loading && records.length === 0" description="No DNS records found" />
-    </el-card>
+const { toast } = inject<any>('toast')!
 
-    <el-dialog v-model="dialogVisible" :title="isEditing ? 'Edit DNS Record' : 'Add DNS Record'" width="500px">
-      <el-form ref="formRef" :model="form" :rules="rules" label-width="100px">
-        <el-form-item label="Domain" prop="domain">
-          <el-input v-model="form.domain" placeholder="example.com" />
-        </el-form-item>
-        <el-form-item label="Type" prop="type">
-          <el-select v-model="form.type" placeholder="Select type" style="width: 100%">
-            <el-option label="A" value="A" />
-            <el-option label="AAAA" value="AAAA" />
-            <el-option label="CNAME" value="CNAME" />
-            <el-option label="MX" value="MX" />
-            <el-option label="TXT" value="TXT" />
-            <el-option label="NS" value="NS" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="Name" prop="name">
-          <el-input v-model="form.name" placeholder="subdomain" />
-        </el-form-item>
-        <el-form-item label="Value" prop="value">
-          <el-input v-model="form.value" placeholder="IP address or hostname" />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="dialogVisible = false">Cancel</el-button>
-        <el-button type="primary" :loading="saving" @click="handleSave">
-          {{ isEditing ? 'Update' : 'Create' }}
-        </el-button>
-      </template>
-    </el-dialog>
-  </div>
-</template>
+// State
+const records = ref<DNSRecord[]>([])
+const loading = ref(true)
+const page = ref(1)
+const pageSize = ref(10)
+const total = ref(0)
+const domainFilter = ref('')
 
-<script setup>
-import { ref, onMounted } from 'vue'
-import { dnsApi } from '../api'
-import { ElMessage, ElMessageBox } from 'element-plus'
+// Dialog
+const dialogOpen = ref(false)
+const dialogTitle = ref('创建记录')
+const editingId = ref<number | null>(null)
+const formDomain = ref('')
+const formSubdomain = ref('')
+const formType = ref('')
+const formValue = ref('')
+const submitting = ref(false)
 
-const loading = ref(false)
-const records = ref([])
-const dialogVisible = ref(false)
-const isEditing = ref(false)
-const saving = ref(false)
-const editingId = ref(null)
-const formRef = ref(null)
+// Delete dialog
+const deleteDialogOpen = ref(false)
+const deletingItem = ref<DNSRecord | null>(null)
+const deleting = ref(false)
 
-const form = ref({ domain: '', type: '', name: '', value: '' })
+// Type options
+const typeOptions = [
+  { label: 'A', value: 'A' },
+  { label: 'CNAME', value: 'CNAME' },
+  { label: 'TXT', value: 'TXT' },
+  { label: 'MX', value: 'MX' },
+]
 
-const rules = {
-  domain: [{ required: true, message: 'Please enter domain', trigger: 'blur' }],
-  type: [{ required: true, message: 'Please select type', trigger: 'change' }],
-  name: [{ required: true, message: 'Please enter name', trigger: 'blur' }],
-  value: [{ required: true, message: 'Please enter value', trigger: 'blur' }],
+// Table columns
+const columns = [
+  { key: 'domain', label: '域名' },
+  { key: 'subdomain', label: '子域名' },
+  { key: 'type', label: '类型' },
+  { key: 'value', label: '值' },
+  { key: 'created_at', label: '创建时间' },
+  { key: 'actions', label: '操作', width: '80px' },
+]
+
+// Type badge mapping
+function getTypeBadge(type: string) {
+  const map: Record<string, { variant: 'default' | 'secondary' | 'outline' | 'success' | 'warning'; label: string }> = {
+    A: { variant: 'default', label: 'A' },
+    CNAME: { variant: 'success', label: 'CNAME' },
+    TXT: { variant: 'warning', label: 'TXT' },
+    MX: { variant: 'outline', label: 'MX' },
+  }
+  return map[type] || { variant: 'secondary' as const, label: type }
 }
 
-function openCreateDialog() {
-  isEditing.value = false
-  editingId.value = null
-  form.value = { domain: '', type: '', name: '', value: '' }
-  dialogVisible.value = true
-}
-
-function openEditDialog(row) {
-  isEditing.value = true
-  editingId.value = row.id
-  form.value = { domain: row.domain, type: row.type, name: row.name, value: row.value }
-  dialogVisible.value = true
-}
-
+// Fetch records
 async function fetchRecords() {
   loading.value = true
   try {
-    const data = await dnsApi.listRecords()
-    records.value = Array.isArray(data) ? data : data.data || []
-  } catch {
-    records.value = []
+    const res = await dnsApi.listRecords(domainFilter.value, { page: page.value, page_size: pageSize.value })
+    if (res.data.status === 'success') {
+      records.value = res.data.data
+      total.value = res.data.pagination?.total || 0
+    }
+  } catch (err: any) {
+    toast(err.response?.data?.message || '获取 DNS 记录失败', 'destructive')
   } finally {
     loading.value = false
   }
 }
 
-async function handleSave() {
-  const valid = await formRef.value.validate().catch(() => false)
-  if (!valid) return
+// Search
+function handleSearch() {
+  page.value = 1
+  fetchRecords()
+}
 
-  saving.value = true
+// Open create dialog
+function openCreateDialog() {
+  editingId.value = null
+  dialogTitle.value = '创建记录'
+  formDomain.value = ''
+  formSubdomain.value = ''
+  formType.value = ''
+  formValue.value = ''
+  dialogOpen.value = true
+}
+
+// Open edit dialog
+function openEditDialog(item: DNSRecord) {
+  editingId.value = item.id
+  dialogTitle.value = '编辑记录'
+  formDomain.value = item.domain
+  formSubdomain.value = item.subdomain
+  formType.value = item.type
+  formValue.value = item.value
+  dialogOpen.value = true
+}
+
+// Submit form
+async function handleSubmit() {
+  if (!formDomain.value || !formType.value || !formValue.value) {
+    toast('请填写域名、类型和值', 'destructive')
+    return
+  }
+  submitting.value = true
   try {
-    if (isEditing.value) {
-      await dnsApi.updateRecord(editingId.value, form.value)
-      ElMessage.success('Record updated')
+    const data = { domain: formDomain.value, subdomain: formSubdomain.value, type: formType.value, value: formValue.value }
+    if (editingId.value) {
+      await dnsApi.updateRecord(editingId.value, data)
+      toast('DNS 记录已更新', 'success')
     } else {
-      await dnsApi.createRecord(form.value)
-      ElMessage.success('Record created')
+      await dnsApi.createRecord(data)
+      toast('DNS 记录已创建', 'success')
     }
-    dialogVisible.value = false
+    dialogOpen.value = false
     fetchRecords()
-  } catch { /* handled */ } finally {
-    saving.value = false
+  } catch (err: any) {
+    toast(err.response?.data?.message || '操作失败', 'destructive')
+  } finally {
+    submitting.value = false
   }
 }
 
-async function handleDelete(row) {
+// Delete
+function openDeleteDialog(item: DNSRecord) {
+  deletingItem.value = item
+  deleteDialogOpen.value = true
+}
+
+async function confirmDelete() {
+  if (!deletingItem.value) return
+  deleting.value = true
   try {
-    await ElMessageBox.confirm(`Delete DNS record for "${row.name}"?`, 'Confirm', { type: 'warning' })
-    await dnsApi.deleteRecord(row.id)
-    ElMessage.success('Record deleted')
+    await dnsApi.deleteRecord(deletingItem.value.id)
+    toast(`DNS 记录「${deletingItem.value.subdomain}.${deletingItem.value.domain}」已删除`, 'success')
     fetchRecords()
-  } catch { /* cancelled or error */ }
+  } catch (err: any) {
+    toast(err.response?.data?.message || '删除失败', 'destructive')
+  } finally {
+    deleting.value = false
+    deletingItem.value = null
+  }
+}
+
+function getDropdownItems(item: DNSRecord) {
+  return [
+    { label: '编辑', icon: Pencil, action: () => openEditDialog(item) },
+    { label: '删除', icon: Trash2, danger: true, action: () => openDeleteDialog(item) },
+  ]
 }
 
 onMounted(fetchRecords)
 </script>
 
-<style scoped>
-.page-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 16px;
-}
-</style>
+<template>
+  <div class="p-6 space-y-4">
+    <!-- Header -->
+    <PageHeader title="DNS 记录">
+      <template #actions>
+        <Button @click="openCreateDialog">
+          <template #icon><Plus class="w-4 h-4" /></template>
+          创建记录
+        </Button>
+      </template>
+    </PageHeader>
+
+    <!-- Filter -->
+    <div class="flex items-center gap-4">
+      <div class="relative w-72">
+        <Search class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+        <Input
+          v-model="domainFilter"
+          placeholder="按域名筛选..."
+          class="pl-9"
+          @keyup.enter="handleSearch"
+        />
+      </div>
+      <Button variant="outline" size="sm" @click="handleSearch">搜索</Button>
+    </div>
+
+    <!-- Loading skeleton -->
+    <div v-if="loading" class="rounded-lg border border-border bg-card">
+      <div v-for="i in 5" :key="i" class="flex items-center gap-4 px-4 py-3 border-b border-border last:border-0">
+        <Skeleton class="h-4 w-32" />
+        <Skeleton class="h-4 w-24" />
+        <Skeleton class="h-4 w-16" />
+        <Skeleton class="h-4 w-36" />
+        <Skeleton class="h-4 w-28" />
+        <Skeleton class="h-4 w-8 ml-auto" />
+      </div>
+    </div>
+
+    <!-- Table -->
+    <Table
+      v-else-if="records.length > 0"
+      :columns="columns"
+      :data="records"
+    >
+      <template #cell-domain="{ row }">
+        <span class="text-sm font-medium text-foreground">{{ row.domain }}</span>
+      </template>
+      <template #cell-subdomain="{ row }">
+        <span class="text-sm text-muted-foreground font-mono">{{ row.subdomain || '-' }}</span>
+      </template>
+      <template #cell-type="{ row }">
+        <Badge :variant="getTypeBadge(row.type).variant">
+          {{ getTypeBadge(row.type).label }}
+        </Badge>
+      </template>
+      <template #cell-value="{ row }">
+        <span class="text-sm text-muted-foreground font-mono truncate max-w-[200px] inline-block">{{ row.value }}</span>
+      </template>
+      <template #cell-created_at="{ row }">
+        <RelativeTime :date="row.created_at" />
+      </template>
+      <template #cell-actions="{ row }">
+        <DropdownMenu :items="getDropdownItems(row as DNSRecord)">
+          <template #trigger>
+            <Button variant="ghost" size="icon">
+              <MoreHorizontal class="w-4 h-4" />
+            </Button>
+          </template>
+        </DropdownMenu>
+      </template>
+    </Table>
+
+    <!-- Empty state -->
+    <EmptyState
+      v-else
+      :icon="Globe"
+      title="暂无 DNS 记录"
+      description="点击上方按钮创建你的第一条 DNS 记录"
+      action-text="创建记录"
+      @action="openCreateDialog"
+    />
+
+    <!-- Pagination -->
+    <div v-if="total > pageSize" class="flex justify-end">
+      <Pagination
+        v-model:page="page"
+        :page-size="pageSize"
+        :total="total"
+        @update:page="fetchRecords"
+      />
+    </div>
+
+    <!-- Create/Edit Dialog -->
+    <Dialog
+      v-model:open="dialogOpen"
+      :title="dialogTitle"
+      description="配置 DNS 记录"
+    >
+      <div class="space-y-4">
+        <div class="space-y-2">
+          <label class="text-sm font-medium text-foreground">域名</label>
+          <Input v-model="formDomain" placeholder="example.com" />
+        </div>
+        <div class="space-y-2">
+          <label class="text-sm font-medium text-foreground">子域名</label>
+          <Input v-model="formSubdomain" placeholder="www（可选）" />
+        </div>
+        <div class="space-y-2">
+          <label class="text-sm font-medium text-foreground">类型</label>
+          <Select v-model="formType" :options="typeOptions" placeholder="选择记录类型" />
+        </div>
+        <div class="space-y-2">
+          <label class="text-sm font-medium text-foreground">值</label>
+          <Input v-model="formValue" placeholder="记录值" />
+        </div>
+        <div class="flex justify-end gap-2 pt-2">
+          <Button variant="outline" @click="dialogOpen = false">取消</Button>
+          <Button :loading="submitting" @click="handleSubmit">
+            {{ editingId ? '保存' : '创建' }}
+          </Button>
+        </div>
+      </div>
+    </Dialog>
+
+    <!-- Delete AlertDialog -->
+    <AlertDialog
+      v-model:open="deleteDialogOpen"
+      title="删除 DNS 记录"
+      :description="`确定要删除记录「${deletingItem?.subdomain}.${deletingItem?.domain}」吗？此操作不可撤销。`"
+      confirm-text="删除"
+      cancel-text="取消"
+      variant="destructive"
+      @confirm="confirmDelete"
+    />
+  </div>
+</template>

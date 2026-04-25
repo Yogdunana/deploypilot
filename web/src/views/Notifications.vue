@@ -1,157 +1,315 @@
-<template>
-  <div>
-    <div class="page-header">
-      <h2 style="margin: 0">Notifications</h2>
-      <el-button type="primary" @click="openCreateDialog">
-        <el-icon><Plus /></el-icon> Add Notification
-      </el-button>
-    </div>
+<script setup lang="ts">
+import { ref, inject, onMounted } from 'vue'
+import { Plus, MoreHorizontal, Pencil, Trash2, Bell } from 'lucide-vue-next'
+import PageHeader from '@/components/common/PageHeader.vue'
+import EmptyState from '@/components/common/EmptyState.vue'
+import RelativeTime from '@/components/common/RelativeTime.vue'
+import Button from '@/components/ui/Button.vue'
+import Input from '@/components/ui/Input.vue'
+import Badge from '@/components/ui/Badge.vue'
+import Textarea from '@/components/ui/Textarea.vue'
+import Select from '@/components/ui/Select.vue'
+import Switch from '@/components/ui/Switch.vue'
+import Table from '@/components/ui/Table.vue'
+import Dialog from '@/components/ui/Dialog.vue'
+import AlertDialog from '@/components/ui/AlertDialog.vue'
+import DropdownMenu from '@/components/ui/DropdownMenu.vue'
+import Skeleton from '@/components/ui/Skeleton.vue'
+import * as notificationsApi from '@/api/modules/notifications'
+import type { Notification } from '@/types/models'
 
-    <el-card shadow="hover">
-      <el-table :data="notifications" v-loading="loading" stripe style="width: 100%">
-        <el-table-column prop="name" label="Name" min-width="150" />
-        <el-table-column prop="channel" label="Channel" width="150">
-          <template #default="{ row }">
-            <el-tag size="small">{{ row.channel }}</el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="enabled" label="Enabled" width="100">
-          <template #default="{ row }">
-            <el-switch
-              :model-value="row.enabled"
-              @change="(val) => handleToggle(row, val)"
-            />
-          </template>
-        </el-table-column>
-        <el-table-column label="Actions" width="180" fixed="right">
-          <template #default="{ row }">
-            <el-button size="small" type="primary" @click="openEditDialog(row)">Edit</el-button>
-            <el-button size="small" type="danger" @click="handleDelete(row)">Delete</el-button>
-          </template>
-        </el-table-column>
-      </el-table>
-      <el-empty v-if="!loading && notifications.length === 0" description="No notifications configured" />
-    </el-card>
+const { toast } = inject<any>('toast')!
 
-    <el-dialog v-model="dialogVisible" :title="isEditing ? 'Edit Notification' : 'Add Notification'" width="500px">
-      <el-form ref="formRef" :model="form" :rules="rules" label-width="100px">
-        <el-form-item label="Name" prop="name">
-          <el-input v-model="form.name" placeholder="Notification name" />
-        </el-form-item>
-        <el-form-item label="Channel" prop="channel">
-          <el-select v-model="form.channel" placeholder="Select channel" style="width: 100%">
-            <el-option label="Email" value="email" />
-            <el-option label="Slack" value="slack" />
-            <el-option label="Webhook" value="webhook" />
-            <el-option label="DingTalk" value="dingtalk" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="URL / Email" prop="url">
-          <el-input v-model="form.url" placeholder="Webhook URL or email address" />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="dialogVisible = false">Cancel</el-button>
-        <el-button type="primary" :loading="saving" @click="handleSave">
-          {{ isEditing ? 'Update' : 'Create' }}
-        </el-button>
-      </template>
-    </el-dialog>
-  </div>
-</template>
+// State
+const notifications = ref<Notification[]>([])
+const loading = ref(true)
 
-<script setup>
-import { ref, onMounted } from 'vue'
-import { notificationsApi } from '../api'
-import { ElMessage, ElMessageBox } from 'element-plus'
+// Dialog
+const dialogOpen = ref(false)
+const dialogTitle = ref('创建通知')
+const editingId = ref<number | null>(null)
+const formName = ref('')
+const formType = ref('')
+const formConfig = ref('')
+const formEnabled = ref(true)
+const configError = ref('')
+const submitting = ref(false)
 
-const loading = ref(false)
-const notifications = ref([])
-const dialogVisible = ref(false)
-const isEditing = ref(false)
-const saving = ref(false)
-const editingId = ref(null)
-const formRef = ref(null)
+// Delete dialog
+const deleteDialogOpen = ref(false)
+const deletingItem = ref<Notification | null>(null)
+const deleting = ref(false)
 
-const form = ref({ name: '', channel: '', url: '' })
+// Type options
+const typeOptions = [
+  { label: '钉钉', value: 'dingtalk' },
+  { label: '飞书', value: 'feishu' },
+  { label: 'Telegram', value: 'telegram' },
+  { label: '邮件', value: 'email' },
+]
 
-const rules = {
-  name: [{ required: true, message: 'Please enter name', trigger: 'blur' }],
-  channel: [{ required: true, message: 'Please select channel', trigger: 'change' }],
-  url: [{ required: true, message: 'Please enter URL or email', trigger: 'blur' }],
+// Table columns
+const columns = [
+  { key: 'name', label: '名称' },
+  { key: 'type', label: '类型' },
+  { key: 'enabled', label: '启用状态' },
+  { key: 'created_at', label: '创建时间' },
+  { key: 'actions', label: '操作', width: '80px' },
+]
+
+// Type badge mapping
+function getTypeBadge(type: string) {
+  const map: Record<string, { variant: 'default' | 'secondary' | 'outline' | 'success' | 'warning'; label: string }> = {
+    dingtalk: { variant: 'default', label: '钉钉' },
+    feishu: { variant: 'success', label: '飞书' },
+    telegram: { variant: 'warning', label: 'Telegram' },
+    email: { variant: 'outline', label: '邮件' },
+  }
+  return map[type] || { variant: 'secondary' as const, label: type }
 }
 
-function openCreateDialog() {
-  isEditing.value = false
-  editingId.value = null
-  form.value = { name: '', channel: '', url: '' }
-  dialogVisible.value = true
+// Validate JSON
+function validateConfig(val: string) {
+  if (!val.trim()) {
+    configError.value = ''
+    return true
+  }
+  try {
+    JSON.parse(val)
+    configError.value = ''
+    return true
+  } catch {
+    configError.value = 'JSON 格式不正确'
+    return false
+  }
 }
 
-function openEditDialog(row) {
-  isEditing.value = true
-  editingId.value = row.id
-  form.value = { name: row.name, channel: row.channel, url: row.url || '' }
-  dialogVisible.value = true
-}
-
+// Fetch notifications
 async function fetchNotifications() {
   loading.value = true
   try {
-    const data = await notificationsApi.list()
-    notifications.value = Array.isArray(data) ? data : data.data || []
-  } catch {
-    notifications.value = []
+    const res = await notificationsApi.list()
+    if (res.data.status === 'success') {
+      notifications.value = res.data.data
+    }
+  } catch (err: any) {
+    toast(err.response?.data?.message || '获取通知渠道列表失败', 'destructive')
   } finally {
     loading.value = false
   }
 }
 
-async function handleSave() {
-  const valid = await formRef.value.validate().catch(() => false)
-  if (!valid) return
+// Open create dialog
+function openCreateDialog() {
+  editingId.value = null
+  dialogTitle.value = '创建通知'
+  formName.value = ''
+  formType.value = ''
+  formConfig.value = ''
+  formEnabled.value = true
+  configError.value = ''
+  dialogOpen.value = true
+}
 
-  saving.value = true
+// Open edit dialog
+function openEditDialog(item: Notification) {
+  editingId.value = item.id
+  dialogTitle.value = '编辑通知'
+  formName.value = item.name
+  formType.value = item.type
+  formConfig.value = JSON.stringify(item.config, null, 2)
+  formEnabled.value = item.enabled
+  configError.value = ''
+  dialogOpen.value = true
+}
+
+// Submit form
+async function handleSubmit() {
+  if (!formName.value || !formType.value) {
+    toast('请填写名称和类型', 'destructive')
+    return
+  }
+  if (!validateConfig(formConfig.value)) {
+    toast('请输入正确的 JSON 配置', 'destructive')
+    return
+  }
+  submitting.value = true
   try {
-    if (isEditing.value) {
-      await notificationsApi.update(editingId.value, form.value)
-      ElMessage.success('Notification updated')
-    } else {
-      await notificationsApi.create(form.value)
-      ElMessage.success('Notification created')
+    let config: Record<string, string> = {}
+    if (formConfig.value.trim()) {
+      config = JSON.parse(formConfig.value)
     }
-    dialogVisible.value = false
+    const data = { name: formName.value, type: formType.value, config, enabled: formEnabled.value }
+    if (editingId.value) {
+      await notificationsApi.update(editingId.value, data)
+      toast('通知渠道已更新', 'success')
+    } else {
+      await notificationsApi.create(data)
+      toast('通知渠道已创建', 'success')
+    }
+    dialogOpen.value = false
     fetchNotifications()
-  } catch { /* handled */ } finally {
-    saving.value = false
+  } catch (err: any) {
+    toast(err.response?.data?.message || '操作失败', 'destructive')
+  } finally {
+    submitting.value = false
   }
 }
 
-async function handleToggle(row, val) {
+// Toggle enabled
+async function handleToggleEnabled(item: Notification) {
   try {
-    await notificationsApi.update(row.id, { ...row, enabled: val })
-    ElMessage.success(val ? 'Notification enabled' : 'Notification disabled')
-    fetchNotifications()
-  } catch { /* handled */ }
+    await notificationsApi.update(item.id, { enabled: !item.enabled })
+    item.enabled = !item.enabled
+    toast(`通知渠道「${item.name}」已${item.enabled ? '启用' : '禁用'}`, 'success')
+  } catch (err: any) {
+    toast(err.response?.data?.message || '更新状态失败', 'destructive')
+  }
 }
 
-async function handleDelete(row) {
+// Delete
+function openDeleteDialog(item: Notification) {
+  deletingItem.value = item
+  deleteDialogOpen.value = true
+}
+
+async function confirmDelete() {
+  if (!deletingItem.value) return
+  deleting.value = true
   try {
-    await ElMessageBox.confirm(`Delete notification "${row.name}"?`, 'Confirm', { type: 'warning' })
-    await notificationsApi.delete(row.id)
-    ElMessage.success('Notification deleted')
+    await notificationsApi.deleteNotification(deletingItem.value.id)
+    toast(`通知渠道「${deletingItem.value.name}」已删除`, 'success')
     fetchNotifications()
-  } catch { /* cancelled or error */ }
+  } catch (err: any) {
+    toast(err.response?.data?.message || '删除失败', 'destructive')
+  } finally {
+    deleting.value = false
+    deletingItem.value = null
+  }
+}
+
+function getDropdownItems(item: Notification) {
+  return [
+    { label: '编辑', icon: Pencil, action: () => openEditDialog(item) },
+    { label: '删除', icon: Trash2, danger: true, action: () => openDeleteDialog(item) },
+  ]
 }
 
 onMounted(fetchNotifications)
 </script>
 
-<style scoped>
-.page-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 16px;
-}
-</style>
+<template>
+  <div class="p-6 space-y-4">
+    <!-- Header -->
+    <PageHeader title="通知渠道">
+      <template #actions>
+        <Button @click="openCreateDialog">
+          <template #icon><Plus class="w-4 h-4" /></template>
+          创建通知
+        </Button>
+      </template>
+    </PageHeader>
+
+    <!-- Loading skeleton -->
+    <div v-if="loading" class="rounded-lg border border-border bg-card">
+      <div v-for="i in 5" :key="i" class="flex items-center gap-4 px-4 py-3 border-b border-border last:border-0">
+        <Skeleton class="h-4 w-32" />
+        <Skeleton class="h-4 w-20" />
+        <Skeleton class="h-4 w-16" />
+        <Skeleton class="h-4 w-28" />
+        <Skeleton class="h-4 w-8 ml-auto" />
+      </div>
+    </div>
+
+    <!-- Table -->
+    <Table
+      v-else-if="notifications.length > 0"
+      :columns="columns"
+      :data="notifications"
+    >
+      <template #cell-name="{ row }">
+        <span class="text-sm font-medium text-foreground">{{ row.name }}</span>
+      </template>
+      <template #cell-type="{ row }">
+        <Badge :variant="getTypeBadge(row.type).variant">
+          {{ getTypeBadge(row.type).label }}
+        </Badge>
+      </template>
+      <template #cell-enabled="{ row }">
+        <Switch :model-value="row.enabled" @update:model-value="handleToggleEnabled(row as Notification)" />
+      </template>
+      <template #cell-created_at="{ row }">
+        <RelativeTime :date="row.created_at" />
+      </template>
+      <template #cell-actions="{ row }">
+        <DropdownMenu :items="getDropdownItems(row as Notification)">
+          <template #trigger>
+            <Button variant="ghost" size="icon">
+              <MoreHorizontal class="w-4 h-4" />
+            </Button>
+          </template>
+        </DropdownMenu>
+      </template>
+    </Table>
+
+    <!-- Empty state -->
+    <EmptyState
+      v-else
+      :icon="Bell"
+      title="暂无通知渠道"
+      description="点击上方按钮创建你的第一个通知渠道"
+      action-text="创建通知"
+      @action="openCreateDialog"
+    />
+
+    <!-- Create/Edit Dialog -->
+    <Dialog
+      v-model:open="dialogOpen"
+      :title="dialogTitle"
+      description="配置通知渠道"
+    >
+      <div class="space-y-4">
+        <div class="space-y-2">
+          <label class="text-sm font-medium text-foreground">名称</label>
+          <Input v-model="formName" placeholder="输入通知渠道名称" />
+        </div>
+        <div class="space-y-2">
+          <label class="text-sm font-medium text-foreground">类型</label>
+          <Select v-model="formType" :options="typeOptions" placeholder="选择通知类型" />
+        </div>
+        <div class="space-y-2">
+          <label class="text-sm font-medium text-foreground">配置（JSON 格式）</label>
+          <Textarea
+            v-model="formConfig"
+            placeholder='{"webhook": "https://oapi.dingtalk.com/robot/send?access_token=xxx"}'
+            :rows="5"
+            class="font-mono text-xs"
+            @input="validateConfig(formConfig)"
+          />
+          <p v-if="configError" class="text-xs text-destructive">{{ configError }}</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <Switch v-model="formEnabled" />
+          <label class="text-sm text-foreground">启用</label>
+        </div>
+        <div class="flex justify-end gap-2 pt-2">
+          <Button variant="outline" @click="dialogOpen = false">取消</Button>
+          <Button :loading="submitting" @click="handleSubmit">
+            {{ editingId ? '保存' : '创建' }}
+          </Button>
+        </div>
+      </div>
+    </Dialog>
+
+    <!-- Delete AlertDialog -->
+    <AlertDialog
+      v-model:open="deleteDialogOpen"
+      title="删除通知渠道"
+      :description="`确定要删除通知渠道「${deletingItem?.name}」吗？此操作不可撤销。`"
+      confirm-text="删除"
+      cancel-text="取消"
+      variant="destructive"
+      @confirm="confirmDelete"
+    />
+  </div>
+</template>

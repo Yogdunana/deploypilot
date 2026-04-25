@@ -1,304 +1,267 @@
-<template>
-  <div>
-    <div class="page-header">
-      <h2 style="margin: 0">Servers</h2>
-      <el-button type="primary" @click="openCreateDialog">
-        <el-icon><Plus /></el-icon> Add Server
-      </el-button>
-    </div>
+<script setup lang="ts">
+import { ref, computed, inject, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
+import {
+  Search, Plus, MoreHorizontal, Eye, Zap, Terminal,
+  Cpu, Pencil, Trash2, Server as ServerIcon,
+} from 'lucide-vue-next'
+import PageHeader from '@/components/common/PageHeader.vue'
+import StatusBadge from '@/components/common/StatusBadge.vue'
+import EmptyState from '@/components/common/EmptyState.vue'
+import RelativeTime from '@/components/common/RelativeTime.vue'
+import Button from '@/components/ui/Button.vue'
+import Input from '@/components/ui/Input.vue'
+import Badge from '@/components/ui/Badge.vue'
+import Table from '@/components/ui/Table.vue'
+import DropdownMenu from '@/components/ui/DropdownMenu.vue'
+import AlertDialog from '@/components/ui/AlertDialog.vue'
+import Pagination from '@/components/ui/Pagination.vue'
+import Skeleton from '@/components/ui/Skeleton.vue'
+import * as serversApi from '@/api/modules/servers'
+import type { Server } from '@/types/models'
 
-    <el-card shadow="hover">
-      <el-table :data="servers" v-loading="loading" stripe style="width: 100%">
-        <el-table-column prop="name" label="Name" min-width="150" />
-        <el-table-column prop="host" label="Host" min-width="200" />
-        <el-table-column prop="port" label="Port" width="100" />
-        <el-table-column prop="user" label="User" width="120" />
-        <el-table-column prop="status" label="Status" width="120">
-          <template #default="{ row }">
-            <el-tag :type="row.status === 'connected' ? 'success' : 'info'" size="small">
-              {{ row.status || 'unknown' }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column label="Actions" width="280" fixed="right">
-          <template #default="{ row }">
-            <el-button size="small" type="success" :loading="testing === row.id" @click="handleTest(row)">
-              Test
-            </el-button>
-            <el-button size="small" type="primary" @click="openTerminal(row)">
-              Terminal
-            </el-button>
-            <el-button size="small" type="danger" @click="handleDelete(row)">
-              Delete
-            </el-button>
-          </template>
-        </el-table-column>
-      </el-table>
-      <el-empty v-if="!loading && servers.length === 0" description="No servers found" />
-    </el-card>
+const router = useRouter()
+const { toast } = inject<any>('toast')!
 
-    <el-dialog v-model="createDialogVisible" title="Add Server" width="500px">
-      <el-form ref="createFormRef" :model="createForm" :rules="createRules" label-width="100px">
-        <el-form-item label="Name" prop="name">
-          <el-input v-model="createForm.name" placeholder="Server name" />
-        </el-form-item>
-        <el-form-item label="Host" prop="host">
-          <el-input v-model="createForm.host" placeholder="192.168.1.1 or example.com" />
-        </el-form-item>
-        <el-form-item label="Port" prop="port">
-          <el-input-number v-model="createForm.port" :min="1" :max="65535" style="width: 100%" />
-        </el-form-item>
-        <el-form-item label="User" prop="user">
-          <el-input v-model="createForm.user" placeholder="root" />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="createDialogVisible = false">Cancel</el-button>
-        <el-button type="primary" :loading="creating" @click="handleCreate">Add</el-button>
-      </template>
-    </el-dialog>
+// State
+const servers = ref<Server[]>([])
+const loading = ref(true)
+const searchQuery = ref('')
+const page = ref(1)
+const pageSize = ref(10)
+const total = ref(0)
 
-    <el-dialog v-model="terminalDialogVisible" :title="`Terminal - ${terminalServerName}`" width="800px" @close="closeTerminal">
-      <div class="terminal-container">
-        <div class="terminal-header">
-          <el-tag :type="terminalConnected ? 'success' : 'danger'" size="small">
-            {{ terminalConnected ? 'Connected' : 'Disconnected' }}
-          </el-tag>
-        </div>
-        <div ref="terminalOutput" class="terminal-output" v-html="terminalHtml"></div>
-        <div class="terminal-input">
-          <el-input
-            v-model="terminalInput"
-            placeholder="Enter command..."
-            @keyup.enter="sendTerminalCommand"
-            :disabled="!terminalConnected"
-          >
-            <template #append>
-              <el-button @click="sendTerminalCommand" :disabled="!terminalConnected">Send</el-button>
-            </template>
-          </el-input>
-        </div>
-      </div>
-    </el-dialog>
-  </div>
-</template>
+// Delete dialog
+const deleteDialogOpen = ref(false)
+const deletingServer = ref<Server | null>(null)
+const deleting = ref(false)
 
-<script setup>
-import { ref, nextTick, onUnmounted } from 'vue'
-import { serversApi } from '../api'
-import { getToken } from '../utils/auth'
-import { ElMessage, ElMessageBox } from 'element-plus'
+// Testing connection
+const testingId = ref<number | null>(null)
 
-const loading = ref(false)
-const servers = ref([])
-const createDialogVisible = ref(false)
-const creating = ref(false)
-const testing = ref(null)
-const createFormRef = ref(null)
+// Table columns
+const columns = [
+  { key: 'name', label: '名称' },
+  { key: 'host_port', label: '主机:端口' },
+  { key: 'status', label: '状态' },
+  { key: 'tags', label: '标签' },
+  { key: 'created_at', label: '创建时间' },
+  { key: 'actions', label: '操作', width: '80px' },
+]
 
-const createForm = ref({
-  name: '',
-  host: '',
-  port: 22,
-  user: 'root',
+// Filtered servers
+const filteredServers = computed(() => {
+  if (!searchQuery.value) return servers.value
+  const q = searchQuery.value.toLowerCase()
+  return servers.value.filter(
+    (s) => s.name.toLowerCase().includes(q) || s.host.toLowerCase().includes(q)
+  )
 })
 
-const createRules = {
-  name: [{ required: true, message: 'Please enter server name', trigger: 'blur' }],
-  host: [{ required: true, message: 'Please enter host', trigger: 'blur' }],
-  port: [{ required: true, message: 'Please enter port', trigger: 'blur' }],
+// Paginated servers
+const paginatedServers = computed(() => {
+  const start = (page.value - 1) * pageSize.value
+  return filteredServers.value.slice(start, start + pageSize.value)
+})
+
+const paginatedTotal = computed(() => filteredServers.value.length)
+
+// Map server status to StatusBadge status
+function mapServerStatus(status: string): string {
+  const s = status.toLowerCase()
+  if (s === 'reachable' || s === 'online' || s === 'connected') return 'success'
+  if (s === 'unreachable' || s === 'offline') return 'destructive'
+  return 'secondary'
 }
 
-// Terminal state
-const terminalDialogVisible = ref(false)
-const terminalServerName = ref('')
-const terminalConnected = ref(false)
-const terminalOutput = ref(null)
-const terminalHtml = ref('')
-const terminalInput = ref('')
-let terminalWs = null
-
-function openCreateDialog() {
-  createForm.value = { name: '', host: '', port: 22, user: 'root' }
-  createDialogVisible.value = true
-}
-
+// Fetch servers
 async function fetchServers() {
   loading.value = true
   try {
-    const data = await serversApi.list()
-    servers.value = Array.isArray(data) ? data : data.data || []
-  } catch {
-    servers.value = []
+    const res = await serversApi.list({ page: 1, page_size: 1000 })
+    if (res.data.status === 'success') {
+      servers.value = res.data.data
+      total.value = res.data.pagination?.total || servers.value.length
+    }
+  } catch (err: any) {
+    toast(err.response?.data?.message || '获取服务器列表失败', 'destructive')
   } finally {
     loading.value = false
   }
 }
 
-async function handleCreate() {
-  const valid = await createFormRef.value.validate().catch(() => false)
-  if (!valid) return
-
-  creating.value = true
+// Test connection
+async function handleTestConnection(server: Server) {
+  testingId.value = server.id
   try {
-    await serversApi.create(createForm.value)
-    ElMessage.success('Server added successfully')
-    createDialogVisible.value = false
-    fetchServers()
-  } catch { /* handled */ } finally {
-    creating.value = false
-  }
-}
-
-async function handleTest(row) {
-  testing.value = row.id
-  try {
-    await serversApi.test(row.id)
-    ElMessage.success('Connection successful')
-  } catch { /* handled */ } finally {
-    testing.value = null
-  }
-}
-
-async function handleDelete(row) {
-  try {
-    await ElMessageBox.confirm(`Delete server "${row.name}"?`, 'Confirm', { type: 'warning' })
-    await serversApi.delete(row.id)
-    ElMessage.success('Server deleted')
-    fetchServers()
-  } catch { /* cancelled or error */ }
-}
-
-function openTerminal(row) {
-  terminalServerName.value = row.name
-  terminalHtml.value = ''
-  terminalInput.value = ''
-  terminalDialogVisible.value = true
-
-  nextTick(() => {
-    connectTerminal(row.id)
-  })
-}
-
-function connectTerminal(serverId) {
-  const token = getToken()
-  if (!token) {
-    ElMessage.error('Not authenticated')
-    return
-  }
-
-  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-  const wsUrl = `${protocol}//${window.location.host}/ws/terminal/${serverId}?token=${token}`
-
-  terminalWs = new WebSocket(wsUrl)
-
-  terminalWs.onopen = () => {
-    terminalConnected.value = true
-    appendTerminalOutput('<span style="color: #67c23a">Connected to ' + terminalServerName.value + '</span>\n')
-  }
-
-  terminalWs.onmessage = (event) => {
-    try {
-      const msg = JSON.parse(event.data)
-      if (msg.type === 'output') {
-        appendTerminalOutput(escapeHtml(String(msg.data)))
-      } else if (msg.type === 'error') {
-        appendTerminalOutput('<span style="color: #f56c6c">Error: ' + escapeHtml(String(msg.data)) + '</span>\n')
-      }
-    } catch (e) {
-      appendTerminalOutput(String(event.data))
+    const res = await serversApi.test(server.id)
+    if (res.data.status === 'success' && res.data.data.success) {
+      toast(`服务器 "${server.name}" 连接成功`, 'success')
+    } else {
+      toast(res.data.data?.message || `服务器 "${server.name}" 连接失败`, 'destructive')
     }
-  }
-
-  terminalWs.onclose = () => {
-    terminalConnected.value = false
-    appendTerminalOutput('<span style="color: #909399">Connection closed</span>\n')
-  }
-
-  terminalWs.onerror = (err) => {
-    console.error('Terminal WebSocket error:', err)
+  } catch (err: any) {
+    toast(err.response?.data?.message || `服务器 "${server.name}" 连接测试失败`, 'destructive')
+  } finally {
+    testingId.value = null
   }
 }
 
-function sendTerminalCommand() {
-  const cmd = terminalInput.value.trim()
-  if (!cmd || !terminalWs || terminalWs.readyState !== WebSocket.OPEN) return
-
-  appendTerminalOutput('<span style="color: #409eff">$ ' + escapeHtml(cmd) + '</span>\n')
-  terminalWs.send(JSON.stringify({
-    type: 'input',
-    data: cmd,
-    timestamp: new Date().toISOString(),
-  }))
-  terminalInput.value = ''
-}
-
-function appendTerminalOutput(text) {
-  terminalHtml.value += text
-  nextTick(() => {
-    if (terminalOutput.value) {
-      terminalOutput.value.scrollTop = terminalOutput.value.scrollHeight
-    }
-  })
-}
-
-function escapeHtml(text) {
-  const div = document.createElement('div')
-  div.textContent = text
-  return div.innerHTML
-}
-
-function closeTerminal() {
-  if (terminalWs) {
-    terminalWs.onclose = null
-    terminalWs.close()
-    terminalWs = null
+// Detect environment
+async function handleDetect(server: Server) {
+  try {
+    await serversApi.detect(server.id, { host: server.host, port: server.port })
+    toast(`服务器 "${server.name}" 环境检测已触发`, 'success')
+  } catch (err: any) {
+    toast(err.response?.data?.message || '环境检测失败', 'destructive')
   }
-  terminalConnected.value = false
 }
 
-onUnmounted(() => {
-  closeTerminal()
-})
+// Delete
+function openDeleteDialog(server: Server) {
+  deletingServer.value = server
+  deleteDialogOpen.value = true
+}
 
-fetchServers()
+async function confirmDelete() {
+  if (!deletingServer.value) return
+  deleting.value = true
+  try {
+    await serversApi.deleteServer(deletingServer.value.id)
+    toast(`服务器 "${deletingServer.value.name}" 已删除`, 'success')
+    fetchServers()
+  } catch (err: any) {
+    toast(err.response?.data?.message || '删除失败', 'destructive')
+  } finally {
+    deleting.value = false
+    deletingServer.value = null
+  }
+}
+
+// Get dropdown items for a server
+function getServerActions(server: Server) {
+  return [
+    { label: '详情', icon: Eye, action: () => router.push(`/servers/${server.id}`) },
+    { label: '测试连接', icon: Zap, action: () => handleTestConnection(server) },
+    { label: '终端', icon: Terminal, action: () => router.push(`/servers/${server.id}/terminal`) },
+    { label: '环境检测', icon: Cpu, action: () => handleDetect(server) },
+    { label: '编辑', icon: Pencil, action: () => router.push(`/servers/${server.id}`) },
+    { label: '删除', icon: Trash2, danger: true, action: () => openDeleteDialog(server) },
+  ]
+}
+
+onMounted(fetchServers)
 </script>
 
-<style scoped>
-.page-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 16px;
-}
+<template>
+  <div class="p-6 space-y-4">
+    <!-- Header -->
+    <PageHeader title="服务器">
+      <template #actions>
+        <Button @click="router.push('/servers/create')">
+          <template #icon><Plus class="w-4 h-4" /></template>
+          添加服务器
+        </Button>
+      </template>
+    </PageHeader>
 
-.terminal-container {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
+    <!-- Search -->
+    <div class="flex items-center gap-4">
+      <div class="relative w-72">
+        <Search class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+        <Input
+          v-model="searchQuery"
+          placeholder="搜索服务器名称或主机..."
+          class="pl-9"
+        />
+      </div>
+    </div>
 
-.terminal-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
+    <!-- Loading skeleton -->
+    <div v-if="loading" class="rounded-lg border border-border bg-card">
+      <div v-for="i in 5" :key="i" class="flex items-center gap-4 px-4 py-3 border-b border-border last:border-0">
+        <Skeleton class="h-4 w-28" />
+        <Skeleton class="h-4 w-36" />
+        <Skeleton class="h-4 w-16" />
+        <Skeleton class="h-4 w-24" />
+        <Skeleton class="h-4 w-28" />
+        <Skeleton class="h-4 w-8 ml-auto" />
+      </div>
+    </div>
 
-.terminal-output {
-  background: #1e1e1e;
-  color: #d4d4d4;
-  font-family: 'Courier New', Courier, monospace;
-  font-size: 13px;
-  padding: 12px;
-  border-radius: 4px;
-  height: 400px;
-  overflow-y: auto;
-  white-space: pre-wrap;
-  word-break: break-all;
-  line-height: 1.5;
-}
+    <!-- Table -->
+    <Table
+      v-else-if="paginatedServers.length > 0"
+      :columns="columns"
+      :data="paginatedServers"
+    >
+      <template #cell-name="{ row }">
+        <button
+          class="text-sm font-medium text-foreground hover:text-primary transition-colors cursor-pointer"
+          @click="router.push(`/servers/${row.id}`)"
+        >
+          {{ row.name }}
+        </button>
+      </template>
+      <template #cell-host_port="{ row }">
+        <span class="text-sm text-muted-foreground font-mono">{{ row.host }}:{{ row.port }}</span>
+      </template>
+      <template #cell-status="{ row }">
+        <StatusBadge :status="mapServerStatus(row.status)" />
+      </template>
+      <template #cell-tags="{ row }">
+        <div v-if="row.tags && row.tags.length > 0" class="flex items-center gap-1 flex-wrap">
+          <Badge v-for="tag in row.tags.slice(0, 3)" :key="tag" variant="outline" class="text-xs">
+            {{ tag }}
+          </Badge>
+          <Badge v-if="row.tags.length > 3" variant="secondary" class="text-xs">
+            +{{ row.tags.length - 3 }}
+          </Badge>
+        </div>
+        <span v-else class="text-sm text-muted-foreground">-</span>
+      </template>
+      <template #cell-created_at="{ row }">
+        <RelativeTime :date="row.created_at" />
+      </template>
+      <template #cell-actions="{ row }">
+        <DropdownMenu :items="getServerActions(row as Server)">
+          <template #trigger>
+            <Button variant="ghost" size="icon" :loading="testingId === row.id">
+              <MoreHorizontal v-if="testingId !== row.id" class="w-4 h-4" />
+            </Button>
+          </template>
+        </DropdownMenu>
+      </template>
+    </Table>
 
-.terminal-input {
-  display: flex;
-}
-</style>
+    <!-- Empty state -->
+    <EmptyState
+      v-else
+      :icon="ServerIcon"
+      title="暂无服务器"
+      description="点击上方按钮添加你的第一台服务器"
+      action-text="添加服务器"
+      @action="router.push('/servers/create')"
+    />
+
+    <!-- Pagination -->
+    <div v-if="paginatedTotal > pageSize" class="flex justify-end">
+      <Pagination
+        v-model:page="page"
+        :page-size="pageSize"
+        :total="paginatedTotal"
+      />
+    </div>
+
+    <!-- Delete confirmation dialog -->
+    <AlertDialog
+      v-model:open="deleteDialogOpen"
+      title="删除服务器"
+      :description="`确定要删除服务器「${deletingServer?.name}」吗？此操作不可撤销。`"
+      confirm-text="删除"
+      cancel-text="取消"
+      variant="destructive"
+      @confirm="confirmDelete"
+    />
+  </div>
+</template>
