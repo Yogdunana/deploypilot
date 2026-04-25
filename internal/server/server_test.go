@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/Yogdunana/deploypilot/internal/config"
 	"github.com/Yogdunana/deploypilot/internal/service"
@@ -150,4 +151,40 @@ type testLocalExecutor struct{}
 
 func (e *testLocalExecutor) RunCommand(ctx context.Context, cmd string) (string, error) {
 	return "", nil
+}
+
+func TestRun(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	executor := &testLocalExecutor{}
+	bridge := service.NewBridge(db, executor, []byte("test-key-1234567890abcdef"), nil)
+	cfg := config.DefaultConfig()
+
+	srv := New("127.0.0.1:0", db, bridge, cfg)
+
+	done := make(chan error, 1)
+	go func() {
+		done <- srv.Run()
+	}()
+
+	// Give the server a moment to start
+	time.Sleep(200 * time.Millisecond)
+
+	// The server is running; we can't easily test HTTP requests here
+	// since we don't know the exact port, but we verify it started without error.
+	// We stop by sending a request to the server (it will panic on close, but
+	// that's expected since gin.Run blocks until the server is closed).
+	// Instead, just verify the goroutine is running.
+	select {
+	case err := <-done:
+		// If we got here immediately, the server failed to start
+		t.Fatalf("Run() returned immediately with error: %v", err)
+	default:
+		// Server is running, good
+	}
 }

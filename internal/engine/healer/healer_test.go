@@ -495,3 +495,193 @@ func TestCheckAndHeal_RunningNone(t *testing.T) {
 
 // Ensure mockExecutor implements CommandExecutor interface.
 var _ deployer.CommandExecutor = (*mockExecutor)(nil)
+
+// ===================== Additional Coverage =====================
+
+func TestCheckAndHeal_Unhealthy_AutoRestartDisabled(t *testing.T) {
+	responses := map[string]string{
+		"State.OOMKilled":     "false|0|false|1234|2024-01-01T00:00:00Z|0001-01-01T00:00:00Z|unhealthy",
+		"RestartCount":        "0",
+		".Id}}|{{.Name}}|{{.Config.Image}}|{{.State.Status}}": "abc123|/unhealthy-no-auto|nginx:latest|running|2024-01-01T00:00:00Z",
+		"docker restart":      "",
+	}
+	exec := &mockExecutor{responses: responses}
+	h := NewHealer(exec, HealingConfig{
+		AutoRestart:  false,
+		AutoRollback: true,
+		MaxRestarts:  3,
+		RestartWindow: 5 * time.Minute,
+	})
+
+	result, err := h.CheckAndHeal(context.Background(), "unhealthy-no-auto")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.Action != "notified" {
+		t.Errorf("expected action 'notified' when auto_restart disabled for unhealthy, got %q", result.Action)
+	}
+}
+
+func TestCheckAndHeal_OOMKilled_AutoRestartDisabled(t *testing.T) {
+	exec := &mockExecutor{responses: oomKilledInspect("oom-no-auto")}
+	h := NewHealer(exec, HealingConfig{
+		AutoRestart:  false,
+		AutoRollback: true,
+		MaxRestarts:  3,
+		RestartWindow: 5 * time.Minute,
+	})
+
+	result, err := h.CheckAndHeal(context.Background(), "oom-no-auto")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.Action != "notified" {
+		t.Errorf("expected action 'notified' when auto_restart disabled for OOMKilled, got %q", result.Action)
+	}
+}
+
+func TestCheckAndHeal_Exited_AutoRestartDisabled(t *testing.T) {
+	exec := &mockExecutor{responses: exitedInspect("exited-no-auto")}
+	h := NewHealer(exec, HealingConfig{
+		AutoRestart:  false,
+		AutoRollback: true,
+		MaxRestarts:  3,
+		RestartWindow: 5 * time.Minute,
+	})
+
+	result, err := h.CheckAndHeal(context.Background(), "exited-no-auto")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.Action != "notified" {
+		t.Errorf("expected action 'notified' when auto_restart disabled for exited, got %q", result.Action)
+	}
+}
+
+func TestCheckAndHeal_Restarting_BelowMax(t *testing.T) {
+	responses := map[string]string{
+		"State.OOMKilled":     "false|0|true|0|2024-01-01T00:00:00Z|0001-01-01T00:00:00Z|none",
+		"RestartCount":        "1",
+		".Id}}|{{.Name}}|{{.Config.Image}}|{{.State.Status}}": "abc123|/restart-below|nginx:latest|restarting|2024-01-01T00:00:00Z",
+		"docker restart":      "",
+	}
+	exec := &mockExecutor{responses: responses}
+	h := NewHealer(exec, HealingConfig{
+		AutoRestart:  true,
+		AutoRollback: true,
+		MaxRestarts:  5,
+		RestartWindow: 5 * time.Minute,
+	})
+
+	result, err := h.CheckAndHeal(context.Background(), "restart-below")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	// 1 (docker RestartCount) + 0 (tracker) = 1 < 5 max, so should NOT rollback
+	if result.Action == "rolled_back" {
+		t.Errorf("expected action other than rolled_back when below max restarts, got %q", result.Action)
+	}
+}
+
+func TestCheckAndHeal_DefaultNoAction(t *testing.T) {
+	// Container in some other state (e.g., "created") that doesn't match any condition
+	responses := map[string]string{
+		"State.OOMKilled":     "false|0|false|0|2024-01-01T00:00:00Z|0001-01-01T00:00:00Z|none",
+		"RestartCount":        "0",
+		".Id}}|{{.Name}}|{{.Config.Image}}|{{.State.Status}}": "abc123|/created-app|nginx:latest|created|2024-01-01T00:00:00Z",
+		"docker restart":      "",
+	}
+	exec := &mockExecutor{responses: responses}
+	h := NewHealer(exec, HealingConfig{
+		AutoRestart:  true,
+		AutoRollback: true,
+		MaxRestarts:  3,
+		RestartWindow: 5 * time.Minute,
+	})
+
+	result, err := h.CheckAndHeal(context.Background(), "created-app")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.Action != "none" {
+		t.Errorf("expected action 'none' for created container, got %q", result.Action)
+	}
+}
+
+func TestCheckAndHeal_OOMKilled_RestartFails(t *testing.T) {
+	responses := map[string]string{
+		"State.OOMKilled":     "true|137|false|0|2024-01-01T00:00:00Z|2024-01-01T00:01:00Z|none",
+		"RestartCount":        "0",
+		".Id}}|{{.Name}}|{{.Config.Image}}|{{.State.Status}}": "abc123|/oom-restart-fail|nginx:latest|exited|2024-01-01T00:00:00Z",
+	}
+	exec := &mockExecutor{
+		responses: responses,
+		errs:      map[string]error{"docker restart oom-restart-fail": fmt.Errorf("daemon error")},
+	}
+	h := NewHealer(exec, HealingConfig{
+		AutoRestart:  true,
+		AutoRollback: true,
+		MaxRestarts:  3,
+		RestartWindow: 5 * time.Minute,
+	})
+
+	result, err := h.CheckAndHeal(context.Background(), "oom-restart-fail")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.Action != "notified" {
+		t.Errorf("expected action 'notified' when OOM restart fails, got %q", result.Action)
+	}
+}
+
+func TestCheckAndHeal_Exited_RestartFails(t *testing.T) {
+	responses := map[string]string{
+		"State.OOMKilled":     "false|1|false|0|2024-01-01T00:00:00Z|2024-01-01T00:01:00Z|none",
+		"RestartCount":        "0",
+		".Id}}|{{.Name}}|{{.Config.Image}}|{{.State.Status}}": "abc123|/exited-restart-fail|nginx:latest|exited|2024-01-01T00:00:00Z",
+	}
+	exec := &mockExecutor{
+		responses: responses,
+		errs:      map[string]error{"docker restart exited-restart-fail": fmt.Errorf("daemon error")},
+	}
+	h := NewHealer(exec, HealingConfig{
+		AutoRestart:  true,
+		AutoRollback: true,
+		MaxRestarts:  3,
+		RestartWindow: 5 * time.Minute,
+	})
+
+	result, err := h.CheckAndHeal(context.Background(), "exited-restart-fail")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.Action != "notified" {
+		t.Errorf("expected action 'notified' when exited restart fails, got %q", result.Action)
+	}
+}
+
+func TestCheckAndHeal_Unhealthy_RestartFails(t *testing.T) {
+	responses := map[string]string{
+		"State.OOMKilled":     "false|0|false|1234|2024-01-01T00:00:00Z|0001-01-01T00:00:00Z|unhealthy",
+		"RestartCount":        "0",
+		".Id}}|{{.Name}}|{{.Config.Image}}|{{.State.Status}}": "abc123|/unhealthy-restart-fail|nginx:latest|running|2024-01-01T00:00:00Z",
+	}
+	exec := &mockExecutor{
+		responses: responses,
+		errs:      map[string]error{"docker restart unhealthy-restart-fail": fmt.Errorf("daemon error")},
+	}
+	h := NewHealer(exec, HealingConfig{
+		AutoRestart:  true,
+		AutoRollback: true,
+		MaxRestarts:  3,
+		RestartWindow: 5 * time.Minute,
+	})
+
+	result, err := h.CheckAndHeal(context.Background(), "unhealthy-restart-fail")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.Action != "notified" {
+		t.Errorf("expected action 'notified' when unhealthy restart fails, got %q", result.Action)
+	}
+}

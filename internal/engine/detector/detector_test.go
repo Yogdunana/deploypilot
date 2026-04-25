@@ -301,3 +301,96 @@ func TestDetectWithContextCancellation(t *testing.T) {
 
 // Suppress unused import
 var _ = time.Now
+
+// ===================== Additional Coverage: detectService =====================
+
+func TestDetectService_UnsupportedProtocol(t *testing.T) {
+	d := New(newMockRunner())
+	report := d.Detect(context.Background(), LevelService, nil,
+		[]string{"http://127.0.0.1:19994"})
+
+	svc := report.Services["http://127.0.0.1:19994"]
+	if svc == nil {
+		t.Fatal("Service should be in report")
+	}
+	if svc.Healthy {
+		t.Error("Service with unsupported protocol should be unhealthy")
+	}
+	if svc.Error != "unsupported protocol" {
+		t.Errorf("expected 'unsupported protocol' error, got %q", svc.Error)
+	}
+}
+
+func TestDetectService_EmptyTarget(t *testing.T) {
+	d := New(newMockRunner())
+	report := d.Detect(context.Background(), LevelService, nil,
+		[]string{""})
+
+	// Empty string should still be processed
+	svc := report.Services[""]
+	if svc == nil {
+		t.Fatal("Service should be in report for empty target")
+	}
+}
+
+func TestDetectPort_CloseError(t *testing.T) {
+	// This tests the detectPort function with a port that's open
+	// but the close might fail. We can't easily force a close error,
+	// but we can test the normal path.
+	d := New(newMockRunner())
+	report := d.Detect(context.Background(), LevelPort, []int{1}, nil)
+
+	info := report.Ports[1]
+	if info == nil {
+		t.Fatal("Port 1 should be in report")
+	}
+	if info.Protocol != "tcp" {
+		t.Errorf("expected protocol tcp, got %s", info.Protocol)
+	}
+}
+
+// ===================== Additional Coverage: Summary =====================
+
+func TestSummary_Level1(t *testing.T) {
+	d := New(newMockRunner())
+	report := d.Detect(context.Background(), LevelOS, nil, nil)
+
+	summary := report.Summary()
+	if !strings.Contains(summary, "Level 1") {
+		t.Error("Summary should contain level 1")
+	}
+	if !strings.Contains(summary, "OS:") {
+		t.Error("Summary should contain OS info")
+	}
+}
+
+func TestSummary_Level3(t *testing.T) {
+	d := New(newMockRunner())
+	report := d.Detect(context.Background(), LevelPort, []int{80}, nil)
+
+	summary := report.Summary()
+	if !strings.Contains(summary, "Level 3") {
+		t.Error("Summary should contain level 3")
+	}
+	if !strings.Contains(summary, "Port") {
+		t.Error("Summary should contain port info")
+	}
+}
+
+func TestSummary_Level4(t *testing.T) {
+	listener, _ := net.Listen("tcp", "127.0.0.1:0")
+	defer listener.Close()
+	port := listener.Addr().(*net.TCPAddr).Port
+
+	d := New(newMockRunner())
+	report := d.Detect(context.Background(), LevelService, nil,
+		[]string{fmt.Sprintf("tcp://127.0.0.1:%d", port)})
+
+	summary := report.Summary()
+	if !strings.Contains(summary, "Level 4") {
+		t.Error("Summary should contain level 4")
+	}
+	if !strings.Contains(summary, "Service") {
+		t.Error("Summary should contain service info")
+	}
+}

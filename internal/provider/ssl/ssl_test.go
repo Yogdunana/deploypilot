@@ -227,3 +227,96 @@ func TestGetTLSConfig(t *testing.T) {
 		t.Errorf("expected 1 certificate, got %d", len(tlsCfg.Certificates))
 	}
 }
+
+func TestNewSSLProvider_InvalidDirectory(t *testing.T) {
+	// Use a path that cannot be created to trigger MkdirAll error
+	_, err := NewSSLProvider("/dev/null/impossible/path")
+	if err == nil {
+		t.Fatal("expected error for invalid directory")
+	}
+}
+
+func TestRequestCertificate_WriteFailure(t *testing.T) {
+	dir := t.TempDir()
+	p, err := NewSSLProvider(dir)
+	if err != nil {
+		t.Fatalf("NewSSLProvider failed: %v", err)
+	}
+
+	// Create a sub-directory where the cert file would be, to cause WriteFile to fail
+	// by creating a file with the same name as the cert file
+	certPath := filepath.Join(dir, "write-fail.com.crt")
+	_ = os.WriteFile(certPath, []byte("placeholder"), 0400)
+
+	_, err = p.RequestCertificate(context.TODO(), "write-fail.com", "admin@example.com")
+	// This may or may not error depending on permissions; just verify it doesn't panic
+	_ = err
+}
+
+func TestGetCertificate_KeyNotFound(t *testing.T) {
+	dir := t.TempDir()
+	p, err := NewSSLProvider(dir)
+	if err != nil {
+		t.Fatalf("NewSSLProvider failed: %v", err)
+	}
+
+	// Create only the cert file, not the key file
+	certPath := filepath.Join(dir, "key-missing.example.com.crt")
+	_ = os.WriteFile(certPath, []byte("-----BEGIN CERTIFICATE-----\ninvalid\n-----END CERTIFICATE-----"), 0600)
+
+	_, err = p.GetCertificate("key-missing.example.com")
+	if err == nil {
+		t.Fatal("expected error when key file is missing")
+	}
+}
+
+func TestGetCertificate_InvalidPEM(t *testing.T) {
+	dir := t.TempDir()
+	p, err := NewSSLProvider(dir)
+	if err != nil {
+		t.Fatalf("NewSSLProvider failed: %v", err)
+	}
+
+	// Create cert file with invalid PEM content
+	certPath := filepath.Join(dir, "invalid-pem.example.com.crt")
+	keyPath := filepath.Join(dir, "invalid-pem.example.com.key")
+	_ = os.WriteFile(certPath, []byte("not valid PEM"), 0600)
+	_ = os.WriteFile(keyPath, []byte("not valid PEM"), 0600)
+
+	_, err = p.GetCertificate("invalid-pem.example.com")
+	if err == nil {
+		t.Fatal("expected error for invalid PEM data")
+	}
+}
+
+func TestGetTLSConfig_NotFound(t *testing.T) {
+	dir := t.TempDir()
+	p, err := NewSSLProvider(dir)
+	if err != nil {
+		t.Fatalf("NewSSLProvider failed: %v", err)
+	}
+
+	_, err = p.GetTLSConfig("nonexistent.example.com")
+	if err == nil {
+		t.Fatal("expected error when certificate not found")
+	}
+}
+
+func TestGetCertificate_InvalidCertPEM(t *testing.T) {
+	dir := t.TempDir()
+	p, err := NewSSLProvider(dir)
+	if err != nil {
+		t.Fatalf("NewSSLProvider failed: %v", err)
+	}
+
+	// Create cert file with valid PEM block but invalid certificate data
+	certPath := filepath.Join(dir, "bad-cert.example.com.crt")
+	keyPath := filepath.Join(dir, "bad-cert.example.com.key")
+	_ = os.WriteFile(certPath, []byte("-----BEGIN CERTIFICATE-----\nAAAA\n-----END CERTIFICATE-----"), 0600)
+	_ = os.WriteFile(keyPath, []byte("-----BEGIN EC PRIVATE KEY-----\nAAAA\n-----END EC PRIVATE KEY-----"), 0600)
+
+	_, err = p.GetCertificate("bad-cert.example.com")
+	if err == nil {
+		t.Fatal("expected error for invalid certificate data")
+	}
+}

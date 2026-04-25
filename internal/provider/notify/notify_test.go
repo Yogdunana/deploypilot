@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 )
 
 // ========== Webhook Notifier ==========
@@ -286,3 +287,67 @@ func TestRollbackBuilder(t *testing.T) {
 
 // Suppress unused import
 var _ = fmt.Errorf
+
+// ===================== Additional Coverage: NewEmailNotifier =====================
+
+func TestNewEmailNotifier_DefaultSendFunc(t *testing.T) {
+	email := NewEmailNotifier(EmailConfig{
+		SMTPHost: "smtp.example.com",
+		SMTPPort: 587,
+		Username: "user",
+		Password: "pass",
+		From:     "noreply@example.com",
+	})
+	if email == nil {
+		t.Fatal("expected non-nil notifier")
+	}
+	if email.Name() != "email" {
+		t.Errorf("Name() = %q, want %q", email.Name(), "email")
+	}
+	// SendFunc should be set (non-nil)
+	if email.SendFunc == nil {
+		t.Error("expected default SendFunc to be set")
+	}
+}
+
+func TestNewEmailNotifier_EmptyConfig(t *testing.T) {
+	email := NewEmailNotifier(EmailConfig{})
+	if email == nil {
+		t.Fatal("expected non-nil notifier")
+	}
+	if email.SendFunc == nil {
+		t.Error("expected default SendFunc to be set even with empty config")
+	}
+}
+
+func TestEmailNotifier_SendWithDefaultFunc(t *testing.T) {
+	email := NewEmailNotifier(EmailConfig{
+		SMTPHost: "127.0.0.1",
+		SMTPPort: 19999,
+		Username: "user",
+		Password: "pass",
+		From:     "test@example.com",
+	})
+	// Don't override SendFunc - use the default which calls smtp.SendMail
+	// This will fail since there's no SMTP server, covering the error path
+	result, err := email.Send(context.Background(), Notification{
+		Type:      "deploy",
+		AppName:   "myapp",
+		Server:    "server1",
+		Status:    "success",
+		Message:   "deployed ok",
+		Timestamp: time.Now(),
+	})
+	if err != nil {
+		t.Fatalf("Send should not return error, got: %v", err)
+	}
+	if result == nil {
+		t.Fatal("expected non-nil result")
+	}
+	if result.Success {
+		t.Error("expected Success=false when SMTP connection fails")
+	}
+	if result.Error == "" {
+		t.Error("expected non-empty error message")
+	}
+}

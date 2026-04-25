@@ -354,3 +354,117 @@ func TestCreateSessionNilClient(t *testing.T) {
 		t.Error("CreateSession() should fail for nil client")
 	}
 }
+
+func TestConnect_InvalidKey(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	_, err := Connect(ctx, Config{
+		Host:     "127.0.0.1",
+		Port:     9999,
+		Username: "testuser",
+		KeyBytes: []byte("invalid-key-data"),
+		Timeout:  1 * time.Second,
+	})
+	if err == nil {
+		t.Error("Connect() should fail with invalid key")
+	}
+}
+
+func TestRunCommand_Cancelled(t *testing.T) {
+	port, keyPEM := newTestServer(t)
+	time.Sleep(100 * time.Millisecond)
+
+	client := connectTestClient(t, port, keyPEM)
+	defer client.Close()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	_, err := client.RunCommand(ctx, "echo hello")
+	if err == nil {
+		t.Error("RunCommand() should fail when context is cancelled")
+	}
+}
+
+func TestRunCommandWithStdio_Cancelled(t *testing.T) {
+	port, keyPEM := newTestServer(t)
+	time.Sleep(100 * time.Millisecond)
+
+	client := connectTestClient(t, port, keyPEM)
+	defer client.Close()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	err := client.RunCommandWithStdio(ctx, "echo hello", nil, nil)
+	if err == nil {
+		t.Error("RunCommandWithStdio() should fail when context is cancelled")
+	}
+}
+
+func TestRunCommandSplit_Cancelled(t *testing.T) {
+	port, keyPEM := newTestServer(t)
+	time.Sleep(100 * time.Millisecond)
+
+	client := connectTestClient(t, port, keyPEM)
+	defer client.Close()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	_, _, err := client.RunCommandSplit(ctx, "echo hello")
+	if err == nil {
+		t.Error("RunCommandSplit() should fail when context is cancelled")
+	}
+}
+
+func TestRunCommandWithStdio_NilWriters(t *testing.T) {
+	port, keyPEM := newTestServer(t)
+	time.Sleep(100 * time.Millisecond)
+
+	client := connectTestClient(t, port, keyPEM)
+	defer client.Close()
+
+	ctx := context.Background()
+	err := client.RunCommandWithStdio(ctx, "echo hello", nil, nil)
+	if err != nil {
+		t.Fatalf("RunCommandWithStdio() error = %v", err)
+	}
+}
+
+func TestRunCommandSplit_Error(t *testing.T) {
+	port, keyPEM := newTestServer(t)
+	time.Sleep(100 * time.Millisecond)
+
+	client := connectTestClient(t, port, keyPEM)
+	defer client.Close()
+
+	ctx := context.Background()
+	_, _, err := client.RunCommandSplit(ctx, "exit 1")
+	if err == nil {
+		t.Error("RunCommandSplit() should return error for exit 1")
+	}
+}
+
+func TestClose_NilClient(t *testing.T) {
+	c := &Client{}
+	err := c.Close()
+	if err != nil {
+		t.Errorf("Close() on nil client should not error, got: %v", err)
+	}
+}
+
+func TestRunCommandWithStdio_Error(t *testing.T) {
+	port, keyPEM := newTestServer(t)
+	time.Sleep(100 * time.Millisecond)
+
+	client := connectTestClient(t, port, keyPEM)
+	defer client.Close()
+
+	ctx := context.Background()
+	err := client.RunCommandWithStdio(ctx, "exit 1", nil, nil)
+	if err == nil {
+		t.Error("RunCommandWithStdio() should return error for exit 1")
+	}
+}
