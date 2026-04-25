@@ -1,10 +1,15 @@
 package server
 
 import (
+	"io/fs"
+	"net/http"
+	"strings"
+
 	"github.com/Yogdunana/deploypilot/internal/api"
 	"github.com/Yogdunana/deploypilot/internal/config"
 	"github.com/Yogdunana/deploypilot/internal/middleware"
 	"github.com/Yogdunana/deploypilot/internal/service"
+	webfs "github.com/Yogdunana/deploypilot/web"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
@@ -44,7 +49,58 @@ func New(addr string, db *gorm.DB, bridge *service.Bridge, cfg *config.Config) *
 	go wsHub.Run()
 
 	api.RegisterRoutes(r, db, bridge, wsHub, auditSvc)
+
+	// Serve embedded frontend static files
+	serveStaticFiles(r)
+
 	return &Server{router: r, db: db, bridge: bridge, addr: addr}
+}
+
+// serveStaticFiles sets up serving of embedded frontend assets with SPA fallback.
+func serveStaticFiles(r *gin.Engine) {
+	// Get the sub-filesystem rooted at "dist"
+	distFS, err := fs.Sub(webfs.DistFS, "dist")
+	if err != nil {
+		// If embed fails (e.g. no dist directory), skip static file serving
+		return
+	}
+
+	// Serve static assets (js, css, images, etc.) from /assets/ path
+	assetsFS, err := fs.Sub(distFS, "assets")
+	if err == nil {
+		r.StaticFS("/assets", http.FS(assetsFS))
+	}
+
+	// Serve other root-level static files (favicon, etc.)
+	r.GET("/vite.svg", func(c *gin.Context) {
+		data, err := fs.ReadFile(distFS, "vite.svg")
+		if err != nil {
+			c.Status(http.StatusNotFound)
+			return
+		}
+		c.Data(http.StatusOK, "image/svg+xml", data)
+	})
+
+	// SPA fallback: serve index.html for all non-API, non-WS, non-swagger routes
+	indexHTML, err := fs.ReadFile(distFS, "index.html")
+	if err != nil {
+		return
+	}
+
+	r.NoRoute(func(c *gin.Context) {
+		path := c.Request.URL.Path
+
+		// Skip API, WebSocket, and Swagger routes (these should have been handled already,
+		// but NoRoute catches everything that didn't match)
+		if strings.HasPrefix(path, "/api/") ||
+			strings.HasPrefix(path, "/ws/") ||
+			strings.HasPrefix(path, "/swagger/") {
+			c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+			return
+		}
+
+		c.Data(http.StatusOK, "text/html; charset=utf-8", indexHTML)
+	})
 }
 
 // Run starts the HTTP server.

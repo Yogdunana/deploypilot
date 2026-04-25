@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  deploypilot:
+    image: ghcr.io/yogdunana/deploypilot:latest
+    container_name: deploypilot
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      - DEPLOYPILOT_DATABASE_TYPE=sqlite
+      - DEPLOYPILOT_DATABASE_DSN=/app/data/deploypilot.db
+      - DEPLOYPILOT_AUTH_JWT_SECRET=your-jwt-secret-change-this
+      - DEPLOYPILOT_SERVER_PORT=8080
+      - DEPLOYPILOT_LOG_LEVEL=info
+      - DEPLOYPILOT_LOG_FORMAT=json
+    volumes:
+      - deploypilot-data:/app/data
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8080/api/v1/system/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # 可选：Redis（用于 Pub/Sub 事件总线，多实例部署时推荐启用）
+  redis:
+    image: redis:7-alpine
+    container_name: deploypilot-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes
+
+volumes:
+  deploypilot-data:
+  redis-data:

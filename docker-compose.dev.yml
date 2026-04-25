@@ -1,0 +1,30 @@
+version: '3.8'
+
+services:
+  deploypilot:
+    build: .
+    container_name: deploypilot-dev
+    ports:
+      - "8080:8080"
+    environment:
+      - DEPLOYPILOT_DATABASE_TYPE=sqlite
+      - DEPLOYPILOT_DATABASE_DSN=/app/data/deploypilot.db
+      - DEPLOYPILOT_AUTH_JWT_SECRET=dev-secret-not-for-production
+      - DEPLOYPILOT_SERVER_PORT=8080
+      - DEPLOYPILOT_LOG_LEVEL=debug
+      - DEPLOYPILOT_LOG_FORMAT=console
+      - DEPLOYPILOT_REDIS_ADDR=redis:6379
+    volumes:
+      - deploypilot-data:/app/data
+      - ./internal:/app/internal  # 热重载
+    depends_on:
+      - redis
+
+  redis:
+    image: redis:7-alpine
+    container_name: deploypilot-redis-dev
+    ports:
+      - "6379:6379"
+
+volumes:
+  deploypilot-data:
