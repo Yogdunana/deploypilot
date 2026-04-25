@@ -1,6 +1,7 @@
 package api
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 	"time"
@@ -207,7 +208,7 @@ func RotateCredential(bridge *service.Bridge, auditSvc *service.AuditService) gi
 				Action:       "credential.rotate",
 				ResourceType: "credential",
 				ResourceID:   id,
-				Detail:       map[string]string{"name": toString(result)},
+				Detail:       map[string]string{"name": fmt.Sprintf("%v", result)},
 			})
 		}
 
