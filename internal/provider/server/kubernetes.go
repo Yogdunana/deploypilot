@@ -192,14 +192,13 @@ func (k *K8sProvider) DeleteDeployment(ctx context.Context, name string) error {
 
 // ScaleDeployment scales a deployment to the specified number of replicas.
 func (k *K8sProvider) ScaleDeployment(ctx context.Context, name string, replicas int32) error {
-	// Use the scale subresource
-	scale, err := k.client.AppsV1().Deployments(k.namespace).GetScale(ctx, name, metav1.GetOptions{})
+	deploy, err := k.client.AppsV1().Deployments(k.namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
-		return fmt.Errorf("failed to get scale for deployment %s: %w", name, err)
+		return fmt.Errorf("failed to get deployment %s: %w", name, err)
 	}
 
-	scale.Spec.Replicas = replicas
-	_, err = k.client.AppsV1().Deployments(k.namespace).UpdateScale(ctx, name, scale, metav1.UpdateOptions{})
+	deploy.Spec.Replicas = &replicas
+	_, err = k.client.AppsV1().Deployments(k.namespace).Update(ctx, deploy, metav1.UpdateOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to scale deployment %s to %d replicas: %w", name, replicas, err)
 	}
@@ -246,7 +245,7 @@ func (k *K8sProvider) GetLogs(ctx context.Context, name string, tailLines int64)
 	if err != nil {
 		return "", fmt.Errorf("failed to stream logs: %w", err)
 	}
-	defer stream.Close()
+	defer func() { _ = stream.Close() }()
 
 	var builder strings.Builder
 	buf := make([]byte, 4096)

@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -130,12 +131,12 @@ func TestListClusters(t *testing.T) {
 	router, bridge, token := setupClusterTest(t)
 
 	// Create some clusters
-	bridge.CreateCluster(nil, &model.Cluster{
+	bridge.CreateCluster(context.TODO(), &model.Cluster{
 		TenantID:  "tenant-default",
 		Name:      "cluster-1",
 		APIServer: "https://10.0.0.1:6443",
 	})
-	bridge.CreateCluster(nil, &model.Cluster{
+	bridge.CreateCluster(context.TODO(), &model.Cluster{
 		TenantID:  "tenant-default",
 		Name:      "cluster-2",
 		APIServer: "https://10.0.0.2:6443",
@@ -175,7 +176,7 @@ func TestListClusters_Empty(t *testing.T) {
 func TestGetCluster(t *testing.T) {
 	router, bridge, token := setupClusterTest(t)
 
-	created, _ := bridge.CreateCluster(nil, &model.Cluster{
+	created, _ := bridge.CreateCluster(context.TODO(), &model.Cluster{
 		TenantID:  "tenant-default",
 		Name:      "get-test",
 		APIServer: "https://10.0.0.3:6443",

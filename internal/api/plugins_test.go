@@ -8,7 +8,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/Yogdunana/deploypilot/internal/plugin"
+	"github.com/Yogdunana/deploypilot/internal/crypto"
+	"github.com/Yogdunana/deploypilot/internal/model"
 	"github.com/gin-gonic/gin"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
@@ -61,6 +62,10 @@ func setupPluginTestDB(t *testing.T) *gorm.DB {
 	// Seed default tenant
 	db.Exec(`INSERT INTO tenants (id, name, slug) VALUES ('tenant-default', 'Default', 'default')`)
 
+	// Initialize model global DB so model functions (getDB) work
+	encKey := crypto.NewEncryptionKey()
+	model.InitDB(db, encKey)
+
 	return db
 }
 
@@ -86,37 +91,6 @@ func setupPluginTestRouter(db *gorm.DB) *gin.Engine {
 	protected.Use(authMiddlewareForTest())
 	{
 		pluginHandler := NewPluginHandler(nil)
-		plugins := protected.Group("/plugins")
-		{
-			plugins.GET("", pluginHandler.ListPlugins())
-			plugins.POST("", pluginHandler.CreatePlugin())
-			plugins.GET("/:id", pluginHandler.GetPlugin())
-			plugins.PUT("/:id", pluginHandler.UpdatePlugin())
-			plugins.DELETE("/:id", pluginHandler.DeletePlugin())
-			plugins.POST("/:id/enable", pluginHandler.EnablePlugin())
-			plugins.POST("/:id/disable", pluginHandler.DisablePlugin())
-			plugins.POST("/:id/reload", pluginHandler.ReloadPlugin())
-		}
-	}
-
-	return r
-}
-
-func setupPluginTestRouterWithLifecycle(db *gorm.DB, lifecycleMgr *plugin.Manager) *gin.Engine {
-	gin.SetMode(gin.TestMode)
-	r := gin.New()
-	r.Use(func(c *gin.Context) {
-		c.Set("db", db)
-		c.Next()
-	})
-
-	api := r.Group("/api/v1")
-
-	// Protected routes
-	protected := api.Group("")
-	protected.Use(authMiddlewareForTest())
-	{
-		pluginHandler := NewPluginHandler(lifecycleMgr)
 		plugins := protected.Group("/plugins")
 		{
 			plugins.GET("", pluginHandler.ListPlugins())

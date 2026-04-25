@@ -74,11 +74,11 @@ func buildClientFromToken(cluster *model.Cluster) (*k8sclient.Clientset, error) 
 		if !caPool.AppendCertsFromPEM([]byte(cluster.CAData)) {
 			return nil, fmt.Errorf("failed to parse CA certificate data")
 		}
-		restConfig.TLSClientConfig.CAData = []byte(cluster.CAData)
-		restConfig.TLSClientConfig.Insecure = false
+		restConfig.CAData = []byte(cluster.CAData)
+		restConfig.Insecure = false
 	} else {
 		// No CA data: use insecure mode (not recommended for production)
-		restConfig.TLSClientConfig.Insecure = true
+		restConfig.Insecure = true
 	}
 
 	clientset, err := k8sclient.NewForConfig(restConfig)
