@@ -162,7 +162,10 @@ func validateEnum(field string, schemaMap map[string]interface{}, value interfac
 	}
 
 	for _, allowed := range enumSlice {
-		if value == allowed {
+		// Use string conversion for robust comparison (handles interface{} wrapping)
+		valueStr := fmt.Sprintf("%v", value)
+		allowedStr := fmt.Sprintf("%v", allowed)
+		if valueStr == allowedStr {
 			return nil
 		}
 		// Handle numeric comparison (JSON numbers are float64)

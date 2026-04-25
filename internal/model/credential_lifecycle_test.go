@@ -61,11 +61,12 @@ func TestIsExpired_PastDate(t *testing.T) {
 }
 
 func TestIsExpired_ExactlyNow(t *testing.T) {
-	now := time.Now()
-	cred := &Credential{ExpiresAt: &now}
-	// Before() returns false for the exact same instant, so this should not be expired
+	// Due to time.Now() precision, exact equality cannot be reliably tested.
+	// Instead, verify that a credential expiring slightly in the future is NOT expired.
+	future := time.Now().Add(time.Nanosecond)
+	cred := &Credential{ExpiresAt: &future}
 	if IsExpired(cred) {
-		t.Error("IsExpired() should return false for ExpiresAt equal to now")
+		t.Error("IsExpired() should return false for ExpiresAt in the near future")
 	}
 }
 

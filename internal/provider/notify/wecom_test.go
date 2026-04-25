@@ -165,11 +165,13 @@ func TestWeComSendContextCancelled(t *testing.T) {
 
 	n := NewWeComNotifier(server.URL)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
+	// Use a short timeout instead of immediate cancel to ensure
+	// the HTTP client has time to start the request and observe the deadline.
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Millisecond)
+	defer cancel()
 
 	_, err := n.Send(ctx, DeploySuccess("app", "srv", "img"))
 	if err == nil {
-		t.Error("Send() should return error when context is cancelled")
+		t.Error("Send() should return error when context times out")
 	}
 }

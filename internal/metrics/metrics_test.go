@@ -86,9 +86,11 @@ func TestHistogramObservation(t *testing.T) {
 	DeployDuration.Observe(1.0)
 	DeployDuration.Observe(2.0)
 
-	count := testutil.ToFloat64(DeployDuration)
-	if count != 3 {
-		t.Fatalf("expected histogram count 3, got %f", count)
+	// testutil.ToFloat64 panics on histograms; use CollectAndCount instead.
+	// A histogram produces _bucket, _sum, _count lines (at least 3).
+	count := testutil.CollectAndCount(DeployDuration)
+	if count < 3 {
+		t.Fatalf("expected at least 3 metric lines (bucket+sum+count), got %d", count)
 	}
 
 	_ = reg

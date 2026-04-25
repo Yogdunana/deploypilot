@@ -1382,6 +1382,21 @@ func TestCloudflareGetRecordIDParsesResponse(t *testing.T) {
 			})
 			return
 		}
+		// Record-specific endpoint MUST be checked BEFORE the prefix match
+		if r.URL.Path == "/zones/zone-1/dns_records/rec-parsed-abc" && r.Method == "GET" {
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"success": true,
+				"result": map[string]interface{}{
+					"id":      "rec-parsed-abc",
+					"type":    "A",
+					"name":    "www.example.com",
+					"content": "1.2.3.4",
+					"ttl":     300,
+					"proxied": false,
+				},
+			})
+			return
+		}
 		if strings.HasPrefix(r.URL.Path, "/zones/zone-1/dns_records") && r.Method == "GET" {
 			json.NewEncoder(w).Encode(map[string]interface{}{
 				"success": true,
@@ -1394,21 +1409,6 @@ func TestCloudflareGetRecordIDParsesResponse(t *testing.T) {
 						"ttl":     300,
 						"proxied": false,
 					},
-				},
-			})
-			return
-		}
-		// Record-specific endpoint for the parsed ID
-		if r.URL.Path == "/zones/zone-1/dns_records/rec-parsed-abc" && r.Method == "GET" {
-			json.NewEncoder(w).Encode(map[string]interface{}{
-				"success": true,
-				"result": map[string]interface{}{
-					"id":      "rec-parsed-abc",
-					"type":    "A",
-					"name":    "www.example.com",
-					"content": "1.2.3.4",
-					"ttl":     300,
-					"proxied": false,
 				},
 			})
 			return
@@ -1442,6 +1442,17 @@ func TestCloudflareGetRecordIDMatchesTypeAndName(t *testing.T) {
 			})
 			return
 		}
+		// Record-specific endpoint MUST be checked BEFORE the prefix match
+		if r.URL.Path == "/zones/zone-1/dns_records/rec-a-1" && r.Method == "GET" {
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"success": true,
+				"result": map[string]interface{}{
+					"id": "rec-a-1", "type": "A", "name": "www.example.com",
+					"content": "1.2.3.4", "ttl": 300, "proxied": false,
+				},
+			})
+			return
+		}
 		if strings.HasPrefix(r.URL.Path, "/zones/zone-1/dns_records") && r.Method == "GET" {
 			// Return multiple records with different types
 			json.NewEncoder(w).Encode(map[string]interface{}{
@@ -1455,16 +1466,6 @@ func TestCloudflareGetRecordIDMatchesTypeAndName(t *testing.T) {
 						"id": "rec-a-1", "type": "A", "name": "www.example.com",
 						"content": "1.2.3.4", "ttl": 300, "proxied": false,
 					},
-				},
-			})
-			return
-		}
-		if r.URL.Path == "/zones/zone-1/dns_records/rec-a-1" && r.Method == "GET" {
-			json.NewEncoder(w).Encode(map[string]interface{}{
-				"success": true,
-				"result": map[string]interface{}{
-					"id": "rec-a-1", "type": "A", "name": "www.example.com",
-					"content": "1.2.3.4", "ttl": 300, "proxied": false,
 				},
 			})
 			return
