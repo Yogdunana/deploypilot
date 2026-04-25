@@ -12,9 +12,9 @@ FROM --platform=$BUILDPLATFORM golang:1.23.6 AS backend
 # Install xx for cross-compilation support
 COPY --from=tonistiigi/xx / /
 
-# Install native GCC and cross-compiler for arm64
+# Install native GCC and cross-compilation toolchain for arm64
 RUN apt-get update && apt-get install -y --no-install-recommends gcc && rm -rf /var/lib/apt/lists/*
-RUN xx-apt install -y --no-install-recommends gcc-aarch64-linux-gnu && xx-apt clean
+RUN xx-apt install -y --no-install-recommends gcc-aarch64-linux-gnu libc6-dev-arm64-cross && xx-apt clean
 
 RUN go install github.com/swaggo/swag/cmd/swag@v1.16.6
 
