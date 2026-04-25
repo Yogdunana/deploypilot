@@ -503,6 +503,17 @@ func (m *mockDeployer) DeleteSSLCertificate(ctx context.Context, domain string) 
 }
 
 func (m *mockDeployer) BatchDeployWithConfig(ctx context.Context, config BatchDeployConfig) (*BatchDeployResult, error) {
+	if m.batchDeployFn != nil {
+		res, err := m.batchDeployFn(ctx, config.Apps)
+		if err != nil {
+			return nil, err
+		}
+		// If batchDeployFn returned a non-nil result, try to convert it
+		if res != nil {
+			return nil, nil
+		}
+		return nil, nil
+	}
 	return &BatchDeployResult{
 		Total:   len(config.Apps),
 		Success: len(config.Apps),

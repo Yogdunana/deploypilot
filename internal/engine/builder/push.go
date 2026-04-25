@@ -76,11 +76,12 @@ func buildRemoteTag(regURL, appName, tag string) string {
 	host := strings.TrimPrefix(regURL, "https://")
 	host = strings.TrimPrefix(host, "http://")
 	host = strings.TrimSuffix(host, "/")
-	host = strings.TrimSuffix(host, "/v1/")
 	host = strings.TrimSuffix(host, "/v2/")
+	host = strings.TrimSuffix(host, "/v2")
 
 	switch {
-	case host == "docker.io" || host == "registry-1.docker.io" || host == "registry.hub.docker.com":
+	case host == "docker.io" || host == "registry-1.docker.io" || host == "registry.hub.docker.com" ||
+		strings.Contains(host, "docker.io") || strings.Contains(host, "hub.docker.com"):
 		// Docker Hub: username/imagename:tag
 		return fmt.Sprintf("%s/%s:%s", appName, appName, tag)
 	case strings.Contains(host, "ghcr.io"):

@@ -470,12 +470,12 @@ func TestBatchDeploy_SingleApp_Cov(t *testing.T) {
 	if err != nil {
 		t.Fatalf("BatchDeploy failed: %v", err)
 	}
-	m, ok := res.(map[string]interface{})
+	br, ok := res.(*mcp.BatchDeployResult)
 	if !ok {
-		t.Fatal("expected map")
+		t.Fatalf("expected *mcp.BatchDeployResult, got %T", res)
 	}
-	if m["total"] != 1 {
-		t.Errorf("expected total=1, got %v", m["total"])
+	if br.Total != 1 {
+		t.Errorf("expected total=1, got %v", br.Total)
 	}
 }
 
@@ -494,12 +494,12 @@ func TestBatchDeploy_SingleAppFailure(t *testing.T) {
 	if err != nil {
 		t.Fatalf("BatchDeploy failed: %v", err)
 	}
-	m, ok := res.(map[string]interface{})
+	br, ok := res.(*mcp.BatchDeployResult)
 	if !ok {
-		t.Fatal("expected map")
+		t.Fatalf("expected *mcp.BatchDeployResult, got %T", res)
 	}
-	if m["total"] != 1 {
-		t.Errorf("expected total=1, got %v", m["total"])
+	if br.Total != 1 {
+		t.Errorf("expected total=1, got %v", br.Total)
 	}
 }
 
@@ -520,12 +520,12 @@ func TestBatchDeploy_WithEnvVars_Cov(t *testing.T) {
 	if err != nil {
 		t.Fatalf("BatchDeploy failed: %v", err)
 	}
-	m, ok := res.(map[string]interface{})
+	br, ok := res.(*mcp.BatchDeployResult)
 	if !ok {
-		t.Fatal("expected map")
+		t.Fatalf("expected *mcp.BatchDeployResult, got %T", res)
 	}
-	if m["total"] != 1 {
-		t.Errorf("expected total=1, got %v", m["total"])
+	if br.Total != 1 {
+		t.Errorf("expected total=1, got %v", br.Total)
 	}
 }
 
