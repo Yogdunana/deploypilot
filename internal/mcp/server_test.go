@@ -2283,3 +2283,122 @@ func TestHandleGetDeployStatus_WithPreflightSummary(t *testing.T) {
 		t.Errorf("expected preflight code in result, got: %s", text)
 	}
 }
+
+func TestHandleBuildAndDeploy(t *testing.T) {
+	mock := &mockDeployer{
+		deployFn: func(ctx context.Context, cfg DeployConfig) (*ContainerStatus, error) {
+			return &ContainerStatus{ID: "abc", Name: cfg.ContainerName, Image: cfg.Image, Status: "running"}, nil
+		},
+	}
+	_, err := handleBuildAndDeploy(context.TODO(), mock, newRequest(map[string]interface{}{
+		"repo_url":   "https://github.com/test/test",
+		"app_name":   "test-app",
+		"branch":     "main",
+		"tech_stack": "go",
+	}))
+	if err != nil {
+		t.Fatalf("handleBuildAndDeploy failed: %v", err)
+	}
+}
+
+func TestHandleTriggerCIBuild(t *testing.T) {
+	mock := &mockDeployer{
+		triggerCIBuildFn: func(ctx context.Context, provider, repo, branch string) (interface{}, error) {
+			return map[string]interface{}{"status": "triggered", "run_id": "123"}, nil
+		},
+	}
+	_, err := handleTriggerCIBuild(context.TODO(), mock, newRequest(map[string]interface{}{
+		"provider": "github-actions",
+		"repo":     "test/repo",
+		"branch":   "main",
+	}))
+	if err != nil {
+		t.Fatalf("handleTriggerCIBuild failed: %v", err)
+	}
+}
+
+func TestHandleGetCIBuildStatus(t *testing.T) {
+	mock := &mockDeployer{
+		getCIBuildStatusFn: func(ctx context.Context, provider, runID string) (interface{}, error) {
+			return map[string]interface{}{"status": "success", "run_id": runID}, nil
+		},
+	}
+	_, err := handleGetCIBuildStatus(context.TODO(), mock, newRequest(map[string]interface{}{
+		"provider": "github-actions",
+		"run_id":   "12345",
+	}))
+	if err != nil {
+		t.Fatalf("handleGetCIBuildStatus failed: %v", err)
+	}
+}
+
+func TestHandleHealContainer(t *testing.T) {
+	mock := &mockDeployer{
+		healContainerFn: func(ctx context.Context, containerName string) (interface{}, error) {
+			return map[string]interface{}{"action": "none", "container_name": containerName}, nil
+		},
+	}
+	_, err := handleHealContainer(context.TODO(), mock, newRequest(map[string]interface{}{
+		"container_name": "my-app",
+	}))
+	if err != nil {
+		t.Fatalf("handleHealContainer failed: %v", err)
+	}
+}
+
+func TestHandleGetContainerMetrics(t *testing.T) {
+	mock := &mockDeployer{
+		getContainerMetricsFn: func(ctx context.Context, containerName string) (interface{}, error) {
+			return []map[string]interface{}{
+				{"type": "cpu", "name": "cpu_usage", "value": 12.5},
+			}, nil
+		},
+	}
+	_, err := handleGetContainerMetrics(context.TODO(), mock, newRequest(map[string]interface{}{
+		"container_name": "my-app",
+	}))
+	if err != nil {
+		t.Fatalf("handleGetContainerMetrics failed: %v", err)
+	}
+}
+
+func TestHandleGetSystemMetrics(t *testing.T) {
+	mock := &mockDeployer{
+		getSystemMetricsFn: func(ctx context.Context) (interface{}, error) {
+			return []map[string]interface{}{
+				{"type": "cpu", "name": "cpu_usage", "value": 25.0},
+				{"type": "memory", "name": "memory_usage", "value": 60.0},
+			}, nil
+		},
+	}
+	_, err := handleGetSystemMetrics(context.TODO(), mock, newRequest(map[string]interface{}{}))
+	if err != nil {
+		t.Fatalf("handleGetSystemMetrics failed: %v", err)
+	}
+}
+
+func TestHandleListAlerts(t *testing.T) {
+	mock := &mockDeployer{
+		listAlertsFn: func(ctx context.Context) (interface{}, error) {
+			return []interface{}{}, nil
+		},
+	}
+	_, err := handleListAlerts(context.TODO(), mock, newRequest(map[string]interface{}{}))
+	if err != nil {
+		t.Fatalf("handleListAlerts failed: %v", err)
+	}
+}
+
+func TestHandleListAlertRules(t *testing.T) {
+	mock := &mockDeployer{
+		listAlertRulesFn: func(ctx context.Context) (interface{}, error) {
+			return []map[string]interface{}{
+				{"id": "cpu-high", "name": "CPU High"},
+			}, nil
+		},
+	}
+	_, err := handleListAlertRules(context.TODO(), mock, newRequest(map[string]interface{}{}))
+	if err != nil {
+		t.Fatalf("handleListAlertRules failed: %v", err)
+	}
+}

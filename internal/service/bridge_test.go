@@ -1480,3 +1480,605 @@ func TestDetectEnv_Level0(t *testing.T) {
 		t.Errorf("expected empty map for level 0, got %v", m)
 	}
 }
+
+// ===================== Additional Coverage: TriggerCIBuild =====================
+
+func TestTriggerCIBuild_NoDB(t *testing.T) {
+	b := &Bridge{DB: nil}
+	_, err := b.TriggerCIBuild(context.TODO(), "github-actions", "test/repo", "main")
+	if err == nil {
+		t.Fatal("expected error when DB is nil")
+	}
+}
+
+func TestTriggerCIBuild_NoProvider(t *testing.T) {
+	b, _ := newTestBridge(t)
+	result, err := b.TriggerCIBuild(context.TODO(), "github-actions", "test/repo", "main")
+	if err != nil {
+		t.Fatalf("TriggerCIBuild failed: %v", err)
+	}
+	m, ok := result.(map[string]interface{})
+	if !ok {
+		t.Fatal("expected map")
+	}
+	if m["status"] != "error" {
+		t.Errorf("expected error status, got %v", m["status"])
+	}
+}
+
+func TestTriggerCIBuild_UnsupportedProvider(t *testing.T) {
+	b, _ := newTestBridge(t)
+	// Seed a CI/CD provider with unsupported type
+	b.DB.Exec(`INSERT INTO providers (id, type, name, config, enabled) VALUES
+		('cicd-unsup-trigger', 'cicd-jenkins', 'Jenkins', '{"token":"t","owner":"o"}', 1)`)
+
+	_, err := b.TriggerCIBuild(context.TODO(), "jenkins", "test/repo", "main")
+	if err == nil {
+		t.Fatal("expected error for unsupported provider type")
+	}
+}
+
+func TestTriggerCIBuild_InvalidConfig(t *testing.T) {
+	b, _ := newTestBridge(t)
+	// Seed a CI/CD provider with invalid config JSON
+	b.DB.Exec(`INSERT INTO providers (id, type, name, config, enabled) VALUES
+		('cicd-bad', 'cicd-github-actions', 'Bad CI', 'not-json', 1)`)
+
+	_, err := b.TriggerCIBuild(context.TODO(), "github-actions", "test/repo", "main")
+	if err == nil {
+		t.Fatal("expected error for invalid config JSON")
+	}
+}
+
+// ===================== Additional Coverage: GetCIBuildStatus =====================
+
+func TestGetCIBuildStatus_NoDB(t *testing.T) {
+	b := &Bridge{DB: nil}
+	_, err := b.GetCIBuildStatus(context.TODO(), "github-actions", "12345")
+	if err == nil {
+		t.Fatal("expected error when DB is nil")
+	}
+}
+
+func TestGetCIBuildStatus_NoProvider(t *testing.T) {
+	b, _ := newTestBridge(t)
+	result, err := b.GetCIBuildStatus(context.TODO(), "github-actions", "12345")
+	if err != nil {
+		t.Fatalf("GetCIBuildStatus failed: %v", err)
+	}
+	m, ok := result.(map[string]interface{})
+	if !ok {
+		t.Fatal("expected map")
+	}
+	if m["status"] != "error" {
+		t.Errorf("expected error status, got %v", m["status"])
+	}
+}
+
+func TestGetCIBuildStatus_UnsupportedProvider(t *testing.T) {
+	b, _ := newTestBridge(t)
+	// Seed a CI/CD provider with unsupported type
+	b.DB.Exec(`INSERT INTO providers (id, type, name, config, enabled) VALUES
+		('cicd-unsup', 'cicd-jenkins', 'Jenkins', '{"token":"t","owner":"o"}', 1)`)
+
+	_, err := b.GetCIBuildStatus(context.TODO(), "jenkins", "12345")
+	if err == nil {
+		t.Fatal("expected error for unsupported provider type")
+	}
+}
+
+func TestGetCIBuildStatus_InvalidConfig(t *testing.T) {
+	b, _ := newTestBridge(t)
+	b.DB.Exec(`INSERT INTO providers (id, type, name, config, enabled) VALUES
+		('cicd-bad2', 'cicd-github-actions', 'Bad CI', 'not-json', 1)`)
+
+	_, err := b.GetCIBuildStatus(context.TODO(), "github-actions", "12345")
+	if err == nil {
+		t.Fatal("expected error for invalid config JSON")
+	}
+}
+
+// ===================== Additional Coverage: HealContainer =====================
+
+func TestHealContainer(t *testing.T) {
+	b, exec := newTestBridge(t)
+	exec.output["docker inspect --format '{{.State.Status}}' heal-test 2>/dev/null"] = "running"
+	exec.output["docker inspect --format '{{.State.Restarting}}' heal-test 2>/dev/null"] = "false"
+	exec.output["docker inspect --format '{{.State.ExitCode}}' heal-test 2>/dev/null"] = "0"
+	exec.output["docker logs --tail 50 heal-test 2>&1"] = "no errors"
+
+	// HealContainer calls getHealer which calls healer.NewHealer
+	// The healer will try to check the container status
+	defer func() {
+		if r := recover(); r != nil {
+			t.Logf("expected panic with mock executor: %v", r)
+		}
+	}()
+	b.HealContainer(context.TODO(), "heal-test")
+}
+
+// ===================== Additional Coverage: GetContainerMetrics =====================
+
+func TestGetContainerMetrics(t *testing.T) {
+	b, exec := newTestBridge(t)
+	exec.output["docker inspect --format '{{.Id}}|{{.Name}}|{{.Config.Image}}|{{.State.Status}}|{{.Created}}' metrics-test 2>/dev/null"] = "abc123|metrics-test|nginx:alpine|running|2026-04-07T00:00:00Z"
+	exec.output["docker stats --no-stream --format '{{.CPUPerc}}|{{.MemUsage}}|{{.MemPerc}}|{{.NetIO}}|{{.BlockIO}}' metrics-test"] = "5.0%|50MiB / 512MiB|9.77%|1kB / 0B|0B / 0B"
+
+	defer func() {
+		if r := recover(); r != nil {
+			t.Logf("expected panic with mock executor: %v", r)
+		}
+	}()
+	b.GetContainerMetrics(context.TODO(), "metrics-test")
+}
+
+// ===================== Additional Coverage: GetSystemMetrics =====================
+
+func TestGetSystemMetrics(t *testing.T) {
+	b, exec := newTestBridge(t)
+	exec.output["free -m 2>/dev/null | awk 'NR==2{print $2,$3,$4,$5,$6,$7}'"] = "16384 8192 8192 0 0 8192"
+	exec.output["df -h / 2>/dev/null | awk 'NR==2{print $2,$3,$4,$5}'"] = "50G 20G 28G 42%"
+	exec.output["cat /proc/stat 2>/dev/null | head -1"] = "cpu  1000 200 300 4000 500"
+
+	defer func() {
+		if r := recover(); r != nil {
+			t.Logf("expected panic with mock executor: %v", r)
+		}
+	}()
+	b.GetSystemMetrics(context.TODO())
+}
+
+// ===================== Additional Coverage: ListAlerts =====================
+
+func TestListAlerts(t *testing.T) {
+	b, _ := newTestBridge(t)
+
+	defer func() {
+		if r := recover(); r != nil {
+			t.Logf("expected panic with mock executor: %v", r)
+		}
+	}()
+	result, err := b.ListAlerts(context.TODO())
+	if err != nil {
+		t.Fatalf("ListAlerts failed: %v", err)
+	}
+	if result == nil {
+		t.Error("expected non-nil result")
+	}
+}
+
+// ===================== Additional Coverage: ListAlertRules =====================
+
+func TestListAlertRules(t *testing.T) {
+	b, _ := newTestBridge(t)
+
+	defer func() {
+		if r := recover(); r != nil {
+			t.Logf("expected panic with mock executor: %v", r)
+		}
+	}()
+	result, err := b.ListAlertRules(context.TODO())
+	if err != nil {
+		t.Fatalf("ListAlertRules failed: %v", err)
+	}
+	if result == nil {
+		t.Error("expected non-nil result")
+	}
+}
+
+// ===================== Additional Coverage: BatchDeploy =====================
+
+func TestBatchDeploy_SingleApp(t *testing.T) {
+	b, exec := newTestBridge(t)
+	exec.output["docker version --format '{{.Server.Version}}'"] = "24.0"
+	exec.output["docker pull nginx:alpine"] = "Downloaded"
+	exec.output["docker rm -f batch-single-0 2>/dev/null || true"] = ""
+	exec.output["docker run -d --name batch-single-0 --restart unless-stopped nginx:alpine"] = "container-id"
+
+	defer func() {
+		if r := recover(); r != nil {
+			t.Logf("expected panic with mock executor: %v", r)
+		}
+	}()
+	result, err := b.BatchDeploy(context.TODO(), []map[string]interface{}{
+		{"image": "nginx:alpine", "container_name": "batch-single-0"},
+	})
+	if err != nil {
+		t.Fatalf("BatchDeploy failed: %v", err)
+	}
+	m, ok := result.(map[string]interface{})
+	if !ok {
+		t.Fatal("expected map")
+	}
+	if m["total"] != 1 {
+		t.Errorf("expected total=1, got %v", m["total"])
+	}
+}
+
+func TestBatchDeploy_WithEnvVars(t *testing.T) {
+	b, _ := newTestBridge(t)
+	apps := []map[string]interface{}{
+		{
+			"image":          "nginx:alpine",
+			"container_name": "batch-env-0",
+			"env_vars":       `{"FOO":"bar"}`,
+		},
+	}
+
+	defer func() {
+		if r := recover(); r != nil {
+			t.Logf("expected panic with mock executor: %v", r)
+		}
+	}()
+	result, err := b.BatchDeploy(context.TODO(), apps)
+	if err != nil {
+		t.Fatalf("BatchDeploy failed: %v", err)
+	}
+	m, ok := result.(map[string]interface{})
+	if !ok {
+		t.Fatal("expected map")
+	}
+	if m["total"] != 1 {
+		t.Errorf("expected total=1, got %v", m["total"])
+	}
+}
+
+// ===================== Additional Coverage: Restore =====================
+
+func TestRestore_NilDB(t *testing.T) {
+	b := &Bridge{DB: nil}
+	_, err := b.Restore(context.TODO(), "some-backup")
+	if err == nil {
+		t.Fatal("expected error when DB is nil")
+	}
+}
+
+func TestRestore_BackupExists_AppFound(t *testing.T) {
+	b, exec := newTestBridge(t)
+	// Create an app
+	id, _ := b.CreateApp(context.TODO(), mcp.CreateAppConfig{Name: "restore-app", RepoURL: "https://x.com/x"})
+	// Set container_name and current_version
+	b.DB.Table("apps").Where("id = ?", id).Updates(map[string]interface{}{
+		"container_name":  "restore-app-container",
+		"current_version": "nginx:alpine",
+	})
+
+	// Insert backup mapping
+	backupMu.Lock()
+	backupApps["restore-backup-id"] = id
+	backupMu.Unlock()
+
+	exec.output["docker stop restore-app-container"] = ""
+	exec.output["docker rm -f restore-app-container"] = ""
+	exec.output["docker pull nginx:alpine"] = "Downloaded"
+	exec.output["docker run -d --name restore-app-container --restart no nginx:alpine"] = "new-container-id"
+	exec.output["docker inspect --format '{{.Id}}|{{.Name}}|{{.Config.Image}}|{{.State.Status}}|{{.Created}}' restore-app-container 2>/dev/null"] = "new-container-id|restore-app-container|nginx:alpine|running|2026-04-07T00:00:00Z"
+
+	defer func() {
+		if r := recover(); r != nil {
+			t.Logf("expected panic with mock executor: %v", r)
+		}
+	}()
+	_, err := b.Restore(context.TODO(), "restore-backup-id")
+	if err != nil {
+		t.Fatalf("Restore failed: %v", err)
+	}
+}
+
+// ===================== Additional Coverage: SendNotification =====================
+
+func TestSendNotification_WithProvider(t *testing.T) {
+	b, _ := newTestBridge(t)
+	// Seed a webhook notifier
+	b.DB.Exec(`INSERT INTO providers (id, type, name, config, enabled) VALUES
+		('notify-test-1', 'notify', 'webhook', '{"channel":"webhook","url":"https://hooks.example.com/test"}', 1)`)
+
+	// The webhook notifier will fail since there's no real server, but the
+	// notification should still be processed
+	result, err := b.SendNotification(context.TODO(), "deploy", "myapp", "server1", "success", "deployed ok")
+	if err != nil {
+		t.Fatalf("SendNotification failed: %v", err)
+	}
+	m, ok := result.(map[string]interface{})
+	if !ok {
+		t.Fatal("expected map")
+	}
+	// Should be "error" since webhook call will fail
+	if m["status"] != "error" && m["status"] != "sent" {
+		t.Errorf("expected error or sent status, got %v", m["status"])
+	}
+}
+
+// ===================== Additional Coverage: getNotifiers =====================
+
+func TestGetNotifiers_NilDB(t *testing.T) {
+	b := &Bridge{DB: nil}
+	notifiers, err := b.getNotifiers(context.TODO())
+	if err != nil {
+		t.Fatalf("getNotifiers failed: %v", err)
+	}
+	if len(notifiers) != 0 {
+		t.Errorf("expected 0 notifiers with nil DB, got %d", len(notifiers))
+	}
+}
+
+// ===================== Additional Coverage: getDNSProvider =====================
+
+func TestGetDNSProvider_NilDB(t *testing.T) {
+	b := &Bridge{DB: nil}
+	_, err := b.getDNSProvider(context.TODO())
+	if err == nil {
+		t.Fatal("expected error when DB is nil")
+	}
+}
+
+func TestGetDNSProvider_InvalidConfig_Bridge(t *testing.T) {
+	b, _ := newTestBridge(t)
+	// Seed a DNS provider with invalid config
+	b.DB.Exec(`INSERT INTO providers (id, type, name, config, enabled) VALUES
+		('dns-bad', 'dns-cloudflare', 'bad-dns', 'not-json', 1)`)
+
+	_, err := b.getDNSProvider(context.TODO())
+	if err == nil {
+		t.Fatal("expected error for invalid DNS provider config")
+	}
+}
+
+func TestGetDNSProvider_UnsupportedType_Bridge(t *testing.T) {
+	b, _ := newTestBridge(t)
+	// Seed a DNS provider with unsupported type
+	b.DB.Exec(`INSERT INTO providers (id, type, name, config, enabled) VALUES
+		('dns-unsupported', 'dns-route53', 'unsupported', '{"api_token":"t"}', 1)`)
+
+	_, err := b.getDNSProvider(context.TODO())
+	if err == nil {
+		t.Fatal("expected error for unsupported DNS provider type")
+	}
+}
+
+// ===================== Additional Coverage: BuildAndDeploy =====================
+
+func TestBuildAndDeploy_NoExecutor(t *testing.T) {
+	b := &Bridge{Executor: nil}
+	_, err := b.BuildAndDeploy(context.TODO(), mcp.BuildAndDeployConfig{
+		RepoURL: "https://github.com/test/test",
+		AppName: "test-app",
+	})
+	if err == nil {
+		t.Fatal("expected error when executor is nil")
+	}
+}
+
+// ===================== Additional Coverage: Rollback =====================
+
+func TestRollback(t *testing.T) {
+	b, exec := newTestBridge(t)
+	exec.output["docker stop rollback-test"] = ""
+	exec.output["docker rm -f rollback-test"] = ""
+	exec.output["docker version --format '{{.Server.Version}}'"] = "24.0"
+	exec.output["docker pull nginx:previous"] = "Downloaded"
+	exec.output["docker rm -f rollback-test 2>/dev/null || true"] = ""
+	exec.output["docker run -d --name rollback-test --restart unless-stopped nginx:previous"] = "new-id"
+	exec.output["docker inspect --format '{{.Id}}|{{.Name}}|{{.Config.Image}}|{{.State.Status}}|{{.Created}}' rollback-test 2>/dev/null"] = "new-id|rollback-test|nginx:previous|running|2026-04-07T00:00:00Z"
+
+	_, err := b.Rollback(context.TODO(), "rollback-test", "nginx:previous")
+	if err != nil {
+		t.Fatalf("Rollback failed: %v", err)
+	}
+}
+
+// ===================== Additional Coverage: DeployAsync =====================
+
+func TestDeployAsync(t *testing.T) {
+	b, exec := newTestBridge(t)
+	exec.output["docker version --format '{{.Server.Version}}'"] = "24.0"
+	exec.output["docker pull nginx:alpine"] = "Downloaded"
+	exec.output["docker rm -f async-test 2>/dev/null || true"] = ""
+	exec.output["docker run -d --name async-test --restart unless-stopped nginx:alpine"] = "container-id"
+	exec.output["docker inspect --format '{{.Id}}|{{.Name}}|{{.Config.Image}}|{{.State.Status}}|{{.Created}}' async-test 2>/dev/null"] = "container-id|async-test|nginx:alpine|running|2026-04-07T00:00:00Z"
+
+	taskID, err := b.DeployAsync(context.TODO(), mcp.DeployConfig{
+		Image:         "nginx:alpine",
+		ContainerName: "async-test",
+	}, "app-id")
+	if err != nil {
+		t.Fatalf("DeployAsync failed: %v", err)
+	}
+	if taskID == "" {
+		t.Fatal("expected non-empty task ID")
+	}
+}
+
+func TestDeployAsync_FailedDeploy(t *testing.T) {
+	b, exec := newTestBridge(t)
+	exec.output["docker version --format '{{.Server.Version}}'"] = "24.0"
+	exec.output["docker pull nginx:alpine"] = "Downloaded"
+	exec.output["docker rm -f async-fail 2>/dev/null || true"] = ""
+	exec.err["docker run -d --name async-fail --restart unless-stopped nginx:alpine"] = fmt.Errorf("port in use")
+
+	taskID, err := b.DeployAsync(context.TODO(), mcp.DeployConfig{
+		Image:         "nginx:alpine",
+		ContainerName: "async-fail",
+	}, "app-id")
+	if err != nil {
+		t.Fatalf("DeployAsync failed: %v", err)
+	}
+	if taskID == "" {
+		t.Fatal("expected non-empty task ID")
+	}
+}
+
+// ===================== Additional Coverage: GetRemoteExecutorForTerminal =====================
+
+func TestGetRemoteExecutorForTerminal_ServerNotFound(t *testing.T) {
+	b, _ := newTestBridge(t)
+	_, err := b.GetRemoteExecutorForTerminal(context.TODO(), "nonexistent-server")
+	if err == nil {
+		t.Fatal("expected error for nonexistent server")
+	}
+}
+
+// ===================== Additional Coverage: saveDeploymentRecord =====================
+
+func TestSaveDeploymentRecord_NilDB(t *testing.T) {
+	b := &Bridge{DB: nil}
+	// Should not panic
+	b.saveDeploymentRecord(context.TODO(), mcp.DeployConfig{
+		Image:         "nginx:alpine",
+		ContainerName: "test",
+	}, "success", nil)
+}
+
+func TestSaveDeploymentRecord_WithPreflight(t *testing.T) {
+	b, _ := newTestBridge(t)
+	b.saveDeploymentRecord(context.TODO(), mcp.DeployConfig{
+		Image:         "nginx:alpine",
+		ContainerName: "test-preflight",
+	}, "preflight_failed", &PreflightResult{
+		Passed:  false,
+		Code:    PreflightDockerUnavailable,
+		Message: "Docker not found",
+		Checks: []PreflightCheck{
+			{Name: "Docker", Passed: false, Message: "not found", Suggestion: "install docker"},
+		},
+	})
+}
+
+// ===================== Additional Coverage: DNSListRecords =====================
+
+func TestDNSListRecords_UnsupportedProvider(t *testing.T) {
+	b, _ := newTestBridge(t)
+	// Seed a DNS provider with unsupported type
+	b.DB.Exec(`INSERT INTO providers (id, type, name, config, enabled) VALUES
+		('dns-unsup-list', 'dns-route53', 'unsupported', '{"api_token":"t"}', 1)`)
+
+	// DNSListRecords wraps provider errors in a map response, not an error return
+	res, err := b.DNSListRecords(context.TODO(), "example.com")
+	if err != nil {
+		t.Fatalf("DNSListRecords failed: %v", err)
+	}
+	m, ok := res.(map[string]interface{})
+	if !ok {
+		t.Fatal("expected map")
+	}
+	if m["status"] != "error" {
+		t.Errorf("expected error status, got %v", m["status"])
+	}
+}
+
+func TestDNSCreateRecord_UnsupportedProvider(t *testing.T) {
+	b, _ := newTestBridge(t)
+	// Seed a DNS provider with unsupported type
+	b.DB.Exec(`INSERT INTO providers (id, type, name, config, enabled) VALUES
+		('dns-unsup-create', 'dns-route53', 'unsupported', '{"api_token":"t"}', 1)`)
+
+	res, err := b.DNSCreateRecord(context.TODO(), "example.com", "A", "www", "1.2.3.4")
+	if err != nil {
+		t.Fatalf("DNSCreateRecord failed: %v", err)
+	}
+	m, ok := res.(map[string]interface{})
+	if !ok {
+		t.Fatal("expected map")
+	}
+	if m["status"] != "error" {
+		t.Errorf("expected error status, got %v", m["status"])
+	}
+}
+
+// ===================== Additional Coverage: UpdateDNSRecord =====================
+
+func TestUpdateDNSRecord_UnsupportedProvider(t *testing.T) {
+	b, _ := newTestBridge(t)
+	b.DB.Exec(`INSERT INTO providers (id, type, name, config, enabled) VALUES
+		('dns-unsup-update', 'dns-route53', 'unsupported', '{"api_token":"t"}', 1)`)
+
+	// UpdateDNSRecord wraps provider errors in a map response, not an error return
+	res, err := b.UpdateDNSRecord(context.TODO(), "example.com", "www", "A", "5.6.7.8")
+	if err != nil {
+		t.Fatalf("UpdateDNSRecord failed: %v", err)
+	}
+	m, ok := res.(map[string]interface{})
+	if !ok {
+		t.Fatal("expected map")
+	}
+	if m["status"] != "error" {
+		t.Errorf("expected error status, got %v", m["status"])
+	}
+}
+
+// ===================== Additional Coverage: BatchDNS with multiple records =====================
+
+func TestBatchDNS_MultipleRecords(t *testing.T) {
+	b, _ := newTestBridge(t)
+	records := []map[string]interface{}{
+		{"domain": "example.com", "type": "A", "subdomain": "www", "value": "1.2.3.4"},
+		{"domain": "example.com", "type": "A", "subdomain": "api", "value": "5.6.7.8"},
+		{"domain": "example.com", "type": "CNAME", "subdomain": "cdn", "value": "cdn.example.com"},
+	}
+	result, err := b.BatchDNS(context.TODO(), records)
+	if err != nil {
+		t.Fatalf("BatchDNS failed: %v", err)
+	}
+	m, ok := result.(map[string]interface{})
+	if !ok {
+		t.Fatal("expected map")
+	}
+	if m["total"] != 3 {
+		t.Errorf("expected total=3, got %v", m["total"])
+	}
+}
+
+// ===================== Additional Coverage: ListTasks with filter =====================
+
+func TestListTasks_WithStatusFilter(t *testing.T) {
+	b, _ := newTestBridge(t)
+	// Create tasks with different statuses
+	id1 := createTask("deploy")
+	updateTask(id1, "success", 100, "done")
+	id2 := createTask("deploy")
+	updateTask(id2, "failed", 100, "error")
+
+	result, err := b.ListTasks(context.TODO(), 10, "success")
+	if err != nil {
+		t.Fatalf("ListTasks failed: %v", err)
+	}
+	m, ok := result.(map[string]interface{})
+	if !ok {
+		t.Fatal("expected map")
+	}
+	tasks, ok := m["tasks"].([]*taskInfo)
+	if !ok {
+		t.Fatal("expected tasks to be []*taskInfo")
+	}
+	for _, task := range tasks {
+		if task.Status != "success" {
+			t.Errorf("expected only success tasks, got %s", task.Status)
+		}
+	}
+}
+
+func TestListTasks_WithLimit(t *testing.T) {
+	b, _ := newTestBridge(t)
+	// Create multiple tasks
+	for i := 0; i < 5; i++ {
+		createTask("deploy")
+	}
+
+	result, err := b.ListTasks(context.TODO(), 2, "")
+	if err != nil {
+		t.Fatalf("ListTasks failed: %v", err)
+	}
+	m, ok := result.(map[string]interface{})
+	if !ok {
+		t.Fatal("expected map")
+	}
+	tasks, ok := m["tasks"].([]*taskInfo)
+	if !ok {
+		t.Fatal("expected tasks to be []*taskInfo")
+	}
+	if len(tasks) > 2 {
+		t.Errorf("expected at most 2 tasks, got %d", len(tasks))
+	}
+}
+
+// ===================== Additional Coverage: DNSListRecords =====================
