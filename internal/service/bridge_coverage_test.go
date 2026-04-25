@@ -197,7 +197,7 @@ func TestListApps_DBQueryError(t *testing.T) {
 	b := &Bridge{DB: nil}
 	defer func() {
 		if r := recover(); r != nil {
-			// expected: nil pointer dereference
+			t.Logf("expected panic: %v", r)
 		}
 	}()
 	_, err := b.ListApps(context.TODO())
@@ -234,7 +234,7 @@ func TestListServers_DBQueryError(t *testing.T) {
 	b := &Bridge{DB: nil}
 	defer func() {
 		if r := recover(); r != nil {
-			// expected: nil pointer dereference
+			t.Logf("expected panic: %v", r)
 		}
 	}()
 	_, err := b.ListServers(context.TODO())
@@ -273,7 +273,7 @@ func TestAddServer_DBCreateError(t *testing.T) {
 	b := &Bridge{DB: nil, Executor: &mockExecutor{}}
 	defer func() {
 		if r := recover(); r != nil {
-			// expected: nil pointer dereference
+			t.Logf("expected panic: %v", r)
 		}
 	}()
 	_, err := b.AddServer(context.TODO(), "test", "10.0.0.1", 22, "root")
@@ -298,7 +298,7 @@ func TestCreateCredential_DBCreateError(t *testing.T) {
 	b := &Bridge{DB: nil, EncryptionKey: []byte("01234567890123456789012345678901")}
 	defer func() {
 		if r := recover(); r != nil {
-			// expected: nil pointer dereference
+			t.Logf("expected panic: %v", r)
 		}
 	}()
 	_, err := b.CreateCredential(context.TODO(), "tenant-default", "test-cred", "ssh_key", "secret")
@@ -313,7 +313,7 @@ func TestListCredentials_DBQueryError(t *testing.T) {
 	b := &Bridge{DB: nil}
 	defer func() {
 		if r := recover(); r != nil {
-			// expected: nil pointer dereference
+			t.Logf("expected panic: %v", r)
 		}
 	}()
 	_, err := b.ListCredentials(context.TODO(), "tenant-default")

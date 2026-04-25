@@ -2120,7 +2120,7 @@ func TestSSHClientExecutor_RunCommand(t *testing.T) {
 	// Client is nil, should panic — just verify the method exists
 	defer func() {
 		if r := recover(); r != nil {
-			// expected: nil pointer dereference
+			t.Logf("expected panic: %v", r)
 		}
 	}()
 	e.RunCommand(context.TODO(), "echo hello")
@@ -2130,7 +2130,7 @@ func TestSSHClientExecutor_Close(t *testing.T) {
 	e := &sshClientExecutor{}
 	defer func() {
 		if r := recover(); r != nil {
-			// expected: nil pointer dereference
+			t.Logf("expected panic: %v", r)
 		}
 	}()
 	_ = e.Close()
@@ -2179,7 +2179,7 @@ func TestCreateApp_DBError(t *testing.T) {
 	b := &Bridge{DB: nil}
 	defer func() {
 		if r := recover(); r != nil {
-			// expected: nil pointer dereference when DB is nil
+			t.Logf("expected panic: %v", r)
 		}
 	}()
 	_, err := b.CreateApp(context.TODO(), mcp.CreateAppConfig{
@@ -2267,7 +2267,7 @@ func TestUpdateApp_DBError(t *testing.T) {
 	b := &Bridge{DB: nil}
 	defer func() {
 		if r := recover(); r != nil {
-			// expected: nil pointer dereference when DB is nil
+			t.Logf("expected panic: %v", r)
 		}
 	}()
 	_, err := b.UpdateApp(context.TODO(), "some-id", map[string]interface{}{"name": "new"})
