@@ -97,7 +97,7 @@ func TestStartCleanup_RemovesExpiredTickets(t *testing.T) {
 	store.cleanup()
 
 	// Expired ticket should be gone
-	_, _, err = store.ValidateTicket("user-expired") // this won't match because we don't have the ticket ID
+	_, _, _ = store.ValidateTicket("user-expired") // this won't match because we don't have the ticket ID
 	// Instead, check that the store has exactly 1 ticket remaining
 	store.mu.RLock()
 	count := len(store.tickets)

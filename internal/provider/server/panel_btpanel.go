@@ -64,7 +64,7 @@ func (p *PanelBTPanelClient) doRequest(ctx context.Context, method, path string,
 	if err != nil {
 		return nil, fmt.Errorf("panel API request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {

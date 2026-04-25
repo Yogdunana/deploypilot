@@ -83,7 +83,7 @@ func (g *GiteaActionsProvider) TriggerBuild(ctx context.Context, repo, branch st
 
 	if resp.StatusCode != http.StatusNoContent && resp.StatusCode != http.StatusCreated {
 		respBody, _ := io.ReadAll(resp.Body)
-		return "", fmt.Errorf("Gitea API error %d: %s", resp.StatusCode, string(respBody))
+		return "", fmt.Errorf("gitea API error %d: %s", resp.StatusCode, string(respBody))
 	}
 
 	return "triggered", nil
@@ -112,7 +112,7 @@ func (g *GiteaActionsProvider) GetBuildStatus(ctx context.Context, runID string)
 
 	if resp.StatusCode != http.StatusOK {
 		respBody, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("Gitea API error %d: %s", resp.StatusCode, string(respBody))
+		return nil, fmt.Errorf("gitea API error %d: %s", resp.StatusCode, string(respBody))
 	}
 
 	var result struct {
@@ -173,9 +173,8 @@ func (g *GiteaActionsProvider) GetBuildLogs(ctx context.Context, runID string) (
 
 	if resp.StatusCode != http.StatusOK {
 		respBody, _ := io.ReadAll(resp.Body)
-		return "", fmt.Errorf("Gitea API error %d: %s", resp.StatusCode, string(respBody))
+		return "", fmt.Errorf("gitea API error %d: %s", resp.StatusCode, string(respBody))
 	}
-
 	logs, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return "", fmt.Errorf("failed to read logs: %w", err)
@@ -202,7 +201,7 @@ func (g *GiteaActionsProvider) ListWorkflows(ctx context.Context, repo string) (
 
 	if resp.StatusCode != http.StatusOK {
 		respBody, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("Gitea API error %d: %s", resp.StatusCode, string(respBody))
+		return nil, fmt.Errorf("gitea API error %d: %s", resp.StatusCode, string(respBody))
 	}
 
 	var result struct {

@@ -693,7 +693,7 @@ func TestWithValidation_IsToolHandlerFunc(t *testing.T) {
 	wrapped := withValidation("test_tool", tool, handler)
 
 	// Compile-time check: wrapped should be a server.ToolHandlerFunc
-	var _ server.ToolHandlerFunc = wrapped
+	_ = server.ToolHandlerFunc(wrapped)
 
 	_ = wrapped
 }
