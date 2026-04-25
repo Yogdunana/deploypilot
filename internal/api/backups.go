@@ -11,6 +11,15 @@ import (
 )
 
 // ListBackups lists backups for an app (currently returns empty since backups are in-memory).
+// @Summary      List backups
+// @Description  Retrieve backup records for an application
+// @Tags         Backups
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id path string true "Application ID"
+// @Success      200 {object} map[string]interface{} "status, data (array of DeploymentRecord)"
+// @Failure      401 {object} map[string]interface{} "unauthorized"
+// @Router       /apps/{id}/backups [get]
 func ListBackups(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// Backups are currently tracked in-memory in the bridge.
@@ -20,6 +29,16 @@ func ListBackups(db *gorm.DB) gin.HandlerFunc {
 }
 
 // DeleteBackup deletes a backup (placeholder).
+// @Summary      Delete a backup
+// @Description  Delete a backup record by ID
+// @Tags         Backups
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id path string true "Application ID"
+// @Param        backupId path string true "Backup ID"
+// @Success      200 {object} map[string]interface{} "status, data.message, data.backup_id"
+// @Failure      401 {object} map[string]interface{} "unauthorized"
+// @Router       /apps/{id}/backups/{backupId} [delete]
 func DeleteBackup(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		backupID := c.Param("backupId")
@@ -29,6 +48,20 @@ func DeleteBackup(db *gorm.DB) gin.HandlerFunc {
 }
 
 // ListAuditLogs lists audit logs with pagination and filtering.
+// @Summary      List audit logs
+// @Description  Retrieve audit logs with pagination and optional filtering by user, action, or resource type
+// @Tags         Audit
+// @Produce      json
+// @Security     BearerAuth
+// @Param        page query int false "Page number" default(1)
+// @Param        page_size query int false "Page size (1-100)" default(20)
+// @Param        user_id query string false "Filter by user ID"
+// @Param        action query string false "Filter by action type"
+// @Param        resource_type query string false "Filter by resource type"
+// @Success      200 {object} map[string]interface{} "status, data.logs, data.total, data.page, data.page_size"
+// @Failure      401 {object} map[string]interface{} "unauthorized"
+// @Failure      500 {object} map[string]interface{} "internal error"
+// @Router       /audit-logs [get]
 func ListAuditLogs(auditSvc *service.AuditService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))

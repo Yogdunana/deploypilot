@@ -1,0 +1,2506 @@
+basePath: /api/v1
+host: localhost:8080
+info:
+  contact:
+    name: Deploypilot
+    url: https://github.com/Yogdunana/deploypilot
+  description: AI-native deployment platform REST API
+  license:
+    name: MIT
+    url: https://github.com/Yogdunana/deploypilot/blob/main/LICENSE
+  termsOfService: http://swagger.io/terms/
+  title: Deploypilot API
+  version: "1.0"
+paths:
+  /apps:
+    get:
+      description: Retrieve a list of all registered applications
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: status, data (array of App)
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: internal error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List all applications
+      tags:
+      - Apps
+    post:
+      consumes:
+      - application/json
+      description: Create a new application configuration with the provided details
+      parameters:
+      - description: Application creation request
+        in: body
+        name: request
+        required: true
+        schema:
+          properties:
+            branch:
+              type: string
+            deploy_mode:
+              type: string
+            domain:
+              type: string
+            name:
+              type: string
+            repo_url:
+              type: string
+            server_id:
+              type: string
+            tech_stack:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: status, data (App object)
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: invalid request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: internal error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create a new application
+      tags:
+      - Apps
+  /apps/{id}:
+    delete:
+      description: Delete an application and its associated resources by ID
+      parameters:
+      - description: Application ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: status, data.message, data.id
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: internal error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete an application
+      tags:
+      - Apps
+    get:
+      description: Retrieve details of a specific application by its ID
+      parameters:
+      - description: Application ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: status, data (App object)
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: app not found
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get an application
+      tags:
+      - Apps
+    put:
+      consumes:
+      - application/json
+      description: Update fields of an existing application by ID
+      parameters:
+      - description: Application ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Fields to update
+        in: body
+        name: request
+        required: true
+        schema:
+          additionalProperties: true
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: status, data (updated App object)
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: invalid request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: internal error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update an application
+      tags:
+      - Apps
+  /apps/{id}/backup:
+    post:
+      description: Create a backup snapshot of an application
+      parameters:
+      - description: Application ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: status, data.backup_id, data.app_id
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: internal error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Backup an application
+      tags:
+      - Apps
+  /apps/{id}/backups:
+    get:
+      description: Retrieve backup records for an application
+      parameters:
+      - description: Application ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: status, data (array of DeploymentRecord)
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List backups
+      tags:
+      - Backups
+  /apps/{id}/backups/{backupId}:
+    delete:
+      description: Delete a backup record by ID
+      parameters:
+      - description: Application ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Backup ID
+        in: path
+        name: backupId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: status, data.message, data.backup_id
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete a backup
+      tags:
+      - Backups
+  /apps/{id}/build:
+    post:
+      consumes:
+      - application/json
+      description: Build an application from git source and deploy it. Supports optional
+        overrides for branch, tech stack, ports, env vars, and server.
+      parameters:
+      - description: Application ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Build and deploy overrides
+        in: body
+        name: request
+        schema:
+          properties:
+            branch:
+              type: string
+            env_vars:
+              additionalProperties:
+                type: string
+              type: object
+            ports:
+              type: string
+            server_id:
+              type: string
+            tech_stack:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: status, data (BuildResult)
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: app not found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: internal error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Build and deploy an application
+      tags:
+      - Apps
+  /apps/{id}/deploy:
+    post:
+      consumes:
+      - application/json
+      description: Deploy an application using the provided deploy configuration.
+        Set query param async=true for async deployment.
+      parameters:
+      - description: Application ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - default: "false"
+        description: Set to 'true' for async deployment
+        in: query
+        name: async
+        type: string
+      - description: Deploy configuration
+        in: body
+        name: request
+        schema:
+          properties:
+            app_name:
+              type: string
+            container_name:
+              type: string
+            env_vars:
+              additionalProperties:
+                type: string
+              type: object
+            image:
+              type: string
+            port:
+              type: integer
+            server_id:
+              type: string
+            volumes:
+              items:
+                type: string
+              type: array
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: status, data (ContainerStatus)
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: invalid request or preflight failure
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: internal error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Deploy an application
+      tags:
+      - Apps
+  /apps/{id}/env:
+    get:
+      description: Retrieve the environment variables configured for an application
+      parameters:
+      - description: Application ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: status, data.app_id, data.env_vars
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: app not found
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get application environment variables
+      tags:
+      - Apps
+    put:
+      consumes:
+      - application/json
+      description: Update the environment variables for an application
+      parameters:
+      - description: Application ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Environment variables string
+        in: body
+        name: request
+        required: true
+        schema:
+          properties:
+            env_vars:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: status, data.app_id, data.message
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: invalid request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: internal error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update application environment variables
+      tags:
+      - Apps
+  /apps/{id}/logs/container:
+    get:
+      description: Retrieve the most recent log lines from an application's container
+      parameters:
+      - description: Application ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - default: 100
+        description: Number of log lines to retrieve
+        in: query
+        name: tail
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: status, data.container_name, data.tail, data.logs
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: app not found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: internal error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get container logs
+      tags:
+      - Apps
+  /apps/{id}/restore:
+    post:
+      consumes:
+      - application/json
+      description: Restore an application to a previous backup state
+      parameters:
+      - description: Application ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Restore request with backup ID
+        in: body
+        name: request
+        required: true
+        schema:
+          properties:
+            backup_id:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: status, data (ContainerStatus)
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: invalid request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: internal error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Restore an application from backup
+      tags:
+      - Apps
+  /apps/{id}/rollback:
+    post:
+      consumes:
+      - application/json
+      description: Roll back an application container to a previous Docker image
+      parameters:
+      - description: Application ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Rollback request with previous image
+        in: body
+        name: request
+        required: true
+        schema:
+          properties:
+            previous_image:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: status, data (ContainerStatus)
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: invalid request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: app not found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: internal error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Rollback an application
+      tags:
+      - Apps
+  /apps/{id}/status:
+    get:
+      description: Get the current deployment status of an application's container
+      parameters:
+      - description: Application ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: status, data (ContainerStatus)
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: app not found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: internal error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get application status
+      tags:
+      - Apps
+  /audit-logs:
+    get:
+      description: Retrieve audit logs with pagination and optional filtering by user,
+        action, or resource type
+      parameters:
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: Page size (1-100)
+        in: query
+        name: page_size
+        type: integer
+      - description: Filter by user ID
+        in: query
+        name: user_id
+        type: string
+      - description: Filter by action type
+        in: query
+        name: action
+        type: string
+      - description: Filter by resource type
+        in: query
+        name: resource_type
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: status, data.logs, data.total, data.page, data.page_size
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: internal error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List audit logs
+      tags:
+      - Audit
+  /auth/login:
+    post:
+      consumes:
+      - application/json
+      description: Authenticate with username and password to obtain a JWT token
+      parameters:
+      - description: Login request
+        in: body
+        name: request
+        required: true
+        schema:
+          properties:
+            password:
+              type: string
+            username:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: status, data.user, data.token
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: invalid request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: invalid credentials
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: internal error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Login
+      tags:
+      - Auth
+  /auth/register:
+    post:
+      consumes:
+      - application/json
+      description: Create a new user account with username, email, and password
+      parameters:
+      - description: Registration request
+        in: body
+        name: request
+        required: true
+        schema:
+          properties:
+            email:
+              type: string
+            password:
+              type: string
+            username:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: status, data.user, data.token
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: invalid request
+          schema:
+            additionalProperties: true
+            type: object
+        "409":
+          description: username or email already exists
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: internal error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Register a new user
+      tags:
+      - Auth
+  /cicd/status/{runID}:
+    get:
+      description: Retrieve the status of a specific CI/CD build run
+      parameters:
+      - description: CI provider name
+        in: query
+        name: provider
+        required: true
+        type: string
+      - description: CI build run ID
+        in: path
+        name: runID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: status, data (build status)
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: invalid request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: internal error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get CI/CD build status
+      tags:
+      - CI/CD
+  /cicd/trigger:
+    post:
+      consumes:
+      - application/json
+      description: Trigger a new CI/CD build for a repository on a specific branch
+      parameters:
+      - description: CI build trigger request
+        in: body
+        name: request
+        required: true
+        schema:
+          properties:
+            branch:
+              type: string
+            provider:
+              type: string
+            repo:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: status, data (build result)
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: invalid request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: internal error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Trigger a CI/CD build
+      tags:
+      - CI/CD
+  /credentials:
+    get:
+      description: Retrieve all encrypted credentials for a tenant
+      parameters:
+      - default: '"tenant-default"'
+        description: Tenant ID
+        in: query
+        name: tenant_id
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: status, data (array of Credential)
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: internal error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List credentials
+      tags:
+      - Credentials
+    post:
+      consumes:
+      - application/json
+      description: Create a new encrypted credential entry
+      parameters:
+      - description: Credential creation request
+        in: body
+        name: request
+        required: true
+        schema:
+          properties:
+            name:
+              type: string
+            tenant_id:
+              type: string
+            type:
+              type: string
+            value:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: status, data (Credential)
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: invalid request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: internal error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create a credential
+      tags:
+      - Credentials
+  /credentials/{id}:
+    delete:
+      description: Delete a credential by ID
+      parameters:
+      - description: Credential ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: status, data.message, data.id
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: internal error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete a credential
+      tags:
+      - Credentials
+    put:
+      consumes:
+      - application/json
+      description: Update the value of an existing credential
+      parameters:
+      - description: Credential ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: New credential value
+        in: body
+        name: request
+        required: true
+        schema:
+          properties:
+            value:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: status, data (updated Credential)
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: invalid request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: internal error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update a credential
+      tags:
+      - Credentials
+  /deployments:
+    get:
+      description: Retrieve deployment records with optional filtering by app_id and
+        status
+      parameters:
+      - description: Filter by application ID
+        in: query
+        name: app_id
+        type: string
+      - description: Filter by deployment status
+        in: query
+        name: status
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: status, data (array of DeploymentRecord)
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: internal error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List deployments
+      tags:
+      - Deployments
+  /deployments/{id}:
+    get:
+      description: Retrieve a single deployment record by ID
+      parameters:
+      - description: Deployment ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: status, data (DeploymentRecord)
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: deployment not found
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get a deployment
+      tags:
+      - Deployments
+  /dns/records:
+    get:
+      description: Retrieve all DNS records for a given domain
+      parameters:
+      - description: Domain name
+        in: query
+        name: domain
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: status, data (array of DNS records)
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: domain query parameter is required
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: internal error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List DNS records
+      tags:
+      - DNS
+    post:
+      consumes:
+      - application/json
+      description: Create a new DNS record for a domain
+      parameters:
+      - description: DNS record creation request
+        in: body
+        name: request
+        required: true
+        schema:
+          properties:
+            domain:
+              type: string
+            name:
+              type: string
+            type:
+              type: string
+            value:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: status, data (DNS record)
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: invalid request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: internal error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create a DNS record
+      tags:
+      - DNS
+  /dns/records/{id}:
+    delete:
+      description: Delete a DNS record by ID
+      parameters:
+      - description: DNS record ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: status, data.message, data.id
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: internal error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete a DNS record
+      tags:
+      - DNS
+    put:
+      consumes:
+      - application/json
+      description: Update an existing DNS record with a new value
+      parameters:
+      - description: DNS record ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: DNS record update request
+        in: body
+        name: request
+        required: true
+        schema:
+          properties:
+            domain:
+              type: string
+            new_value:
+              type: string
+            subdomain:
+              type: string
+            type:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: status, data (updated DNS record)
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: invalid request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: internal error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update a DNS record
+      tags:
+      - DNS
+  /monitor/alert-rules:
+    get:
+      description: Retrieve all configured alert rules
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: status, data (array of AlertRule)
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: internal error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List alert rules
+      tags:
+      - Monitor
+  /monitor/alerts:
+    get:
+      description: Retrieve all currently active (firing) alerts
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: status, data (array of Alert)
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: internal error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List active alerts
+      tags:
+      - Monitor
+  /monitor/check/{name}:
+    post:
+      description: Run a health check for a specific container
+      parameters:
+      - description: Container name
+        in: path
+        name: name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: status, data (health check result)
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: container name is required
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: internal error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Check container health
+      tags:
+      - Monitor
+  /monitor/container/{name}:
+    get:
+      description: Retrieve resource usage metrics for a specific container
+      parameters:
+      - description: Container name
+        in: path
+        name: name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: status, data (ContainerMetrics)
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: container name is required
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: internal error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get container metrics
+      tags:
+      - Monitor
+  /monitor/heal/{name}:
+    post:
+      description: Trigger self-healing actions for a container that is not running
+        correctly
+      parameters:
+      - description: Container name
+        in: path
+        name: name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: status, data (heal result)
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: container name is required
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: internal error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Heal a container
+      tags:
+      - Monitor
+  /monitor/system:
+    get:
+      description: Retrieve system-level resource metrics including CPU, memory, and
+        disk usage
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: status, data (SystemMetrics)
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: internal error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get system metrics
+      tags:
+      - Monitor
+  /notifications:
+    get:
+      description: Retrieve all notification provider configurations
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: status, data (array of Provider)
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: internal error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List notification providers
+      tags:
+      - Notifications
+    post:
+      consumes:
+      - application/json
+      description: Create a new notification provider configuration
+      parameters:
+      - description: Notification provider creation request
+        in: body
+        name: request
+        required: true
+        schema:
+          properties:
+            config:
+              additionalProperties: true
+              type: object
+            name:
+              type: string
+            tenant_id:
+              type: string
+            type:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: status, data (Provider)
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: invalid request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: internal error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create a notification provider
+      tags:
+      - Notifications
+  /notifications/{id}:
+    delete:
+      description: Delete a notification provider by ID
+      parameters:
+      - description: Notification provider ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: status, data.message, data.id
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: notification provider not found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: internal error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete a notification provider
+      tags:
+      - Notifications
+    put:
+      consumes:
+      - application/json
+      description: Update an existing notification provider configuration
+      parameters:
+      - description: Notification provider ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Fields to update
+        in: body
+        name: request
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: status, data (updated Provider)
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: invalid request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: internal error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update a notification provider
+      tags:
+      - Notifications
+  /providers:
+    get:
+      description: Retrieve all providers with optional type filtering
+      parameters:
+      - description: Filter by provider type
+        in: query
+        name: type
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: status, data (array of Provider)
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: internal error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List providers
+      tags:
+      - Providers
+    post:
+      consumes:
+      - application/json
+      description: Create a new provider configuration
+      parameters:
+      - description: Provider creation request
+        in: body
+        name: request
+        required: true
+        schema:
+          properties:
+            config:
+              additionalProperties: true
+              type: object
+            name:
+              type: string
+            tenant_id:
+              type: string
+            type:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: status, data (Provider)
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: invalid request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: internal error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create a provider
+      tags:
+      - Providers
+  /providers/{id}:
+    delete:
+      description: Delete a provider by ID
+      parameters:
+      - description: Provider ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: status, data.message, data.id
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: provider not found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: internal error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete a provider
+      tags:
+      - Providers
+    put:
+      consumes:
+      - application/json
+      description: Update an existing provider configuration
+      parameters:
+      - description: Provider ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Fields to update
+        in: body
+        name: request
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: status, data (updated Provider)
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: invalid request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: internal error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update a provider
+      tags:
+      - Providers
+  /roles:
+    get:
+      description: Retrieve all available system roles
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: status, data (array of Role)
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: internal error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List roles
+      tags:
+      - Roles
+  /servers:
+    get:
+      description: Retrieve a list of all registered deployment servers
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: status, data (array of ServerInfo)
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: internal error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List all servers
+      tags:
+      - Servers
+    post:
+      consumes:
+      - application/json
+      description: Register a new deployment server with SSH connection details
+      parameters:
+      - description: Server registration request
+        in: body
+        name: request
+        required: true
+        schema:
+          properties:
+            host:
+              type: string
+            name:
+              type: string
+            port:
+              type: integer
+            user:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: status, data (ServerInfo)
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: invalid request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: internal error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Add a server
+      tags:
+      - Servers
+  /servers/{id}:
+    delete:
+      description: Remove a registered server by ID
+      parameters:
+      - description: Server ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: status, data.message, data.id
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: internal error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete a server
+      tags:
+      - Servers
+    put:
+      consumes:
+      - application/json
+      description: Update configuration fields of a registered server
+      parameters:
+      - description: Server ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Fields to update
+        in: body
+        name: request
+        required: true
+        schema:
+          additionalProperties: true
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: status, data (updated ServerInfo)
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: invalid request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: internal error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update a server
+      tags:
+      - Servers
+  /servers/{id}/detect:
+    post:
+      description: Run environment detection on a server to identify installed services,
+        open ports, and system info
+      parameters:
+      - description: Server ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - default: 2
+        description: Detection depth level
+        in: query
+        name: level
+        type: integer
+      - description: Comma-separated list of ports to check
+        in: query
+        name: ports
+        type: string
+      - description: Comma-separated list of services to check
+        in: query
+        name: services
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: status, data (EnvironmentInfo)
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: internal error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Detect server environment
+      tags:
+      - Servers
+  /servers/{id}/environment:
+    get:
+      description: Retrieve previously detected environment information for a server
+      parameters:
+      - description: Server ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: status, data (server row with detected_info)
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: server not found
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get server environment info
+      tags:
+      - Servers
+  /servers/{id}/test:
+    post:
+      description: Test SSH connectivity to a registered server
+      parameters:
+      - description: Server ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: status, data (test result)
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: internal error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Test server connectivity
+      tags:
+      - Servers
+  /system/health:
+    get:
+      description: Check the health status of system components including database
+        connectivity
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: status, data.status, data.database.status
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "503":
+          description: service unavailable
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: System health check
+      tags:
+      - System
+  /system/update/check:
+    get:
+      description: Check if a newer version of Deploypilot is available
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: status, data (update check result)
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: internal error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Check for system updates
+      tags:
+      - System
+  /system/version:
+    get:
+      description: Retrieve the current system version, Go runtime info, and CPU count
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: status, data.version, data.go, data.goos, data.goarch, data.num_cpu
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get system version
+      tags:
+      - System
+  /templates:
+    get:
+      description: Retrieve all available deployment templates (built-in and custom)
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: status, data (array of Template)
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: internal error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List templates
+      tags:
+      - Templates
+    post:
+      consumes:
+      - application/json
+      description: Create a custom deployment template
+      parameters:
+      - description: Template creation request
+        in: body
+        name: request
+        required: true
+        schema:
+          properties:
+            build_cmd:
+              type: string
+            description:
+              type: string
+            name:
+              type: string
+            port:
+              type: integer
+            run_cmd:
+              type: string
+            type:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: status, data.id, data.name, data.type
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: invalid request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: internal error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create a template
+      tags:
+      - Templates
+  /templates/{id}:
+    delete:
+      description: Delete a custom deployment template by ID
+      parameters:
+      - description: Template ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: status, data.message, data.id
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: template not found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: internal error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete a template
+      tags:
+      - Templates
+    put:
+      consumes:
+      - application/json
+      description: Update an existing custom deployment template
+      parameters:
+      - description: Template ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Template update request
+        in: body
+        name: request
+        required: true
+        schema:
+          properties:
+            build_cmd:
+              type: string
+            description:
+              type: string
+            name:
+              type: string
+            port:
+              type: integer
+            run_cmd:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: status, data.id, data.message
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: invalid request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: internal error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update a template
+      tags:
+      - Templates
+  /users:
+    get:
+      description: Retrieve all users with their role information (owner/admin only)
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: status, data (array of User with Role)
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: forbidden
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: internal error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List users
+      tags:
+      - Users
+  /users/{id}:
+    delete:
+      description: Delete a user by ID (owner only)
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: status, data.message, data.id
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: forbidden
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: user not found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: internal error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete a user
+      tags:
+      - Users
+  /users/{id}/role:
+    put:
+      consumes:
+      - application/json
+      description: Update a user's role assignment (owner/admin only)
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Role update request
+        in: body
+        name: request
+        required: true
+        schema:
+          properties:
+            role_id:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: status, data.user_id, data.role_id, data.role_name
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: invalid request or invalid role_id
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: forbidden
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: internal error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update user role
+      tags:
+      - Users
+  /users/me:
+    get:
+      description: Retrieve the currently authenticated user's profile information
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: status, data (User with Role and Tenant)
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: not authenticated
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: user not found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: internal error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get current user
+      tags:
+      - Users
+securityDefinitions:
+  BearerAuth:
+    description: JWT token with "Bearer " prefix
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

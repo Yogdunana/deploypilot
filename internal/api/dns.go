@@ -8,6 +8,17 @@ import (
 )
 
 // ListDNSRecords lists DNS records for a domain.
+// @Summary      List DNS records
+// @Description  Retrieve all DNS records for a given domain
+// @Tags         DNS
+// @Produce      json
+// @Security     BearerAuth
+// @Param        domain query string true "Domain name"
+// @Success      200 {object} map[string]interface{} "status, data (array of DNS records)"
+// @Failure      400 {object} map[string]interface{} "domain query parameter is required"
+// @Failure      401 {object} map[string]interface{} "unauthorized"
+// @Failure      500 {object} map[string]interface{} "internal error"
+// @Router       /dns/records [get]
 func ListDNSRecords(bridge *service.Bridge) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		domain := c.Query("domain")
@@ -26,6 +37,18 @@ func ListDNSRecords(bridge *service.Bridge) gin.HandlerFunc {
 }
 
 // CreateDNSRecord creates a new DNS record.
+// @Summary      Create a DNS record
+// @Description  Create a new DNS record for a domain
+// @Tags         DNS
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        request body object{domain=string,type=string,name=string,value=string} true "DNS record creation request"
+// @Success      200 {object} map[string]interface{} "status, data (DNS record)"
+// @Failure      400 {object} map[string]interface{} "invalid request"
+// @Failure      401 {object} map[string]interface{} "unauthorized"
+// @Failure      500 {object} map[string]interface{} "internal error"
+// @Router       /dns/records [post]
 func CreateDNSRecord(bridge *service.Bridge) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var input struct {
@@ -49,6 +72,19 @@ func CreateDNSRecord(bridge *service.Bridge) gin.HandlerFunc {
 }
 
 // UpdateDNSRecord updates a DNS record.
+// @Summary      Update a DNS record
+// @Description  Update an existing DNS record with a new value
+// @Tags         DNS
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id path string true "DNS record ID"
+// @Param        request body object{domain=string,subdomain=string,type=string,new_value=string} true "DNS record update request"
+// @Success      200 {object} map[string]interface{} "status, data (updated DNS record)"
+// @Failure      400 {object} map[string]interface{} "invalid request"
+// @Failure      401 {object} map[string]interface{} "unauthorized"
+// @Failure      500 {object} map[string]interface{} "internal error"
+// @Router       /dns/records/{id} [put]
 func UpdateDNSRecord(bridge *service.Bridge) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var input struct {
@@ -72,6 +108,16 @@ func UpdateDNSRecord(bridge *service.Bridge) gin.HandlerFunc {
 }
 
 // DeleteDNSRecord deletes a DNS record.
+// @Summary      Delete a DNS record
+// @Description  Delete a DNS record by ID
+// @Tags         DNS
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id path string true "DNS record ID"
+// @Success      200 {object} map[string]interface{} "status, data.message, data.id"
+// @Failure      401 {object} map[string]interface{} "unauthorized"
+// @Failure      500 {object} map[string]interface{} "internal error"
+// @Router       /dns/records/{id} [delete]
 func DeleteDNSRecord(bridge *service.Bridge) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		id := c.Param("id")

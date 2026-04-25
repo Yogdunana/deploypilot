@@ -15,6 +15,18 @@ import (
 )
 
 // CreateApp creates a new application.
+// @Summary      Create a new application
+// @Description  Create a new application configuration with the provided details
+// @Tags         Apps
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        request body object{name=string,repo_url=string,branch=string,domain=string,tech_stack=string,deploy_mode=string,server_id=string} true "Application creation request"
+// @Success      200 {object} map[string]interface{} "status, data (App object)"
+// @Failure      400 {object} map[string]interface{} "invalid request"
+// @Failure      401 {object} map[string]interface{} "unauthorized"
+// @Failure      500 {object} map[string]interface{} "internal error"
+// @Router       /apps [post]
 func CreateApp(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var input mcp.CreateAppConfig
@@ -64,6 +76,15 @@ func CreateApp(db *gorm.DB) gin.HandlerFunc {
 }
 
 // ListApps lists all applications.
+// @Summary      List all applications
+// @Description  Retrieve a list of all registered applications
+// @Tags         Apps
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200 {object} map[string]interface{} "status, data (array of App)"
+// @Failure      401 {object} map[string]interface{} "unauthorized"
+// @Failure      500 {object} map[string]interface{} "internal error"
+// @Router       /apps [get]
 func ListApps(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var apps []model.App
@@ -79,6 +100,16 @@ func ListApps(db *gorm.DB) gin.HandlerFunc {
 }
 
 // GetApp returns a single application by ID.
+// @Summary      Get an application
+// @Description  Retrieve details of a specific application by its ID
+// @Tags         Apps
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id path string true "Application ID"
+// @Success      200 {object} map[string]interface{} "status, data (App object)"
+// @Failure      401 {object} map[string]interface{} "unauthorized"
+// @Failure      404 {object} map[string]interface{} "app not found"
+// @Router       /apps/{id} [get]
 func GetApp(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		id := c.Param("id")
@@ -92,6 +123,19 @@ func GetApp(db *gorm.DB) gin.HandlerFunc {
 }
 
 // UpdateApp updates an application by ID.
+// @Summary      Update an application
+// @Description  Update fields of an existing application by ID
+// @Tags         Apps
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id path string true "Application ID"
+// @Param        request body map[string]interface{} true "Fields to update"
+// @Success      200 {object} map[string]interface{} "status, data (updated App object)"
+// @Failure      400 {object} map[string]interface{} "invalid request"
+// @Failure      401 {object} map[string]interface{} "unauthorized"
+// @Failure      500 {object} map[string]interface{} "internal error"
+// @Router       /apps/{id} [put]
 func UpdateApp(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		id := c.Param("id")
@@ -116,6 +160,16 @@ func UpdateApp(db *gorm.DB) gin.HandlerFunc {
 }
 
 // DeleteApp deletes an application by ID.
+// @Summary      Delete an application
+// @Description  Delete an application and its associated resources by ID
+// @Tags         Apps
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id path string true "Application ID"
+// @Success      200 {object} map[string]interface{} "status, data.message, data.id"
+// @Failure      401 {object} map[string]interface{} "unauthorized"
+// @Failure      500 {object} map[string]interface{} "internal error"
+// @Router       /apps/{id} [delete]
 func DeleteApp(bridge *service.Bridge) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		id := c.Param("id")
@@ -128,6 +182,20 @@ func DeleteApp(bridge *service.Bridge) gin.HandlerFunc {
 }
 
 // DeployApp deploys an application.
+// @Summary      Deploy an application
+// @Description  Deploy an application using the provided deploy configuration. Set query param async=true for async deployment.
+// @Tags         Apps
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id path string true "Application ID"
+// @Param        async query string false "Set to 'true' for async deployment" default(false)
+// @Param        request body object{app_name=string,image=string,container_name=string,port=int,env_vars=map[string]string,volumes=[]string,server_id=string} false "Deploy configuration"
+// @Success      200 {object} map[string]interface{} "status, data (ContainerStatus)"
+// @Failure      400 {object} map[string]interface{} "invalid request or preflight failure"
+// @Failure      401 {object} map[string]interface{} "unauthorized"
+// @Failure      500 {object} map[string]interface{} "internal error"
+// @Router       /apps/{id}/deploy [post]
 func DeployApp(bridge *service.Bridge) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// Check async query param
@@ -163,6 +231,17 @@ func DeployApp(bridge *service.Bridge) gin.HandlerFunc {
 }
 
 // GetAppStatus returns the status of a deployed container.
+// @Summary      Get application status
+// @Description  Get the current deployment status of an application's container
+// @Tags         Apps
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id path string true "Application ID"
+// @Success      200 {object} map[string]interface{} "status, data (ContainerStatus)"
+// @Failure      401 {object} map[string]interface{} "unauthorized"
+// @Failure      404 {object} map[string]interface{} "app not found"
+// @Failure      500 {object} map[string]interface{} "internal error"
+// @Router       /apps/{id}/status [get]
 func GetAppStatus(bridge *service.Bridge) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		id := c.Param("id")
@@ -187,6 +266,20 @@ func GetAppStatus(bridge *service.Bridge) gin.HandlerFunc {
 }
 
 // RollbackApp rolls back an application to a previous image.
+// @Summary      Rollback an application
+// @Description  Roll back an application container to a previous Docker image
+// @Tags         Apps
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id path string true "Application ID"
+// @Param        request body object{previous_image=string} true "Rollback request with previous image"
+// @Success      200 {object} map[string]interface{} "status, data (ContainerStatus)"
+// @Failure      400 {object} map[string]interface{} "invalid request"
+// @Failure      401 {object} map[string]interface{} "unauthorized"
+// @Failure      404 {object} map[string]interface{} "app not found"
+// @Failure      500 {object} map[string]interface{} "internal error"
+// @Router       /apps/{id}/rollback [post]
 func RollbackApp(bridge *service.Bridge) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		id := c.Param("id")
@@ -219,6 +312,18 @@ func RollbackApp(bridge *service.Bridge) gin.HandlerFunc {
 }
 
 // GetContainerLogs returns container logs.
+// @Summary      Get container logs
+// @Description  Retrieve the most recent log lines from an application's container
+// @Tags         Apps
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id path string true "Application ID"
+// @Param        tail query int false "Number of log lines to retrieve" default(100)
+// @Success      200 {object} map[string]interface{} "status, data.container_name, data.tail, data.logs"
+// @Failure      401 {object} map[string]interface{} "unauthorized"
+// @Failure      404 {object} map[string]interface{} "app not found"
+// @Failure      500 {object} map[string]interface{} "internal error"
+// @Router       /apps/{id}/logs/container [get]
 func GetContainerLogs(bridge *service.Bridge) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		id := c.Param("id")
@@ -254,6 +359,16 @@ func GetContainerLogs(bridge *service.Bridge) gin.HandlerFunc {
 }
 
 // BackupApp creates a backup of an application.
+// @Summary      Backup an application
+// @Description  Create a backup snapshot of an application
+// @Tags         Apps
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id path string true "Application ID"
+// @Success      200 {object} map[string]interface{} "status, data.backup_id, data.app_id"
+// @Failure      401 {object} map[string]interface{} "unauthorized"
+// @Failure      500 {object} map[string]interface{} "internal error"
+// @Router       /apps/{id}/backup [post]
 func BackupApp(bridge *service.Bridge) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		id := c.Param("id")
@@ -267,6 +382,19 @@ func BackupApp(bridge *service.Bridge) gin.HandlerFunc {
 }
 
 // RestoreApp restores an application from a backup.
+// @Summary      Restore an application from backup
+// @Description  Restore an application to a previous backup state
+// @Tags         Apps
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id path string true "Application ID"
+// @Param        request body object{backup_id=string} true "Restore request with backup ID"
+// @Success      200 {object} map[string]interface{} "status, data (ContainerStatus)"
+// @Failure      400 {object} map[string]interface{} "invalid request"
+// @Failure      401 {object} map[string]interface{} "unauthorized"
+// @Failure      500 {object} map[string]interface{} "internal error"
+// @Router       /apps/{id}/restore [post]
 func RestoreApp(bridge *service.Bridge) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var input struct {
@@ -287,6 +415,16 @@ func RestoreApp(bridge *service.Bridge) gin.HandlerFunc {
 }
 
 // GetAppEnv returns environment variables for an application.
+// @Summary      Get application environment variables
+// @Description  Retrieve the environment variables configured for an application
+// @Tags         Apps
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id path string true "Application ID"
+// @Success      200 {object} map[string]interface{} "status, data.app_id, data.env_vars"
+// @Failure      401 {object} map[string]interface{} "unauthorized"
+// @Failure      404 {object} map[string]interface{} "app not found"
+// @Router       /apps/{id}/env [get]
 func GetAppEnv(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		id := c.Param("id")
@@ -303,6 +441,19 @@ func GetAppEnv(db *gorm.DB) gin.HandlerFunc {
 }
 
 // UpdateAppEnv updates environment variables for an application.
+// @Summary      Update application environment variables
+// @Description  Update the environment variables for an application
+// @Tags         Apps
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id path string true "Application ID"
+// @Param        request body object{env_vars=string} true "Environment variables string"
+// @Success      200 {object} map[string]interface{} "status, data.app_id, data.message"
+// @Failure      400 {object} map[string]interface{} "invalid request"
+// @Failure      401 {object} map[string]interface{} "unauthorized"
+// @Failure      500 {object} map[string]interface{} "internal error"
+// @Router       /apps/{id}/env [put]
 func UpdateAppEnv(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		id := c.Param("id")
@@ -333,6 +484,19 @@ func coalesce(vals ...string) string {
 }
 
 // BuildAndDeployApp builds and deploys an application from git source.
+// @Summary      Build and deploy an application
+// @Description  Build an application from git source and deploy it. Supports optional overrides for branch, tech stack, ports, env vars, and server.
+// @Tags         Apps
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id path string true "Application ID"
+// @Param        request body object{branch=string,tech_stack=string,ports=string,env_vars=map[string]string,server_id=string} false "Build and deploy overrides"
+// @Success      200 {object} map[string]interface{} "status, data (BuildResult)"
+// @Failure      401 {object} map[string]interface{} "unauthorized"
+// @Failure      404 {object} map[string]interface{} "app not found"
+// @Failure      500 {object} map[string]interface{} "internal error"
+// @Router       /apps/{id}/build [post]
 func BuildAndDeployApp(bridge *service.Bridge) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		appID := c.Param("id")

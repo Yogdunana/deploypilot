@@ -8,6 +8,18 @@ import (
 )
 
 // TriggerCIBuild triggers a CI/CD build.
+// @Summary      Trigger a CI/CD build
+// @Description  Trigger a new CI/CD build for a repository on a specific branch
+// @Tags         CI/CD
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        request body object{provider=string,repo=string,branch=string} true "CI build trigger request"
+// @Success      200 {object} map[string]interface{} "status, data (build result)"
+// @Failure      400 {object} map[string]interface{} "invalid request"
+// @Failure      401 {object} map[string]interface{} "unauthorized"
+// @Failure      500 {object} map[string]interface{} "internal error"
+// @Router       /cicd/trigger [post]
 func TriggerCIBuild(bridge *service.Bridge) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var input struct {
@@ -30,6 +42,18 @@ func TriggerCIBuild(bridge *service.Bridge) gin.HandlerFunc {
 }
 
 // GetCIBuildStatus gets the status of a CI/CD build.
+// @Summary      Get CI/CD build status
+// @Description  Retrieve the status of a specific CI/CD build run
+// @Tags         CI/CD
+// @Produce      json
+// @Security     BearerAuth
+// @Param        provider query string true "CI provider name"
+// @Param        runID path string true "CI build run ID"
+// @Success      200 {object} map[string]interface{} "status, data (build status)"
+// @Failure      400 {object} map[string]interface{} "invalid request"
+// @Failure      401 {object} map[string]interface{} "unauthorized"
+// @Failure      500 {object} map[string]interface{} "internal error"
+// @Router       /cicd/status/{runID} [get]
 func GetCIBuildStatus(bridge *service.Bridge) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		provider := c.Query("provider")

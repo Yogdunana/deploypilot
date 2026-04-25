@@ -10,6 +10,15 @@ import (
 )
 
 // ListTemplates lists all available templates (built-in + custom).
+// @Summary      List templates
+// @Description  Retrieve all available deployment templates (built-in and custom)
+// @Tags         Templates
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200 {object} map[string]interface{} "status, data (array of Template)"
+// @Failure      401 {object} map[string]interface{} "unauthorized"
+// @Failure      500 {object} map[string]interface{} "internal error"
+// @Router       /templates [get]
 func ListTemplates(bridge *service.Bridge) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		templates, err := bridge.ListTemplates(c.Request.Context())
@@ -22,6 +31,18 @@ func ListTemplates(bridge *service.Bridge) gin.HandlerFunc {
 }
 
 // CreateTemplate creates a custom template.
+// @Summary      Create a template
+// @Description  Create a custom deployment template
+// @Tags         Templates
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        request body object{name=string,type=string,description=string,build_cmd=string,run_cmd=string,port=int} true "Template creation request"
+// @Success      200 {object} map[string]interface{} "status, data.id, data.name, data.type"
+// @Failure      400 {object} map[string]interface{} "invalid request"
+// @Failure      401 {object} map[string]interface{} "unauthorized"
+// @Failure      500 {object} map[string]interface{} "internal error"
+// @Router       /templates [post]
 func CreateTemplate(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var input struct {
@@ -58,6 +79,19 @@ func CreateTemplate(db *gorm.DB) gin.HandlerFunc {
 }
 
 // UpdateTemplate updates a custom template.
+// @Summary      Update a template
+// @Description  Update an existing custom deployment template
+// @Tags         Templates
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id path string true "Template ID"
+// @Param        request body object{name=string,description=string,build_cmd=string,run_cmd=string,port=int} true "Template update request"
+// @Success      200 {object} map[string]interface{} "status, data.id, data.message"
+// @Failure      400 {object} map[string]interface{} "invalid request"
+// @Failure      401 {object} map[string]interface{} "unauthorized"
+// @Failure      500 {object} map[string]interface{} "internal error"
+// @Router       /templates/{id} [put]
 func UpdateTemplate(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		id := c.Param("id")
@@ -91,6 +125,17 @@ func UpdateTemplate(db *gorm.DB) gin.HandlerFunc {
 }
 
 // DeleteTemplate deletes a custom template.
+// @Summary      Delete a template
+// @Description  Delete a custom deployment template by ID
+// @Tags         Templates
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id path string true "Template ID"
+// @Success      200 {object} map[string]interface{} "status, data.message, data.id"
+// @Failure      401 {object} map[string]interface{} "unauthorized"
+// @Failure      404 {object} map[string]interface{} "template not found"
+// @Failure      500 {object} map[string]interface{} "internal error"
+// @Router       /templates/{id} [delete]
 func DeleteTemplate(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		id := c.Param("id")

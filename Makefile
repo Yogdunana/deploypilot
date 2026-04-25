@@ -1,4 +1,4 @@
-.PHONY: build build-mcp build-api build-all test lint coverage clean docker-build run
+.PHONY: build build-mcp build-api build-all test lint coverage clean docker-build run swagger
 
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
 LDFLAGS := -ldflags "-s -w -X main.version=$(VERSION)"
@@ -55,6 +55,10 @@ run: build-mcp ## Build and run MCP server
 # Clean targets
 clean: ## Remove build artifacts
 	rm -rf bin/ c.out coverage.html
+
+# Swagger targets
+swagger: ## Generate Swagger documentation
+	swag init -g cmd/api-server/main.go -o docs/swagger
 
 # Help target
 help: ## Show this help

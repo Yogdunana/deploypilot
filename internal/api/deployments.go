@@ -9,6 +9,17 @@ import (
 )
 
 // ListDeployments lists deployment records.
+// @Summary      List deployments
+// @Description  Retrieve deployment records with optional filtering by app_id and status
+// @Tags         Deployments
+// @Produce      json
+// @Security     BearerAuth
+// @Param        app_id query string false "Filter by application ID"
+// @Param        status query string false "Filter by deployment status"
+// @Success      200 {object} map[string]interface{} "status, data (array of DeploymentRecord)"
+// @Failure      401 {object} map[string]interface{} "unauthorized"
+// @Failure      500 {object} map[string]interface{} "internal error"
+// @Router       /deployments [get]
 func ListDeployments(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var records []model.DeploymentRecord
@@ -33,6 +44,16 @@ func ListDeployments(db *gorm.DB) gin.HandlerFunc {
 }
 
 // GetDeployment returns a single deployment record.
+// @Summary      Get a deployment
+// @Description  Retrieve a single deployment record by ID
+// @Tags         Deployments
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id path string true "Deployment ID"
+// @Success      200 {object} map[string]interface{} "status, data (DeploymentRecord)"
+// @Failure      401 {object} map[string]interface{} "unauthorized"
+// @Failure      404 {object} map[string]interface{} "deployment not found"
+// @Router       /deployments/{id} [get]
 func GetDeployment(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		id := c.Param("id")

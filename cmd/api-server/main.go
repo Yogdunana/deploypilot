@@ -1,3 +1,22 @@
+// @title           Deploypilot API
+// @version         1.0
+// @description     AI-native deployment platform REST API
+// @termsOfService  http://swagger.io/terms/
+
+// @contact.name   Deploypilot
+// @contact.url    https://github.com/Yogdunana/deploypilot
+
+// @license.name  MIT
+// @license.url   https://github.com/Yogdunana/deploypilot/blob/main/LICENSE
+
+// @host      localhost:8080
+// @BasePath  /api/v1
+
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
+// @description JWT token with "Bearer " prefix
+
 package main
 
 import (
@@ -11,6 +30,7 @@ import (
 	"path/filepath"
 	"time"
 
+	_ "github.com/Yogdunana/deploypilot/docs/swagger"
 	"github.com/Yogdunana/deploypilot/internal/agent"
 	"github.com/Yogdunana/deploypilot/internal/config"
 	"github.com/Yogdunana/deploypilot/internal/crypto"

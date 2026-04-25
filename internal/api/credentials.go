@@ -8,6 +8,16 @@ import (
 )
 
 // ListCredentials lists all credentials for a tenant.
+// @Summary      List credentials
+// @Description  Retrieve all encrypted credentials for a tenant
+// @Tags         Credentials
+// @Produce      json
+// @Security     BearerAuth
+// @Param        tenant_id query string false "Tenant ID" default("tenant-default")
+// @Success      200 {object} map[string]interface{} "status, data (array of Credential)"
+// @Failure      401 {object} map[string]interface{} "unauthorized"
+// @Failure      500 {object} map[string]interface{} "internal error"
+// @Router       /credentials [get]
 func ListCredentials(bridge *service.Bridge) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		tenantID := c.Query("tenant_id")
@@ -25,6 +35,18 @@ func ListCredentials(bridge *service.Bridge) gin.HandlerFunc {
 }
 
 // CreateCredential creates a new encrypted credential.
+// @Summary      Create a credential
+// @Description  Create a new encrypted credential entry
+// @Tags         Credentials
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        request body object{tenant_id=string,name=string,type=string,value=string} true "Credential creation request"
+// @Success      200 {object} map[string]interface{} "status, data (Credential)"
+// @Failure      400 {object} map[string]interface{} "invalid request"
+// @Failure      401 {object} map[string]interface{} "unauthorized"
+// @Failure      500 {object} map[string]interface{} "internal error"
+// @Router       /credentials [post]
 func CreateCredential(bridge *service.Bridge) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var input struct {
@@ -51,6 +73,19 @@ func CreateCredential(bridge *service.Bridge) gin.HandlerFunc {
 }
 
 // UpdateCredential updates a credential's value.
+// @Summary      Update a credential
+// @Description  Update the value of an existing credential
+// @Tags         Credentials
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id path string true "Credential ID"
+// @Param        request body object{value=string} true "New credential value"
+// @Success      200 {object} map[string]interface{} "status, data (updated Credential)"
+// @Failure      400 {object} map[string]interface{} "invalid request"
+// @Failure      401 {object} map[string]interface{} "unauthorized"
+// @Failure      500 {object} map[string]interface{} "internal error"
+// @Router       /credentials/{id} [put]
 func UpdateCredential(bridge *service.Bridge) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		id := c.Param("id")
@@ -72,6 +107,16 @@ func UpdateCredential(bridge *service.Bridge) gin.HandlerFunc {
 }
 
 // DeleteCredential deletes a credential.
+// @Summary      Delete a credential
+// @Description  Delete a credential by ID
+// @Tags         Credentials
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id path string true "Credential ID"
+// @Success      200 {object} map[string]interface{} "status, data.message, data.id"
+// @Failure      401 {object} map[string]interface{} "unauthorized"
+// @Failure      500 {object} map[string]interface{} "internal error"
+// @Router       /credentials/{id} [delete]
 func DeleteCredential(bridge *service.Bridge) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		id := c.Param("id")

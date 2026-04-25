@@ -4,11 +4,16 @@ import (
 	"github.com/Yogdunana/deploypilot/internal/auth"
 	"github.com/Yogdunana/deploypilot/internal/service"
 	"github.com/gin-gonic/gin"
+	ginSwagger "github.com/swaggo/gin-swagger"
+	swaggerFiles "github.com/swaggo/files"
 	"gorm.io/gorm"
 )
 
 // RegisterRoutes registers all API routes on the given Gin engine.
 func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *WSHub, auditSvc *service.AuditService) {
+	// Swagger documentation
+	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+
 	api := r.Group("/api/v1")
 
 	// Store db in gin context for handlers that need it via context

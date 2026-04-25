@@ -10,6 +10,16 @@ import (
 )
 
 // GetCurrentUser returns the currently authenticated user's info.
+// @Summary      Get current user
+// @Description  Retrieve the currently authenticated user's profile information
+// @Tags         Users
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200 {object} map[string]interface{} "status, data (User with Role and Tenant)"
+// @Failure      401 {object} map[string]interface{} "not authenticated"
+// @Failure      404 {object} map[string]interface{} "user not found"
+// @Failure      500 {object} map[string]interface{} "internal error"
+// @Router       /users/me [get]
 func GetCurrentUser(c *gin.Context) {
 	userID, exists := c.Get(string(auth.UserIDKey))
 	if !exists {
@@ -37,6 +47,16 @@ func GetCurrentUser(c *gin.Context) {
 }
 
 // ListUsers lists all users (owner/admin only).
+// @Summary      List users
+// @Description  Retrieve all users with their role information (owner/admin only)
+// @Tags         Users
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200 {object} map[string]interface{} "status, data (array of User with Role)"
+// @Failure      401 {object} map[string]interface{} "unauthorized"
+// @Failure      403 {object} map[string]interface{} "forbidden"
+// @Failure      500 {object} map[string]interface{} "internal error"
+// @Router       /users [get]
 func ListUsers(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var users []model.User
@@ -52,6 +72,18 @@ func ListUsers(db *gorm.DB) gin.HandlerFunc {
 }
 
 // DeleteUser deletes a user (owner only).
+// @Summary      Delete a user
+// @Description  Delete a user by ID (owner only)
+// @Tags         Users
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id path string true "User ID"
+// @Success      200 {object} map[string]interface{} "status, data.message, data.id"
+// @Failure      401 {object} map[string]interface{} "unauthorized"
+// @Failure      403 {object} map[string]interface{} "forbidden"
+// @Failure      404 {object} map[string]interface{} "user not found"
+// @Failure      500 {object} map[string]interface{} "internal error"
+// @Router       /users/{id} [delete]
 func DeleteUser(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		id := c.Param("id")
@@ -69,6 +101,20 @@ func DeleteUser(db *gorm.DB) gin.HandlerFunc {
 }
 
 // UpdateUserRole updates a user's role (owner/admin only).
+// @Summary      Update user role
+// @Description  Update a user's role assignment (owner/admin only)
+// @Tags         Users
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id path string true "User ID"
+// @Param        request body object{role_id=string} true "Role update request"
+// @Success      200 {object} map[string]interface{} "status, data.user_id, data.role_id, data.role_name"
+// @Failure      400 {object} map[string]interface{} "invalid request or invalid role_id"
+// @Failure      401 {object} map[string]interface{} "unauthorized"
+// @Failure      403 {object} map[string]interface{} "forbidden"
+// @Failure      500 {object} map[string]interface{} "internal error"
+// @Router       /users/{id}/role [put]
 func UpdateUserRole(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		id := c.Param("id")
@@ -96,6 +142,15 @@ func UpdateUserRole(db *gorm.DB) gin.HandlerFunc {
 }
 
 // ListRoles lists all available roles.
+// @Summary      List roles
+// @Description  Retrieve all available system roles
+// @Tags         Roles
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200 {object} map[string]interface{} "status, data (array of Role)"
+// @Failure      401 {object} map[string]interface{} "unauthorized"
+// @Failure      500 {object} map[string]interface{} "internal error"
+// @Router       /roles [get]
 func ListRoles(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var roles []model.Role
