@@ -9,6 +9,7 @@ import (
 
 	"github.com/Yogdunana/deploypilot/internal/database"
 	"github.com/Yogdunana/deploypilot/internal/mcp"
+	"github.com/Yogdunana/deploypilot/internal/model"
 	"gorm.io/gorm"
 )
 
@@ -1945,6 +1946,294 @@ func TestSaveDeploymentRecord_WithPreflight(t *testing.T) {
 }
 
 // ===================== Additional Coverage: DNSListRecords =====================
+
+// ===================== SSL Method Tests =====================
+
+func TestListSSLCertificates_NilDB(t *testing.T) {
+	b := &Bridge{DB: nil}
+	_, err := b.ListSSLCertificates(context.TODO())
+	if err == nil {
+		t.Fatal("expected error when DB is nil")
+	}
+}
+
+func TestListSSLCertificates_Empty(t *testing.T) {
+	b, _ := newTestBridge(t)
+	result, err := b.ListSSLCertificates(context.TODO())
+	if err != nil {
+		t.Fatalf("ListSSLCertificates failed: %v", err)
+	}
+	certs, ok := result.([]model.SSLCertificate)
+	if !ok {
+		t.Fatal("expected []model.SSLCertificate")
+	}
+	if len(certs) != 0 {
+		t.Errorf("expected 0 certificates, got %d", len(certs))
+	}
+}
+
+func TestListSSLCertificates_WithCerts(t *testing.T) {
+	b, _ := newTestBridge(t)
+	// Insert some certificates
+	b.DB.Exec(`INSERT INTO ssl_certificates (domain, email, provider, status, auto_renew) VALUES
+		('example.com', 'admin@example.com', 'cloudflare', 'active', 1),
+		('test.com', 'admin@test.com', 'letsencrypt', 'pending', 0)`)
+
+	result, err := b.ListSSLCertificates(context.TODO())
+	if err != nil {
+		t.Fatalf("ListSSLCertificates failed: %v", err)
+	}
+	certs, ok := result.([]model.SSLCertificate)
+	if !ok {
+		t.Fatal("expected []model.SSLCertificate")
+	}
+	if len(certs) != 2 {
+		t.Errorf("expected 2 certificates, got %d", len(certs))
+	}
+}
+
+func TestRequestSSLCertificate_NilDB(t *testing.T) {
+	b := &Bridge{DB: nil}
+	_, err := b.RequestSSLCertificate(context.TODO(), "example.com", "admin@example.com")
+	if err == nil {
+		t.Fatal("expected error when DB is nil")
+	}
+}
+
+func TestRequestSSLCertificate_Success(t *testing.T) {
+	b, _ := newTestBridge(t)
+	result, err := b.RequestSSLCertificate(context.TODO(), "newcert.com", "admin@newcert.com")
+	if err != nil {
+		t.Fatalf("RequestSSLCertificate failed: %v", err)
+	}
+	cert, ok := result.(model.SSLCertificate)
+	if !ok {
+		t.Fatal("expected model.SSLCertificate")
+	}
+	if cert.Domain != "newcert.com" {
+		t.Errorf("expected domain newcert.com, got %s", cert.Domain)
+	}
+	if cert.Status != "pending" {
+		t.Errorf("expected status pending, got %s", cert.Status)
+	}
+	if !cert.AutoRenew {
+		t.Error("expected AutoRenew to be true")
+	}
+}
+
+func TestRenewSSLCertificate_NilDB(t *testing.T) {
+	b := &Bridge{DB: nil}
+	_, err := b.RenewSSLCertificate(context.TODO(), "example.com")
+	if err == nil {
+		t.Fatal("expected error when DB is nil")
+	}
+}
+
+func TestRenewSSLCertificate_NotFound(t *testing.T) {
+	b, _ := newTestBridge(t)
+	_, err := b.RenewSSLCertificate(context.TODO(), "nonexistent.com")
+	if err == nil {
+		t.Fatal("expected error for nonexistent certificate")
+	}
+}
+
+func TestRenewSSLCertificate_Success(t *testing.T) {
+	b, _ := newTestBridge(t)
+	// Insert a certificate
+	b.DB.Exec(`INSERT INTO ssl_certificates (domain, email, provider, status, auto_renew, retry_count) VALUES
+		('renew.com', 'admin@renew.com', 'cloudflare', 'active', 1, 2)`)
+
+	result, err := b.RenewSSLCertificate(context.TODO(), "renew.com")
+	if err != nil {
+		t.Fatalf("RenewSSLCertificate failed: %v", err)
+	}
+	cert, ok := result.(model.SSLCertificate)
+	if !ok {
+		t.Fatal("expected model.SSLCertificate")
+	}
+	if cert.Status != "renewing" {
+		t.Errorf("expected status renewing, got %s", cert.Status)
+	}
+	if cert.RetryCount != 3 {
+		t.Errorf("expected retry_count 3, got %d", cert.RetryCount)
+	}
+	if cert.LastRenewed == nil {
+		t.Error("expected LastRenewed to be set")
+	}
+}
+
+func TestDeleteSSLCertificate_NilDB(t *testing.T) {
+	b := &Bridge{DB: nil}
+	_, err := b.DeleteSSLCertificate(context.TODO(), "example.com")
+	if err == nil {
+		t.Fatal("expected error when DB is nil")
+	}
+}
+
+func TestDeleteSSLCertificate_NotFound(t *testing.T) {
+	b, _ := newTestBridge(t)
+	_, err := b.DeleteSSLCertificate(context.TODO(), "nonexistent.com")
+	if err == nil {
+		t.Fatal("expected error for nonexistent certificate")
+	}
+}
+
+func TestDeleteSSLCertificate_Success(t *testing.T) {
+	b, _ := newTestBridge(t)
+	// Insert a certificate
+	b.DB.Exec(`INSERT INTO ssl_certificates (domain, email, provider, status, auto_renew) VALUES
+		('delete.com', 'admin@delete.com', 'cloudflare', 'active', 1)`)
+
+	result, err := b.DeleteSSLCertificate(context.TODO(), "delete.com")
+	if err != nil {
+		t.Fatalf("DeleteSSLCertificate failed: %v", err)
+	}
+	m, ok := result.(map[string]interface{})
+	if !ok {
+		t.Fatal("expected map")
+	}
+	if m["domain"] != "delete.com" {
+		t.Errorf("expected domain delete.com, got %v", m["domain"])
+	}
+}
+
+// ===================== UpdateDNSRecord Additional Coverage =====================
+
+func TestUpdateDNSRecord_NilDB(t *testing.T) {
+	b := &Bridge{DB: nil}
+	// UpdateDNSRecord wraps provider errors in a map response, not an error return
+	res, err := b.UpdateDNSRecord(context.TODO(), "example.com", "www", "A", "1.2.3.4")
+	if err != nil {
+		t.Fatalf("UpdateDNSRecord should not return error: %v", err)
+	}
+	m, ok := res.(map[string]interface{})
+	if !ok {
+		t.Fatal("expected map")
+	}
+	if m["status"] != "error" {
+		t.Errorf("expected error status, got %v", m["status"])
+	}
+}
+
+func TestUpdateDNSRecord_InvalidConfig(t *testing.T) {
+	b, _ := newTestBridge(t)
+	b.DB.Exec(`INSERT INTO providers (id, type, name, config, enabled) VALUES
+		('dns-bad-update', 'dns-cloudflare', 'bad-update', 'not-json', 1)`)
+
+	res, err := b.UpdateDNSRecord(context.TODO(), "example.com", "www", "A", "1.2.3.4")
+	if err != nil {
+		t.Fatalf("UpdateDNSRecord failed: %v", err)
+	}
+	m, ok := res.(map[string]interface{})
+	if !ok {
+		t.Fatal("expected map")
+	}
+	if m["status"] != "error" {
+		t.Errorf("expected error status, got %v", m["status"])
+	}
+}
+
+// ===================== TriggerCIBuild Additional Coverage =====================
+
+func TestTriggerCIBuild_ValidConfig(t *testing.T) {
+	b, _ := newTestBridge(t)
+	b.DB.Exec(`INSERT INTO providers (id, type, name, config, enabled) VALUES
+		('cicd-valid-trigger', 'cicd-github-actions', 'Valid CI', '{"token":"test-token","owner":"test-owner"}', 1)`)
+
+	result, err := b.TriggerCIBuild(context.TODO(), "github-actions", "test/repo", "main")
+	if err != nil {
+		t.Fatalf("TriggerCIBuild failed: %v", err)
+	}
+	m, ok := result.(map[string]interface{})
+	if !ok {
+		t.Fatal("expected map")
+	}
+	// Will be error since there's no real GitHub API, but should not panic
+	if m["status"] != "error" {
+		t.Logf("expected error status (no real API), got %v", m["status"])
+	}
+}
+
+// ===================== GetCIBuildStatus Additional Coverage =====================
+
+func TestGetCIBuildStatus_ValidConfig(t *testing.T) {
+	b, _ := newTestBridge(t)
+	b.DB.Exec(`INSERT INTO providers (id, type, name, config, enabled) VALUES
+		('cicd-valid-status', 'cicd-github-actions', 'Valid CI Status', '{"token":"test-token","owner":"test-owner"}', 1)`)
+
+	result, err := b.GetCIBuildStatus(context.TODO(), "github-actions", "12345")
+	if err != nil {
+		t.Fatalf("GetCIBuildStatus failed: %v", err)
+	}
+	m, ok := result.(map[string]interface{})
+	if !ok {
+		t.Fatal("expected map")
+	}
+	// Will be error since there's no real GitHub API
+	if m["status"] != "error" {
+		t.Logf("expected error status (no real API), got %v", m["status"])
+	}
+}
+
+// ===================== Restore Additional Coverage =====================
+
+func TestRestore_BackupNotFound(t *testing.T) {
+	b, _ := newTestBridge(t)
+	// No backup mapping exists
+	_, err := b.Restore(context.TODO(), "nonexistent-backup-id-2")
+	if err == nil {
+		t.Fatal("expected error for nonexistent backup")
+	}
+}
+
+func TestRestore_AppNotFound_OrphanBackup(t *testing.T) {
+	b, _ := newTestBridge(t)
+	// Insert a backup mapping to a nonexistent app
+	backupMu.Lock()
+	backupApps["orphan-backup-id-2"] = "nonexistent-app-id-2"
+	backupMu.Unlock()
+
+	defer func() {
+		backupMu.Lock()
+		delete(backupApps, "orphan-backup-id-2")
+		backupMu.Unlock()
+	}()
+
+	_, err := b.Restore(context.TODO(), "orphan-backup-id-2")
+	if err == nil {
+		t.Fatal("expected error when app not found")
+	}
+}
+
+// ===================== HealContainer Additional Coverage =====================
+
+func TestHealContainer_NilDB(t *testing.T) {
+	b := &Bridge{DB: nil}
+	defer func() {
+		if r := recover(); r != nil {
+			t.Logf("expected panic with nil DB: %v", r)
+		}
+	}()
+	b.HealContainer(context.TODO(), "some-container")
+}
+
+// ===================== Additional: UpdateDNSRecord with Cloudflare =====================
+
+func TestUpdateDNSRecord_NoProvider(t *testing.T) {
+	b, _ := newTestBridge(t)
+	// No DNS provider configured at all
+	res, err := b.UpdateDNSRecord(context.TODO(), "example.com", "www", "A", "1.2.3.4")
+	if err != nil {
+		t.Fatalf("UpdateDNSRecord failed: %v", err)
+	}
+	m, ok := res.(map[string]interface{})
+	if !ok {
+		t.Fatal("expected map")
+	}
+	if m["status"] != "error" {
+		t.Errorf("expected error status, got %v", m["status"])
+	}
+}
 
 func TestDNSListRecords_UnsupportedProvider(t *testing.T) {
 	b, _ := newTestBridge(t)

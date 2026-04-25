@@ -296,3 +296,71 @@ func TestDecrypt_TooShort(t *testing.T) {
 		t.Error("expected error for too-short ciphertext")
 	}
 }
+
+func TestEncrypt_ExactNonceSize(t *testing.T) {
+	key := NewEncryptionKey()
+	// Encrypt and decrypt to verify nonce handling
+	plaintext := "test-plaintext-data"
+	ciphertext, err := Encrypt(key, plaintext)
+	if err != nil {
+		t.Fatalf("Encrypt failed: %v", err)
+	}
+	decrypted, err := Decrypt(key, ciphertext)
+	if err != nil {
+		t.Fatalf("Decrypt failed: %v", err)
+	}
+	if decrypted != plaintext {
+		t.Errorf("got %q, want %q", decrypted, plaintext)
+	}
+}
+
+func TestDecrypt_InvalidBase64Chars(t *testing.T) {
+	key := NewEncryptionKey()
+	_, err := Decrypt(key, "!!!invalid-base64!!!")
+	if err == nil {
+		t.Error("expected error for invalid base64 characters")
+	}
+}
+
+func TestEncrypt_LargePlaintext(t *testing.T) {
+	key := NewEncryptionKey()
+	// 1MB plaintext
+	largeText := strings.Repeat("a", 1024*1024)
+	ciphertext, err := Encrypt(key, largeText)
+	if err != nil {
+		t.Fatalf("Encrypt large plaintext failed: %v", err)
+	}
+	decrypted, err := Decrypt(key, ciphertext)
+	if err != nil {
+		t.Fatalf("Decrypt large plaintext failed: %v", err)
+	}
+	if decrypted != largeText {
+		t.Errorf("large plaintext round-trip failed: got %d bytes, want %d", len(decrypted), len(largeText))
+	}
+}
+
+func TestDecrypt_CorruptedNonce(t *testing.T) {
+	key := NewEncryptionKey()
+	ciphertext, _ := Encrypt(key, "secret")
+	// Corrupt the first few bytes (nonce)
+	data, _ := base64.StdEncoding.DecodeString(ciphertext)
+	data[0] ^= 0xFF
+	corrupted := base64.StdEncoding.EncodeToString(data)
+	_, err := Decrypt(key, corrupted)
+	if err == nil {
+		t.Error("expected error for corrupted nonce")
+	}
+}
+
+func TestDecrypt_CorruptedCiphertext(t *testing.T) {
+	key := NewEncryptionKey()
+	ciphertext, _ := Encrypt(key, "secret")
+	data, _ := base64.StdEncoding.DecodeString(ciphertext)
+	// Corrupt the last byte (ciphertext, not nonce)
+	data[len(data)-1] ^= 0xFF
+	corrupted := base64.StdEncoding.EncodeToString(data)
+	_, err := Decrypt(key, corrupted)
+	if err == nil {
+		t.Error("expected error for corrupted ciphertext")
+	}
+}

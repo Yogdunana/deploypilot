@@ -60,6 +60,10 @@ type mockDeployer struct {
 	listAlertRulesFn    func(ctx context.Context) (interface{}, error)
 	triggerCIBuildFn    func(ctx context.Context, provider, repo, branch string) (interface{}, error)
 	getCIBuildStatusFn  func(ctx context.Context, provider, runID string) (interface{}, error)
+	listSSLCertificatesFn func(ctx context.Context) (interface{}, error)
+	requestSSLCertFn      func(ctx context.Context, domain, email string) (interface{}, error)
+	renewSSLCertFn        func(ctx context.Context, domain string) (interface{}, error)
+	deleteSSLCertFn       func(ctx context.Context, domain string) (interface{}, error)
 }
 
 func (m *mockDeployer) Deploy(ctx context.Context, cfg DeployConfig) (*ContainerStatus, error) {
@@ -461,10 +465,16 @@ func (m *mockDeployer) GetCIBuildStatus(ctx context.Context, provider, runID str
 }
 
 func (m *mockDeployer) ListSSLCertificates(ctx context.Context) (interface{}, error) {
+	if m.listSSLCertificatesFn != nil {
+		return m.listSSLCertificatesFn(ctx)
+	}
 	return []interface{}{}, nil
 }
 
 func (m *mockDeployer) RequestSSLCertificate(ctx context.Context, domain, email string) (interface{}, error) {
+	if m.requestSSLCertFn != nil {
+		return m.requestSSLCertFn(ctx, domain, email)
+	}
 	return map[string]interface{}{
 		"domain":  domain,
 		"email":   email,
@@ -473,6 +483,9 @@ func (m *mockDeployer) RequestSSLCertificate(ctx context.Context, domain, email 
 }
 
 func (m *mockDeployer) RenewSSLCertificate(ctx context.Context, domain string) (interface{}, error) {
+	if m.renewSSLCertFn != nil {
+		return m.renewSSLCertFn(ctx, domain)
+	}
 	return map[string]interface{}{
 		"domain":  domain,
 		"status":  "renewing",
@@ -480,6 +493,9 @@ func (m *mockDeployer) RenewSSLCertificate(ctx context.Context, domain string) (
 }
 
 func (m *mockDeployer) DeleteSSLCertificate(ctx context.Context, domain string) (interface{}, error) {
+	if m.deleteSSLCertFn != nil {
+		return m.deleteSSLCertFn(ctx, domain)
+	}
 	return map[string]interface{}{
 		"domain":  domain,
 		"message": "deleted",
@@ -2426,5 +2442,434 @@ func TestHandleListAlertRules(t *testing.T) {
 	_, err := handleListAlertRules(context.TODO(), mock, newRequest(map[string]interface{}{}))
 	if err != nil {
 		t.Fatalf("handleListAlertRules failed: %v", err)
+	}
+}
+
+// ========== ContextWithRole / RoleFromContext ==========
+
+func TestContextWithRole(t *testing.T) {
+	ctx := ContextWithRole(context.Background(), "admin")
+	role := RoleFromContext(ctx)
+	if role != "admin" {
+		t.Errorf("expected admin, got %s", role)
+	}
+}
+
+func TestRoleFromContext_Default(t *testing.T) {
+	// RoleFromContext returns "dev" as default when no role is set
+	role := RoleFromContext(context.Background())
+	if role != "dev" {
+		t.Errorf("expected dev (default), got %s", role)
+	}
+}
+
+func TestContextWithRole_Viewer(t *testing.T) {
+	ctx := ContextWithRole(context.Background(), "viewer")
+	role := RoleFromContext(ctx)
+	if role != "viewer" {
+		t.Errorf("expected viewer, got %s", role)
+	}
+}
+
+func TestContextWithRole_Owner(t *testing.T) {
+	ctx := ContextWithRole(context.Background(), "owner")
+	role := RoleFromContext(ctx)
+	if role != "owner" {
+		t.Errorf("expected owner, got %s", role)
+	}
+}
+
+// ========== withPermissionCheck ==========
+
+func TestWithPermissionCheck_Allowed(t *testing.T) {
+	called := false
+	handler := withPermissionCheck("health_check", func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		called = true
+		return mcp.NewToolResultText("ok"), nil
+	})
+	ctx := ContextWithRole(context.Background(), "viewer")
+	result, err := handler(ctx, mcp.CallToolRequest{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !called {
+		t.Error("handler should be called for viewer accessing health_check")
+	}
+	if result.IsError {
+		t.Errorf("result should not be an error, got: %v", result)
+	}
+}
+
+func TestWithPermissionCheck_Denied(t *testing.T) {
+	handler := withPermissionCheck("delete_app", func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		t.Error("handler should not be called for unauthorized access")
+		return nil, nil
+	})
+	ctx := ContextWithRole(context.Background(), "viewer")
+	result, err := handler(ctx, mcp.CallToolRequest{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !result.IsError {
+		t.Error("result should be an error for unauthorized access")
+	}
+	text := result.Content[0].(mcp.TextContent).Text
+	if !strings.Contains(text, "permission denied") {
+		t.Errorf("expected 'permission denied' in error text, got: %s", text)
+	}
+}
+
+func TestWithPermissionCheck_AdminAllowed(t *testing.T) {
+	called := false
+	handler := withPermissionCheck("delete_app", func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		called = true
+		return mcp.NewToolResultText("deleted"), nil
+	})
+	ctx := ContextWithRole(context.Background(), "admin")
+	result, err := handler(ctx, mcp.CallToolRequest{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !called {
+		t.Error("admin should be allowed to access delete_app")
+	}
+	if result.IsError {
+		t.Errorf("result should not be an error for admin, got: %v", result)
+	}
+}
+
+func TestWithPermissionCheck_UnknownTool(t *testing.T) {
+	// Unknown tools are allowed by default
+	called := false
+	handler := withPermissionCheck("unknown_tool", func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		called = true
+		return mcp.NewToolResultText("ok"), nil
+	})
+	ctx := ContextWithRole(context.Background(), "viewer")
+	_, err := handler(ctx, mcp.CallToolRequest{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !called {
+		t.Error("unknown tools should be allowed")
+	}
+}
+
+func TestWithPermissionCheck_UnknownRole(t *testing.T) {
+	handler := withPermissionCheck("deploy_app", func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		t.Error("handler should not be called for unknown role")
+		return nil, nil
+	})
+	ctx := ContextWithRole(context.Background(), "unknown_role")
+	result, err := handler(ctx, mcp.CallToolRequest{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !result.IsError {
+		t.Error("unknown role should be denied")
+	}
+}
+
+// ========== handleGetContext ==========
+
+func TestHandleGetContext(t *testing.T) {
+	result, err := handleGetContext(context.TODO(), mcp.CallToolRequest{})
+	if err != nil {
+		t.Fatalf("handleGetContext failed: %v", err)
+	}
+	if result.IsError {
+		t.Errorf("handleGetContext should not return error, got: %v", result)
+	}
+	text := result.Content[0].(mcp.TextContent).Text
+	if !strings.Contains(text, "Session:") {
+		t.Errorf("expected 'Session:' in output, got: %s", text)
+	}
+}
+
+// ========== handleDetectPanel ==========
+
+func TestHandleDetectPanel(t *testing.T) {
+	mock := &mockDeployer{}
+	result, err := handleDetectPanel(context.TODO(), mock, newRequest(map[string]interface{}{
+		"server_id": "srv-001",
+	}))
+	if err != nil {
+		t.Fatalf("handleDetectPanel failed: %v", err)
+	}
+	if result.IsError {
+		t.Errorf("handleDetectPanel should not return error, got: %v", result)
+	}
+	text, _ := extractText(result)
+	if !strings.Contains(text, "success") {
+		t.Errorf("expected 'success' in output, got: %s", text)
+	}
+	if !strings.Contains(text, "srv-001") {
+		t.Errorf("expected server_id in output, got: %s", text)
+	}
+}
+
+func TestHandleDetectPanel_MissingServerID(t *testing.T) {
+	mock := &mockDeployer{}
+	result, _ := handleDetectPanel(context.TODO(), mock, newRequest(map[string]interface{}{}))
+	if !result.IsError {
+		t.Error("should return error when server_id is missing")
+	}
+}
+
+func TestHandleDetectPanel_ServerFailure(t *testing.T) {
+	mock := &mockDeployer{
+		testServerFn: func(_ context.Context, _ string) (interface{}, error) {
+			return nil, fmt.Errorf("connection refused")
+		},
+	}
+	result, _ := handleDetectPanel(context.TODO(), mock, newRequest(map[string]interface{}{
+		"server_id": "srv-001",
+	}))
+	if !result.IsError {
+		t.Error("should return error when server test fails")
+	}
+}
+
+// ========== handleListSSLCertificates ==========
+
+func TestHandleListSSLCertificates(t *testing.T) {
+	mock := &mockDeployer{}
+	result, err := handleListSSLCertificates(context.TODO(), mock, newRequest(map[string]interface{}{}))
+	if err != nil {
+		t.Fatalf("handleListSSLCertificates failed: %v", err)
+	}
+	if result.IsError {
+		t.Errorf("handleListSSLCertificates should not return error, got: %v", result)
+	}
+}
+
+func TestHandleListSSLCertificates_Failure(t *testing.T) {
+	mock := &mockDeployer{
+		listSSLCertificatesFn: func(_ context.Context) (interface{}, error) {
+			return nil, fmt.Errorf("SSL API error")
+		},
+	}
+	result, _ := handleListSSLCertificates(context.TODO(), mock, newRequest(map[string]interface{}{}))
+	if !result.IsError {
+		t.Error("should return error when list SSL certificates fails")
+	}
+}
+
+// ========== handleRequestSSLCertificate ==========
+
+func TestHandleRequestSSLCertificate(t *testing.T) {
+	mock := &mockDeployer{}
+	result, err := handleRequestSSLCertificate(context.TODO(), mock, newRequest(map[string]interface{}{
+		"domain": "example.com",
+		"email":  "admin@example.com",
+	}))
+	if err != nil {
+		t.Fatalf("handleRequestSSLCertificate failed: %v", err)
+	}
+	if result.IsError {
+		t.Errorf("handleRequestSSLCertificate should not return error, got: %v", result)
+	}
+	text, _ := extractText(result)
+	if !strings.Contains(text, "example.com") {
+		t.Errorf("expected domain in output, got: %s", text)
+	}
+}
+
+func TestHandleRequestSSLCertificate_MissingDomain(t *testing.T) {
+	mock := &mockDeployer{}
+	result, _ := handleRequestSSLCertificate(context.TODO(), mock, newRequest(map[string]interface{}{
+		"email": "admin@example.com",
+	}))
+	if !result.IsError {
+		t.Error("should return error when domain is missing")
+	}
+}
+
+func TestHandleRequestSSLCertificate_MissingEmail(t *testing.T) {
+	mock := &mockDeployer{}
+	result, _ := handleRequestSSLCertificate(context.TODO(), mock, newRequest(map[string]interface{}{
+		"domain": "example.com",
+	}))
+	if !result.IsError {
+		t.Error("should return error when email is missing")
+	}
+}
+
+func TestHandleRequestSSLCertificate_Failure(t *testing.T) {
+	mock := &mockDeployer{
+		requestSSLCertFn: func(_ context.Context, domain, email string) (interface{}, error) {
+			return nil, fmt.Errorf("certificate request failed")
+		},
+	}
+	result, _ := handleRequestSSLCertificate(context.TODO(), mock, newRequest(map[string]interface{}{
+		"domain": "example.com",
+		"email":  "admin@example.com",
+	}))
+	if !result.IsError {
+		t.Error("should return error when certificate request fails")
+	}
+}
+
+// ========== handleRenewSSLCertificate ==========
+
+func TestHandleRenewSSLCertificate(t *testing.T) {
+	mock := &mockDeployer{}
+	result, err := handleRenewSSLCertificate(context.TODO(), mock, newRequest(map[string]interface{}{
+		"domain": "example.com",
+	}))
+	if err != nil {
+		t.Fatalf("handleRenewSSLCertificate failed: %v", err)
+	}
+	if result.IsError {
+		t.Errorf("handleRenewSSLCertificate should not return error, got: %v", result)
+	}
+	text, _ := extractText(result)
+	if !strings.Contains(text, "example.com") {
+		t.Errorf("expected domain in output, got: %s", text)
+	}
+}
+
+func TestHandleRenewSSLCertificate_MissingDomain(t *testing.T) {
+	mock := &mockDeployer{}
+	result, _ := handleRenewSSLCertificate(context.TODO(), mock, newRequest(map[string]interface{}{}))
+	if !result.IsError {
+		t.Error("should return error when domain is missing")
+	}
+}
+
+func TestHandleRenewSSLCertificate_Failure(t *testing.T) {
+	mock := &mockDeployer{
+		renewSSLCertFn: func(_ context.Context, domain string) (interface{}, error) {
+			return nil, fmt.Errorf("renewal failed")
+		},
+	}
+	result, _ := handleRenewSSLCertificate(context.TODO(), mock, newRequest(map[string]interface{}{
+		"domain": "example.com",
+	}))
+	if !result.IsError {
+		t.Error("should return error when renewal fails")
+	}
+}
+
+// ========== handleDeleteSSLCertificate ==========
+
+func TestHandleDeleteSSLCertificate(t *testing.T) {
+	mock := &mockDeployer{}
+	result, err := handleDeleteSSLCertificate(context.TODO(), mock, newRequest(map[string]interface{}{
+		"domain": "example.com",
+	}))
+	if err != nil {
+		t.Fatalf("handleDeleteSSLCertificate failed: %v", err)
+	}
+	if result.IsError {
+		t.Errorf("handleDeleteSSLCertificate should not return error, got: %v", result)
+	}
+	text, _ := extractText(result)
+	if !strings.Contains(text, "example.com") {
+		t.Errorf("expected domain in output, got: %s", text)
+	}
+}
+
+func TestHandleDeleteSSLCertificate_MissingDomain(t *testing.T) {
+	mock := &mockDeployer{}
+	result, _ := handleDeleteSSLCertificate(context.TODO(), mock, newRequest(map[string]interface{}{}))
+	if !result.IsError {
+		t.Error("should return error when domain is missing")
+	}
+}
+
+func TestHandleDeleteSSLCertificate_Failure(t *testing.T) {
+	mock := &mockDeployer{
+		deleteSSLCertFn: func(_ context.Context, domain string) (interface{}, error) {
+			return nil, fmt.Errorf("delete failed")
+		},
+	}
+	result, _ := handleDeleteSSLCertificate(context.TODO(), mock, newRequest(map[string]interface{}{
+		"domain": "example.com",
+	}))
+	if !result.IsError {
+		t.Error("should return error when delete fails")
+	}
+}
+
+// ========== Additional coverage for low-coverage handlers ==========
+
+func TestHandleHealContainer_MissingName(t *testing.T) {
+	mock := &mockDeployer{}
+	result, _ := handleHealContainer(context.TODO(), mock, newRequest(map[string]interface{}{}))
+	if !result.IsError {
+		t.Error("should return error when container_name is missing")
+	}
+}
+
+func TestHandleHealContainer_Failure(t *testing.T) {
+	mock := &mockDeployer{
+		healContainerFn: func(_ context.Context, _ string) (interface{}, error) {
+			return nil, fmt.Errorf("heal failed")
+		},
+	}
+	result, _ := handleHealContainer(context.TODO(), mock, newRequest(map[string]interface{}{
+		"container_name": "my-app",
+	}))
+	if !result.IsError {
+		t.Error("should return error when heal fails")
+	}
+}
+
+func TestHandleGetContainerMetrics_MissingName(t *testing.T) {
+	mock := &mockDeployer{}
+	result, _ := handleGetContainerMetrics(context.TODO(), mock, newRequest(map[string]interface{}{}))
+	if !result.IsError {
+		t.Error("should return error when container_name is missing")
+	}
+}
+
+func TestHandleGetContainerMetrics_Failure(t *testing.T) {
+	mock := &mockDeployer{
+		getContainerMetricsFn: func(_ context.Context, _ string) (interface{}, error) {
+			return nil, fmt.Errorf("metrics unavailable")
+		},
+	}
+	result, _ := handleGetContainerMetrics(context.TODO(), mock, newRequest(map[string]interface{}{
+		"container_name": "my-app",
+	}))
+	if !result.IsError {
+		t.Error("should return error when metrics fail")
+	}
+}
+
+func TestHandleGetSystemMetrics_Failure(t *testing.T) {
+	mock := &mockDeployer{
+		getSystemMetricsFn: func(_ context.Context) (interface{}, error) {
+			return nil, fmt.Errorf("system metrics unavailable")
+		},
+	}
+	result, _ := handleGetSystemMetrics(context.TODO(), mock, newRequest(map[string]interface{}{}))
+	if !result.IsError {
+		t.Error("should return error when system metrics fail")
+	}
+}
+
+func TestHandleListAlerts_Failure(t *testing.T) {
+	mock := &mockDeployer{
+		listAlertsFn: func(_ context.Context) (interface{}, error) {
+			return nil, fmt.Errorf("alerts unavailable")
+		},
+	}
+	result, _ := handleListAlerts(context.TODO(), mock, newRequest(map[string]interface{}{}))
+	if !result.IsError {
+		t.Error("should return error when list alerts fails")
+	}
+}
+
+func TestHandleListAlertRules_Failure(t *testing.T) {
+	mock := &mockDeployer{
+		listAlertRulesFn: func(_ context.Context) (interface{}, error) {
+			return nil, fmt.Errorf("alert rules unavailable")
+		},
+	}
+	result, _ := handleListAlertRules(context.TODO(), mock, newRequest(map[string]interface{}{}))
+	if !result.IsError {
+		t.Error("should return error when list alert rules fails")
 	}
 }

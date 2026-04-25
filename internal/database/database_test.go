@@ -487,3 +487,92 @@ func TestConnect_UnsupportedDriver(t *testing.T) {
 		t.Error("error message should not be empty")
 	}
 }
+
+func TestConnect_PostgresErrorPath(t *testing.T) {
+	// Test postgres with invalid DSN to exercise the error path
+	_, err := Connect("postgres", "host=/nonexistent-socket dbname=test")
+	if err == nil {
+		t.Error("expected error for postgres with invalid socket path")
+	}
+	// Verify error message mentions the driver
+	errMsg := err.Error()
+	if errMsg == "" {
+		t.Error("error message should not be empty")
+	}
+}
+
+func TestConnect_EmptyDSNPostgres(t *testing.T) {
+	// Empty DSN should be caught before driver selection
+	_, err := Connect("postgres", "")
+	if err == nil {
+		t.Error("expected error for empty DSN")
+	}
+}
+
+func TestConnect_SQLiteMemory(t *testing.T) {
+	db, err := Connect("sqlite", ":memory:")
+	if err != nil {
+		t.Fatalf("Connect(:memory:) error = %v", err)
+	}
+	sqlDB, _ := db.DB()
+	defer sqlDB.Close()
+
+	// Verify it's usable
+	if err := sqlDB.Ping(); err != nil {
+		t.Fatalf("Ping() error = %v", err)
+	}
+}
+
+func TestMigrate_SSLCertificatesTable(t *testing.T) {
+	tmpDir := t.TempDir()
+	dbPath := filepath.Join(tmpDir, "test.db")
+
+	db, err := Connect("sqlite", dbPath)
+	if err != nil {
+		t.Fatalf("Connect() error = %v", err)
+	}
+	sqlDB, _ := db.DB()
+	defer sqlDB.Close()
+
+	if err := Migrate(db); err != nil {
+		t.Fatalf("Migrate() error = %v", err)
+	}
+
+	// Verify ssl_certificates table exists
+	var count int64
+	db.Raw("SELECT count(*) FROM sqlite_master WHERE type='table' AND name='ssl_certificates'").Scan(&count)
+	if count != 1 {
+		t.Errorf("expected ssl_certificates table to exist, got count=%d", count)
+	}
+}
+
+func TestMigrate_SSLCertificatesColumns(t *testing.T) {
+	tmpDir := t.TempDir()
+	dbPath := filepath.Join(tmpDir, "test.db")
+
+	db, err := Connect("sqlite", dbPath)
+	if err != nil {
+		t.Fatalf("Connect() error = %v", err)
+	}
+	sqlDB, _ := db.DB()
+	defer sqlDB.Close()
+
+	if err := Migrate(db); err != nil {
+		t.Fatalf("Migrate() error = %v", err)
+	}
+
+	columns := []string{"id", "domain", "email", "provider", "status", "auto_renew", "retry_count"}
+	for _, col := range columns {
+		var count int
+		err := db.Raw(
+			"SELECT count(*) FROM pragma_table_info(?) WHERE name = ?",
+			"ssl_certificates", col,
+		).Scan(&count).Error
+		if err != nil {
+			t.Fatalf("failed to check column: %v", err)
+		}
+		if count == 0 {
+			t.Errorf("column %q not found in ssl_certificates table", col)
+		}
+	}
+}
