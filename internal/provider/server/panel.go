@@ -29,10 +29,10 @@ type PanelProvider struct {
 
 	// Lazy-initialized panel clients
 	panel1Once  sync.Once
-	panel1      *Panel1Panel
+	panel1      *Panel1Client
 	panel1Err   error
 	btPanelOnce sync.Once
-	btPanel     *PanelBTPanel
+	btPanel     *PanelBTPanelClient
 	btPanelErr  error
 }
 
@@ -46,25 +46,25 @@ func NewPanelProvider(panelType PanelType, baseURL, apiKey string) *PanelProvide
 }
 
 // getPanel1Client lazily initializes and returns the 1Panel client.
-func (p *PanelProvider) getPanel1Client() (*Panel1Panel, error) {
+func (p *PanelProvider) getPanel1Client() (*Panel1Client, error) {
 	p.panel1Once.Do(func() {
 		if p.baseURL == "" || p.apiKey == "" {
 			p.panel1Err = fmt.Errorf("1Panel base URL and API key are required")
 			return
 		}
-		p.panel1 = NewPanel1Panel(p.baseURL, p.apiKey)
+		p.panel1 = NewPanel1Client(p.baseURL, p.apiKey)
 	})
 	return p.panel1, p.panel1Err
 }
 
 // getBTPanelClient lazily initializes and returns the BT-Panel client.
-func (p *PanelProvider) getBTPanelClient() (*PanelBTPanel, error) {
+func (p *PanelProvider) getBTPanelClient() (*PanelBTPanelClient, error) {
 	p.btPanelOnce.Do(func() {
 		if p.baseURL == "" || p.apiKey == "" {
 			p.btPanelErr = fmt.Errorf("BT-Panel base URL and API key are required")
 			return
 		}
-		p.btPanel = NewPanelBTPanel(p.baseURL, p.apiKey)
+		p.btPanel = NewPanelBTPanelClient(p.baseURL, p.apiKey)
 	})
 	return p.btPanel, p.btPanelErr
 }

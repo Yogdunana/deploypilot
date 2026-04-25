@@ -57,8 +57,8 @@ func setupBTPanelErrorServer() *httptest.Server {
 	return httptest.NewServer(mux)
 }
 
-func TestNewPanelBTPanel(t *testing.T) {
-	p := NewPanelBTPanel("http://localhost:8888", "test-key")
+func TestNewPanelBTPanelClient(t *testing.T) {
+	p := NewPanelBTPanelClient("http://localhost:8888", "test-key")
 	if p.baseURL != "http://localhost:8888" {
 		t.Errorf("baseURL = %q, want %q", p.baseURL, "http://localhost:8888")
 	}
@@ -70,62 +70,62 @@ func TestNewPanelBTPanel(t *testing.T) {
 	}
 }
 
-func TestPanelBTPanel_OpenFirewall(t *testing.T) {
+func TestPanelBTPanelClient_OpenFirewall(t *testing.T) {
 	server := setupBTPanelTestServer()
 	defer server.Close()
 
-	p := NewPanelBTPanel(server.URL, "test-api-key")
+	p := NewPanelBTPanelClient(server.URL, "test-api-key")
 	err := p.OpenFirewall(context.TODO(), 8080, "tcp")
 	if err != nil {
 		t.Fatalf("OpenFirewall() error = %v", err)
 	}
 }
 
-func TestPanelBTPanel_OpenFirewall_APIError(t *testing.T) {
+func TestPanelBTPanelClient_OpenFirewall_APIError(t *testing.T) {
 	server := setupBTPanelErrorServer()
 	defer server.Close()
 
-	p := NewPanelBTPanel(server.URL, "test-api-key")
+	p := NewPanelBTPanelClient(server.URL, "test-api-key")
 	err := p.OpenFirewall(context.TODO(), 8080, "tcp")
 	if err == nil {
 		t.Fatal("OpenFirewall() should return error on API failure")
 	}
 }
 
-func TestPanelBTPanel_CloseFirewall(t *testing.T) {
+func TestPanelBTPanelClient_CloseFirewall(t *testing.T) {
 	server := setupBTPanelTestServer()
 	defer server.Close()
 
-	p := NewPanelBTPanel(server.URL, "test-api-key")
+	p := NewPanelBTPanelClient(server.URL, "test-api-key")
 	err := p.CloseFirewall(context.TODO(), 8080, "tcp")
 	if err != nil {
 		t.Fatalf("CloseFirewall() error = %v", err)
 	}
 }
 
-func TestPanelBTPanel_CloseFirewall_APIError(t *testing.T) {
+func TestPanelBTPanelClient_CloseFirewall_APIError(t *testing.T) {
 	server := setupBTPanelErrorServer()
 	defer server.Close()
 
-	p := NewPanelBTPanel(server.URL, "test-api-key")
+	p := NewPanelBTPanelClient(server.URL, "test-api-key")
 	err := p.CloseFirewall(context.TODO(), 8080, "tcp")
 	if err == nil {
 		t.Fatal("CloseFirewall() should return error on API failure")
 	}
 }
 
-func TestPanelBTPanel_CreateReverseProxy(t *testing.T) {
+func TestPanelBTPanelClient_CreateReverseProxy(t *testing.T) {
 	server := setupBTPanelTestServer()
 	defer server.Close()
 
-	p := NewPanelBTPanel(server.URL, "test-api-key")
+	p := NewPanelBTPanelClient(server.URL, "test-api-key")
 	err := p.CreateReverseProxy(context.TODO(), "example.com", "http://localhost:3000", 3000)
 	if err != nil {
 		t.Fatalf("CreateReverseProxy() error = %v", err)
 	}
 }
 
-func TestPanelBTPanel_CreateReverseProxy_APIError(t *testing.T) {
+func TestPanelBTPanelClient_CreateReverseProxy_APIError(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		resp := btPanelResponse{Status: false, Msg: "site already exists"}
 		w.Header().Set("Content-Type", "application/json")
@@ -133,14 +133,14 @@ func TestPanelBTPanel_CreateReverseProxy_APIError(t *testing.T) {
 	}))
 	defer server.Close()
 
-	p := NewPanelBTPanel(server.URL, "test-api-key")
+	p := NewPanelBTPanelClient(server.URL, "test-api-key")
 	err := p.CreateReverseProxy(context.TODO(), "example.com", "http://localhost:3000", 3000)
 	if err == nil {
 		t.Fatal("CreateReverseProxy() should return error on API failure")
 	}
 }
 
-func TestPanelBTPanel_OpenFirewall_SendsCorrectRequest(t *testing.T) {
+func TestPanelBTPanelClient_OpenFirewall_SendsCorrectRequest(t *testing.T) {
 	var receivedMethod, receivedPath, receivedBody string
 	var receivedAuth string
 
@@ -158,7 +158,7 @@ func TestPanelBTPanel_OpenFirewall_SendsCorrectRequest(t *testing.T) {
 	}))
 	defer server.Close()
 
-	p := NewPanelBTPanel(server.URL, "my-secret-key")
+	p := NewPanelBTPanelClient(server.URL, "my-secret-key")
 	err := p.OpenFirewall(context.TODO(), 8080, "tcp")
 	if err != nil {
 		t.Fatalf("OpenFirewall() error = %v", err)
@@ -187,8 +187,8 @@ func TestPanelBTPanel_OpenFirewall_SendsCorrectRequest(t *testing.T) {
 	}
 }
 
-func TestPanelBTPanel_SetHTTPClient(t *testing.T) {
-	p := NewPanelBTPanel("http://localhost:8888", "test-key")
+func TestPanelBTPanelClient_SetHTTPClient(t *testing.T) {
+	p := NewPanelBTPanelClient("http://localhost:8888", "test-key")
 	custom := &http.Client{}
 	p.SetHTTPClient(custom)
 	if p.httpClient != custom {

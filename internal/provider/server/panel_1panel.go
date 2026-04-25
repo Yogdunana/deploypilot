@@ -12,8 +12,8 @@ import (
 	"time"
 )
 
-// Panel1Panel implements panel operations for 1Panel.
-type Panel1Panel struct {
+// Panel1Client implements panel operations for 1Panel.
+type Panel1Client struct {
 	baseURL    string
 	apiKey     string
 	httpClient *http.Client
@@ -42,9 +42,9 @@ type panel1FirewallListData struct {
 	Total int                  `json:"total"`
 }
 
-// NewPanel1Panel creates a new 1Panel API client.
-func NewPanel1Panel(baseURL, apiKey string) *Panel1Panel {
-	return &Panel1Panel{
+// NewPanel1Client creates a new 1Panel API client.
+func NewPanel1Client(baseURL, apiKey string) *Panel1Client {
+	return &Panel1Client{
 		baseURL: baseURL,
 		apiKey:  apiKey,
 		httpClient: &http.Client{
@@ -54,12 +54,12 @@ func NewPanel1Panel(baseURL, apiKey string) *Panel1Panel {
 }
 
 // SetHTTPClient allows injecting a custom HTTP client (useful for testing).
-func (p *Panel1Panel) SetHTTPClient(client *http.Client) {
+func (p *Panel1Client) SetHTTPClient(client *http.Client) {
 	p.httpClient = client
 }
 
 // doRequest performs an authenticated HTTP request to the 1Panel API.
-func (p *Panel1Panel) doRequest(ctx context.Context, method, path string, body interface{}) (*panel1Response, error) {
+func (p *Panel1Client) doRequest(ctx context.Context, method, path string, body interface{}) (*panel1Response, error) {
 	var reqBody io.Reader
 	if body != nil {
 		data, err := json.Marshal(body)
@@ -102,7 +102,7 @@ func (p *Panel1Panel) doRequest(ctx context.Context, method, path string, body i
 }
 
 // OpenFirewall opens a port via the 1Panel API.
-func (p *Panel1Panel) OpenFirewall(ctx context.Context, port int, protocol string) error {
+func (p *Panel1Client) OpenFirewall(ctx context.Context, port int, protocol string) error {
 	slog.Info("1Panel: opening firewall port", "port", port, "protocol", protocol)
 
 	reqBody := map[string]interface{}{
@@ -124,7 +124,7 @@ func (p *Panel1Panel) OpenFirewall(ctx context.Context, port int, protocol strin
 
 // CloseFirewall closes a port via the 1Panel API.
 // It first lists firewall rules to find the matching rule ID, then deletes it.
-func (p *Panel1Panel) CloseFirewall(ctx context.Context, port int, protocol string) error {
+func (p *Panel1Client) CloseFirewall(ctx context.Context, port int, protocol string) error {
 	slog.Info("1Panel: closing firewall port", "port", port, "protocol", protocol)
 
 	// Step 1: List firewall rules to find the rule ID
@@ -164,7 +164,7 @@ func (p *Panel1Panel) CloseFirewall(ctx context.Context, port int, protocol stri
 }
 
 // CreateReverseProxy creates a reverse proxy via the 1Panel API.
-func (p *Panel1Panel) CreateReverseProxy(ctx context.Context, domain, targetURL string, port int) error {
+func (p *Panel1Client) CreateReverseProxy(ctx context.Context, domain, targetURL string, port int) error {
 	slog.Info("1Panel: creating reverse proxy", "domain", domain, "targetURL", targetURL, "port", port)
 
 	reqBody := map[string]interface{}{

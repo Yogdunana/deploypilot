@@ -11,8 +11,8 @@ import (
 	"time"
 )
 
-// PanelBTPanel implements panel operations for BT-Panel (BaoTa).
-type PanelBTPanel struct {
+// PanelBTPanelClient implements panel operations for BT-Panel (BaoTa).
+type PanelBTPanelClient struct {
 	baseURL    string
 	apiKey     string
 	httpClient *http.Client
@@ -24,9 +24,9 @@ type btPanelResponse struct {
 	Msg    string `json:"msg"`
 }
 
-// NewPanelBTPanel creates a new BT-Panel API client.
-func NewPanelBTPanel(baseURL, apiKey string) *PanelBTPanel {
-	return &PanelBTPanel{
+// NewPanelBTPanelClient creates a new BT-Panel API client.
+func NewPanelBTPanelClient(baseURL, apiKey string) *PanelBTPanelClient {
+	return &PanelBTPanelClient{
 		baseURL: baseURL,
 		apiKey:  apiKey,
 		httpClient: &http.Client{
@@ -36,12 +36,12 @@ func NewPanelBTPanel(baseURL, apiKey string) *PanelBTPanel {
 }
 
 // SetHTTPClient allows injecting a custom HTTP client (useful for testing).
-func (p *PanelBTPanel) SetHTTPClient(client *http.Client) {
+func (p *PanelBTPanelClient) SetHTTPClient(client *http.Client) {
 	p.httpClient = client
 }
 
 // doRequest performs an authenticated HTTP request to the BT-Panel API.
-func (p *PanelBTPanel) doRequest(ctx context.Context, method, path string, body interface{}) (*btPanelResponse, error) {
+func (p *PanelBTPanelClient) doRequest(ctx context.Context, method, path string, body interface{}) (*btPanelResponse, error) {
 	var reqBody io.Reader
 	if body != nil {
 		data, err := json.Marshal(body)
@@ -84,7 +84,7 @@ func (p *PanelBTPanel) doRequest(ctx context.Context, method, path string, body 
 }
 
 // OpenFirewall opens a port via the BT-Panel API.
-func (p *PanelBTPanel) OpenFirewall(ctx context.Context, port int, protocol string) error {
+func (p *PanelBTPanelClient) OpenFirewall(ctx context.Context, port int, protocol string) error {
 	slog.Info("BT-Panel: opening firewall port", "port", port, "protocol", protocol)
 
 	reqBody := map[string]interface{}{
@@ -103,7 +103,7 @@ func (p *PanelBTPanel) OpenFirewall(ctx context.Context, port int, protocol stri
 }
 
 // CloseFirewall closes a port via the BT-Panel API.
-func (p *PanelBTPanel) CloseFirewall(ctx context.Context, port int, protocol string) error {
+func (p *PanelBTPanelClient) CloseFirewall(ctx context.Context, port int, protocol string) error {
 	slog.Info("BT-Panel: closing firewall port", "port", port, "protocol", protocol)
 
 	reqBody := map[string]interface{}{
@@ -122,7 +122,7 @@ func (p *PanelBTPanel) CloseFirewall(ctx context.Context, port int, protocol str
 }
 
 // CreateReverseProxy creates a reverse proxy via the BT-Panel API.
-func (p *PanelBTPanel) CreateReverseProxy(ctx context.Context, domain, targetURL string, port int) error {
+func (p *PanelBTPanelClient) CreateReverseProxy(ctx context.Context, domain, targetURL string, port int) error {
 	slog.Info("BT-Panel: creating reverse proxy", "domain", domain, "targetURL", targetURL, "port", port)
 
 	reqBody := map[string]interface{}{

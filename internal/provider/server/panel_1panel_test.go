@@ -91,8 +91,8 @@ func setup1PanelErrorServer() *httptest.Server {
 	return httptest.NewServer(mux)
 }
 
-func TestNewPanel1Panel(t *testing.T) {
-	p := NewPanel1Panel("http://localhost:8888", "test-key")
+func TestNewPanel1Client(t *testing.T) {
+	p := NewPanel1Client("http://localhost:8888", "test-key")
 	if p.baseURL != "http://localhost:8888" {
 		t.Errorf("baseURL = %q, want %q", p.baseURL, "http://localhost:8888")
 	}
@@ -104,44 +104,44 @@ func TestNewPanel1Panel(t *testing.T) {
 	}
 }
 
-func TestPanel1Panel_OpenFirewall(t *testing.T) {
+func TestPanel1Client_OpenFirewall(t *testing.T) {
 	server := setup1PanelTestServer()
 	defer server.Close()
 
-	p := NewPanel1Panel(server.URL, "test-api-key")
+	p := NewPanel1Client(server.URL, "test-api-key")
 	err := p.OpenFirewall(context.TODO(), 8080, "tcp")
 	if err != nil {
 		t.Fatalf("OpenFirewall() error = %v", err)
 	}
 }
 
-func TestPanel1Panel_OpenFirewall_APIError(t *testing.T) {
+func TestPanel1Client_OpenFirewall_APIError(t *testing.T) {
 	server := setup1PanelErrorServer()
 	defer server.Close()
 
-	p := NewPanel1Panel(server.URL, "test-api-key")
+	p := NewPanel1Client(server.URL, "test-api-key")
 	err := p.OpenFirewall(context.TODO(), 8080, "tcp")
 	if err == nil {
 		t.Fatal("OpenFirewall() should return error on API failure")
 	}
 }
 
-func TestPanel1Panel_CloseFirewall(t *testing.T) {
+func TestPanel1Client_CloseFirewall(t *testing.T) {
 	server := setup1PanelTestServer()
 	defer server.Close()
 
-	p := NewPanel1Panel(server.URL, "test-api-key")
+	p := NewPanel1Client(server.URL, "test-api-key")
 	err := p.CloseFirewall(context.TODO(), 8080, "tcp")
 	if err != nil {
 		t.Fatalf("CloseFirewall() error = %v", err)
 	}
 }
 
-func TestPanel1Panel_CloseFirewall_NoMatchingRule(t *testing.T) {
+func TestPanel1Client_CloseFirewall_NoMatchingRule(t *testing.T) {
 	server := setup1PanelTestServer()
 	defer server.Close()
 
-	p := NewPanel1Panel(server.URL, "test-api-key")
+	p := NewPanel1Client(server.URL, "test-api-key")
 	// Use a port that doesn't exist in the mock data
 	err := p.CloseFirewall(context.TODO(), 9999, "tcp")
 	if err != nil {
@@ -149,29 +149,29 @@ func TestPanel1Panel_CloseFirewall_NoMatchingRule(t *testing.T) {
 	}
 }
 
-func TestPanel1Panel_CloseFirewall_ListError(t *testing.T) {
+func TestPanel1Client_CloseFirewall_ListError(t *testing.T) {
 	server := setup1PanelErrorServer()
 	defer server.Close()
 
-	p := NewPanel1Panel(server.URL, "test-api-key")
+	p := NewPanel1Client(server.URL, "test-api-key")
 	err := p.CloseFirewall(context.TODO(), 8080, "tcp")
 	if err == nil {
 		t.Fatal("CloseFirewall() should return error when list fails")
 	}
 }
 
-func TestPanel1Panel_CreateReverseProxy(t *testing.T) {
+func TestPanel1Client_CreateReverseProxy(t *testing.T) {
 	server := setup1PanelTestServer()
 	defer server.Close()
 
-	p := NewPanel1Panel(server.URL, "test-api-key")
+	p := NewPanel1Client(server.URL, "test-api-key")
 	err := p.CreateReverseProxy(context.TODO(), "example.com", "http://localhost:3000", 3000)
 	if err != nil {
 		t.Fatalf("CreateReverseProxy() error = %v", err)
 	}
 }
 
-func TestPanel1Panel_OpenFirewall_SendsCorrectRequest(t *testing.T) {
+func TestPanel1Client_OpenFirewall_SendsCorrectRequest(t *testing.T) {
 	var receivedMethod, receivedPath, receivedBody string
 	var receivedAuth string
 
@@ -189,7 +189,7 @@ func TestPanel1Panel_OpenFirewall_SendsCorrectRequest(t *testing.T) {
 	}))
 	defer server.Close()
 
-	p := NewPanel1Panel(server.URL, "my-secret-key")
+	p := NewPanel1Client(server.URL, "my-secret-key")
 	err := p.OpenFirewall(context.TODO(), 8080, "tcp")
 	if err != nil {
 		t.Fatalf("OpenFirewall() error = %v", err)
@@ -218,8 +218,8 @@ func TestPanel1Panel_OpenFirewall_SendsCorrectRequest(t *testing.T) {
 	}
 }
 
-func TestPanel1Panel_SetHTTPClient(t *testing.T) {
-	p := NewPanel1Panel("http://localhost:8888", "test-key")
+func TestPanel1Client_SetHTTPClient(t *testing.T) {
+	p := NewPanel1Client("http://localhost:8888", "test-key")
 	custom := &http.Client{}
 	p.SetHTTPClient(custom)
 	if p.httpClient != custom {

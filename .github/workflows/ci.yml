@@ -51,6 +51,9 @@ jobs:
           name: frontend-dist
           path: web/dist/
 
+      - name: Run go mod tidy
+        run: go mod tidy
+
       - name: Run tests with race detector
         run: go test -race -coverprofile=coverage.out -count=1 ./...
 
@@ -82,6 +85,9 @@ jobs:
         with:
           name: frontend-dist
           path: web/dist/
+
+      - name: Run go mod tidy
+        run: go mod tidy
 
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@v7
