@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/Yogdunana/deploypilot/internal/database"
+	"github.com/Yogdunana/deploypilot/internal/mcp"
 	"github.com/Yogdunana/deploypilot/internal/model"
 	"gorm.io/gorm"
 )
@@ -818,9 +819,12 @@ func TestBatchDeploy_Empty(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	m := result.(map[string]interface{})
-	if m["total"] != 0 {
-		t.Errorf("expected 0 total, got %v", m["total"])
+	br, ok := result.(*mcp.BatchDeployResult)
+	if !ok {
+		t.Fatalf("expected *BatchDeployResult, got %T", result)
+	}
+	if br.Total != 0 {
+		t.Errorf("expected 0 total, got %d", br.Total)
 	}
 }
 
