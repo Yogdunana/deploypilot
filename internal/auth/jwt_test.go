@@ -148,9 +148,10 @@ func TestGenerateToken_CustomExpiry(t *testing.T) {
 	}
 
 	expectedExpiry := time.Now().Add(24 * time.Hour)
-	diff := claims.ExpiresAt.Time.Sub(expectedExpiry)
+	expiresAtTime := *claims.ExpiresAt
+	diff := expiresAtTime.Sub(expectedExpiry)
 	if diff > 5*time.Second || diff < -5*time.Second {
-		t.Errorf("expected expiry ~24h from now, got %v (diff: %v)", claims.ExpiresAt.Time, diff)
+		t.Errorf("expected expiry ~24h from now, got %v (diff: %v)", expiresAtTime, diff)
 	}
 }
 
