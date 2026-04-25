@@ -7,16 +7,49 @@ on:
     branches: [main, develop]
 
 jobs:
+  build-frontend:
+    name: Build Frontend
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        working-directory: web
+        run: npm ci
+
+      - name: Build frontend
+        working-directory: web
+        run: npm run build
+
+      - name: Upload frontend dist
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: web/dist/
+          retention-days: 1
+
   test:
     name: Test (race + coverage)
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    needs: [build-frontend]
     steps:
       - uses: actions/checkout@v6
 
       - uses: actions/setup-go@v6
         with:
           go-version: "1.23"
+
+      - name: Download frontend dist
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-dist
+          path: web/dist/
 
       - name: Run tests with race detector
         run: go test -race -coverprofile=coverage.out -count=1 ./...
@@ -28,7 +61,6 @@ jobs:
           THRESHOLD=80
           if (( $(echo "$COVERAGE < $THRESHOLD" | bc -l) )); then
             echo "::warning::Coverage ${COVERAGE}% is below threshold ${THRESHOLD}% (cmd/ entry points excluded from unit tests)"
-            # Don't fail — cmd/ entry points (main, run, Execute) cannot be unit tested
           else
             echo "Coverage ${COVERAGE}% meets threshold ${THRESHOLD}%"
           fi
@@ -37,12 +69,19 @@ jobs:
     name: Lint (golangci-lint)
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    needs: [build-frontend]
     steps:
       - uses: actions/checkout@v6
 
       - uses: actions/setup-go@v6
         with:
           go-version: "1.23"
+
+      - name: Download frontend dist
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-dist
+          path: web/dist/
 
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@v7
