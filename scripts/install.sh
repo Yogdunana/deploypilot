@@ -48,7 +48,21 @@ esac
 echo -e "${YELLOW}[3/8] 检查Docker...${NC}"
 if ! command -v docker &> /dev/null; then
     echo -e "${GREEN}  安装Docker...${NC}"
-    curl -fsSL https://get.docker.com | sh
+    # 尝试多种方式安装Docker
+    if curl -fsSL https://get.docker.com | sh; then
+        echo -e "${GREEN}  Docker安装成功${NC}"
+    else
+        echo -e "${YELLOW}  使用备用源安装Docker...${NC}"
+        # 使用国内源
+        curl -fsSL https://mirrors.aliyun.com/docker-ce/linux/ubuntu/gpg | sudo apt-key add -
+        sudo add-apt-repository "deb [arch=amd64] https://mirrors.aliyun.com/docker-ce/linux/ubuntu $(lsb_release -cs) stable"
+        sudo apt update
+        sudo apt install -y docker-ce docker-ce-cli containerd.io
+    fi
+    # 设置默认用户
+    if [ -z "$USER" ]; then
+        USER="root"
+    fi
     sudo usermod -aG docker $USER
     echo -e "${YELLOW}  Docker已安装，请重新登录以应用组更改${NC}"
 else
@@ -68,10 +82,21 @@ echo -e "${YELLOW}[5/8] 下载DeployPilot...${NC}"
 # 从GitHub仓库克隆代码
 echo -e "${GREEN}  从GitHub克隆代码...${NC}"
 cd /tmp
+# 清理已存在的目录
+rm -rf deploypilot
 git clone https://github.com/Yogdunana/deploypilot.git
 echo -e "${GREEN}  编译中...${NC}"
 cd deploypilot
-make build
+# 构建前端
+echo -e "${GREEN}  构建前端...${NC}"
+cd web
+if [ -f "package.json" ]; then
+    npm install
+    npm run build
+fi
+cd ..
+# 构建后端
+make build-all
 sudo cp bin/* /opt/deploypilot/bin/
 sudo chown deploypilot:deploypilot /opt/deploypilot/bin/*
 
@@ -106,9 +131,11 @@ EOF
 
 sudo chown deploypilot:deploypilot /opt/deploypilot/data/config.yaml
 
-# 配置systemd服务
-echo -e "${YELLOW}[7/8] 配置systemd服务...${NC}"
-sudo tee /etc/systemd/system/deploypilot.service > /dev/null << 'EOF'
+# 配置服务
+echo -e "${YELLOW}[7/8] 配置服务...${NC}"
+if command -v systemctl &> /dev/null && systemctl | grep -q "\.mount"; then
+    # 使用systemd
+    sudo tee /etc/systemd/system/deploypilot.service > /dev/null << 'EOF'
 [Unit]
 Description=DeployPilot Server
 After=docker.service
@@ -125,10 +152,64 @@ RestartSec=5
 [Install]
 WantedBy=multi-user.target
 EOF
+    
+    sudo systemctl daemon-reload
+    sudo systemctl enable deploypilot
+    sudo systemctl start deploypilot
+    
+    echo -e "${GREEN}  Systemd服务已配置${NC}"
+else
+    # 非systemd系统，使用启动脚本
+    sudo tee /etc/init.d/deploypilot > /dev/null << 'EOF'
+#!/bin/bash
+### BEGIN INIT INFO
+# Provides:          deploypilot
+# Required-Start:    $network docker
+# Required-Stop:     $network
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: DeployPilot Server
+# Description:       DeployPilot Server
+### END INIT INFO
 
-sudo systemctl daemon-reload
-sudo systemctl enable deploypilot
-sudo systemctl start deploypilot
+case "$1" in
+  start)
+    echo "Starting DeployPilot..."
+    su - deploypilot -c "/opt/deploypilot/bin/api-server > /dev/null 2>&1 &"
+    ;;
+  stop)
+    echo "Stopping DeployPilot..."
+    pkill -f "deploypilot"
+    ;;
+  restart)
+    $0 stop
+    sleep 2
+    $0 start
+    ;;
+  status)
+    if pgrep -f "deploypilot" > /dev/null; then
+      echo "DeployPilot is running"
+    else
+      echo "DeployPilot is not running"
+    fi
+    ;;
+  *)
+    echo "Usage: $0 {start|stop|restart|status}"
+    exit 1
+    ;;
+esac
+EOF
+    
+    sudo chmod +x /etc/init.d/deploypilot
+    if command -v update-rc.d &> /dev/null; then
+        sudo update-rc.d deploypilot defaults
+    elif command -v chkconfig &> /dev/null; then
+        sudo chkconfig --add deploypilot
+    fi
+    sudo /etc/init.d/deploypilot start
+    
+    echo -e "${GREEN}  启动脚本已配置${NC}"
+fi
 
 # 放行端口
 echo -e "${YELLOW}[8/8] 放行端口...${NC}"
@@ -156,11 +237,20 @@ echo -e "${YELLOW}  等待服务启动...${NC}"
 sleep 5
 
 # 检查服务状态
-if sudo systemctl is-active --quiet deploypilot; then
-    echo -e "${GREEN}  DeployPilot服务已成功启动${NC}"
+if command -v systemctl &> /dev/null && systemctl | grep -q "\.mount"; then
+    if sudo systemctl is-active --quiet deploypilot; then
+        echo -e "${GREEN}  DeployPilot服务已成功启动${NC}"
+    else
+        echo -e "${RED}  DeployPilot服务启动失败${NC}"
+        echo -e "${YELLOW}  请查看日志: sudo journalctl -u deploypilot${NC}"
+    fi
 else
-    echo -e "${RED}  DeployPilot服务启动失败${NC}"
-    echo -e "${YELLOW}  请查看日志: sudo journalctl -u deploypilot${NC}"
+    if pgrep -f "deploypilot" > /dev/null; then
+        echo -e "${GREEN}  DeployPilot服务已成功启动${NC}"
+    else
+        echo -e "${RED}  DeployPilot服务启动失败${NC}"
+        echo -e "${YELLOW}  请查看日志: tail -f /opt/deploypilot/logs/deploypilot.log${NC}"
+    fi
 fi
 
 # 输出安装结果
