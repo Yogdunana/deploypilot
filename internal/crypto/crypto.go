@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strconv"
 	"path/filepath"
 
 	"golang.org/x/crypto/bcrypt"
@@ -69,9 +70,25 @@ func Decrypt(key []byte, encoded string) (string, error) {
 	return string(plaintext), nil
 }
 
-// HashPassword hashes a password using bcrypt with default cost (10).
+// getBcryptCost returns the bcrypt cost factor from environment or default 12.
+func getBcryptCost() int {
+	costStr := os.Getenv("DEPLOYPILOT_BCRYPT_COST")
+	if costStr == "" {
+		return 12
+	}
+	cost, err := strconv.Atoi(costStr)
+	if err != nil || cost < 10 {
+		cost = 10
+	}
+	if cost > 31 {
+		cost = 31
+	}
+	return cost
+}
+
+// HashPassword hashes a password using bcrypt with configurable cost.
 func HashPassword(password string) (string, error) {
-	bytes, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	bytes, err := bcrypt.GenerateFromPassword([]byte(password), getBcryptCost())
 	if err != nil {
 		return "", fmt.Errorf("failed to hash password: %w", err)
 	}
