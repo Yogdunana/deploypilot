@@ -6,10 +6,20 @@ run:
 linters:
   enable:
     - errcheck
+    - gosec
+    - govet
+    - staticcheck
+    - noctx
+    - bodyclose
+    - sqlclosecheck
   settings:
     errcheck:
       exclude-functions:
         - fmt.Sscanf
+    gosec:
+      excludes:
+        - G101  # hardcoded credentials false positive
+        - G404  # weak random in non-crypto contexts
   exclusions:
     rules:
       - linters:
