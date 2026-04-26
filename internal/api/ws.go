@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -16,10 +18,44 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+// allowedWSSOrigins contains origins permitted for WebSocket connections.
+// Configured via DEPLOYPILOT_WS_ALLOWED_ORIGINS (comma-separated).
+// If empty, defaults to same-origin only (request Host header).
+var allowedWSSOrigins []string
+
+func init() {
+	if origins := os.Getenv("DEPLOYPILOT_WS_ALLOWED_ORIGINS"); origins != "" {
+		allowedWSSOrigins = strings.Split(origins, ",")
+		for i, o := range allowedWSSOrigins {
+			allowedWSSOrigins[i] = strings.TrimSpace(o)
+		}
+	}
+}
+
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
-	CheckOrigin:     func(r *http.Request) bool { return true },
+	CheckOrigin: func(r *http.Request) bool {
+		origin := r.Header.Get("Origin")
+		if origin == "" {
+			return true // non-browser clients (e.g. CLI tools) don't send Origin
+		}
+		// If no explicit origins configured, allow same-origin requests
+		if len(allowedWSSOrigins) == 0 {
+			scheme := "http"
+			if r.TLS != nil {
+				scheme = "https"
+			}
+			return origin == scheme+"://"+r.Host
+		}
+		// Check against whitelist
+		for _, allowed := range allowedWSSOrigins {
+			if origin == allowed {
+				return true
+			}
+		}
+		return false
+	},
 }
 
 // WSMessage is the standard WebSocket message format.
