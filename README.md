@@ -1,433 +1,245 @@
-<p align="center"><img src="docs/logo/logo.png" alt="DeployPilot" width="320"></p>
-
-<h1 align="center">DeployPilot</h1>
+# DeployPilot
 
 <p align="center">
-  <strong>AI-Native Deployment Management Platform</strong><br>
-  Powered by MCP protocol — drive container deployment, monitoring &amp; self-healing with natural language
+  <strong>AI 不能 SSH？那就给 AI 开一扇安全的门。</strong>
 </p>
 
 <p align="center">
-  <a href="https://github.com/Yogdunana/deploypilot/actions/workflows/ci.yml">
-    <img src="https://github.com/Yogdunana/deploypilot/actions/workflows/ci.yml/badge.svg" alt="CI">
-  </a>
-  <a href="https://github.com/Yogdunana/deploypilot/actions/workflows/docker.yml">
-    <img src="https://github.com/Yogdunana/deploypilot/actions/workflows/docker.yml/badge.svg" alt="Docker Build">
-  </a>
-  <img src="https://img.shields.io/badge/Go-1.23-00ADD8?logo=go&logoColor=white" alt="Go 1.23">
-  <img src="https://img.shields.io/badge/Vue-3.5-4FC08D?logo=vue.js&logoColor=white" alt="Vue 3.5">
-  <img src="https://img.shields.io/badge/License-MIT-green.svg" alt="MIT License">
-  <img src="https://img.shields.io/badge/Coverage-90%25-brightgreen" alt="90% Coverage">
-  <img src="https://img.shields.io/badge/Platform-amd64%20%7C%20arm64-blue" alt="Multi-arch">
-</p>
-
-<p align="center">
-  <a href="README_zh.md">中文文档</a>
+  AI IDE 沙箱无法直连服务器？DeployPilot 是你服务器上的 <strong>AI 代理网关</strong>，让任意 AI IDE 安全、自动地完成部署全流程。
 </p>
 
 ---
 
-DeployPilot connects AI assistants to your infrastructure through the [Model Context Protocol (MCP)](https://modelcontextprotocol.io/). Manage container deployments, real-time monitoring, automated healing, and multi-cloud DNS directly from AI IDEs like Claude, Cursor, and Windsurf — using natural language.
+## 🔥 核心痛点
+
+你用 AI IDE（SOLO、Claude、Cursor、扣子、豆包）写代码，写完了想部署上线——
+
+**但 AI IDE 全部运行在云端沙箱里，无法 SSH 到你的服务器。**
+
+这意味着 AI 帮不了你：
+- ❌ 分配端口（3 个项目都默认 5000，冲突了）
+- ❌ 配置 Nginx 反向代理
+- ❌ 解析域名 DNS
+- ❌ 申请 SSL 证书
+- ❌ 放行 1Panel / 宝塔防火墙
+- ❌ 启动容器、查看日志、回滚
+
+**DeployPilot 解决这个核心矛盾。**
 
 ---
 
-## ✨ Features
+## ✨ 一句话介绍
 
-### 🤖 AI Integration
-- **MCP Server** — 37 tools covering deployment, monitoring, DNS, notifications, and diagnostics with stdio transport
-- **REST API** — 68 endpoints with JWT authentication and RBAC access control
-- **Swagger Documentation** — Built-in interactive API docs at `/swagger/`
-- **Natural Language Operations** — Conversational infrastructure management inside AI IDEs
-
-### 🚀 Deployment Engine
-- **Three Deployment Modes** — Direct deploy, Git build, and CI/CD trigger
-- **Built-in Builder** — Full pipeline from Git clone to Docker build to container launch
-- **Preflight Checks** — SSH connectivity, Docker availability, port conflicts, and TCP reachability validation
-- **Health Checks** — HTTP/TCP probes with configurable retry strategies
-- **Application Templates** — 9 presets (Node.js, Python, Go, Java, Rust, etc.)
-- **Backup & Rollback** — Full container state snapshots with one-click rollback
-
-### 📊 Operations & Monitoring
-- **Self-Healing Engine** — Auto-restarts crashed/OOM containers and rolls back after exceeding max restart attempts
-- **Monitoring System** — CPU, memory, and disk metrics collection with three-tier alerts (critical/warning/info)
-- **Agent Reverse Tunnel** — WebSocket tunnel through NAT, no inbound ports required
-- **SSH Terminal** — In-browser terminal powered by xterm.js and WebSocket proxy
-
-### 🔒 Security & Access Control
-- **JWT Authentication** — Token-based auth with configurable expiration
-- **RBAC** — Four-tier roles (owner > admin > dev > viewer)
-- **Credential Encryption** — AES-256-GCM + bcrypt, no plaintext stored in the database
-- **Audit Logging** — All mutations recorded with user, action, IP, and timestamp
-- **Rate Limiting** — Token bucket algorithm with per-role tiers (50–200 req/min)
-- **Security Headers** — X-Content-Type-Options, X-Frame-Options, CSP, Referrer-Policy
-
-### ⚡ Real-Time Communication
-- **WebSocket Log Streaming** — Live container log push (`/ws/logs/:app_id`)
-- **SSE Deployment Progress** — Server-Sent Events for step-by-step deployment status updates
-- **Redis Pub/Sub** — Horizontal scaling support for multi-instance deployments
-
-### 🔌 Service Provider Ecosystem
-
-| Category | Providers |
-|----------|-----------|
-| **DNS** | Cloudflare, Alibaba Cloud, Tencent Cloud (DNSPod) |
-| **Notifications** | Webhook, Email, Telegram, DingTalk, Feishu/Lark |
-| **CI/CD** | GitHub Actions |
-
-### 🖥️ Web Management Panel
-- **Vue 3 + TypeScript + Tailwind CSS 4** — Modern responsive frontend
-- **27 Pages** — Dashboard, app management, server management, DNS, credentials, providers, notifications, templates, deployment history, audit logs, user management, system settings, monitoring & alerts, SSL certificates, CI/CD, and more
-- **Real-Time Features** — Live log streaming, SSH terminal, deployment progress bars, metrics polling
+> DeployPilot 部署在你的服务器上，通过 MCP 协议让 AI IDE 远程、安全地完成：**自动部署、端口管理、域名 DNS、SSL 证书、防火墙同步**——你只需要写代码，剩下的交给 AI。
 
 ---
 
-## 🏗️ Architecture
+## 🏗️ 架构
 
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│                        Access Layer                                  │
-│   MCP Server (stdio)  │  REST API (JWT+RBAC)  │  WebSocket / SSE   │
-├─────────────────────────────────────────────────────────────────────┤
-│                        Core Engine                                   │
-│   App Mgmt │ Credential Mgmt │ DNS │ Deploy Engine │ Notify │ HC    │
-│   Backup & Restore │ Monitor & Alert │ Self-Heal │ SSL │ Audit │ RBAC │
-├─────────────────────────────────────────────────────────────────────┤
-│                        Provider Plugins                              │
-│   ServerProvider (SSH) │ DNSProvider (×3) │ NotifyProvider (×5)     │
-│   CICDProvider (GitHub) │ TemplateProvider (×9 presets)              │
-├─────────────────────────────────────────────────────────────────────┤
-│                        Data Layer                                    │
-│   SQLite / PostgreSQL  │  Redis (Pub/Sub)  │  File Storage  │ Metrics │
-└─────────────────────────────────────────────────────────────────────┘
+AI IDE（沙箱，无法 SSH）
+    │
+    ▼  MCP 协议 (stdio)
+┌─────────────────────────────┐
+│       DeployPilot            │
+│   （部署在你的服务器上）       │
+│                              │
+│  MCP Server │ REST API │ WS  │
+│  ─────────────────────────── │
+│  部署引擎 │ DNS │ SSL │ 监控  │
+│  凭据管理 │ 通知 │ 自愈 │ 审计 │
+└──────────┬──────────────────┘
+           │
+           ▼
+  ┌─────────────────────────┐
+  │  1Panel / 宝塔 / Docker  │
+  │  Cloudflare / 阿里云 DNS  │
+  │  GitHub Actions / Gitea  │
+  └─────────────────────────┘
 ```
+
+**为什么是 MCP 而不是 SSH？** 因为 AI IDE 在沙箱里，根本没有 SSH 能力。MCP 是 AI IDE 原生支持的标准协议，DeployPilot 作为 MCP Server 暴露工具，AI 直接调用。
 
 ---
 
-## 🚀 Quick Start
+## 🚀 快速开始
 
-### Docker One-Click Deploy (Recommended)
+### 一键安装（推荐）
+
+和 1Panel / 宝塔一样的体验——一行命令，全自动：
 
 ```bash
-# Clone the repository
-git clone https://github.com/Yogdunana/deploypilot.git
-cd deploypilot
-
-# Start the service
-docker compose up -d
-
-# Visit http://localhost:8080 and register an admin account to get started
+curl -fsSL https://raw.githubusercontent.com/Yogdunana/deploypilot/main/scripts/install.sh | bash
 ```
 
-> You can also pull the pre-built image directly:
-> ```bash
-> docker run -d -p 8080:8080 -v deploypilot-data:/app/data ghcr.io/yogdunana/deploypilot:latest
-> ```
+安装脚本会自动完成：
+- ✅ 检测系统环境
+- ✅ 下载 DeployPilot 二进制
+- ✅ 注册 systemd 服务 + 开机自启
+- ✅ 自动生成管理员账号和随机强密码
+- ✅ 配置 JWT 密钥
+- ✅ 输出访问地址、账号、密码
 
-### Build from Source
+安装完成后，终端会显示：
 
-**Prerequisites**: Go 1.23+, Node.js 20+
+```
+==================== DeployPilot 安装成功 ====================
+
+外网访问地址: http://YOUR_SERVER_IP:8080
+管理员账号:   admin
+管理员密码:   xK9m#pL2$vQ7nW4
+
+⚠️  请立即登录并修改默认密码！
+================================================================
+```
+
+### Docker 部署
 
 ```bash
-# 1. Clone and build the frontend
+docker run -d \
+  --name deploypilot \
+  -p 8080:8080 \
+  -v deploypilot-data:/app/data \
+  ghcr.io/yogdunana/deploypilot:latest
+```
+
+### 从源码构建
+
+```bash
 git clone https://github.com/Yogdunana/deploypilot.git
 cd deploypilot
-cd web && npm ci && npm run build && cd ..
-
-# 2. Build the backend (three binaries)
-go build -o deploypilot ./cmd/deploypilot/
-go build -o api-server ./cmd/api-server/
-go build -o mcp-server ./cmd/mcp-server/
-
-# 3. Or use the Makefile
 make build-all
 ```
 
-### ⚙️ Configuration
+---
 
-```bash
-cp configs/config.yaml.example config.yaml
-```
+## 🤖 AI IDE 集成
 
-Key configuration options:
+在任意支持 MCP 的 AI IDE 中添加配置即可使用：
 
-```yaml
-database:
-  driver: sqlite          # or postgres
-  dsn: ./deploypilot.db
-
-server:
-  host: 0.0.0.0
-  port: 8080
-
-auth:
-  jwt_secret: "your-secret-key"
-  token_expiry: 24h
-
-deploy:
-  health_check_timeout: 60s
-  rollback_on_failure: true
-
-monitor:
-  enabled: true
-  collect_interval: 30s
-```
-
-> All configuration options support override via environment variables with the `DEPLOYPILOT_` prefix. See [DEPLOY.md](DEPLOY.md) for details.
-
-### ▶️ Running
-
-```bash
-# API server (REST API + Web panel)
-./api-server --config config.yaml
-
-# MCP server (AI IDE integration)
-./mcp-server --config config.yaml
-
-# CLI tool
-./deploypilot serve --config config.yaml
-```
-
-### 🔌 MCP Integration Setup
-
-Add the following to your AI IDE configuration (Claude Desktop, Cursor, Windsurf, etc.):
+**Claude Desktop / Cursor / Windsurf / SOLO / 扣子：**
 
 ```json
 {
   "mcpServers": {
     "deploypilot": {
-      "command": "/path/to/mcp-server",
-      "args": ["--config", "/path/to/config.yaml"]
+      "command": "/usr/local/bin/deploypilot",
+      "args": ["mcp", "--config", "/etc/deploypilot/config.yaml"]
     }
   }
 }
 ```
 
-### 🌐 Reverse Proxy
+配置完成后，直接对 AI 说：
 
-For production environments, it is recommended to use Nginx or Caddy as a reverse proxy:
+> "帮我把这个项目部署到服务器上，配好域名和 SSL"
 
-```nginx
-server {
-    listen 443 ssl;
-    server_name deploy.example.com;
-
-    location / {
-        proxy_pass http://127.0.0.1:8080;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-
-    location /ws/ {
-        proxy_pass http://127.0.0.1:8080;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
-    }
-}
-```
+AI 会自动调用 DeployPilot 的 MCP 工具，完成全流程。
 
 ---
 
-## 🔧 MCP Tools
+## 💡 典型使用场景
 
-DeployPilot registers **37 MCP tools**, organized by category:
+### 场景 1：多项目自动部署
 
-| Category | Tools |
-|----------|-------|
-| **Deployment** | `deploy_app`, `get_deploy_status`, `rollback_app`, `batch_deploy` |
-| **App Management** | `list_apps`, `get_app_detail`, `create_app`, `update_app`, `delete_app` |
-| **Server Management** | `list_servers`, `add_server`, `update_server`, `delete_server`, `test_server` |
-| **Credential Management** | `list_credentials`, `add_credential`, `update_credential`, `delete_credential` |
-| **DNS Management** | `list_dns_records`, `add_dns_record`, `update_dns_record`, `delete_dns_record`, `batch_dns` |
-| **Monitoring** | `heal_container`, `get_container_metrics`, `get_system_metrics`, `list_alerts`, `list_alert_rules` |
-| **CI/CD** | `trigger_ci_build`, `get_ci_build_status` |
-| **Notifications** | `send_notification` |
-| **Templates** | `list_templates`, `get_template` |
-| **Tasks** | `get_task_status`, `list_tasks` |
-| **Diagnostics** | `detect_environment`, `health_check`, `doctor` |
+> 你同时开发 3 个项目，都默认跑在 5000 端口。
 
----
+**没有 DeployPilot：** 手动改端口、手动配 Nginx、手动解析 DNS、手动申请 SSL……每个项目重复一遍。
 
-## 📡 REST API
+**有了 DeployPilot：** AI 自动分配端口（5000、5001、5002），自动配反代、DNS、SSL，一键上线。
 
-The API server exposes **68 endpoints** under `/api/v1/`:
+### 场景 2：1Panel / 宝塔联动
 
-| Resource | Endpoints | Examples |
-|----------|-----------|----------|
-| **Auth** | 2 | `POST /api/v1/auth/register`, `POST /api/v1/auth/login` |
-| **Apps** | 14 | `POST /api/v1/apps`, `POST /api/v1/apps/:id/deploy` |
-| **Servers** | 7 | `POST /api/v1/servers`, `POST /api/v1/servers/:id/detect` |
-| **Credentials** | 4 | `POST /api/v1/credentials` |
-| **DNS** | 4 | `POST /api/v1/dns/records` |
-| **Providers** | 4 | `POST /api/v1/providers` |
-| **Notifications** | 4 | `POST /api/v1/notifications` |
-| **Templates** | 4 | `GET /api/v1/templates` |
-| **Users & Roles** | 5 | `GET /api/v1/users`, `PUT /api/v1/users/:id/role` |
-| **Audit Logs** | 1 | `GET /api/v1/audit-logs` |
-| **System** | 3 | `GET /api/v1/system/health` |
-| **Deployments** | 2 | `GET /api/v1/deployments` |
-| **Backups** | 2 | `GET /api/v1/apps/:id/backups` |
-| **Monitoring** | 6 | `GET /api/v1/monitor/system`, `POST /api/v1/monitor/heal/:name` |
-| **CI/CD** | 2 | `POST /api/v1/cicd/trigger` |
-| **SSL** | 4 | `GET /api/v1/ssl/certificates` |
-| **Real-Time** | 4 | `WS /ws/logs/:app_id`, `WS /ws/terminal/:server_id`, `SSE /sse/deploy/:app_id` |
+> 你用 1Panel 管理服务器，每次部署都要手动开防火墙端口。
 
-Visit `/swagger/` after starting the server to view the full interactive API documentation.
+**DeployPilot 自动同步：** 部署时自动在 1Panel 放行端口、创建反向代理、添加站点。
+
+> ⚠️ **注意：** 1Panel API 默认关闭，需要手动开启一次（设置 → 面板设置 → API 接口），这是 1Panel 的安全设计。DeployPilot 会在配置时引导你完成。
+
+### 场景 3：AI 全自动运维
+
+> 容器崩了、SSL 快过期了、DNS 记录需要更新。
+
+**DeployPilot 自愈引擎：** 自动重启崩溃容器、自动续期 SSL 证书、自动发送告警通知。
 
 ---
 
-## 📁 Project Structure
+## 🛠️ 核心功能
 
-```
-deploypilot/
-├── cmd/
-│   ├── api-server/          # REST API + Web panel entry point
-│   ├── deploypilot/         # CLI tool entry point (Cobra)
-│   └── mcp-server/          # MCP Server entry point
-├── internal/
-│   ├── agent/               # Agent reverse tunnel (WebSocket)
-│   ├── api/                 # REST API handlers (Gin)
-│   ├── auth/                # JWT authentication + RBAC middleware
-│   ├── config/              # Configuration management (Viper)
-│   ├── crypto/              # AES-256-GCM encryption
-│   ├── database/            # Database migrations & seeds (GORMigrate)
-│   ├── engine/
-│   │   ├── builder/         # Dockerfile templates (9 presets)
-│   │   ├── deployer/        # Docker container operations
-│   │   ├── detector/        # Environment detection (OS/Docker/ports/services)
-│   │   └── healer/          # Self-healing engine
-│   ├── mcp/                 # MCP Server & tool registration
-│   ├── middleware/           # HTTP middleware (audit, rate limit, security headers)
-│   ├── model/               # GORM data models
-│   ├── monitor/             # Metrics collection & alerting
-│   ├── provider/
-│   │   ├── cicd/            # CI/CD (GitHub Actions)
-│   │   ├── dns/             # DNS (Cloudflare, Alibaba Cloud, Tencent Cloud)
-│   │   ├── notify/          # Notifications (Webhook, Email, Telegram, DingTalk, Feishu)
-│   │   ├── registry/        # Container registry (planned)
-│   │   └── server/          # SSH client (PTY support)
-│   ├── server/              # HTTP server & static file serving
-│   └── service/             # Business logic layer (Bridge — 46 methods)
-├── web/                     # Vue 3 + TypeScript + Tailwind CSS frontend
-│   ├── src/
-│   │   ├── api/modules/     # 15 API modules
-│   │   ├── components/      # 22 UI components + 8 business components
-│   │   ├── composables/     # useWebSocket, useSSE, usePolling
-│   │   ├── views/           # 27 page components
-│   │   ├── stores/          # Pinia state management
-│   │   └── router/          # Vue Router
-│   └── embed.go             # Go embed for frontend build artifacts
-├── configs/                 # Configuration file templates
-├── docs/                    # Swagger docs & MCP tool specifications
-├── scripts/                 # Build & deployment scripts
-├── tests/e2e/               # End-to-end tests
-├── pkg/errors/              # Error handling utilities
-├── .github/workflows/       # CI/CD (testing, linting, multi-arch Docker builds)
-├── Dockerfile               # Three-stage build (Node → Go → Alpine)
-├── docker-compose.yml       # Production deployment
-├── docker-compose.dev.yml   # Development environment
-├── Makefile                 # 14 build targets
-└── go.mod                   # Go module definition
-```
+### AI 集成
+| 功能 | 说明 |
+|------|------|
+| **MCP Server** | 37+ 工具，stdio 传输，AI IDE 原生支持 |
+| **REST API** | 68 个端点，JWT 认证 + RBAC 权限控制 |
+| **Swagger 文档** | 内置交互式 API 文档，访问 `/swagger/` |
+
+### 部署引擎
+| 功能 | 说明 |
+|------|------|
+| **三种部署模式** | 直接部署、Git 构建、CI/CD 触发 |
+| **自动端口分配** | 多项目不冲突 |
+| **健康检查** | HTTP/TCP 探针，可配置重试策略 |
+| **备份与回滚** | 一键回滚到任意版本 |
+| **自愈引擎** | 崩溃自动重启，超过阈值自动回滚 |
+| **应用模板** | 9 个预设（Node.js、Python、Go、Java、Rust 等） |
+
+### 服务商生态
+| 类别 | 支持的服务商 |
+|------|-------------|
+| **DNS** | Cloudflare、阿里云、腾讯云（DNSPod） |
+| **通知** | Webhook、Email、Telegram、钉钉、飞书 |
+| **CI/CD** | GitHub Actions、Gitea |
+| **面板** | 1Panel、宝塔 |
+| **容器** | Docker（本地 + 远程） |
+| **编排** | Kubernetes（多集群） |
+
+### 安全体系
+| 功能 | 说明 |
+|------|------|
+| **JWT 认证** | Token 登录，可配置过期时间 |
+| **RBAC** | 四级角色：owner > admin > dev > viewer |
+| **凭证加密** | AES-256-GCM，数据库不存明文 |
+| **ws-ticket** | WebSocket 一次性票据，防 JWT 泄露 |
+| **审计日志** | 记录所有变更操作 |
+| **速率限制** | 令牌桶算法，按角色分级 |
+
+### Web 管理面板
+- Vue 3 + TypeScript + Tailwind CSS 4
+- 27 个页面：仪表盘、应用、服务器、DNS、凭证、部署历史、监控告警、SSL、审计日志等
+- 实时日志流、SSH 终端、部署进度条
+- 中英双语，移动端适配
 
 ---
 
-## 🛠️ Tech Stack
+## 📊 技术栈
 
-| Layer | Technologies |
-|-------|-------------|
-| **Backend** | Go 1.23, Gin, GORM, Cobra, Viper |
-| **Frontend** | Vue 3.5, TypeScript 5.6, Vite 6, Tailwind CSS 4, Pinia, Radix Vue |
-| **Database** | SQLite (default) / PostgreSQL |
-| **Cache** | Redis (optional, Pub/Sub for horizontal scaling) |
-| **Protocols** | MCP (stdio), REST, WebSocket, SSE |
-| **Security** | JWT, AES-256-GCM, bcrypt, RBAC |
-| **Deployment** | Docker, Docker Compose, GitHub Actions, GHCR |
-| **Testing** | Go testing, golangci-lint, govulncheck |
-
----
-
-## 💻 Development
-
-### Running Tests
-
-```bash
-go test -race -count=1 ./...
-```
-
-### Code Quality
-
-```bash
-# Lint
-golangci-lint run ./...
-
-# Security vulnerability scan
-govulncheck ./...
-
-# Run all checks (vet + lint + test)
-make check
-```
-
-### Coverage
-
-```bash
-make coverage
-# Generate a visual HTML coverage report
-make coverage-html
-```
-
-### Swagger Documentation
-
-```bash
-make swagger
-# Equivalent to: swag init -g cmd/api-server/main.go -o docs/swagger
-```
-
-### Makefile Targets
-
-```bash
-make build          # Build CLI tool
-make build-mcp      # Build MCP Server
-make build-api      # Build API Server
-make build-all      # Build all binaries
-make test           # Run tests (with race detector)
-make coverage       # Generate coverage report
-make coverage-html  # Generate HTML coverage report
-make lint           # Run golangci-lint
-make vet            # Run go vet
-make check          # vet + lint + test
-make swagger        # Generate Swagger documentation
-make docker-build   # Build Docker image
-make clean          # Clean build artifacts
-```
+| 层级 | 技术 |
+|------|------|
+| **后端** | Go 1.23, Gin, GORM, Cobra, Viper |
+| **前端** | Vue 3.5, TypeScript, Vite 6, Tailwind CSS 4, Pinia |
+| **数据库** | SQLite（默认）/ PostgreSQL |
+| **缓存** | Redis（可选，水平扩展） |
+| **协议** | MCP (stdio), REST, WebSocket, SSE |
+| **安全** | JWT, AES-256-GCM, bcrypt, RBAC |
+| **部署** | Docker, GitHub Actions, GHCR |
 
 ---
 
-## 🗺️ Roadmap
+## 🔮 Roadmap
 
-- [ ] MCP context memory (session-level operation history)
-- [ ] Container registry management (Docker Hub, GHCR)
-- [ ] 1Panel / BT Panel integration
-- [ ] Multi-cluster Kubernetes support
-- [ ] Prometheus / Grafana metrics export
-- [ ] Mobile-responsive layout
-
----
-
-## 🤝 Contributing
-
-Contributions are welcome! Please follow these steps:
-
-1. Fork this repository
-2. Create a feature branch (`git checkout -b feature/my-feature`)
-3. Write tests for your changes
-4. Ensure `make check` passes (vet + lint + test)
-5. Commit using [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, `docs:`, etc.)
-6. Push and open a Pull Request
+- [ ] MCP 上下文记忆（会话级操作历史）
+- [ ] 容器镜像仓库管理（Docker Hub、GHCR）
+- [ ] Prometheus / Grafana 指标导出
+- [ ] OAuth 登录（GitHub / Gitee）
+- [ ] 移动端完整适配
+- [ ] 更多 DNS / 通知服务商
 
 ---
+
+## 🤝 贡献
+
+欢迎提交 Issue 和 Pull Request！
 
 ## 📄 License
 
-[MIT](LICENSE) &copy; 2026 Yogdunana
+[MIT](LICENSE) © 2026 Yogdunana
