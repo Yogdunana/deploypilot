@@ -1,245 +1,242 @@
-# DeployPilot
+<p align="center">
+  <img src="docs/assets/logo.svg" alt="DeployPilot" width="280">
+</p>
+
+<h1 align="center">DeployPilot</h1>
 
 <p align="center">
-  <strong>AI 不能 SSH？那就给 AI 开一扇安全的门。</strong>
+  <strong>The AI-native deployment gateway for your server.</strong><br>
+  Bridge the gap between sandboxed AI IDEs and your infrastructure.
 </p>
 
 <p align="center">
-  AI IDE 沙箱无法直连服务器？DeployPilot 是你服务器上的 <strong>AI 代理网关</strong>，让任意 AI IDE 安全、自动地完成部署全流程。
+  <a href="#quickstart"><b>Quickstart</b></a> ·
+  <a href="#features"><b>Features</b></a> ·
+  <a href="#architecture"><b>Architecture</b></a> ·
+  <a href="docs/PRD.md"><b>PRD</b></a> ·
+  <a href="#contributing"><b>Contributing</b></a>
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/github/actions/workflow/status/Yogdunana/deploypilot/ci.yml?branch=main&style=flat-square" alt="CI">
+  <img src="https://img.shields.io/github/v/release/Yogdunana/deploypilot?style=flat-square" alt="Release">
+  <img src="https://img.shields.io/github/license/Yogdunana/deploypilot?style=flat-square" alt="License">
+  <img src="https://img.shields.io/badge/Go-1.23-00ADD8?style=flat-square&logo=go&logoColor=white" alt="Go">
+  <img src="https://img.shields.io/badge/Vue-3.5-4FC08D?style=flat-square&logo=vue.js&logoColor=white" alt="Vue">
+  <img src="https://img.shields.io/docker/pulls/ghcr.io/yogdunana/deploypilot?style=flat-square" alt="Docker Pulls">
 </p>
 
 ---
 
-## 🔥 核心痛点
+## The Problem
 
-你用 AI IDE（SOLO、Claude、Cursor、扣子、豆包）写代码，写完了想部署上线——
+AI IDEs like **Claude**, **Cursor**, **SOLO**, and **Windsurf** run in cloud sandboxes — they **cannot SSH into your server**. This means AI can't help you with:
 
-**但 AI IDE 全部运行在云端沙箱里，无法 SSH 到你的服务器。**
+- ❌ Deploying applications
+- ❌ Allocating ports (3 projects all default to port 5000?)
+- ❌ Configuring reverse proxies
+- ❌ Managing DNS records
+- ❌ Provisioning SSL certificates
+- ❌ Opening firewall rules on 1Panel / BT Panel
 
-这意味着 AI 帮不了你：
-- ❌ 分配端口（3 个项目都默认 5000，冲突了）
-- ❌ 配置 Nginx 反向代理
-- ❌ 解析域名 DNS
-- ❌ 申请 SSL 证书
-- ❌ 放行 1Panel / 宝塔防火墙
-- ❌ 启动容器、查看日志、回滚
-
-**DeployPilot 解决这个核心矛盾。**
+**DeployPilot solves this.** It runs on your server and exposes a standard **MCP interface** that any AI IDE can call — securely, remotely, and autonomously.
 
 ---
 
-## ✨ 一句话介绍
+## TL;DR
 
-> DeployPilot 部署在你的服务器上，通过 MCP 协议让 AI IDE 远程、安全地完成：**自动部署、端口管理、域名 DNS、SSL 证书、防火墙同步**——你只需要写代码，剩下的交给 AI。
-
----
-
-## 🏗️ 架构
-
-```
-AI IDE（沙箱，无法 SSH）
-    │
-    ▼  MCP 协议 (stdio)
-┌─────────────────────────────┐
-│       DeployPilot            │
-│   （部署在你的服务器上）       │
-│                              │
-│  MCP Server │ REST API │ WS  │
-│  ─────────────────────────── │
-│  部署引擎 │ DNS │ SSL │ 监控  │
-│  凭据管理 │ 通知 │ 自愈 │ 审计 │
-└──────────┬──────────────────┘
-           │
-           ▼
-  ┌─────────────────────────┐
-  │  1Panel / 宝塔 / Docker  │
-  │  Cloudflare / 阿里云 DNS  │
-  │  GitHub Actions / Gitea  │
-  └─────────────────────────┘
-```
-
-**为什么是 MCP 而不是 SSH？** 因为 AI IDE 在沙箱里，根本没有 SSH 能力。MCP 是 AI IDE 原生支持的标准协议，DeployPilot 作为 MCP Server 暴露工具，AI 直接调用。
+> DeployPilot is a self-hosted deployment gateway that lets sandboxed AI IDEs securely manage your server through the MCP protocol. One-line install, full automation.
 
 ---
 
-## 🚀 快速开始
+## Quickstart
 
-### 一键安装（推荐）
-
-和 1Panel / 宝塔一样的体验——一行命令，全自动：
+### One-line install (recommended)
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/Yogdunana/deploypilot/main/scripts/install.sh | bash
 ```
 
-安装脚本会自动完成：
-- ✅ 检测系统环境
-- ✅ 下载 DeployPilot 二进制
-- ✅ 注册 systemd 服务 + 开机自启
-- ✅ 自动生成管理员账号和随机强密码
-- ✅ 配置 JWT 密钥
-- ✅ 输出访问地址、账号、密码
+The script automatically:
+- ✅ Downloads the latest binary for your architecture
+- ✅ Generates admin credentials (random username + strong password)
+- ✅ Configures systemd services (API server + MCP server)
+- ✅ Sets up JWT authentication
 
-安装完成后，终端会显示：
+After installation, open `http://<YOUR_SERVER_IP>:8080` and log in with the printed credentials.
 
-```
-==================== DeployPilot 安装成功 ====================
-
-外网访问地址: http://YOUR_SERVER_IP:8080
-管理员账号:   admin
-管理员密码:   xK9m#pL2$vQ7nW4
-
-⚠️  请立即登录并修改默认密码！
-================================================================
-```
-
-### Docker 部署
+### Docker
 
 ```bash
-docker run -d \
-  --name deploypilot \
+docker run -d --name deploypilot \
   -p 8080:8080 \
   -v deploypilot-data:/app/data \
   ghcr.io/yogdunana/deploypilot:latest
 ```
 
-### 从源码构建
+### From source
 
 ```bash
 git clone https://github.com/Yogdunana/deploypilot.git
-cd deploypilot
-make build-all
+cd deploypilot && make build-all
 ```
 
 ---
 
-## 🤖 AI IDE 集成
+## AI IDE Integration
 
-在任意支持 MCP 的 AI IDE 中添加配置即可使用：
-
-**Claude Desktop / Cursor / Windsurf / SOLO / 扣子：**
+Configure DeployPilot as an MCP server in your AI IDE:
 
 ```json
 {
   "mcpServers": {
     "deploypilot": {
-      "command": "/usr/local/bin/deploypilot",
-      "args": ["mcp", "--config", "/etc/deploypilot/config.yaml"]
+      "command": "/opt/deploypilot/bin/mcp-server",
+      "args": ["--config", "/opt/deploypilot/config/config.yaml"]
     }
   }
 }
 ```
 
-配置完成后，直接对 AI 说：
+Then just tell your AI:
 
-> "帮我把这个项目部署到服务器上，配好域名和 SSL"
+> *"Deploy this project, set up DNS and SSL."*
 
-AI 会自动调用 DeployPilot 的 MCP 工具，完成全流程。
-
----
-
-## 💡 典型使用场景
-
-### 场景 1：多项目自动部署
-
-> 你同时开发 3 个项目，都默认跑在 5000 端口。
-
-**没有 DeployPilot：** 手动改端口、手动配 Nginx、手动解析 DNS、手动申请 SSL……每个项目重复一遍。
-
-**有了 DeployPilot：** AI 自动分配端口（5000、5001、5002），自动配反代、DNS、SSL，一键上线。
-
-### 场景 2：1Panel / 宝塔联动
-
-> 你用 1Panel 管理服务器，每次部署都要手动开防火墙端口。
-
-**DeployPilot 自动同步：** 部署时自动在 1Panel 放行端口、创建反向代理、添加站点。
-
-> ⚠️ **注意：** 1Panel API 默认关闭，需要手动开启一次（设置 → 面板设置 → API 接口），这是 1Panel 的安全设计。DeployPilot 会在配置时引导你完成。
-
-### 场景 3：AI 全自动运维
-
-> 容器崩了、SSL 快过期了、DNS 记录需要更新。
-
-**DeployPilot 自愈引擎：** 自动重启崩溃容器、自动续期 SSL 证书、自动发送告警通知。
+DeployPilot handles the rest — port allocation, reverse proxy, DNS records, SSL certificates, and firewall rules.
 
 ---
 
-## 🛠️ 核心功能
+## Architecture
 
-### AI 集成
-| 功能 | 说明 |
-|------|------|
-| **MCP Server** | 37+ 工具，stdio 传输，AI IDE 原生支持 |
-| **REST API** | 68 个端点，JWT 认证 + RBAC 权限控制 |
-| **Swagger 文档** | 内置交互式 API 文档，访问 `/swagger/` |
+```mermaid
+graph LR
+    subgraph "AI IDE (Sandbox)"
+        A[Claude / Cursor / SOLO]
+    end
 
-### 部署引擎
-| 功能 | 说明 |
-|------|------|
-| **三种部署模式** | 直接部署、Git 构建、CI/CD 触发 |
-| **自动端口分配** | 多项目不冲突 |
-| **健康检查** | HTTP/TCP 探针，可配置重试策略 |
-| **备份与回滚** | 一键回滚到任意版本 |
-| **自愈引擎** | 崩溃自动重启，超过阈值自动回滚 |
-| **应用模板** | 9 个预设（Node.js、Python、Go、Java、Rust 等） |
+    subgraph "DeployPilot (Your Server)"
+        B[MCP Server<br>37+ tools]
+        C[REST API<br>68 endpoints]
+        D[WebSocket / SSE]
+        E[Deploy Engine]
+        F[Provider Plugins]
+    end
 
-### 服务商生态
-| 类别 | 支持的服务商 |
-|------|-------------|
-| **DNS** | Cloudflare、阿里云、腾讯云（DNSPod） |
-| **通知** | Webhook、Email、Telegram、钉钉、飞书 |
-| **CI/CD** | GitHub Actions、Gitea |
-| **面板** | 1Panel、宝塔 |
-| **容器** | Docker（本地 + 远程） |
-| **编排** | Kubernetes（多集群） |
+    subgraph "Infrastructure"
+        G[1Panel / BT Panel]
+        H[Docker / K8s]
+        I[Cloudflare / Aliyun DNS]
+        J[GitHub Actions]
+    end
 
-### 安全体系
-| 功能 | 说明 |
-|------|------|
-| **JWT 认证** | Token 登录，可配置过期时间 |
-| **RBAC** | 四级角色：owner > admin > dev > viewer |
-| **凭证加密** | AES-256-GCM，数据库不存明文 |
-| **ws-ticket** | WebSocket 一次性票据，防 JWT 泄露 |
-| **审计日志** | 记录所有变更操作 |
-| **速率限制** | 令牌桶算法，按角色分级 |
+    A -- "MCP (stdio)" --> B
+    A -- "REST + JWT" --> C
+    C --> E
+    B --> E
+    E --> F
+    F --> G
+    F --> H
+    F --> I
+    F --> J
+```
 
-### Web 管理面板
+**Why MCP, not SSH?** AI IDEs live in sandboxes with no SSH capability. MCP is the native AI plugin protocol — DeployPilot speaks it fluently.
+
+---
+
+## Features
+
+### Deployment Engine
+| Feature | Description |
+|---------|-------------|
+| **3 deploy modes** | Direct, Git build, CI/CD trigger |
+| **Auto port allocation** | No more port conflicts |
+| **Health checks** | HTTP/TCP probes with configurable retries |
+| **Backup & rollback** | One-click rollback to any version |
+| **Self-healing** | Auto-restart crashed containers, auto-rollback on threshold |
+| **App templates** | 9 presets (Node.js, Python, Go, Java, Rust, etc.) |
+
+### AI Integration
+| Feature | Description |
+|---------|-------------|
+| **MCP Server** | 37+ tools, stdio transport, native AI IDE support |
+| **REST API** | 68 endpoints, JWT auth + RBAC |
+| **Swagger docs** | Interactive API explorer at `/swagger/` |
+
+### Provider Ecosystem
+| Category | Providers |
+|----------|-----------|
+| **DNS** | Cloudflare, Aliyun, Tencent Cloud (DNSPod) |
+| **Notifications** | Webhook, Email, Telegram, DingTalk, Feishu |
+| **CI/CD** | GitHub Actions, Gitea |
+| **Panels** | 1Panel, BT Panel |
+| **Containers** | Docker (local + remote), Kubernetes (multi-cluster) |
+
+### Security
+| Feature | Description |
+|---------|-------------|
+| **JWT authentication** | Token-based auth with configurable expiry |
+| **RBAC** | 4-tier roles: owner > admin > dev > viewer |
+| **Credential encryption** | AES-256-GCM, no plaintext in database |
+| **ws-ticket** | One-time WebSocket tickets, prevents JWT leakage |
+| **Audit log** | Full change tracking with user, action, IP, timestamp |
+| **Rate limiting** | Token bucket, role-based (50-200 req/min) |
+
+### Web Dashboard
 - Vue 3 + TypeScript + Tailwind CSS 4
-- 27 个页面：仪表盘、应用、服务器、DNS、凭证、部署历史、监控告警、SSL、审计日志等
-- 实时日志流、SSH 终端、部署进度条
-- 中英双语，移动端适配
+- 27 pages: dashboard, apps, servers, DNS, credentials, deployments, monitoring, SSL, audit log, and more
+- Real-time log streaming, SSH terminal, deployment progress
+- i18n (English / Chinese), responsive design
 
 ---
 
-## 📊 技术栈
+## Why DeployPilot?
 
-| 层级 | 技术 |
-|------|------|
-| **后端** | Go 1.23, Gin, GORM, Cobra, Viper |
-| **前端** | Vue 3.5, TypeScript, Vite 6, Tailwind CSS 4, Pinia |
-| **数据库** | SQLite（默认）/ PostgreSQL |
-| **缓存** | Redis（可选，水平扩展） |
-| **协议** | MCP (stdio), REST, WebSocket, SSE |
-| **安全** | JWT, AES-256-GCM, bcrypt, RBAC |
-| **部署** | Docker, GitHub Actions, GHCR |
+| | DeployPilot | 1Panel / BT | Dokploy / Coolify | AI SSH Clients |
+|---|:---:|:---:|:---:|:---:|
+| **Web panel** | ✅ | ✅ | ✅ | ❌ |
+| **AI-native (MCP)** | ✅ | ❌ | ❌ | ✅ |
+| **Full-chain automation** | ✅ | ❌ | Partial | ❌ |
+| **One-line install** | ✅ | ✅ | ✅ | ❌ |
+| **Port / DNS / SSL** | ✅ | Manual | ✅ | ❌ |
+| **Panel integration** | ✅ | — | ❌ | ❌ |
 
----
-
-## 🔮 Roadmap
-
-- [ ] MCP 上下文记忆（会话级操作历史）
-- [ ] 容器镜像仓库管理（Docker Hub、GHCR）
-- [ ] Prometheus / Grafana 指标导出
-- [ ] OAuth 登录（GitHub / Gitee）
-- [ ] 移动端完整适配
-- [ ] 更多 DNS / 通知服务商
+**DeployPilot is the only tool that combines a web panel, AI-native MCP support, and full deployment automation in one self-hosted package.**
 
 ---
 
-## 🤝 贡献
+## Tech Stack
 
-欢迎提交 Issue 和 Pull Request！
+<p>
+  <img src="https://img.shields.io/badge/Go-1.23-00ADD8?style=flat-square&logo=go&logoColor=white">
+  <img src="https://img.shields.io/badge/Gin-Web_Framework-00ADD8?style=flat-square&logo=go&logoColor=white">
+  <img src="https://img.shields.io/badge/GORM-ORM-02A25F?style=flat-square&logo=go&logoColor=white">
+  <img src="https://img.shields.io/badge/Vue-3.5-4FC08D?style=flat-square&logo=vue.js&logoColor=white">
+  <img src="https://img.shields.io/badge/TypeScript-5.6-3178C6?style=flat-square&logo=typescript&logoColor=white">
+  <img src="https://img.shields.io/badge/Tailwind_CSS-4-06B6D4?style=flat-square&logo=tailwindcss&logoColor=white">
+  <img src="https://img.shields.io/badge/MCP-Protocol-7C3AED?style=flat-square">
+  <img src="https://img.shields.io/badge/Docker-Container-2496ED?style=flat-square&logo=docker&logoColor=white">
+  <img src="https://img.shields.io/badge/SQLite-Database-003B57?style=flat-square&logo=sqlite&logoColor=white">
+  <img src="https://img.shields.io/badge/Redis-Cache-DC382D?style=flat-square&logo=redis&logoColor=white">
+</p>
 
-## 📄 License
+---
+
+## Roadmap
+
+- [ ] MCP context memory (session-level operation history)
+- [ ] Container registry management (Docker Hub, GHCR)
+- [ ] Prometheus / Grafana metrics export
+- [ ] OAuth login (GitHub / Gitee)
+- [ ] Full mobile responsive layout
+- [ ] More DNS / notification providers
+
+---
+
+## Contributing
+
+Contributions are welcome! Please read [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) for guidelines.
+
+## License
 
 [MIT](LICENSE) © 2026 Yogdunana
