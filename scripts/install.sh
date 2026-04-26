@@ -6,11 +6,17 @@ DEFAULT_INSTALL_DIR="/opt/deploypilot"
 DEFAULT_PORT="8080"
 
 # 检测是否在非交互式环境下运行
-is_non_interactive() {
-    [ ! -t 0 ] || [ "$TERM" = "dumb" ]
-}
+NON_INTERACTIVE=false
 
-NON_INTERACTIVE=$(is_non_interactive)
+# 检测是否通过管道执行或重定向
+if [ ! -t 0 ] || [ "${0:0:1}" = "-" ] || [ "$TERM" = "dumb" ]; then
+    NON_INTERACTIVE=true
+fi
+
+# 显式设置非交互式模式
+if [ "$1" = "--non-interactive" ] || [ "$NON_INTERACTIVE_MODE" = "true" ]; then
+    NON_INTERACTIVE=true
+fi
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -139,7 +145,7 @@ function prompt_input() {
     local result
     
     if [ "$NON_INTERACTIVE" = true ]; then
-        echo -e "${BLUE}[INFO]${RESET} ${prompt} (非交互式模式，使用默认值: ${YELLOW}${default}${RESET})"
+        # 只输出默认值，不输出提示信息
         echo "$default"
         return
     fi
