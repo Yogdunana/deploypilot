@@ -80,7 +80,11 @@ func TestParseToken_ExpiredToken(t *testing.T) {
 		},
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	tokenString, err := token.SignedString(getJWTSecret())
+	secret, err := getJWTSecret()
+	if err != nil {
+		t.Fatalf("failed to get JWT secret: %v", err)
+	}
+	tokenString, err := token.SignedString(secret)
 	if err != nil {
 		t.Fatalf("failed to sign expired token: %v", err)
 	}
@@ -156,7 +160,10 @@ func TestGenerateToken_CustomExpiry(t *testing.T) {
 }
 
 func TestGetJWTSecret(t *testing.T) {
-	secret := getJWTSecret()
+	secret, err := getJWTSecret()
+	if err != nil {
+		t.Fatalf("getJWTSecret failed: %v", err)
+	}
 	if len(secret) == 0 {
 		t.Error("expected non-empty secret")
 	}
