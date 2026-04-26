@@ -14,7 +14,7 @@ if [ ! -t 0 ] || [ "${0:0:1}" = "-" ] || [ "$TERM" = "dumb" ]; then
 fi
 
 # 显式设置非交互式模式
-if [ "$1" = "--non-interactive" ] || [ "$NON_INTERACTIVE_MODE" = "true" ]; then
+if [ "${1:-}" = "--non-interactive" ] || [ "${NON_INTERACTIVE_MODE:-false}" = "true" ]; then
     NON_INTERACTIVE=true
 fi
 
