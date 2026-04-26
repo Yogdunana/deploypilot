@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 
 	"golang.org/x/crypto/bcrypt"
 )
@@ -29,20 +30,16 @@ func Encrypt(key []byte, plaintext string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to create AES cipher: %w", err)
 	}
-
 	gcm, err := cipher.NewGCM(block)
 	if err != nil {
 		return "", fmt.Errorf("failed to create GCM: %w", err)
 	}
-
 	nonce := make([]byte, gcm.NonceSize())
 	if _, err := io.ReadFull(rand.Reader, nonce); err != nil {
 		return "", fmt.Errorf("failed to generate nonce: %w", err)
 	}
-
 	// nonce is prepended to ciphertext
 	ciphertext := gcm.Seal(nonce, nonce, []byte(plaintext), nil)
-
 	return base64.StdEncoding.EncodeToString(ciphertext), nil
 }
 
@@ -52,28 +49,23 @@ func Decrypt(key []byte, encoded string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to decode base64: %w", err)
 	}
-
 	block, err := aes.NewCipher(key)
 	if err != nil {
 		return "", fmt.Errorf("failed to create AES cipher: %w", err)
 	}
-
 	gcm, err := cipher.NewGCM(block)
 	if err != nil {
 		return "", fmt.Errorf("failed to create GCM: %w", err)
 	}
-
 	nonceSize := gcm.NonceSize()
 	if len(data) < nonceSize {
 		return "", errors.New("ciphertext too short")
 	}
-
 	nonce, ciphertext := data[:nonceSize], data[nonceSize:]
 	plaintext, err := gcm.Open(nil, nonce, ciphertext, nil)
 	if err != nil {
 		return "", fmt.Errorf("failed to decrypt: %w", err)
 	}
-
 	return string(plaintext), nil
 }
 
@@ -92,41 +84,76 @@ func CheckPassword(password, hash string) bool {
 	return err == nil
 }
 
+// defaultKeyPath returns the default file path for the auto-generated encryption key.
+func defaultKeyPath() string {
+	dataDir := os.Getenv("DEPLOYPILOT_DATA_DIR")
+	if dataDir == "" {
+		dataDir = "./data"
+	}
+	return filepath.Join(dataDir, ".encryption_key")
+}
+
 // LoadEncryptionKeyFromEnv parses DEPLOYPILOT_ENCRYPTION_KEY from the environment.
 // It supports two formats:
 //   - base64-encoded 32-byte key (recommended): openssl rand -base64 32
 //   - raw 32-byte string (legacy compatibility)
 //
-// Returns an error with actionable guidance for invalid inputs.
+// If DEPLOYPILOT_ENCRYPTION_KEY is not set, it attempts to load a previously
+// auto-generated key from the data directory. If no key file exists, a new
+// key is generated, persisted to disk, and returned.
 func LoadEncryptionKeyFromEnv() ([]byte, error) {
 	raw := os.Getenv("DEPLOYPILOT_ENCRYPTION_KEY")
-	if raw == "" {
-		return nil, nil // caller should generate a temporary key
-	}
-
-	// Try base64 decode first
-	if decoded, err := base64.StdEncoding.DecodeString(raw); err == nil {
-		if len(decoded) == 32 {
-			return decoded, nil
+	if raw != "" {
+		// Try base64 decode first
+		if decoded, err := base64.StdEncoding.DecodeString(raw); err == nil {
+			if len(decoded) == 32 {
+				return decoded, nil
+			}
+			return nil, fmt.Errorf(
+				"DEPLOYPILOT_ENCRYPTION_KEY: base64 decoded to %d bytes, expected 32. "+
+					"Generate a valid key with: openssl rand -base64 32",
+				len(decoded),
+			)
+		}
+		// Try raw string (legacy 32-byte hex/string)
+		if len(raw) == 32 {
+			return []byte(raw), nil
 		}
 		return nil, fmt.Errorf(
-			"DEPLOYPILOT_ENCRYPTION_KEY: base64 decoded to %d bytes, expected 32. "+
-				"Generate a valid key with: openssl rand -base64 32",
-			len(decoded),
+			"DEPLOYPILOT_ENCRYPTION_KEY: invalid key (length %d). "+
+				"Supported formats:\n"+
+				"  1. Base64-encoded 32-byte key (recommended): openssl rand -base64 32\n"+
+				"  2. Raw 32-byte string (legacy)\n"+
+				"  Current value length: %d bytes",
+			len(raw), len(raw),
 		)
 	}
 
-	// Try raw string (legacy 32-byte hex/string)
-	if len(raw) == 32 {
-		return []byte(raw), nil
+	// No env var set — try loading from persistent key file
+	keyPath := defaultKeyPath()
+	if data, err := os.ReadFile(keyPath); err == nil {
+		// Try base64 decode
+		if decoded, err := base64.StdEncoding.DecodeString(string(data)); err == nil && len(decoded) == 32 {
+			return decoded, nil
+		}
+		// Try raw bytes
+		if len(data) == 32 {
+			return data, nil
+		}
 	}
 
-	return nil, fmt.Errorf(
-		"DEPLOYPILOT_ENCRYPTION_KEY: invalid key (length %d). "+
-			"Supported formats:\n"+
-			"  1. Base64-encoded 32-byte key (recommended): openssl rand -base64 32\n"+
-			"  2. Raw 32-byte string (legacy)\n"+
-			"  Current value length: %d bytes",
-		len(raw), len(raw),
-	)
+	// No key file exists — generate a new key and persist it
+	key := NewEncryptionKey()
+	encoded := base64.StdEncoding.EncodeToString(key)
+
+	// Ensure data directory exists
+	if err := os.MkdirAll(filepath.Dir(keyPath), 0700); err != nil {
+		return nil, fmt.Errorf("failed to create data directory for encryption key: %w", err)
+	}
+
+	if err := os.WriteFile(keyPath, []byte(encoded), 0600); err != nil {
+		return nil, fmt.Errorf("failed to persist encryption key to %s: %w", keyPath, err)
+	}
+
+	return key, nil
 }
