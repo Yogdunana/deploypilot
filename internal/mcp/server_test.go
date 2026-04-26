@@ -2624,7 +2624,7 @@ func TestWithPermissionCheck_UnknownTool(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if result.IsError == nil || !*result.IsError {
+	if !result.IsError {
 		t.Fatal("expected error result for unknown tool")
 	}
 }
