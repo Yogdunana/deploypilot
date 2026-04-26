@@ -849,82 +849,10 @@ func NewServer(deployer Deployer) *server.MCPServer {
 	// Register detect_panel tool
 	detectPanelTool := mcp.NewTool("detect_panel",
 		mcp.WithDescription("Detect which hosting panel (1Panel/BT-Panel) is installed on a server"),
-		mcp.WithString("server_id", mcp.Required(), mcp.Description("Server ID to detect panel on")))
-	
+		mcp.WithString("server_id", mcp.Required(), mcp.Description("Server ID to detect panel on")),
+	)
 	s.AddTool(detectPanelTool, withPermissionCheck("detect_panel", withValidation("detect_panel", detectPanelTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return handleDetectPanel(ctx, deployer, request)
-	})))
-
-	// Register panel_open_firewall tool
-	panelOpenFirewallTool := mcp.NewTool("panel_open_firewall",
-		mcp.WithDescription("Open a firewall port through the detected hosting panel"),
-		mcp.WithString("server_id", mcp.Required(), mcp.Description("Server ID with panel installed")),
-		mcp.WithString("port", mcp.Required(), mcp.Description("Port to open")),
-		mcp.WithString("protocol", mcp.Required(), mcp.Description("Protocol (tcp/udp)")))
-	s.AddTool(panelOpenFirewallTool, withPermissionCheck("panel_open_firewall", withValidation("panel_open_firewall", panelOpenFirewallTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		serverID, _ := request.RequireString("server_id")
-		portStr, _ := request.RequireString("port")
-		protocol, _ := request.RequireString("protocol")
-		port, _ := strconv.Atoi(portStr)
-		result := map[string]interface{}{
-			"server_id": serverID,
-			"port": port,
-			"protocol": protocol,
-			"status": "success",
-			"message": fmt.Sprintf("Firewall port %d/%s opened successfully", port, protocol),
-		}
-		data, _ := json.MarshalIndent(result, "", "  ")
-		return mcp.NewToolResultText(string(data)), nil
-	})))
-
-	// Register panel_close_firewall tool
-	panelCloseFirewallTool := mcp.NewTool("panel_close_firewall",
-		mcp.WithDescription("Close a firewall port through the detected hosting panel"),
-		mcp.WithString("server_id", mcp.Required(), mcp.Description("Server ID with panel installed")),
-		mcp.WithString("port", mcp.Required(), mcp.Description("Port to close")),
-		mcp.WithString("protocol", mcp.Required(), mcp.Description("Protocol (tcp/udp)")))
-	s.AddTool(panelCloseFirewallTool, withPermissionCheck("panel_close_firewall", withValidation("panel_close_firewall", panelCloseFirewallTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		serverID, _ := request.RequireString("server_id")
-		portStr, _ := request.RequireString("port")
-		protocol, _ := request.RequireString("protocol")
-		port, _ := strconv.Atoi(portStr)
-		result := map[string]interface{}{
-			"server_id": serverID,
-			"port": port,
-			"protocol": protocol,
-			"status": "success",
-			"message": fmt.Sprintf("Firewall port %d/%s closed successfully", port, protocol),
-		}
-		data, _ := json.MarshalIndent(result, "", "  ")
-		return mcp.NewToolResultText(string(data)), nil
-	})))
-
-	// Register panel_create_reverse_proxy tool
-	panelCreateReverseProxyTool := mcp.NewTool("panel_create_reverse_proxy",
-		mcp.WithDescription("Create a reverse proxy through the detected hosting panel"),
-		mcp.WithString("server_id", mcp.Required(), mcp.Description("Server ID with panel installed")),
-		mcp.WithString("domain", mcp.Required(), mcp.Description("Domain name for the proxy")),
-		mcp.WithString("target_url", mcp.Required(), mcp.Description("Target URL for the proxy (e.g. http://localhost:3000)")),
-		mcp.WithString("port", mcp.Description("Port for the proxy (if needed)")))
-	s.AddTool(panelCreateReverseProxyTool, withPermissionCheck("panel_create_reverse_proxy", withValidation("panel_create_reverse_proxy", panelCreateReverseProxyTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		serverID, _ := request.RequireString("server_id")
-		domain, _ := request.RequireString("domain")
-		targetURL, _ := request.RequireString("target_url")
-		portStr := request.GetString("port", "")
-		port := 0
-		if portStr != "" {
-			port, _ = strconv.Atoi(portStr)
-		}
-		result := map[string]interface{}{
-			"server_id": serverID,
-			"domain": domain,
-			"target_url": targetURL,
-			"port": port,
-			"status": "success",
-			"message": fmt.Sprintf("Reverse proxy created for %s -> %s", domain, targetURL),
-		}
-		data, _ := json.MarshalIndent(result, "", "  ")
-		return mcp.NewToolResultText(string(data)), nil
 	})))
 
 	// Register registry_login tool
@@ -2355,7 +2283,10 @@ func handleGetPluginInfo(ctx context.Context, deployer Deployer, request mcp.Cal
 	return mcp.NewToolResultText(string(data)), nil
 }
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> trae/solo-agent-g7D1Rv
 // ========== Kubernetes Tool Handlers ==========
 
 func handleListClusters(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
