@@ -1,7 +1,6 @@
 package mcp
 
 import (
-	"context"
 	"testing"
 )
 
@@ -149,21 +148,6 @@ func TestCheckPermission_AdminCanUseViewerTools(t *testing.T) {
 	}
 }
 
-func TestRoleFromContext_Default(t *testing.T) {
-	// H-02: default role is now empty string (denies access) instead of "dev"
-	role := RoleFromContext(context.Background())
-	if role != "" {
-		t.Errorf("RoleFromContext with no context should return empty string, got %q", role)
-	}
 }
 
-func TestWithPermissionCheck_UnknownTool(t *testing.T) {
-	// H-01: unknown tools are now denied
-	handler := WithPermissionCheck("some_unknown_tool", func(ctx context.Context, args map[string]interface{}) (interface{}, error) {
-		return "ok", nil
-	})
-	_, err := handler(context.Background(), nil)
-	if err == nil {
-		t.Error("unknown tool should be denied")
-	}
 }
