@@ -170,7 +170,14 @@ func run(cliDriver, cliDSN, cliAddr string) error {
 		listenAddr = fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port)
 	}
 
-	srv := server.New(listenAddr, db, bridge, cfg, tokenBlacklist)
+	// Initialize OAuth service (if providers are configured)
+	var oauthSvc *service.OAuthService
+	if len(cfg.Auth.OAuthProviders) > 0 {
+		oauthSvc = service.NewOAuthService(db, cfg.Auth.OAuthProviders)
+		slog.Info("OAuth service initialized", "providers", len(cfg.Auth.OAuthProviders))
+	}
+
+	srv := server.New(listenAddr, db, bridge, cfg, tokenBlacklist, oauthSvc)
 
 	// Initialize and start Prometheus metrics server
 	metrics.Init()
