@@ -1,8 +1,8 @@
 module github.com/Yogdunana/deploypilot
 
-go 1.24.0
+go 1.23.0
 
-toolchain go1.24.6
+toolchain go1.23.6
 
 require (
 	github.com/alicebob/miniredis/v2 v2.37.0
@@ -19,7 +19,7 @@ require (
 	github.com/swaggo/files v1.0.1
 	github.com/swaggo/gin-swagger v1.6.0
 	github.com/swaggo/swag v1.16.6
-	golang.org/x/crypto v0.45.0
+	golang.org/x/crypto v0.41.0
 	golang.org/x/sync v0.16.0
 	golang.org/x/term v0.34.0
 	gorm.io/driver/postgres v1.6.0
