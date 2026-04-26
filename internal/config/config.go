@@ -20,6 +20,12 @@ type Config struct {
 	Monitor    MonitorConfig    `mapstructure:"monitor"`
 	Redis      RedisConfig      `mapstructure:"redis"`
 	Kubernetes KubernetesConfig `mapstructure:"kubernetes"`
+	Audit      AuditConfig      `mapstructure:"audit"`
+}
+
+// AuditConfig holds configuration for audit logging.
+type AuditConfig struct {
+	ExternalLogPath string `mapstructure:"external_log_path"`
 }
 
 // RedisConfig holds Redis connection settings for Pub/Sub.
@@ -228,4 +234,7 @@ func setDefaults(v *viper.Viper) {
 	// Kubernetes
 	v.SetDefault("kubernetes.enabled", false)
 	v.SetDefault("kubernetes.default_namespace", "default")
+
+	// Audit
+	v.SetDefault("audit.external_log_path", "")
 }
