@@ -32,7 +32,7 @@ type PanelProvider struct {
 	panel1      *Panel1Client
 	panel1Err   error
 	btPanelOnce sync.Once
-	btPanel     *PanelBTPanelClient
+	btPanel     *BTPanelClient
 	btPanelErr  error
 }
 
@@ -58,13 +58,15 @@ func (p *PanelProvider) getPanel1Client() (*Panel1Client, error) {
 }
 
 // getBTPanelClient lazily initializes and returns the BT-Panel client.
-func (p *PanelProvider) getBTPanelClient() (*PanelBTPanelClient, error) {
+func (p *PanelProvider) getBTPanelClient() (*BTPanelClient, error) {
 	p.btPanelOnce.Do(func() {
 		if p.baseURL == "" || p.apiKey == "" {
 			p.btPanelErr = fmt.Errorf("BT-Panel base URL and API key are required")
 			return
 		}
-		p.btPanel = NewPanelBTPanelClient(p.baseURL, p.apiKey)
+		// For BT Panel, apiKey is actually the password
+		// We assume username is "admin" by default
+		p.btPanel = NewBTPanelClient(p.baseURL, "admin", p.apiKey)
 	})
 	return p.btPanel, p.btPanelErr
 }

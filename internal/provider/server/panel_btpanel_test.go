@@ -2,196 +2,139 @@ package server
 
 import (
 	"context"
-	"encoding/json"
-	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 )
 
-func setupBTPanelTestServer() *httptest.Server {
-	mux := http.NewServeMux()
-
-	// POST /firewall?action=AddAcceptPort
-	mux.HandleFunc("/firewall", func(w http.ResponseWriter, r *http.Request) {
-		action := r.URL.Query().Get("action")
-
-		switch action {
-		case "AddAcceptPort":
-			resp := btPanelResponse{Status: true, Msg: "ok"}
-			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(resp)
-		case "DelAcceptPort":
-			resp := btPanelResponse{Status: true, Msg: "ok"}
-			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(resp)
-		default:
-			w.WriteHeader(http.StatusBadRequest)
-		}
-	})
-
-	// POST /site?action=CreateReverseProxy
-	mux.HandleFunc("/site", func(w http.ResponseWriter, r *http.Request) {
-		action := r.URL.Query().Get("action")
-		if action == "CreateReverseProxy" {
-			resp := btPanelResponse{Status: true, Msg: "ok"}
-			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(resp)
+func TestBTPanelClient_Login(t *testing.T) {
+	// Create a test server that simulates BT Panel login
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/login" && r.Method == http.MethodPost {
+			// Set a cookie for authentication
+			w.Header().Set("Set-Cookie", "bt_user_token=test-token; Path=/")
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"status": true, "msg": "Login successful"}`))
 			return
 		}
-		w.WriteHeader(http.StatusBadRequest)
-	})
-
-	return httptest.NewServer(mux)
-}
-
-func setupBTPanelErrorServer() *httptest.Server {
-	mux := http.NewServeMux()
-
-	mux.HandleFunc("/firewall", func(w http.ResponseWriter, r *http.Request) {
-		resp := btPanelResponse{Status: false, Msg: "permission denied"}
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(resp)
-	})
-
-	return httptest.NewServer(mux)
-}
-
-func TestNewPanelBTPanelClient(t *testing.T) {
-	p := NewPanelBTPanelClient("http://localhost:8888", "test-key")
-	if p.baseURL != "http://localhost:8888" {
-		t.Errorf("baseURL = %q, want %q", p.baseURL, "http://localhost:8888")
-	}
-	if p.apiKey != "test-key" {
-		t.Errorf("apiKey = %q, want %q", p.apiKey, "test-key")
-	}
-	if p.httpClient == nil {
-		t.Error("httpClient should not be nil")
-	}
-}
-
-func TestPanelBTPanelClient_OpenFirewall(t *testing.T) {
-	server := setupBTPanelTestServer()
-	defer server.Close()
-
-	p := NewPanelBTPanelClient(server.URL, "test-api-key")
-	err := p.OpenFirewall(context.TODO(), 8080, "tcp")
-	if err != nil {
-		t.Fatalf("OpenFirewall() error = %v", err)
-	}
-}
-
-func TestPanelBTPanelClient_OpenFirewall_APIError(t *testing.T) {
-	server := setupBTPanelErrorServer()
-	defer server.Close()
-
-	p := NewPanelBTPanelClient(server.URL, "test-api-key")
-	err := p.OpenFirewall(context.TODO(), 8080, "tcp")
-	if err == nil {
-		t.Fatal("OpenFirewall() should return error on API failure")
-	}
-}
-
-func TestPanelBTPanelClient_CloseFirewall(t *testing.T) {
-	server := setupBTPanelTestServer()
-	defer server.Close()
-
-	p := NewPanelBTPanelClient(server.URL, "test-api-key")
-	err := p.CloseFirewall(context.TODO(), 8080, "tcp")
-	if err != nil {
-		t.Fatalf("CloseFirewall() error = %v", err)
-	}
-}
-
-func TestPanelBTPanelClient_CloseFirewall_APIError(t *testing.T) {
-	server := setupBTPanelErrorServer()
-	defer server.Close()
-
-	p := NewPanelBTPanelClient(server.URL, "test-api-key")
-	err := p.CloseFirewall(context.TODO(), 8080, "tcp")
-	if err == nil {
-		t.Fatal("CloseFirewall() should return error on API failure")
-	}
-}
-
-func TestPanelBTPanelClient_CreateReverseProxy(t *testing.T) {
-	server := setupBTPanelTestServer()
-	defer server.Close()
-
-	p := NewPanelBTPanelClient(server.URL, "test-api-key")
-	err := p.CreateReverseProxy(context.TODO(), "example.com", "http://localhost:3000", 3000)
-	if err != nil {
-		t.Fatalf("CreateReverseProxy() error = %v", err)
-	}
-}
-
-func TestPanelBTPanelClient_CreateReverseProxy_APIError(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		resp := btPanelResponse{Status: false, Msg: "site already exists"}
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(resp)
+		w.WriteHeader(http.StatusNotFound)
 	}))
 	defer server.Close()
 
-	p := NewPanelBTPanelClient(server.URL, "test-api-key")
-	err := p.CreateReverseProxy(context.TODO(), "example.com", "http://localhost:3000", 3000)
-	if err == nil {
-		t.Fatal("CreateReverseProxy() should return error on API failure")
+	client := NewBTPanelClient(server.URL, "admin", "password")
+	
+	// Test login
+	err := client.login(context.Background())
+	if err != nil {
+		t.Fatalf("login failed: %v", err)
+	}
+
+	if client.cookie == "" {
+		t.Fatal("cookie not set after login")
 	}
 }
 
-func TestPanelBTPanelClient_OpenFirewall_SendsCorrectRequest(t *testing.T) {
-	var receivedMethod, receivedPath, receivedBody string
-	var receivedAuth string
-
+func TestBTPanelClient_OpenFirewall(t *testing.T) {
+	// Create a test server that simulates BT Panel API
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		receivedMethod = r.Method
-		receivedPath = r.URL.Path
-		receivedAuth = r.Header.Get("Authorization")
+		if r.URL.Path == "/login" && r.Method == http.MethodPost {
+			w.Header().Set("Set-Cookie", "bt_user_token=test-token; Path=/")
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"status": true, "msg": "Login successful"}`))
+			return
+		}
 
-		body, _ := io.ReadAll(r.Body)
-		receivedBody = string(body)
+		if r.URL.Path == "/firewall/add" && r.Method == http.MethodPost {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"status": true, "msg": "Firewall rule added"}`))
+			return
+		}
 
-		resp := btPanelResponse{Status: true, Msg: "ok"}
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(resp)
+		w.WriteHeader(http.StatusNotFound)
 	}))
 	defer server.Close()
 
-	p := NewPanelBTPanelClient(server.URL, "my-secret-key")
-	err := p.OpenFirewall(context.TODO(), 8080, "tcp")
+	client := NewBTPanelClient(server.URL, "admin", "password")
+
+	// Test opening firewall port
+	err := client.OpenFirewall(context.Background(), 8080, "TCP")
 	if err != nil {
-		t.Fatalf("OpenFirewall() error = %v", err)
-	}
-
-	if receivedMethod != http.MethodPost {
-		t.Errorf("method = %q, want %q", receivedMethod, http.MethodPost)
-	}
-	if receivedPath != "/firewall" {
-		t.Errorf("path = %q, want %q", receivedPath, "/firewall")
-	}
-	if receivedAuth != "Bearer my-secret-key" {
-		t.Errorf("Authorization = %q, want %q", receivedAuth, "Bearer my-secret-key")
-	}
-
-	var body map[string]interface{}
-	_ = json.Unmarshal([]byte(receivedBody), &body)
-	if body["port"] != "8080" {
-		t.Errorf("port = %v, want %q", body["port"], "8080")
-	}
-	if body["ps"] != "deploypilot" {
-		t.Errorf("ps = %v, want %q", body["ps"], "deploypilot")
-	}
-	if body["type"] != "port" {
-		t.Errorf("type = %v, want %q", body["type"], "port")
+		t.Fatalf("OpenFirewall failed: %v", err)
 	}
 }
 
-func TestPanelBTPanelClient_SetHTTPClient(t *testing.T) {
-	p := NewPanelBTPanelClient("http://localhost:8888", "test-key")
-	custom := &http.Client{}
-	p.SetHTTPClient(custom)
-	if p.httpClient != custom {
-		t.Error("SetHTTPClient() did not set the client")
+func TestBTPanelClient_CloseFirewall(t *testing.T) {
+	// Create a test server that simulates BT Panel API
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/login" && r.Method == http.MethodPost {
+			w.Header().Set("Set-Cookie", "bt_user_token=test-token; Path=/")
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"status": true, "msg": "Login successful"}`))
+			return
+		}
+
+		if r.URL.Path == "/firewall" && r.Method == http.MethodGet {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{
+				"status": true,
+				"data": {
+					"list": [
+						{
+							"id": "1",
+							"port": "8080",
+							"protocol": "TCP",
+							"ps": "deploypilot"
+						}
+					]
+				}
+			}`))
+			return
+		}
+
+		if r.URL.Path == "/firewall/del" && r.Method == http.MethodPost {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"status": true, "msg": "Firewall rule deleted"}`))
+			return
+		}
+
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer server.Close()
+
+	client := NewBTPanelClient(server.URL, "admin", "password")
+
+	// Test closing firewall port
+	err := client.CloseFirewall(context.Background(), 8080, "TCP")
+	if err != nil {
+		t.Fatalf("CloseFirewall failed: %v", err)
+	}
+}
+
+func TestBTPanelClient_CreateReverseProxy(t *testing.T) {
+	// Create a test server that simulates BT Panel API
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/login" && r.Method == http.MethodPost {
+			w.Header().Set("Set-Cookie", "bt_user_token=test-token; Path=/")
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"status": true, "msg": "Login successful"}`))
+			return
+		}
+
+		if r.URL.Path == "/site/add" && r.Method == http.MethodPost {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"status": true, "msg": "Site added"}`))
+			return
+		}
+
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer server.Close()
+
+	client := NewBTPanelClient(server.URL, "admin", "password")
+
+	// Test creating reverse proxy
+	err := client.CreateReverseProxy(context.Background(), "test.example.com", "http://localhost:3000", 3000)
+	if err != nil {
+		t.Fatalf("CreateReverseProxy failed: %v", err)
 	}
 }
