@@ -8,14 +8,14 @@ DEFAULT_PORT="8080"
 # 检测是否在非交互式环境下运行
 NON_INTERACTIVE=false
 
-# 检测是否通过管道执行或重定向
-if [ ! -t 0 ] || [ "${0:0:1}" = "-" ] || [ "$TERM" = "dumb" ]; then
-    NON_INTERACTIVE=true
-fi
-
 # 显式设置非交互式模式
 if [ "${1:-}" = "--non-interactive" ] || [ "${NON_INTERACTIVE_MODE:-false}" = "true" ]; then
     NON_INTERACTIVE=true
+fi
+
+# 强制交互式模式（即使通过管道执行）
+if [ "${1:-}" = "--interactive" ] || [ "${FORCE_INTERACTIVE:-false}" = "true" ]; then
+    NON_INTERACTIVE=false
 fi
 
 RED='\033[0;31m'
