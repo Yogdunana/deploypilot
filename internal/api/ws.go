@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/Yogdunana/deploypilot/internal/auth"
+	"gorm.io/gorm"
 	"github.com/Yogdunana/deploypilot/internal/metrics"
 	"github.com/Yogdunana/deploypilot/internal/service"
 	"github.com/gin-gonic/gin"
@@ -207,9 +208,9 @@ func LogStreamWS(bridge *service.Bridge, hub *WSHub, ticketStore *auth.WSTicketS
 			return
 		}
 		// 2. Check resource-level authorization
-		appID := c.Param("app_id")
-		if !authorizeAppAccess(bridge.DB, appID, role, userID) {
-			c.JSON(http.StatusForbidden, gin.H{"error": "no permission to access this app"})
+		serverID := c.Param("server_id")
+		if !authorizeServerAccess(bridge.DB, serverID, role, userID) {
+			c.JSON(http.StatusForbidden, gin.H{"error": "no permission to access this server"})
 			return
 		}
 
@@ -383,9 +384,9 @@ func TerminalWS(bridge *service.Bridge, hub *WSHub, ticketStore *auth.WSTicketSt
 			return
 		}
 		// 2. Check resource-level authorization
-		appID := c.Param("app_id")
-		if !authorizeAppAccess(bridge.DB, appID, role, userID) {
-			c.JSON(http.StatusForbidden, gin.H{"error": "no permission to access this app"})
+		serverID := c.Param("server_id")
+		if !authorizeServerAccess(bridge.DB, serverID, role, userID) {
+			c.JSON(http.StatusForbidden, gin.H{"error": "no permission to access this server"})
 			return
 		}
 
