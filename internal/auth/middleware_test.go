@@ -67,7 +67,11 @@ func getExpiredRegisteredClaims() jwt.RegisteredClaims {
 // createTokenFromClaims signs and returns a token string from Claims.
 func createTokenFromClaims(claims *Claims) string {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	s, err := token.SignedString(getJWTSecret())
+	secret, err := getJWTSecret()
+	if err != nil {
+		panic("failed to get JWT secret: " + err.Error())
+	}
+	s, err := token.SignedString(secret)
 	if err != nil {
 		panic("failed to sign test token: " + err.Error())
 	}
