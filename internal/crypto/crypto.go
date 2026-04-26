@@ -9,10 +9,20 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"strconv"
 	"path/filepath"
+	"strconv"
+	"strings"
 
+	"golang.org/x/crypto/argon2"
 	"golang.org/x/crypto/bcrypt"
+)
+
+const (
+	argon2Time       = 1
+	argon2Memory     = 64 * 1024 // 64 MB
+	argon2Parallelism = 4
+	argon2SaltLen    = 16
+	argon2KeyLen     = 32
 )
 
 // NewEncryptionKey generates a random 256-bit (32-byte) AES key.
@@ -86,19 +96,62 @@ func getBcryptCost() int {
 	return cost
 }
 
-// HashPassword hashes a password using bcrypt with configurable cost.
-func HashPassword(password string) (string, error) {
-	bytes, err := bcrypt.GenerateFromPassword([]byte(password), getBcryptCost())
-	if err != nil {
-		return "", fmt.Errorf("failed to hash password: %w", err)
+// HashPasswordArgon2ID hashes a password using argon2id and returns a PHC-format string.
+func HashPasswordArgon2ID(password string) (string, error) {
+	salt := make([]byte, argon2SaltLen)
+	if _, err := io.ReadFull(rand.Reader, salt); err != nil {
+		return "", fmt.Errorf("failed to generate argon2id salt: %w", err)
 	}
-	return string(bytes), nil
+
+	hash := argon2.IDKey([]byte(password), salt, argon2Time, argon2Memory, argon2Parallelism, argon2KeyLen)
+
+	// Encode as PHC format: $argon2id$v=19$m=65536,t=1,p=4$<base64(salt)>$<base64(hash)>
+	encodedSalt := base64.RawStdEncoding.EncodeToString(salt)
+	encodedHash := base64.RawStdEncoding.EncodeToString(hash)
+
+	return fmt.Sprintf("$argon2id$v=19$m=%d,t=%d,p=%d$%s$%s",
+		argon2Memory, argon2Time, argon2Parallelism, encodedSalt, encodedHash), nil
 }
 
-// CheckPassword compares a plaintext password against a bcrypt hash.
+// HashPassword hashes a password using argon2id.
+func HashPassword(password string) (string, error) {
+	return HashPasswordArgon2ID(password)
+}
+
+// CheckPassword compares a plaintext password against a stored hash.
+// It supports both argon2id (PHC format) and bcrypt hashes for backward compatibility.
 func CheckPassword(password, hash string) bool {
+	if strings.HasPrefix(hash, "$argon2id$") {
+		return checkPasswordArgon2ID(password, hash)
+	}
+	// Fallback to bcrypt for backward compatibility
 	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
 	return err == nil
+}
+
+// checkPasswordArgon2ID verifies a password against an argon2id PHC-format hash.
+func checkPasswordArgon2ID(password, hash string) bool {
+	// Expected format: $argon2id$v=19$m=65536,t=1,p=4$<salt>$<hash>
+	parts := strings.Split(hash, "$")
+	if len(parts) != 6 {
+		return false
+	}
+	// parts[0] = "", parts[1] = "argon2id", parts[2] = "v=19", parts[3] = "m=...,t=...,p=...",
+	// parts[4] = salt, parts[5] = hash
+
+	salt, err := base64.RawStdEncoding.DecodeString(parts[4])
+	if err != nil {
+		return false
+	}
+
+	expectedHash, err := base64.RawStdEncoding.DecodeString(parts[5])
+	if err != nil {
+		return false
+	}
+
+	computedHash := argon2.IDKey([]byte(password), salt, argon2Time, argon2Memory, argon2Parallelism, uint32(len(expectedHash)))
+
+	return subtle.ConstantTimeCompare(expectedHash, computedHash) == 1
 }
 
 // defaultKeyPath returns the default file path for the auto-generated encryption key.
