@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"strconv"
 	"log/slog"
 	"net/http"
 	"os"
@@ -13,11 +12,11 @@ import (
 	"time"
 
 	"github.com/Yogdunana/deploypilot/internal/auth"
-	"gorm.io/gorm"
 	"github.com/Yogdunana/deploypilot/internal/metrics"
 	"github.com/Yogdunana/deploypilot/internal/service"
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
+	"gorm.io/gorm"
 )
 
 // allowedWSSOrigins contains origins permitted for WebSocket connections.
@@ -169,32 +168,15 @@ func (h *WSHub) ClientCount(appID string) int {
 }
 
 // authorizeAppAccess checks if the user has permission to access the given app.
-// Admin and owner roles can access all apps. Viewer and dev roles can only access apps they created.
+// Delegates to the shared CheckResourceAccess in the service layer.
 func authorizeAppAccess(db *gorm.DB, appID, role, userID string) bool {
-	if role == "admin" || role == "owner" {
-		return true
-	}
-	var result struct {
-		UserID uint
-	}
-	if err := db.Table("apps").Where("id = ?", appID).Select("user_id").Take(&result).Error; err != nil {
-		return false
-	}
-	return strconv.FormatUint(uint64(result.UserID), 10) == userID
+	return service.CheckResourceAccess(db, "app", appID, role, userID)
 }
 
 // authorizeServerAccess checks if the user has permission to access the given server.
+// Delegates to the shared CheckResourceAccess in the service layer.
 func authorizeServerAccess(db *gorm.DB, serverID, role, userID string) bool {
-	if role == "admin" || role == "owner" {
-		return true
-	}
-	var result struct {
-		UserID uint
-	}
-	if err := db.Table("servers").Where("id = ?", serverID).Select("user_id").Take(&result).Error; err != nil {
-		return false
-	}
-	return strconv.FormatUint(uint64(result.UserID), 10) == userID
+	return service.CheckResourceAccess(db, "server", serverID, role, userID)
 }
 
 // LogStreamWS handles WebSocket connections for real-time container logs.
