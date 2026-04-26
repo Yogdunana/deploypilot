@@ -1,6 +1,7 @@
 package mcp
 
 import (
+	"context"
 	"testing"
 )
 
@@ -76,11 +77,11 @@ func TestCheckPermission_ViewerCannotDeploy(t *testing.T) {
 }
 
 func TestCheckPermission_UnknownTool_Allowed(t *testing.T) {
-	if !CheckPermission("some_unknown_tool", "viewer") {
-		t.Error("unknown tools should be allowed for any role")
+	if CheckPermission("some_unknown_tool", "viewer") {
+		t.Error("unknown tools should be denied for security (H-01)")
 	}
-	if !CheckPermission("some_unknown_tool", "dev") {
-		t.Error("unknown tools should be allowed for any role")
+	if CheckPermission("some_unknown_tool", "dev") {
+		t.Error("unknown tools should be denied for security (H-01)")
 	}
 }
 
@@ -111,8 +112,8 @@ func TestRoleLevels_Completeness(t *testing.T) {
 
 func TestRequiredRoleName(t *testing.T) {
 	tests := []struct {
-		level   int
-		want    string
+		level int
+		want  string
 	}{
 		{1, "viewer"},
 		{2, "dev"},
@@ -145,5 +146,24 @@ func TestCheckPermission_AdminCanUseViewerTools(t *testing.T) {
 		if !CheckPermission(tool, "admin") {
 			t.Errorf("admin should be able to use viewer tool %s", tool)
 		}
+	}
+}
+
+func TestRoleFromContext_Default(t *testing.T) {
+	// H-02: default role is now empty string (denies access) instead of "dev"
+	role := RoleFromContext(context.Background())
+	if role != "" {
+		t.Errorf("RoleFromContext with no context should return empty string, got %q", role)
+	}
+}
+
+func TestWithPermissionCheck_UnknownTool(t *testing.T) {
+	// H-01: unknown tools are now denied
+	handler := WithPermissionCheck("some_unknown_tool", func(ctx context.Context, args map[string]interface{}) (interface{}, error) {
+		return "ok", nil
+	})
+	_, err := handler(context.Background(), nil)
+	if err == nil {
+		t.Error("unknown tool should be denied")
 	}
 }
