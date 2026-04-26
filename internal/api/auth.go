@@ -85,6 +85,59 @@ func Register(db *gorm.DB) gin.HandlerFunc {
 	}
 }
 
+// RevokeToken revokes the current JWT token.
+// @Summary      Revoke token (logout)
+// @Description  Revoke the current JWT token, preventing further use
+// @Tags         Auth
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200 {object} map[string]interface{} "status, data.message"
+// @Failure      401 {object} map[string]interface{} "unauthorized"
+// @Failure      500 {object} map[string]interface{} "internal error"
+// @Router       /auth/revoke [post]
+func RevokeToken(blacklist auth.TokenBlacklist) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		authHeader := c.GetHeader("Authorization")
+		if authHeader == "" {
+			respondErrori18n(c, http.StatusUnauthorized, "error.auth.authorization_header_required")
+			return
+		}
+
+		parts := strings.SplitN(authHeader, " ", 2)
+		if len(parts) != 2 || !strings.EqualFold(parts[0], "bearer") {
+			respondErrori18n(c, http.StatusUnauthorized, "error.auth.invalid_authorization_format")
+			return
+		}
+
+		claims, err := auth.ParseToken(parts[1])
+		if err != nil {
+			respondErrori18n(c, http.StatusUnauthorized, "error.auth.invalid_or_expired_token")
+			return
+		}
+
+		if claims.ID == "" {
+			respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request")
+			return
+		}
+
+		// Calculate remaining TTL
+		ttl := time.Until(claims.ExpiresAt.Time)
+		if ttl <= 0 {
+			// Token already expired, no need to revoke
+			respondSuccess(c, gin.H{"message": "token_already_expired"})
+			return
+		}
+
+		if err := blacklist.Revoke(claims.ID, ttl); err != nil {
+			respondErrori18n(c, http.StatusInternalServerError, "error.common.internal_error")
+			return
+		}
+
+		respondSuccess(c, gin.H{"message": "token_revoked"})
+	}
+}
+
 // WSTicket generates a one-time WebSocket authentication ticket.
 // The client must present a valid JWT in the Authorization header.
 // The returned ticket can be used once within the expiration window to authenticate a WebSocket connection.
