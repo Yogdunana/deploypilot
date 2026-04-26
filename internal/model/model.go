@@ -136,7 +136,7 @@ type DeploymentRecord struct {
 	PreflightCode    string    `gorm:"column:preflight_code" json:"preflight_code,omitempty"`
 	PreflightMessage string    `gorm:"column:preflight_message" json:"preflight_message,omitempty"`
 	PreflightChecks  string    `gorm:"column:preflight_checks;type:text" json:"preflight_checks,omitempty"` // JSON string
-	ErrorMessage     string    `gorm:"column:error_message" json::"error_message,omitempty"`
+	ErrorMessage     string    `gorm:"column:error_message" json:"error_message,omitempty"`
 	CreatedAt         time.Time `json:"created_at"`
 	UpdatedAt        time.Time `json:"updated_at"`
 }
