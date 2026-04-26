@@ -75,18 +75,18 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 		{
 			apps.POST("", CreateApp(db))
 			apps.GET("", ListApps(db))
-			apps.GET("/:id", GetApp(db))
-			apps.PUT("/:id", UpdateApp(db))
-			apps.DELETE("/:id", DeleteApp(bridge))
-			apps.POST("/:id/deploy", DeployApp(bridge))
-			apps.POST("/:id/build", BuildAndDeployApp(bridge))
-			apps.GET("/:id/status", GetAppStatus(bridge))
-			apps.POST("/:id/rollback", RollbackApp(bridge))
-			apps.GET("/:id/logs/container", GetContainerLogs(bridge))
-			apps.POST("/:id/backup", BackupApp(bridge))
-			apps.POST("/:id/restore", RestoreApp(bridge))
-			apps.GET("/:id/env", GetAppEnv(db))
-			apps.PUT("/:id/env", UpdateAppEnv(db))
+			apps.GET("/:id", auth.RequireResourceAccess(db, "app", "id"), GetApp(db))
+			apps.PUT("/:id", auth.RequireResourceAccess(db, "app", "id"), UpdateApp(db))
+			apps.DELETE("/:id", auth.RequireResourceAccess(db, "app", "id"), DeleteApp(bridge))
+			apps.POST("/:id/deploy", auth.RequireResourceAccess(db, "app", "id"), DeployApp(bridge))
+			apps.POST("/:id/build", auth.RequireResourceAccess(db, "app", "id"), BuildAndDeployApp(bridge))
+			apps.GET("/:id/status", auth.RequireResourceAccess(db, "app", "id"), GetAppStatus(bridge))
+			apps.POST("/:id/rollback", auth.RequireResourceAccess(db, "app", "id"), RollbackApp(bridge))
+			apps.GET("/:id/logs/container", auth.RequireResourceAccess(db, "app", "id"), GetContainerLogs(bridge))
+			apps.POST("/:id/backup", auth.RequireResourceAccess(db, "app", "id"), BackupApp(bridge))
+			apps.POST("/:id/restore", auth.RequireResourceAccess(db, "app", "id"), RestoreApp(bridge))
+			apps.GET("/:id/env", auth.RequireResourceAccess(db, "app", "id"), GetAppEnv(db))
+			apps.PUT("/:id/env", auth.RequireResourceAccess(db, "app", "id"), UpdateAppEnv(db))
 		}
 
 		// Servers (7 endpoints)
@@ -94,11 +94,11 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 		{
 			servers.POST("", AddServer(bridge))
 			servers.GET("", ListServers(bridge))
-			servers.PUT("/:id", UpdateServer(bridge))
-			servers.DELETE("/:id", DeleteServer(bridge))
-			servers.POST("/:id/detect", DetectEnvironment(bridge))
-			servers.GET("/:id/environment", GetServerEnvironment(bridge))
-			servers.POST("/:id/test", TestServer(bridge))
+			servers.PUT("/:id", auth.RequireResourceAccess(db, "server", "id"), UpdateServer(bridge))
+			servers.DELETE("/:id", auth.RequireResourceAccess(db, "server", "id"), DeleteServer(bridge))
+			servers.POST("/:id/detect", auth.RequireResourceAccess(db, "server", "id"), DetectEnvironment(bridge))
+			servers.GET("/:id/environment", auth.RequireResourceAccess(db, "server", "id"), GetServerEnvironment(bridge))
+			servers.POST("/:id/test", auth.RequireResourceAccess(db, "server", "id"), TestServer(bridge))
 		}
 
 		// Credentials (5 endpoints)
@@ -106,9 +106,9 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 		{
 			creds.GET("", ListCredentials(bridge))
 			creds.POST("", CreateCredential(bridge))
-			creds.PUT("/:id", UpdateCredential(bridge))
-			creds.DELETE("/:id", DeleteCredential(bridge))
-			creds.POST("/:id/rotate", RotateCredential(bridge, auditSvc))
+			creds.PUT("/:id", auth.RequireResourceAccess(db, "credential", "id"), UpdateCredential(bridge))
+			creds.DELETE("/:id", auth.RequireResourceAccess(db, "credential", "id"), DeleteCredential(bridge))
+			creds.POST("/:id/rotate", auth.RequireResourceAccess(db, "credential", "id"), RotateCredential(bridge, auditSvc))
 		}
 
 		// Clusters (6 endpoints)
