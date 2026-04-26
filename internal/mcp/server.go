@@ -2283,10 +2283,6 @@ func handleGetPluginInfo(ctx context.Context, deployer Deployer, request mcp.Cal
 	return mcp.NewToolResultText(string(data)), nil
 }
 
-<<<<<<< HEAD
-
-=======
->>>>>>> trae/solo-agent-g7D1Rv
 // ========== Kubernetes Tool Handlers ==========
 
 func handleListClusters(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
