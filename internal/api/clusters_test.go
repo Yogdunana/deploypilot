@@ -212,7 +212,7 @@ func TestGetCluster_NotFound(t *testing.T) {
 func TestUpdateCluster(t *testing.T) {
 	router, bridge, token := setupClusterTest(t)
 
-	created, _ := bridge.CreateCluster(nil, &model.Cluster{
+	created, _ := bridge.CreateCluster(context.TODO(), &model.Cluster{
 		TenantID:  "tenant-default",
 		Name:      "update-test",
 		APIServer: "https://10.0.0.4:6443",
@@ -249,7 +249,7 @@ func TestUpdateCluster(t *testing.T) {
 func TestDeleteCluster(t *testing.T) {
 	router, bridge, token := setupClusterTest(t)
 
-	created, _ := bridge.CreateCluster(nil, &model.Cluster{
+	created, _ := bridge.CreateCluster(context.TODO(), &model.Cluster{
 		TenantID:  "tenant-default",
 		Name:      "delete-test",
 		APIServer: "https://10.0.0.5:6443",
