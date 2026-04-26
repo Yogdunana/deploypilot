@@ -22,12 +22,13 @@ func ContextWithRole(ctx context.Context, role string) context.Context {
 	return context.WithValue(ctx, contextKeyRole{}, role)
 }
 
-// RoleFromContext extracts the user role from context. Returns "dev" as default.
+// RoleFromContext extracts the user role from context.
+// Returns empty string if no role is set, which will cause permission denial.
 func RoleFromContext(ctx context.Context) string {
-	if role, ok := ctx.Value(contextKeyRole{}).(string); ok {
+	if role, ok := ctx.Value(contextKeyRole{}).(string); ok && role != "" {
 		return role
 	}
-	return "dev"
+	return ""
 }
 
 // withPermissionCheck wraps a tool handler with a permission check.
