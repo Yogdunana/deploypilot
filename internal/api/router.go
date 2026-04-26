@@ -15,7 +15,7 @@ import (
 )
 
 // RegisterRoutes registers all API routes on the given Gin engine.
-func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *WSHub, auditSvc *service.AuditService, pluginManager *plugin.Manager, blacklist auth.TokenBlacklist) {
+func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *WSHub, auditSvc *service.AuditService, pluginManager *plugin.Manager, blacklist auth.TokenBlacklist, oauthSvc *service.OAuthService) {
 	// Swagger documentation — only accessible in development mode.
 	// In production, the endpoint is disabled to prevent information leakage.
 	if os.Getenv("DEPLOYPILOT_ENV") == "development" || os.Getenv("GIN_MODE") == "debug" {
@@ -58,6 +58,12 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 		authGroup.POST("/login", Login(db))
 		authGroup.POST("/ws-ticket", WSTicket(ticketStore, 30*time.Second))
 		authGroup.POST("/revoke", RevokeToken(blacklist))
+		if oauthSvc != nil {
+			stateStore := auth.NewMemoryStateStore()
+			go stateStore.StartCleanup(context.Background(), 5*time.Minute)
+			authGroup.GET("/oauth/:provider", OAuthLogin(oauthSvc, stateStore))
+			authGroup.GET("/oauth/:provider/callback", OAuthCallback(oauthSvc, stateStore))
+		}
 	}
 
 	// Protected routes
