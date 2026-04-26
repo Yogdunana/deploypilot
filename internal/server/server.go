@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/Yogdunana/deploypilot/internal/api"
+	"github.com/Yogdunana/deploypilot/internal/auth"
 	"github.com/Yogdunana/deploypilot/internal/config"
 	"github.com/Yogdunana/deploypilot/internal/i18n"
 	"github.com/Yogdunana/deploypilot/internal/middleware"
@@ -24,7 +25,7 @@ type Server struct {
 }
 
 // New creates a new API server with the given address, database, bridge, and config.
-func New(addr string, db *gorm.DB, bridge *service.Bridge, cfg *config.Config) *Server {
+func New(addr string, db *gorm.DB, bridge *service.Bridge, cfg *config.Config, blacklist auth.TokenBlacklist) *Server {
 	r := gin.Default()
 
 	// Security middleware
@@ -52,7 +53,7 @@ func New(addr string, db *gorm.DB, bridge *service.Bridge, cfg *config.Config) *
 	wsHub := api.NewWSHub()
 	go wsHub.Run()
 
-	api.RegisterRoutes(r, db, bridge, wsHub, auditSvc, nil)
+	api.RegisterRoutes(r, db, bridge, wsHub, auditSvc, nil, blacklist)
 
 	// Serve embedded frontend static files
 	serveStaticFiles(r)
