@@ -136,8 +136,8 @@ type DeploymentRecord struct {
 	PreflightCode    string    `gorm:"column:preflight_code" json:"preflight_code,omitempty"`
 	PreflightMessage string    `gorm:"column:preflight_message" json:"preflight_message,omitempty"`
 	PreflightChecks  string    `gorm:"column:preflight_checks;type:text" json:"preflight_checks,omitempty"` // JSON string
-	ErrorMessage     string    `gorm:"column:error_message" json:"error_message,omitempty"`
-	CreatedAt        time.Time `json:"created_at"`
+	ErrorMessage     string    `gorm:"column:error_message" json::"error_message,omitempty"`
+	CreatedAt         time.Time `json:"created_at"`
 	UpdatedAt        time.Time `json:"updated_at"`
 }
 
@@ -145,7 +145,7 @@ func (DeploymentRecord) TableName() string { return "deployments" }
 
 // AuditLog records system actions for compliance and debugging.
 type AuditLog struct {
-	ID           uint      `json:"id" gorm:"primaryKey"`
+	ID            uint      `json:"id" gorm:"primaryKey"`
 	UserID       uint      `json:"user_id" gorm:"index"`
 	Username     string    `json:"username"`
 	Action       string    `json:"action" gorm:"index;size:100"`
@@ -154,6 +154,7 @@ type AuditLog struct {
 	Detail       string    `json:"detail" gorm:"type:text"`
 	IPAddress    string    `json:"ip_address" gorm:"size:45"`
 	UserAgent    string    `json:"user_agent" gorm:"size:500"`
+	RecordHash   string    `json:"record_hash" gorm:"column:record_hash;size:128"`
 	CreatedAt    time.Time `json:"created_at" gorm:"autoCreateTime"`
 }
 

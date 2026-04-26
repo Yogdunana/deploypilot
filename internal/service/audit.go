@@ -2,7 +2,12 @@ package service
 
 import (
 	"context"
+	"crypto/hmac"
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"net"
 	"strings"
 
@@ -12,12 +17,23 @@ import (
 
 // AuditService handles audit log operations.
 type AuditService struct {
-	db *gorm.DB
+	db      *gorm.DB
+	hmacKey []byte
 }
 
-// NewAuditService creates a new AuditService.
+// NewAuditService creates a new AuditService with a randomly generated HMAC key.
 func NewAuditService(db *gorm.DB) *AuditService {
-	return &AuditService{db: db}
+	key := make([]byte, 32)
+	if _, err := rand.Read(key); err != nil {
+		// Fallback: use a zeroed key (should never happen with crypto/rand on modern systems)
+		key = make([]byte, 32)
+	}
+	return &AuditService{db: db, hmacKey: key}
+}
+
+// SetHMACKey sets the HMAC key (useful for loading a persistent key from config).
+func (s *AuditService) SetHMACKey(key []byte) {
+	s.hmacKey = key
 }
 
 // AuditEntry represents an audit event to record.
@@ -41,7 +57,24 @@ type AuditFilter struct {
 	PageSize     int
 }
 
-// Record creates an audit log entry.
+// computeRecordHash generates an HMAC-SHA256 hash of the audit log fields.
+func (s *AuditService) computeRecordHash(log *model.AuditLog) string {
+	data := fmt.Sprintf("%d|%s|%s|%s|%s|%s|%s|%s",
+		log.UserID,
+		log.Username,
+		log.Action,
+		log.ResourceType,
+		log.ResourceID,
+		log.Detail,
+		log.IPAddress,
+		log.UserAgent,
+	)
+	mac := hmac.New(sha256.New, s.hmacKey)
+	mac.Write([]byte(data))
+	return hex.EncodeToString(mac.Sum(nil))
+}
+
+// Record creates an audit log entry with an integrity hash.
 func (s *AuditService) Record(ctx context.Context, entry AuditEntry) error {
 	detail := ""
 	if entry.Detail != nil {
@@ -62,7 +95,36 @@ func (s *AuditService) Record(ctx context.Context, entry AuditEntry) error {
 		UserAgent:    entry.UserAgent,
 	}
 
+	// Compute HMAC-SHA256 hash for tamper-evident integrity
+	log.RecordHash = s.computeRecordHash(log)
+
 	return s.db.WithContext(ctx).Create(log).Error
+}
+
+// VerifyRecord checks whether an audit log record has been tampered with
+// by recomputing the HMAC-SHA256 hash and comparing it with the stored hash.
+// Returns nil if the record is intact, or an error describing the integrity failure.
+func (s *AuditService) VerifyRecord(log model.AuditLog) error {
+	if log.RecordHash == "" {
+		return fmt.Errorf("audit log record %d has no integrity hash (pre-integrity record)", log.ID)
+	}
+	expected := s.computeRecordHash(&log)
+	if !hmac.Equal([]byte(expected), []byte(log.RecordHash)) {
+		return fmt.Errorf("audit log record %d integrity check failed: hash mismatch (possible tampering)", log.ID)
+	}
+	return nil
+}
+
+// VerifyRecords checks a batch of audit log records for integrity.
+// Returns a slice of record IDs that failed verification, or nil if all are intact.
+func (s *AuditService) VerifyRecords(logs []model.AuditLog) []uint {
+	var failed []uint
+	for _, log := range logs {
+		if err := s.VerifyRecord(log); err != nil {
+			failed = append(failed, log.ID)
+		}
+	}
+	return failed
 }
 
 // List returns audit logs with pagination and filtering.
