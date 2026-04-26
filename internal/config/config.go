@@ -9,16 +9,16 @@ import (
 
 // Config is the root configuration structure.
 type Config struct {
-	Server    ServerConfig    `mapstructure:"server"`
-	Database  DatabaseConfig  `mapstructure:"database"`
-	Auth      AuthConfig      `mapstructure:"auth"`
-	Deploy    DeployConfig    `mapstructure:"deploy"`
-	Cache     CacheConfig     `mapstructure:"cache"`
-	Security  SecurityConfig  `mapstructure:"security"`
-	Log       LogConfig       `mapstructure:"log"`
-	Notify    NotifyConfig    `mapstructure:"notify"`
-	Monitor   MonitorConfig   `mapstructure:"monitor"`
-	Redis     RedisConfig     `mapstructure:"redis"`
+	Server     ServerConfig     `mapstructure:"server"`
+	Database   DatabaseConfig   `mapstructure:"database"`
+	Auth       AuthConfig       `mapstructure:"auth"`
+	Deploy     DeployConfig     `mapstructure:"deploy"`
+	Cache      CacheConfig      `mapstructure:"cache"`
+	Security   SecurityConfig   `mapstructure:"security"`
+	Log        LogConfig        `mapstructure:"log"`
+	Notify     NotifyConfig     `mapstructure:"notify"`
+	Monitor    MonitorConfig    `mapstructure:"monitor"`
+	Redis      RedisConfig      `mapstructure:"redis"`
 	Kubernetes KubernetesConfig `mapstructure:"kubernetes"`
 }
 
@@ -35,7 +35,7 @@ type ServerConfig struct {
 	Port               int      `mapstructure:"port"`
 	MCPPort            int      `mapstructure:"mcp_port"`
 	WebPort            int      `mapstructure:"web_port"`
-	CORSAllowedOrigins []string `mapstructure:"cors_allowed_origins"` // default: ["*"]
+	CORSAllowedOrigins []string `mapstructure:"cors_allowed_origins"`
 }
 
 // DatabaseConfig holds database connection settings.
@@ -161,14 +161,15 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("server.port", 8080)
 	v.SetDefault("server.mcp_port", 9090)
 	v.SetDefault("server.web_port", 3000)
-	v.SetDefault("server.cors_allowed_origins", []string{"*"})
+	// Security: CORS defaults to empty (no origins allowed).
+	// Users must explicitly configure allowed origins via config or DEPLOYPILOT_SERVER_CORS_ALLOWED_ORIGINS.
+	v.SetDefault("server.cors_allowed_origins", []string{})
 
 	// Database
 	v.SetDefault("database.type", "sqlite")
 	v.SetDefault("database.dsn", "./data/deploypilot.db")
 
-	// Auth
-	v.SetDefault("auth.jwt_secret", "change-me-in-production")
+	// Auth — no default JWT secret; must be set via JWT_SECRET env var or config
 	v.SetDefault("auth.token_expire", "24h")
 	v.SetDefault("auth.ws_ticket_expire", "30s")
 
