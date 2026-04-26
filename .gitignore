@@ -38,3 +38,9 @@ web/dist/
 *\033*
 *\x1b*
 *[*
+
+# Build artifacts
+/api-server
+/deploypilot
+/mcp-server
+*.exe
