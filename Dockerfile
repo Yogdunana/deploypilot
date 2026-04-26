@@ -38,11 +38,24 @@ RUN xx-go --wrap && \
     xx-verify /deploypilot && xx-verify /api-server && xx-verify /mcp-server
 
 # Stage 3: Runtime
-FROM alpine:3.20
+FROM alpine:3.21
+
 RUN apk add --no-cache ca-certificates tzdata openssh-client
+
+# Create non-root user for security
+RUN adduser -D -u 1000 -s /bin/sh appuser
+
 WORKDIR /app
+
 COPY --from=backend /deploypilot .
 COPY --from=backend /api-server .
 COPY --from=backend /mcp-server .
+
+# Change ownership to non-root user
+RUN chown -R appuser:appuser /app
+
+USER appuser
+
 EXPOSE 8080
+
 CMD ["./api-server"]
