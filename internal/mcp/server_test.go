@@ -2531,10 +2531,10 @@ func TestContextWithRole(t *testing.T) {
 }
 
 func TestRoleFromContext_Default(t *testing.T) {
-	// RoleFromContext returns "dev" as default when no role is set
+	// H-02: RoleFromContext returns "" (empty) as default when no role is set
 	role := RoleFromContext(context.Background())
-	if role != "dev" {
-		t.Errorf("expected dev (default), got %s", role)
+	if role != "" {
+		t.Errorf("expected empty string (default), got %s", role)
 	}
 }
 
@@ -2614,19 +2614,15 @@ func TestWithPermissionCheck_AdminAllowed(t *testing.T) {
 }
 
 func TestWithPermissionCheck_UnknownTool(t *testing.T) {
-	// Unknown tools are allowed by default
-	called := false
+	// H-01: Unknown tools are now denied by default
 	handler := withPermissionCheck("unknown_tool", func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		called = true
+		t.Error("handler should not be called for unknown tool")
 		return mcp.NewToolResultText("ok"), nil
 	})
 	ctx := ContextWithRole(context.Background(), "viewer")
 	_, err := handler(ctx, mcp.CallToolRequest{})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if !called {
-		t.Error("unknown tools should be allowed")
+	if err == nil {
+		t.Fatal("expected error for unknown tool")
 	}
 }
 
