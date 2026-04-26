@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"log/slog"
 	"net/http"
 	"os"
@@ -166,6 +167,35 @@ func (h *WSHub) ClientCount(appID string) int {
 	return len(h.clients[appID])
 }
 
+// authorizeAppAccess checks if the user has permission to access the given app.
+// Admin and owner roles can access all apps. Viewer and dev roles can only access apps they created.
+func authorizeAppAccess(db *gorm.DB, appID, role, userID string) bool {
+	if role == "admin" || role == "owner" {
+		return true
+	}
+	var result struct {
+		UserID uint
+	}
+	if err := db.Table("apps").Where("id = ?", appID).Select("user_id").Take(&result).Error; err != nil {
+		return false
+	}
+	return strconv.FormatUint(uint64(result.UserID), 10) == userID
+}
+
+// authorizeServerAccess checks if the user has permission to access the given server.
+func authorizeServerAccess(db *gorm.DB, serverID, role, userID string) bool {
+	if role == "admin" || role == "owner" {
+		return true
+	}
+	var result struct {
+		UserID uint
+	}
+	if err := db.Table("servers").Where("id = ?", serverID).Select("user_id").Take(&result).Error; err != nil {
+		return false
+	}
+	return strconv.FormatUint(uint64(result.UserID), 10) == userID
+}
+
 // LogStreamWS handles WebSocket connections for real-time container logs.
 // GET /ws/logs/:app_id?ticket=xxx
 func LogStreamWS(bridge *service.Bridge, hub *WSHub, ticketStore *auth.WSTicketStore) gin.HandlerFunc {
@@ -176,10 +206,14 @@ func LogStreamWS(bridge *service.Bridge, hub *WSHub, ticketStore *auth.WSTicketS
 			c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 			return
 		}
-		_ = userID
-		_ = role
+		// 2. Check resource-level authorization
+		appID := c.Param("app_id")
+		if !authorizeAppAccess(bridge.DB, appID, role, userID) {
+			c.JSON(http.StatusForbidden, gin.H{"error": "no permission to access this app"})
+			return
+		}
 
-		// 2. Upgrade to WebSocket
+		// 3. Upgrade to WebSocket
 		conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 		if err != nil {
 			slog.Error("ws upgrade failed", "error", err)
@@ -187,7 +221,6 @@ func LogStreamWS(bridge *service.Bridge, hub *WSHub, ticketStore *auth.WSTicketS
 		}
 		defer func() { _ = conn.Close() }()
 
-		appID := c.Param("app_id")
 		hub.Register(conn, appID)
 		defer hub.Unregister(conn, appID)
 
@@ -349,10 +382,14 @@ func TerminalWS(bridge *service.Bridge, hub *WSHub, ticketStore *auth.WSTicketSt
 			c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 			return
 		}
-		_ = userID
-		_ = role
+		// 2. Check resource-level authorization
+		appID := c.Param("app_id")
+		if !authorizeAppAccess(bridge.DB, appID, role, userID) {
+			c.JSON(http.StatusForbidden, gin.H{"error": "no permission to access this app"})
+			return
+		}
 
-		// 2. Upgrade to WebSocket
+		// 3. Upgrade to WebSocket
 		conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 		if err != nil {
 			slog.Error("terminal ws upgrade failed", "error", err)
@@ -361,7 +398,6 @@ func TerminalWS(bridge *service.Bridge, hub *WSHub, ticketStore *auth.WSTicketSt
 		defer func() { _ = conn.Close() }()
 
 		// 3. Get server info
-		serverID := c.Param("server_id")
 		var serverRow map[string]interface{}
 		if err := bridge.DB.Table("servers").Where("id = ?", serverID).Take(&serverRow).Error; err != nil {
 			hub.Send(conn, WSMessage{
