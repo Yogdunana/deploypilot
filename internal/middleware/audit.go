@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"fmt"
+	"log/slog"
 	"strings"
 
 	"github.com/Yogdunana/deploypilot/internal/service"
