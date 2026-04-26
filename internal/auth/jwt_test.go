@@ -1,11 +1,19 @@
 package auth
 
 import (
+	"os"
 	"testing"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 )
+
+func TestMain(m *testing.M) {
+	os.Setenv("JWT_SECRET", "test-secret-key-for-testing-123456")
+	code := m.Run()
+	os.Unsetenv("JWT_SECRET")
+	os.Exit(code)
+}
 
 func TestGenerateToken(t *testing.T) {
 	token, err := GenerateToken("user-123", "admin")
