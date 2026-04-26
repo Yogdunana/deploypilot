@@ -4,6 +4,8 @@ import (
 	"encoding/base64"
 	"strings"
 	"testing"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
 // ========== AES-256-GCM ==========
@@ -117,7 +119,7 @@ func TestEncryptInvalidKeyLength(t *testing.T) {
 	}
 }
 
-// ========== bcrypt ==========
+// ========== Password Hashing ==========
 
 func TestHashPassword(t *testing.T) {
 	password := "my-password"
@@ -162,7 +164,68 @@ func TestHashPasswordDifferentEachTime(t *testing.T) {
 	h2, _ := HashPassword("password")
 
 	if h1 == h2 {
-		t.Error("two hashes of same password should differ (bcrypt salt)")
+		t.Error("two hashes of same password should differ (random salt)")
+	}
+}
+
+// ========== Argon2ID Tests ==========
+
+func TestHashPasswordArgon2ID_Format(t *testing.T) {
+	password := "test-password-123"
+	hash, err := HashPasswordArgon2ID(password)
+	if err != nil {
+		t.Fatalf("HashPasswordArgon2ID() error = %v", err)
+	}
+
+	if !strings.HasPrefix(hash, "$argon2id$v=19$") {
+		t.Errorf("hash should start with $argon2id$v=19$, got: %s", hash)
+	}
+
+	// Verify PHC format has 6 parts separated by $
+	parts := strings.Split(hash, "$")
+	if len(parts) != 6 {
+		t.Errorf("PHC format should have 6 parts, got %d: %v", len(parts), parts)
+	}
+}
+
+func TestCheckPassword_Argon2ID(t *testing.T) {
+	password := "my-secure-password"
+	hash, err := HashPasswordArgon2ID(password)
+	if err != nil {
+		t.Fatalf("HashPasswordArgon2ID() error = %v", err)
+	}
+
+	if !CheckPassword(password, hash) {
+		t.Error("CheckPassword() should return true for correct argon2id password")
+	}
+}
+
+func TestCheckPassword_BcryptFallback(t *testing.T) {
+	password := "legacy-bcrypt-password"
+	// Generate a raw bcrypt hash directly (since HashPassword now uses argon2id)
+	bcryptHash, err := bcrypt.GenerateFromPassword([]byte(password), 12)
+	if err != nil {
+		t.Fatalf("bcrypt.GenerateFromPassword() error = %v", err)
+	}
+
+	if !CheckPassword(password, string(bcryptHash)) {
+		t.Error("CheckPassword() should return true for bcrypt hash (backward compatibility)")
+	}
+
+	if CheckPassword("wrong-password", string(bcryptHash)) {
+		t.Error("CheckPassword() should return false for wrong password with bcrypt hash")
+	}
+}
+
+func TestCheckPassword_WrongPassword_Argon2ID(t *testing.T) {
+	password := "correct-password"
+	hash, err := HashPasswordArgon2ID(password)
+	if err != nil {
+		t.Fatalf("HashPasswordArgon2ID() error = %v", err)
+	}
+
+	if CheckPassword("wrong-password", hash) {
+		t.Error("CheckPassword() should return false for wrong argon2id password")
 	}
 }
 
@@ -389,7 +452,7 @@ func TestDecrypt_InvalidKeySize(t *testing.T) {
 }
 
 func TestHashPassword_LongPassword(t *testing.T) {
-	// bcrypt has a 72-byte limit - passwords at exactly 72 bytes should work
+	// argon2id supports arbitrary-length passwords
 	longPassword := strings.Repeat("a", 72)
 	hash, err := HashPassword(longPassword)
 	if err != nil {
