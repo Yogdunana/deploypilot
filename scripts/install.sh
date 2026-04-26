@@ -5,6 +5,13 @@ SCRIPT_VERSION="1.0.0"
 DEFAULT_INSTALL_DIR="/opt/deploypilot"
 DEFAULT_PORT="8080"
 
+# 检测是否在非交互式环境下运行
+is_non_interactive() {
+    [ ! -t 0 ] || [ "$TERM" = "dumb" ]
+}
+
+NON_INTERACTIVE=$(is_non_interactive)
+
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -131,6 +138,12 @@ function prompt_input() {
     local default="$2"
     local result
     
+    if [ "$NON_INTERACTIVE" = true ]; then
+        echo -e "${BLUE}[INFO]${RESET} ${prompt} (非交互式模式，使用默认值: ${YELLOW}${default}${RESET})"
+        echo "$default"
+        return
+    fi
+    
     echo -ne "${CYAN}${prompt}${RESET}"
     if [ -n "$default" ]; then
         echo -ne " [${YELLOW}${default}${RESET}]"
@@ -149,21 +162,24 @@ function prompt_confirm() {
     local default="${2:-y}"
     local result
     
+    if [ "$NON_INTERACTIVE" = true ]; then
+        echo -e "${BLUE}[INFO]${RESET} ${prompt} (非交互式模式，使用默认值: ${YELLOW}${default}${RESET})"
+        if [ "$default" = "y" ]; then
+            return 0
+        else
+            return 1
+        fi
+    fi
+    
     while true; do
         echo -ne "${CYAN}${prompt}${RESET} [${YELLOW}${default}${RESET}]: "
         read -r result
         result=${result:-$default}
         
         case "$result" in
-            [Yy]*)
-                return 0
-                ;;
-            [Nn]*)
-                return 1
-                ;;
-            *)
-                print_warning "请输入 y 或 n"
-                ;;
+            [Yy]*) return 0 ;;
+            [Nn]*) return 1 ;;
+            *) print_warning "请输入 y 或 n" ;;
         esac
     done
 }
