@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"os"
 	"net/http"
 	"path/filepath"
 	"sort"
@@ -286,10 +287,18 @@ func (b *Bridge) getRemoteExecutor(ctx context.Context, serverID string) (*sshCl
 		}
 	}
 
+	// SSH username: prefer server record field, fall back to env var, then "root"
+	username := toString(row["username"])
+	if username == "" {
+		username = os.Getenv("DEPLOYPILOT_SSH_DEFAULT_USER")
+	}
+	if username == "" {
+		username = "root"
+	}
 	cfg := server.Config{
 		Host:     host,
 		Port:     port,
-		Username: "root",
+		Username: username,
 		Password: password,
 		KeyBytes: []byte(keyStr),
 		Timeout:  30 * time.Second,
