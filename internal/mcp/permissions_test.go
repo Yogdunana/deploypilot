@@ -148,6 +148,3 @@ func TestCheckPermission_AdminCanUseViewerTools(t *testing.T) {
 	}
 }
 
-}
-
-}
