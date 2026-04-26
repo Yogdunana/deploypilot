@@ -221,8 +221,8 @@ func TestLoadEncryptionKeyFromEnv_Empty(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if result != nil {
-		t.Fatal("expected nil for empty env")
+	if len(result) != 32 {
+		t.Fatalf("expected auto-generated 32-byte key, got %d bytes", len(result))
 	}
 }
 
