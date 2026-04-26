@@ -25,7 +25,7 @@ type Server struct {
 }
 
 // New creates a new API server with the given address, database, bridge, and config.
-func New(addr string, db *gorm.DB, bridge *service.Bridge, cfg *config.Config, blacklist auth.TokenBlacklist) *Server {
+func New(addr string, db *gorm.DB, bridge *service.Bridge, cfg *config.Config, blacklist auth.TokenBlacklist, oauthSvc *service.OAuthService) *Server {
 	r := gin.Default()
 
 	// Security middleware
@@ -53,7 +53,7 @@ func New(addr string, db *gorm.DB, bridge *service.Bridge, cfg *config.Config, b
 	wsHub := api.NewWSHub()
 	go wsHub.Run()
 
-	api.RegisterRoutes(r, db, bridge, wsHub, auditSvc, nil, blacklist)
+	api.RegisterRoutes(r, db, bridge, wsHub, auditSvc, nil, blacklist, oauthSvc)
 
 	// Serve embedded frontend static files
 	serveStaticFiles(r)
