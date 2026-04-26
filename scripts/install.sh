@@ -297,6 +297,40 @@ function download_binaries() {
         exit 1
     fi
 }
+# Input validation functions to prevent command injection
+validate_port() {
+    local port="$1"
+    if ! [[ "$port" =~ ^[0-9]+$ ]] || [ "$port" -lt 1 ] || [ "$port" -gt 65535 ]; then
+        print_error "端口必须是 1-65535 之间的数字"
+        exit 1
+    fi
+}
+
+validate_install_dir() {
+    local dir="$1"
+    if [[ "$dir" =~ [\$\`\|\;\&\>\<\(\)\{\}\[\]'"\!\\~
+] ]]; then
+        print_error "安装路径包含非法字符"
+        exit 1
+    fi
+    if [[ "$dir" != /* ]]; then
+        print_error "安装路径必须是绝对路径"
+        exit 1
+    fi
+}
+
+validate_username() {
+    local name="$1"
+    if ! [[ "$name" =~ ^[a-zA-Z_][a-zA-Z0-9_-]*$ ]]; then
+        print_error "用户名只能包含字母、数字、下划线和连字符，且必须以字母或下划线开头"
+        exit 1
+    fi
+    if [ ${#name} -gt 32 ]; then
+        print_error "用户名长度不能超过 32 个字符"
+        exit 1
+    fi
+}
+
 function main() {
     print_banner
 
@@ -331,6 +365,11 @@ function main() {
     PORT=$(prompt_input "请输入端口" "$DEFAULT_PORT")
     USERNAME=$(prompt_input "请输入用户名" "$(generate_username)")
     PASSWORD=$(prompt_input "请输入密码" "$(generate_password)")
+
+    # Validate user inputs
+    validate_install_dir "$INSTALL_DIR"
+    validate_port "$PORT"
+    validate_username "$USERNAME"
 
     echo ""
     if prompt_confirm "是否使用国内镜像源？" "y"; then
