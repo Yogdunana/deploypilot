@@ -41,13 +41,39 @@ func setupPanelProviderTestServer() *httptest.Server {
 	})
 
 	// BT-Panel endpoints
-	mux.HandleFunc("/firewall", func(w http.ResponseWriter, r *http.Request) {
-		resp := btPanelResponse{Status: true, Msg: "ok"}
+	mux.HandleFunc("/login", func(w http.ResponseWriter, r *http.Request) {
+		// Set auth cookie
+		w.Header().Set("Set-Cookie", "bt_user_token=test-token; Path=/")
+		resp := btPanelResponse{Status: true, Msg: "Login successful"}
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(resp)
 	})
-	mux.HandleFunc("/site", func(w http.ResponseWriter, r *http.Request) {
-		resp := btPanelResponse{Status: true, Msg: "ok"}
+	mux.HandleFunc("/firewall", func(w http.ResponseWriter, r *http.Request) {
+		resp := btPanelResponse{Status: true, Msg: "ok", Data: map[string]interface{}{
+			"list": []map[string]interface{}{
+				{
+					"id": "1",
+					"port": "8080",
+					"protocol": "tcp",
+					"ps": "deploypilot",
+				},
+			},
+		}}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(resp)
+	})
+	mux.HandleFunc("/firewall/add", func(w http.ResponseWriter, r *http.Request) {
+		resp := btPanelResponse{Status: true, Msg: "Firewall rule added"}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(resp)
+	})
+	mux.HandleFunc("/firewall/del", func(w http.ResponseWriter, r *http.Request) {
+		resp := btPanelResponse{Status: true, Msg: "Firewall rule deleted"}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(resp)
+	})
+	mux.HandleFunc("/site/add", func(w http.ResponseWriter, r *http.Request) {
+		resp := btPanelResponse{Status: true, Msg: "Site added"}
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(resp)
 	})
