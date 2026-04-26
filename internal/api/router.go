@@ -15,14 +15,14 @@ import (
 )
 
 // RegisterRoutes registers all API routes on the given Gin engine.
-func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *WSHub, auditSvc *service.AuditService, pluginManager *plugin.Manager) {
+func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *WSHub, auditSvc *service.AuditService, pluginManager *plugin.Manager, blacklist auth.TokenBlacklist) {
 	// Swagger documentation — only accessible in development mode.
 	// In production, the endpoint is disabled to prevent information leakage.
 	if os.Getenv("DEPLOYPILOT_ENV") == "development" || os.Getenv("GIN_MODE") == "debug" {
 		r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 	} else {
 		// In production, require authentication to access Swagger docs
-		r.GET("/swagger/*any", auth.AuthMiddleware(), ginSwagger.WrapHandler(swaggerFiles.Handler))
+		r.GET("/swagger/*any", auth.AuthMiddleware(blacklist), ginSwagger.WrapHandler(swaggerFiles.Handler))
 	}
 
 	api := r.Group("/api/v1")
@@ -46,7 +46,7 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 
 	// SSE routes (requires auth)
 	sseGroup := api.Group("/sse")
-	sseGroup.Use(auth.AuthMiddleware())
+	sseGroup.Use(auth.AuthMiddleware(blacklist))
 	{
 		sseGroup.GET("/deploy/:app_id", DeploySSE(bridge))
 	}
@@ -57,11 +57,12 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 		authGroup.POST("/register", Register(db))
 		authGroup.POST("/login", Login(db))
 		authGroup.POST("/ws-ticket", WSTicket(ticketStore, 30*time.Second))
+		authGroup.POST("/revoke", RevokeToken(blacklist))
 	}
 
 	// Protected routes
 	protected := api.Group("")
-	protected.Use(auth.AuthMiddleware())
+	protected.Use(auth.AuthMiddleware(blacklist))
 	{
 		// Apps (12 endpoints)
 		apps := protected.Group("/apps")
