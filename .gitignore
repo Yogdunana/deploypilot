@@ -33,3 +33,8 @@ web/dist/
 
 # Build cache
 /tmp/
+
+# Prevent ANSI escape code pollution from script output
+*\033*
+*\x1b*
+*[*
