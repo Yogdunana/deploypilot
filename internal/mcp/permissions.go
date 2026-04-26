@@ -13,7 +13,6 @@ var ToolPermissions = map[string]int{
 	"get_ci_build_status": 1, "list_ssl_certificates": 1,
 	"get_context": 1, "detect_panel": 1,
 	"list_clusters": 1, "k8s_list_deployments": 1, "k8s_get_pods": 1,
-
 	// Dev-level (operations)
 	"deploy_app": 2, "create_app": 2, "update_app": 2,
 	"add_server": 2, "update_server": 2, "test_server": 2,
@@ -27,12 +26,10 @@ var ToolPermissions = map[string]int{
 	"registry_login": 2, "push_image": 2, "list_registry_tags": 2, "ping_registry": 2,
 	"k8s_deploy": 2,
 	"list_plugins": 2, "manage_plugin": 2, "get_plugin_info": 2,
-
 	// Admin-level (dangerous)
 	"delete_app": 3, "delete_server": 3, "delete_credential": 3,
 	"delete_dns_record": 3, "batch_deploy": 3, "batch_dns": 3,
 	"batch_backup": 3, "delete_ssl_certificate": 3,
-
 	// Owner-level (system)
 	"update_user_role": 4, "delete_user": 4,
 }
@@ -59,11 +56,11 @@ func RequiredRoleName(level int) string {
 }
 
 // CheckPermission returns true if the user's role meets the minimum requirement
-// for the given tool. Unknown tools are allowed by default.
+// for the given tool. Unknown tools are denied by default for security.
 func CheckPermission(toolName, userRole string) bool {
 	required, ok := ToolPermissions[toolName]
 	if !ok {
-		return true // unknown tools are allowed
+		return false // unknown tools are denied by default
 	}
 	userLevel, ok := RoleLevels[userRole]
 	if !ok {
