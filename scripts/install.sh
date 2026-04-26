@@ -1,6 +1,6 @@
 #!/bin/bash
 # DeployPilot 一键安装脚本
-# Usage: curl -fsSL https://deploypilot.com/install.sh | bash
+# Usage: curl -fsSL https://raw.githubusercontent.com/Yogdunana/deploypilot/main/scripts/install.sh | bash
 set -euo pipefail
 
 # 颜色定义
@@ -65,8 +65,8 @@ sudo chown -R deploypilot:deploypilot /opt/deploypilot
 
 # 下载DeployPilot
 echo -e "${YELLOW}[5/8] 下载DeployPilot...${NC}"
-# 这里应该从GitHub Releases下载，暂时使用本地构建
-echo -e "${GREEN}  构建DeployPilot...${NC}"
+# 从GitHub仓库克隆代码
+echo -e "${GREEN}  从GitHub克隆代码...${NC}"
 cd /tmp
 git clone https://github.com/Yogdunana/deploypilot.git
 echo -e "${GREEN}  编译中...${NC}"
