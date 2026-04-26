@@ -208,9 +208,9 @@ func LogStreamWS(bridge *service.Bridge, hub *WSHub, ticketStore *auth.WSTicketS
 			return
 		}
 		// 2. Check resource-level authorization
-		serverID := c.Param("server_id")
-		if !authorizeServerAccess(bridge.DB, serverID, role, userID) {
-			c.JSON(http.StatusForbidden, gin.H{"error": "no permission to access this server"})
+		appID := c.Param("app_id")
+		if !authorizeAppAccess(bridge.DB, appID, role, userID) {
+			c.JSON(http.StatusForbidden, gin.H{"error": "no permission to access this app"})
 			return
 		}
 
