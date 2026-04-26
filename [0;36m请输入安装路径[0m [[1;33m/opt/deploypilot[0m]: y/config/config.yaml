@@ -1,0 +1,14 @@
+server:
+  port: [0;36m请输入端口[0m [[1;33m8080[0m]: y
+  host: 0.0.0.0
+
+database:
+  path: [0;36m请输入安装路径[0m [[1;33m/opt/deploypilot[0m]: y/data/deploypilot.db
+
+storage:
+  data_dir: [0;36m请输入安装路径[0m [[1;33m/opt/deploypilot[0m]: y/data
+  logs_dir: [0;36m请输入安装路径[0m [[1;33m/opt/deploypilot[0m]: y/logs
+  backups_dir: [0;36m请输入安装路径[0m [[1;33m/opt/deploypilot[0m]: y/backups
+
+auth:
+  jwt_secret: jhn5pzapoec3vxxs27cnxhfwptzm5fsy
