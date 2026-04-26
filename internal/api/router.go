@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"os"
 	"time"
 
 	"github.com/Yogdunana/deploypilot/internal/auth"
@@ -15,8 +16,14 @@ import (
 
 // RegisterRoutes registers all API routes on the given Gin engine.
 func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *WSHub, auditSvc *service.AuditService, pluginManager *plugin.Manager) {
-	// Swagger documentation
-	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+	// Swagger documentation — only accessible in development mode.
+	// In production, the endpoint is disabled to prevent information leakage.
+	if os.Getenv("DEPLOYPILOT_ENV") == "development" || os.Getenv("GIN_MODE") == "debug" {
+		r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+	} else {
+		// In production, require authentication to access Swagger docs
+		r.GET("/swagger/*any", auth.AuthMiddleware(), ginSwagger.WrapHandler(swaggerFiles.Handler))
+	}
 
 	api := r.Group("/api/v1")
 
