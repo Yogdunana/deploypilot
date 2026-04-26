@@ -2,6 +2,7 @@ package server
 
 import (
 	"io/fs"
+	"log/slog"
 	"net/http"
 	"strings"
 
@@ -45,8 +46,20 @@ func New(addr string, db *gorm.DB, bridge *service.Bridge, cfg *config.Config, b
 	)
 	r.Use(rateLimiter.Middleware())
 
-	// Audit logging
-	auditSvc := service.NewAuditService(db)
+	// Audit logging — optionally enable external file writer
+	var auditSvc *service.AuditService
+	if cfg.Audit.ExternalLogPath != "" {
+		fileWriter, err := service.NewFileAuditWriter(cfg.Audit.ExternalLogPath)
+		if err != nil {
+			slog.Warn("failed to create external audit writer", "error", err)
+			auditSvc = service.NewAuditService(db)
+		} else {
+			auditSvc = service.NewAuditService(db, fileWriter)
+			slog.Info("external audit logging enabled", "path", cfg.Audit.ExternalLogPath)
+		}
+	} else {
+		auditSvc = service.NewAuditService(db)
+	}
 	r.Use(middleware.AuditMiddleware(auditSvc))
 
 	// WebSocket hub
