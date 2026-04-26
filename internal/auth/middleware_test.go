@@ -290,7 +290,7 @@ func TestOptionalAuth_ValidToken(t *testing.T) {
 	r := setupGinTest()
 
 	handlerCalled := false
-	r.Use(OptionalAuth())
+	r.Use(OptionalAuth(nil))
 	r.GET("/test", func(c *gin.Context) {
 		handlerCalled = true
 		userID, exists := c.Get(string(UserIDKey))
@@ -321,7 +321,7 @@ func TestOptionalAuth_NoToken(t *testing.T) {
 	r := setupGinTest()
 
 	handlerCalled := false
-	r.Use(OptionalAuth())
+	r.Use(OptionalAuth(nil))
 	r.GET("/test", func(c *gin.Context) {
 		handlerCalled = true
 		// Should NOT have userID in context
@@ -348,7 +348,7 @@ func TestOptionalAuth_InvalidToken(t *testing.T) {
 	r := setupGinTest()
 
 	handlerCalled := false
-	r.Use(OptionalAuth())
+	r.Use(OptionalAuth(nil))
 	r.GET("/test", func(c *gin.Context) {
 		handlerCalled = true
 		_, exists := c.Get(string(UserIDKey))
@@ -375,7 +375,7 @@ func TestOptionalAuth_InvalidFormat(t *testing.T) {
 	r := setupGinTest()
 
 	handlerCalled := false
-	r.Use(OptionalAuth())
+	r.Use(OptionalAuth(nil))
 	r.GET("/test", func(c *gin.Context) {
 		handlerCalled = true
 		c.Status(http.StatusOK)

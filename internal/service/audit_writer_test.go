@@ -19,7 +19,7 @@ func TestFileAuditWriter_Write(t *testing.T) {
 	defer writer.Close()
 
 	entry := AuditEntry{
-		UserID:       "user-1",
+		UserID:       1,
 		Username:     "testuser",
 		Action:       "login",
 		ResourceType: "auth",
@@ -51,8 +51,8 @@ func TestFileAuditWriter_Write(t *testing.T) {
 	if result["action"] != "login" {
 		t.Errorf("expected action 'login', got %v", result["action"])
 	}
-	if result["user_id"] != "user-1" {
-		t.Errorf("expected user_id 'user-1', got %v", result["user_id"])
+	if result["user_id"] != "1" {
+		t.Errorf("expected user_id '1', got %v", result["user_id"])
 	}
 	if result["timestamp"] == nil {
 		t.Error("expected timestamp to be set")
@@ -69,7 +69,7 @@ func TestFileAuditWriter_MultipleWrites(t *testing.T) {
 	}
 
 	for i := 0; i < 3; i++ {
-		if err := writer.Write(AuditEntry{Action: "test", UserID: "user-1"}); err != nil {
+		if err := writer.Write(AuditEntry{Action: "test", UserID: 1}); err != nil {
 			t.Fatalf("Write() error = %v", err)
 		}
 	}
@@ -105,7 +105,7 @@ func TestMultiAuditWriter(t *testing.T) {
 	w2, _ := NewFileAuditWriter(filePath2)
 	multi := NewMultiAuditWriter(w1, w2)
 
-	entry := AuditEntry{Action: "multi-test", UserID: "user-1"}
+	entry := AuditEntry{Action: "multi-test", UserID: 1}
 	if err := multi.Write(entry); err != nil {
 		t.Fatalf("MultiAuditWriter.Write() error = %v", err)
 	}

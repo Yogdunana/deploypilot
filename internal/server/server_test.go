@@ -23,7 +23,7 @@ func TestNew(t *testing.T) {
 	bridge := service.NewBridge(db, executor, []byte("test-key-1234567890abcdef"), nil)
 	cfg := config.DefaultConfig()
 
-	srv := New("0.0.0.0:0", db, bridge, cfg)
+	srv := New("0.0.0.0:0", db, bridge, cfg, nil, nil)
 	if srv == nil {
 		t.Fatal("New() returned nil")
 	}
@@ -165,7 +165,7 @@ func TestRun(t *testing.T) {
 	bridge := service.NewBridge(db, executor, []byte("test-key-1234567890abcdef"), nil)
 	cfg := config.DefaultConfig()
 
-	srv := New("127.0.0.1:0", db, bridge, cfg)
+	srv := New("127.0.0.1:0", db, bridge, cfg, nil, nil)
 
 	done := make(chan error, 1)
 	go func() {
