@@ -3,11 +3,15 @@ package auth
 import (
 	"context"
 	"errors"
+	"fmt"
+	"log/slog"
 	"sync"
 	"time"
 
 	"github.com/google/uuid"
 )
+
+const defaultMaxTickets = 10000
 
 // ticketEntry holds the metadata for a single WebSocket ticket.
 type ticketEntry struct {
@@ -20,24 +24,30 @@ type ticketEntry struct {
 // WSTicketStore manages one-time WebSocket authentication tickets.
 // Tickets are generated from a valid JWT and consumed (deleted) on first use.
 type WSTicketStore struct {
-	mu      sync.RWMutex
-	tickets map[string]*ticketEntry
+	mu         sync.RWMutex
+	tickets    map[string]*ticketEntry
+	maxTickets int
 }
 
 // NewWSTicketStore creates a new WSTicketStore.
 func NewWSTicketStore() *WSTicketStore {
 	return &WSTicketStore{
-		tickets: make(map[string]*ticketEntry),
+		tickets:    make(map[string]*ticketEntry),
+		maxTickets: defaultMaxTickets,
 	}
 }
 
 // GenerateTicket creates a new one-time ticket for the given user.
 // The ticket expires after the specified duration.
 func (s *WSTicketStore) GenerateTicket(userID, role string, expire time.Duration) (string, error) {
+	s.mu.Lock()
+	if len(s.tickets) >= s.maxTickets {
+		s.mu.Unlock()
+		slog.Warn("ws ticket store at capacity", "max", s.maxTickets)
+		return "", fmt.Errorf("ticket store at capacity (%d)", s.maxTickets)
+	}
 	id := uuid.New().String()
 	now := time.Now()
-
-	s.mu.Lock()
 	s.tickets[id] = &ticketEntry{
 		UserID:    userID,
 		Role:      role,
