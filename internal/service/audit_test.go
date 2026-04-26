@@ -18,7 +18,8 @@ func setupAuditTestDB(t *testing.T) *gorm.DB {
 	db.Exec(`CREATE TABLE IF NOT EXISTS audit_logs (
 		id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, username TEXT,
 		action TEXT, resource_type TEXT, resource_id TEXT, detail TEXT,
-		ip_address TEXT, user_agent TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+		ip_address TEXT, user_agent TEXT, record_hash TEXT,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 	)`)
 	return db
 }
@@ -183,9 +184,9 @@ func TestAuditService_RecordWithNilDetail(t *testing.T) {
 	svc := NewAuditService(db)
 
 	err := svc.Record(context.TODO(), AuditEntry{
-		UserID:   1,
-		Action:   "app.create",
-		Detail:   nil,
+		UserID: 1,
+		Action: "app.create",
+		Detail: nil,
 	})
 	if err != nil {
 		t.Fatalf("Record() with nil detail error = %v", err)
@@ -202,10 +203,10 @@ func TestAuditService_RecordWithNilDetail(t *testing.T) {
 
 func TestClientIP(t *testing.T) {
 	tests := []struct {
-		name           string
-		remoteAddr     string
-		xForwardedFor  string
-		want           string
+		name          string
+		remoteAddr    string
+		xForwardedFor string
+		want          string
 	}{
 		{"x-forwarded-for", "192.168.1.1:12345", "10.0.0.1, 172.16.0.1", "10.0.0.1"},
 		{"no forwarded", "192.168.1.1:12345", "", "192.168.1.1"},
