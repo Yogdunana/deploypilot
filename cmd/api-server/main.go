@@ -248,7 +248,9 @@ func run(configFilePath, cliDriver, cliDSN, cliAddr string) error {
 
 	// 4. Close event bus
 	if eventBus != nil {
-		eventBus.Close()
+		if err := eventBus.Close(); err != nil {
+			slog.Warn("event bus close error", "error", err)
+		}
 	}
 
 	// 5. Close database connection

@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/Yogdunana/deploypilot/internal/api"
 	"github.com/Yogdunana/deploypilot/internal/auth"
@@ -128,8 +129,9 @@ func serveStaticFiles(r *gin.Engine) {
 // Run starts the HTTP server.
 func (s *Server) Run() error {
 	s.httpSrv = &http.Server{
-		Addr:    s.addr,
-		Handler: s.router,
+		Addr:              s.addr,
+		Handler:           s.router,
+		ReadHeaderTimeout: 10 * time.Second,
 	}
 	slog.Info("HTTP server listening", "addr", s.addr)
 	return s.httpSrv.ListenAndServe()
