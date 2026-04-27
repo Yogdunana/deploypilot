@@ -252,6 +252,9 @@ graph LR
 | **WebSocket Ticket** | 一次性 Ticket，防止 JWT 泄露 |
 | **审计日志** | 完整记录用户、操作、IP、时间戳 |
 | **速率限制** | 令牌桶算法，基于角色的限流（50-200 次/分钟） |
+| **暴力破解防护** | 失败锁定 + IP 封禁 + 渐进式延迟 |
+| **请求链路追踪** | X-Request-ID 全链路日志关联 |
+| **数据库自动备份** | SQLite 热备份 + 定时任务 + 保留策略 |
 
 ### Web 管理面板
 
@@ -340,12 +343,26 @@ monitor:
 
 ## 路线图
 
+### v1.1 安全与稳定性（进行中）
+
+- [x] 回滚增强（部署历史链 + 备份持久化 + 一键回滚）
+- [x] 数据库自动备份（SQLite .backup + 定时 + 保留策略）
+- [x] 登录暴力破解防护（失败锁定 + IP 限流）
+- [x] 优雅关机（SIGTERM 处理 + WebSocket 关闭 + 超时）
+- [x] 请求链路追踪（X-Request-ID + 日志关联）
+- [ ] 命令沙箱（白名单 + 黑名单 + 自定义扩展）
+- [ ] 二次确认（状态机 + 按操作类型配置 + MCP 集成）
+- [ ] CLI 工具补全（status/restart/stop/logs/config/upgrade/backup/restore/reset）
+- [ ] Web 终端（xterm.js 在线终端 + 多主机 + 全屏 + 快速命令）
+
+### 近期计划
+
 - [ ] MCP 上下文记忆（会话级操作历史）
 - [ ] 容器镜像仓库管理（Docker Hub、GHCR）
-- [ ] Prometheus / Grafana 指标导出
-- [ ] OAuth 登录（GitHub / Gitee）
 - [ ] 完整的移动端响应式布局
 - [ ] 更多 DNS / 通知提供商
+
+> 完整路线图请查看 [Wiki Roadmap](https://github.com/Yogdunana/deploypilot/wiki/Roadmap)
 
 ---
 

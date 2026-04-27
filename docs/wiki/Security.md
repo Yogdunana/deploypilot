@@ -73,6 +73,27 @@ echo "DEPLOYPILOT_ENCRYPTION_KEY=$DEPLOYPILOT_ENCRYPTION_KEY" >> .env
 - Configurable requests per minute
 - Default: 100 req/min (viewer) to 1000 req/min (owner)
 
+## Brute Force Protection
+- Account lockout after configurable failed attempts (default: 5)
+- IP-based blocking with separate limits (default: 20 attempts)
+- Progressive delay between failed login attempts
+- Configurable lockout and window durations
+- Admin API for viewing lockout status and unlocking accounts/IPs
+
+## Request Tracing
+- Unique trace ID (UUID v4) for every incoming request
+- Propagated via `X-Request-ID` header (supports upstream pass-through)
+- Automatically injected into all structured logs via slog handler
+- Correlated with audit logs for full request chain visibility
+- API endpoint to query audit logs by trace ID
+
+## Database Backup
+- SQLite hot backup using `.backup` API
+- Configurable automatic backup schedule (default: every 6 hours)
+- Retention policies: by count (default: 10) and by age (default: 30 days)
+- Manual backup trigger via API
+- Backup status monitoring endpoint
+
 ## Security Headers
 - Content-Security-Policy
 - X-Content-Type-Options: nosniff
