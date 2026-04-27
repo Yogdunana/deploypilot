@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 
-	appversion "github.com/Yogdunana/deploypilot/internal/version"
 	"github.com/spf13/cobra"
 )
 
