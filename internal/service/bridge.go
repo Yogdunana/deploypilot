@@ -4,14 +4,17 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log/slog"
-	"os"
 	"net/http"
+	"os"
 	"path/filepath"
 	"sort"
 	"strings"
 	"sync"
 	"time"
+
+	"golang.org/x/crypto/ssh"
 
 	"github.com/Yogdunana/deploypilot/internal/agent"
 	"github.com/Yogdunana/deploypilot/internal/crypto"
@@ -319,6 +322,21 @@ func (b *Bridge) getRemoteExecutor(ctx context.Context, serverID string) (*sshCl
 // RemoteExecutor is the interface for remote command execution (used by WebSocket terminal).
 type RemoteExecutor interface {
 	RunCommand(ctx context.Context, cmd string) (string, error)
+	CreateInteractiveSession(ctx context.Context, termType string, rows, cols int) (InteractiveSession, error)
+	Close() error
+}
+
+// InteractiveSession represents a persistent interactive SSH session with PTY.
+type InteractiveSession interface {
+	// StdinPipe returns a writer connected to the session's stdin.
+	StdinPipe() io.Writer
+	// SetWindowSize resizes the PTY.
+	SetWindowSize(rows, cols int) error
+	// Output returns a channel that receives stdout+stderr output.
+	Output() <-chan []byte
+	// Done returns a channel that is closed when the session exits.
+	Done() <-chan struct{}
+	// Close terminates the session.
 	Close() error
 }
 
@@ -336,8 +354,118 @@ func (e *sshClientExecutor) RunCommand(ctx context.Context, cmd string) (string,
 	return e.Client.RunCommand(ctx, cmd)
 }
 
+func (e *sshClientExecutor) CreateInteractiveSession(ctx context.Context, termType string, rows, cols int) (InteractiveSession, error) {
+	session, err := e.Client.CreateSession(ctx, true, termType, rows, cols)
+	if err != nil {
+		return nil, err
+	}
+	return newInteractiveSession(session), nil
+}
+
 func (e *sshClientExecutor) Close() error {
 	return e.Client.Close()
+}
+
+// interactiveSession wraps an ssh.Session to implement InteractiveSession.
+type interactiveSession struct {
+	session *ssh.Session
+	stdin   io.WriteCloser
+	output  chan []byte
+	done    chan struct{}
+}
+
+func newInteractiveSession(session *ssh.Session) *interactiveSession {
+	is := &interactiveSession{
+		session: session,
+		output:  make(chan []byte, 256),
+		done:    make(chan struct{}),
+	}
+	// Get stdin pipe
+	stdinPipe, err := session.StdinPipe()
+	if err != nil {
+		close(is.done)
+		return is
+	}
+	is.stdin = stdinPipe
+
+	// Pipe stdout and stderr to output channel
+	stdoutPipe, err := session.StdoutPipe()
+	if err != nil {
+		close(is.done)
+		return is
+	}
+	stderrPipe, err := session.StderrPipe()
+	if err != nil {
+		close(is.done)
+		return is
+	}
+
+	// Start shell
+	if err := session.Shell(); err != nil {
+		close(is.done)
+		return is
+	}
+
+	// Read stdout in goroutine
+	go func() {
+		buf := make([]byte, 4096)
+		for {
+			n, err := stdoutPipe.Read(buf)
+			if n > 0 {
+				data := make([]byte, n)
+				copy(data, buf[:n])
+				is.output <- data
+			}
+			if err != nil {
+				break
+			}
+		}
+	}()
+
+	// Read stderr in goroutine
+	go func() {
+		buf := make([]byte, 4096)
+		for {
+			n, err := stderrPipe.Read(buf)
+			if n > 0 {
+				data := make([]byte, n)
+				copy(data, buf[:n])
+				is.output <- data
+			}
+			if err != nil {
+				break
+			}
+		}
+	}()
+
+	// Wait for session to exit
+	go func() {
+		_ = session.Wait()
+		close(is.done)
+	}()
+
+	return is
+}
+
+func (is *interactiveSession) StdinPipe() io.Writer {
+	return is.stdin
+}
+
+func (is *interactiveSession) SetWindowSize(rows, cols int) error {
+	return is.session.WindowChange(rows, cols)
+}
+
+func (is *interactiveSession) Output() <-chan []byte {
+	return is.output
+}
+
+func (is *interactiveSession) Done() <-chan struct{} {
+	return is.done
+}
+
+func (is *interactiveSession) Close() error {
+	_ = is.stdin.Close()
+	return is.session.Close()
 }
 
 // ---------- 1. Deploy ----------

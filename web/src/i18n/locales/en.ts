@@ -412,6 +412,7 @@ export default {
     serverNotFound: 'Server not found',
     fetchFailed: 'Failed to fetch server info',
     disconnectedMsg: 'Terminal connection closed',
+    quickCommands: 'Quick Commands',
   },
 
   serverEnvironment: {
