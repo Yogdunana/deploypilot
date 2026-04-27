@@ -1487,7 +1487,7 @@ func TestListDeployments_DBError(t *testing.T) {
 		status TEXT DEFAULT 'deploying', preflight_code TEXT,
 		preflight_message TEXT, preflight_checks TEXT, error_message TEXT,
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-	)`
+	)`)
 	sqlDB, _ := db.DB()
 	_ = sqlDB.Close()
 
