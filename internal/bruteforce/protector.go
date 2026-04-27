@@ -197,18 +197,8 @@ func (p *Protector) RecordSuccess(username, ip string) {
 		delete(p.accounts, username)
 	}
 
-	// Clear IP failures (only if no other accounts are failing from this IP)
-	if ipState, ok := p.ips[ip]; ok {
-		// Only clear if all recent failures are for this username
-		allSameUser := true
-		for _, a := range ipState.Attempts {
-			// We don't store username in IP records, so just clear on success
-			_ = a
-		}
-		if allSameUser {
-			delete(p.ips, ip)
-		}
-	}
+	// Clear IP failures on successful login
+	delete(p.ips, ip)
 }
 
 // GetAccountStatus returns the current brute-force status for an account.

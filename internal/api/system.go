@@ -435,6 +435,6 @@ func GetAuditLogsByTraceID(auditSvc *service.AuditService) gin.HandlerFunc {
 		if logs == nil {
 			logs = []model.AuditLog{}
 		}
-		c.JSON(http.StatusOK, gin.H{"trace_id": traceID, "total": total, "logs": logs})
+		respondSuccess(c, gin.H{"trace_id": traceID, "total": total, "logs": logs})
 	}
 }

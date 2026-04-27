@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/Yogdunana/deploypilot/internal/auth"
+	"github.com/Yogdunana/deploypilot/internal/backup"
 	"github.com/Yogdunana/deploypilot/internal/crypto"
 	"github.com/Yogdunana/deploypilot/internal/model"
 	"github.com/Yogdunana/deploypilot/internal/service"
@@ -1572,8 +1573,9 @@ func TestListBackups_Direct(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Exec("VACUUM")
 
+	backupSvc := backup.New(backup.Config{BackupDir: t.TempDir()}, db, "sqlite", "")
 	r := gin.New()
-	r.GET("/api/v1/apps/:id/backups", ListBackups(db))
+	r.GET("/api/v1/apps/:id/backups", ListBackups(backupSvc))
 	req := httptest.NewRequest("GET", "/api/v1/apps/some-id/backups", nil)
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
@@ -1588,8 +1590,9 @@ func TestDeleteBackup_Direct(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Exec("VACUUM")
 
+	backupSvc := backup.New(backup.Config{BackupDir: t.TempDir()}, db, "sqlite", "")
 	r := gin.New()
-	r.DELETE("/api/v1/apps/:id/backups/:backupId", DeleteBackup(db))
+	r.DELETE("/api/v1/apps/:id/backups/:backupId", DeleteBackup(backupSvc))
 	req := httptest.NewRequest("DELETE", "/api/v1/apps/some-id/backups/backup-123", nil)
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)

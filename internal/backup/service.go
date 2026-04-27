@@ -398,6 +398,23 @@ func (s *Service) ListRecords(limit int) ([]Record, error) {
 	return records, nil
 }
 
+// ListByApp returns backup records for a specific application.
+func (s *Service) ListByApp(appID string, limit int) ([]Record, error) {
+	if s.db == nil {
+		return nil, fmt.Errorf("database not available")
+	}
+	if limit <= 0 || limit > 100 {
+		limit = 20
+	}
+
+	var records []Record
+	err := s.db.Where("app_id = ?", appID).Order("created_at DESC").Limit(limit).Find(&records).Error
+	if err != nil {
+		return nil, fmt.Errorf("failed to list backup records for app: %w", err)
+	}
+	return records, nil
+}
+
 // DeleteRecord deletes a backup record and its file.
 func (s *Service) DeleteRecord(id string) error {
 	if s.db == nil {
