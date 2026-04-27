@@ -13,8 +13,8 @@ import (
 	"gorm.io/gorm/logger"
 )
 
-// setupTestDB creates an in-memory SQLite database for testing.
-func setupTestDB(t *testing.T) *gorm.DB {
+// setupRollbackTestDB creates an in-memory SQLite database for rollback testing.
+func setupRollbackTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Silent),
@@ -65,7 +65,7 @@ func setupTestDB(t *testing.T) *gorm.DB {
 }
 
 func TestFindPreviousSuccessfulImage(t *testing.T) {
-	db := setupTestDB(t)
+	db := setupRollbackTestDB(t)
 	defer func() { _ = db.Exec("DROP TABLE deployments") }()
 
 	b := &Bridge{DB: db}
@@ -92,7 +92,7 @@ func TestFindPreviousSuccessfulImage(t *testing.T) {
 }
 
 func TestFindPreviousSuccessfulImage_NoRecords(t *testing.T) {
-	db := setupTestDB(t)
+	db := setupRollbackTestDB(t)
 	defer func() { _ = db.Exec("DROP TABLE deployments") }()
 
 	b := &Bridge{DB: db}
@@ -104,7 +104,7 @@ func TestFindPreviousSuccessfulImage_NoRecords(t *testing.T) {
 }
 
 func TestBuildRollbackConfig_FromAppRecord(t *testing.T) {
-	db := setupTestDB(t)
+	db := setupRollbackTestDB(t)
 	defer func() {
 		_ = db.Exec("DROP TABLE deployments")
 		_ = db.Exec("DROP TABLE apps")
@@ -142,7 +142,7 @@ func TestBuildRollbackConfig_FromAppRecord(t *testing.T) {
 }
 
 func TestBuildRollbackConfig_FromConfigSnapshot(t *testing.T) {
-	db := setupTestDB(t)
+	db := setupRollbackTestDB(t)
 	defer func() {
 		_ = db.Exec("DROP TABLE deployments")
 		_ = db.Exec("DROP TABLE apps")
@@ -192,7 +192,7 @@ func TestBuildRollbackConfig_FromConfigSnapshot(t *testing.T) {
 }
 
 func TestBuildRollbackConfig_NoAppRecord(t *testing.T) {
-	db := setupTestDB(t)
+	db := setupRollbackTestDB(t)
 	defer func() { _ = db.Exec("DROP TABLE apps") }()
 
 	b := &Bridge{DB: db}
@@ -212,7 +212,7 @@ func TestBuildRollbackConfig_NoAppRecord(t *testing.T) {
 }
 
 func TestSaveRollbackRecord(t *testing.T) {
-	db := setupTestDB(t)
+	db := setupRollbackTestDB(t)
 	defer func() { _ = db.Exec("DROP TABLE deployments") }()
 
 	b := &Bridge{DB: db}
@@ -250,7 +250,7 @@ func TestSaveRollbackRecord(t *testing.T) {
 }
 
 func TestGetDeploymentHistory(t *testing.T) {
-	db := setupTestDB(t)
+	db := setupRollbackTestDB(t)
 	defer func() { _ = db.Exec("DROP TABLE deployments") }()
 
 	b := &Bridge{DB: db}
@@ -278,7 +278,7 @@ func TestGetDeploymentHistory(t *testing.T) {
 }
 
 func TestGetAppDeploymentHistory(t *testing.T) {
-	db := setupTestDB(t)
+	db := setupRollbackTestDB(t)
 	defer func() {
 		_ = db.Exec("DROP TABLE deployments")
 		_ = db.Exec("DROP TABLE apps")

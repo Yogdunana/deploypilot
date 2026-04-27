@@ -132,6 +132,7 @@ type Deployer interface {
 // DeployConfig mirrors deployer.DeployConfig to avoid circular imports.
 type DeployConfig struct {
 	Image         string            `json:"image"`
+	AppName       string            `json:"app_name,omitempty"`
 	ContainerName string            `json:"container_name"`
 	Ports         string            `json:"ports,omitempty"`
 	EnvVars       map[string]string `json:"env_vars,omitempty"`
@@ -1344,7 +1345,7 @@ func handleRollback(ctx context.Context, deployer Deployer, request mcp.CallTool
 	}
 
 	// previous_image is now optional — auto-resolves from deployment history
-	previousImage, _ := request.Params.GetString("previous_image")
+	previousImage := request.GetString("previous_image", "")
 
 	status, err := deployer.Rollback(ctx, containerName, previousImage)
 	if err != nil {
