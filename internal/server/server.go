@@ -34,6 +34,9 @@ type Server struct {
 func New(addr string, db *gorm.DB, bridge *service.Bridge, cfg *config.Config, blacklist auth.TokenBlacklist, oauthSvc *service.OAuthService) *Server {
 	r := gin.Default()
 
+	// Request tracing — must be first middleware
+	r.Use(middleware.RequestTracing())
+
 	// Security middleware
 	r.Use(middleware.SecurityHeaders())
 	r.Use(corsMiddleware(cfg.Server.CORSAllowedOrigins))

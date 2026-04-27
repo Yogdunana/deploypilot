@@ -3,6 +3,8 @@ package config
 import (
 	"log/slog"
 	"os"
+
+	"github.com/Yogdunana/deploypilot/internal/tracing"
 )
 
 // InitLogger configures the global slog logger based on the provided LogConfig.
@@ -28,5 +30,6 @@ func InitLogger(cfg LogConfig) {
 		handler = slog.NewTextHandler(os.Stdout, handlerOpts)
 	}
 
+	handler = tracing.NewTraceHandler(handler)
 	slog.SetDefault(slog.New(handler))
 }

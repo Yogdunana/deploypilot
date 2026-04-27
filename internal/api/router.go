@@ -191,6 +191,7 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 
 		// Audit logs
 		protected.GET("/audit-logs", ListAuditLogs(auditSvc))
+		protected.GET("/audit-logs/trace/:trace_id", GetAuditLogsByTraceID(auditSvc))
 
 		// System (4 endpoints)
 		system := protected.Group("/system")

@@ -108,11 +108,12 @@ type SecurityConfig struct {
 
 // LogConfig holds logging settings.
 type LogConfig struct {
-	Level      string `mapstructure:"level"`
-	Format     string `mapstructure:"format"`
-	File       string `mapstructure:"file"`
-	MaxSize    string `mapstructure:"max_size"`
-	MaxBackups int    `mapstructure:"max_backups"`
+	Level         string `mapstructure:"level"`
+	Format        string `mapstructure:"format"`
+	File          string `mapstructure:"file"`
+	MaxSize       string `mapstructure:"max_size"`
+	MaxBackups    int    `mapstructure:"max_backups"`
+	EnableTracing bool   `mapstructure:"enable_tracing"`
 }
 
 // NotifyConfig holds notification settings.
@@ -235,6 +236,7 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("log.file", "./logs/deploypilot.log")
 	v.SetDefault("log.max_size", "100MB")
 	v.SetDefault("log.max_backups", 10)
+	v.SetDefault("log.enable_tracing", true)
 
 	// Notify
 	v.SetDefault("notify.default_channels", []string{"webhook"})

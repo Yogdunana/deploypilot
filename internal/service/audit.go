@@ -62,6 +62,7 @@ type AuditEntry struct {
 	Detail       interface{} // will be JSON-marshaled
 	IPAddress    string
 	UserAgent    string
+	TraceID      string
 }
 
 // AuditFilter defines filtering options for listing audit logs.
@@ -69,6 +70,7 @@ type AuditFilter struct {
 	UserID       uint
 	Action       string
 	ResourceType string
+	TraceID      string
 	Page         int
 	PageSize     int
 }
@@ -109,6 +111,7 @@ func (s *AuditService) Record(ctx context.Context, entry AuditEntry) error {
 		Detail:       detail,
 		IPAddress:    entry.IPAddress,
 		UserAgent:    entry.UserAgent,
+		TraceID:      entry.TraceID,
 	}
 
 	// Compute HMAC-SHA256 hash for tamper-evident integrity
@@ -172,6 +175,9 @@ func (s *AuditService) List(ctx context.Context, filter AuditFilter) ([]model.Au
 	if filter.ResourceType != "" {
 		query = query.Where("resource_type = ?", filter.ResourceType)
 	}
+	if filter.TraceID != "" {
+		query = query.Where("trace_id = ?", filter.TraceID)
+	}
 
 	if err := query.Count(&total).Error; err != nil {
 		return nil, 0, err
@@ -191,6 +197,28 @@ func (s *AuditService) List(ctx context.Context, filter AuditFilter) ([]model.Au
 
 	offset := (page - 1) * pageSize
 	if err := query.Order("created_at DESC").Offset(offset).Limit(pageSize).Find(&logs).Error; err != nil {
+		return nil, 0, err
+	}
+
+	if logs == nil {
+		logs = []model.AuditLog{}
+	}
+
+	return logs, total, nil
+}
+
+// ListByTraceID returns audit logs filtered by trace ID.
+func (s *AuditService) ListByTraceID(ctx context.Context, traceID string) ([]model.AuditLog, int64, error) {
+	var logs []model.AuditLog
+	var total int64
+
+	query := s.db.WithContext(ctx).Model(&model.AuditLog{}).Where("trace_id = ?", traceID)
+
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	if err := query.Order("created_at DESC").Find(&logs).Error; err != nil {
 		return nil, 0, err
 	}
 

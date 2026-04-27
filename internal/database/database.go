@@ -380,6 +380,16 @@ func Migrate(db *gorm.DB) error {
 				return tx.Migrator().DropTable("backup_records")
 			},
 		},
+		// 202604270003: Add trace_id column to audit_logs
+		{
+			ID: "202604270003",
+			Migrate: func(tx *gorm.DB) error {
+				return tx.Exec("ALTER TABLE audit_logs ADD COLUMN trace_id TEXT DEFAULT ''").Error
+			},
+			Rollback: func(tx *gorm.DB) error {
+				return nil
+			},
+		},
 	})
 
 	// Use InitSchema for initial creation (faster than Migrate)

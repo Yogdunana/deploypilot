@@ -162,6 +162,7 @@ type AuditLog struct {
 	IPAddress    string    `json:"ip_address" gorm:"size:45"`
 	UserAgent    string    `json:"user_agent" gorm:"size:500"`
 	RecordHash   string    `json:"record_hash" gorm:"column:record_hash;size:128"`
+	TraceID      string    `json:"trace_id,omitempty" gorm:"size:36;index"`
 	CreatedAt    time.Time `json:"created_at" gorm:"autoCreateTime"`
 }
 
