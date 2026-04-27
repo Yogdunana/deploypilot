@@ -82,6 +82,7 @@ type WSHub struct {
 	unregister chan *wsClient
 	done       chan struct{} // signals the Run loop to stop
 	closeOnce  sync.Once     // ensures Close() is safe to call multiple times
+	runDone    chan struct{} // closed when Run() goroutine exits
 }
 
 // NewWSHub creates a new WSHub.
@@ -91,11 +92,13 @@ func NewWSHub() *WSHub {
 		register:   make(chan *wsClient),
 		unregister: make(chan *wsClient),
 		done:       make(chan struct{}),
+		runDone:    make(chan struct{}),
 	}
 }
 
 // Run starts the background goroutine that handles register/unregister events.
 func (h *WSHub) Run() {
+	defer close(h.runDone)
 	for {
 		select {
 		case <-h.done:
@@ -129,6 +132,8 @@ func (h *WSHub) Close() {
 	h.closeOnce.Do(func() {
 		close(h.done) // signal Run() to exit
 	})
+
+	<-h.runDone // wait for Run() goroutine to exit
 
 	h.mu.Lock()
 	defer h.mu.Unlock()
