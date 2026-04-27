@@ -349,7 +349,6 @@ func (p *Protector) cleanup() {
 	defer p.mu.Unlock()
 
 	now := time.Now()
-	cutoff := now.Add(-p.config.WindowDuration)
 
 	for key, state := range p.accounts {
 		p.pruneOld(state, now)
