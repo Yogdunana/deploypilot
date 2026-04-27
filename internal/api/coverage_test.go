@@ -1479,7 +1479,15 @@ func TestTestServer_BridgeError(t *testing.T) {
 func TestListDeployments_DBError(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	db, _ := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
-	_ = db.Exec("CREATE TABLE deployments (id TEXT PRIMARY KEY, status TEXT)")
+	_ = db.Exec(`CREATE TABLE deployments (
+		id TEXT PRIMARY KEY, tenant_id TEXT, server_id TEXT,
+		app_name TEXT, app_id TEXT, container_name TEXT, image TEXT,
+		previous_image TEXT, deploy_type TEXT DEFAULT 'deploy',
+		config_snapshot TEXT,
+		status TEXT DEFAULT 'deploying', preflight_code TEXT,
+		preflight_message TEXT, preflight_checks TEXT, error_message TEXT,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+	)`
 	sqlDB, _ := db.DB()
 	_ = sqlDB.Close()
 
@@ -1497,7 +1505,15 @@ func TestListDeployments_DBError(t *testing.T) {
 func TestGetDeployment_DBError(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	db, _ := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
-	_ = db.Exec("CREATE TABLE deployments (id TEXT PRIMARY KEY, status TEXT)")
+	_ = db.Exec(`CREATE TABLE deployments (
+		id TEXT PRIMARY KEY, tenant_id TEXT, server_id TEXT,
+		app_name TEXT, app_id TEXT, container_name TEXT, image TEXT,
+		previous_image TEXT, deploy_type TEXT DEFAULT 'deploy',
+		config_snapshot TEXT,
+		status TEXT DEFAULT 'deploying', preflight_code TEXT,
+		preflight_message TEXT, preflight_checks TEXT, error_message TEXT,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+	)`)
 	sqlDB, _ := db.DB()
 	_ = sqlDB.Close()
 
