@@ -122,7 +122,7 @@ func fetchLatestRelease(ctx context.Context) (*GitHubRelease, error) {
 	if err != nil {
 		return nil, fmt.Errorf("fetch release: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
@@ -389,17 +389,18 @@ func (us *UpgradeService) downloadBinaries(ctx context.Context, ver string) erro
 
 	// Map GOARCH to release binary naming
 	archStr := arch
-	if arch == "amd64" {
-		archStr = "amd64"
-	} else if arch == "arm64" {
-		archStr = "arm64"
+	switch arch {
+	case "amd64", "arm64":
+		// already correct
+	default:
+		archStr = arch
 	}
 
 	tmpDir := filepath.Join(us.installDir, "tmp")
 	if err := os.MkdirAll(tmpDir, 0750); err != nil {
 		return fmt.Errorf("create tmp dir: %w", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	binaries := []string{"api-server", "mcp-server", "deploypilot"}
 	for i, binary := range binaries {
@@ -417,7 +418,7 @@ func (us *UpgradeService) downloadBinaries(ctx context.Context, ver string) erro
 		}
 
 		// Make executable
-		if err := os.Chmod(destPath, 0755); err != nil {
+		if err := os.Chmod(destPath, 0755); err != nil { //nolint:gosec // binary needs execute permission
 			return fmt.Errorf("chmod %s: %w", binary, err)
 		}
 	}
@@ -444,7 +445,7 @@ func (us *UpgradeService) verifyBinaries() error {
 		}
 
 		// Check if binary is executable
-		cmd := exec.Command(path, "--version")
+		cmd := exec.Command(path, "--version") //nolint:gosec // path is validated above
 		output, err := cmd.CombinedOutput()
 		if err != nil {
 			return fmt.Errorf("%s --version failed: %w (output: %s)", binary, err, string(output))
@@ -471,7 +472,7 @@ func (us *UpgradeService) restartServices() error {
 		}
 
 		slog.Info("restarting service", "service", svc)
-		cmd := exec.Command("systemctl", "restart", svc)
+		cmd := exec.Command("systemctl", "restart", svc) //nolint:gosec // svc is from a fixed list
 		if output, err := cmd.CombinedOutput(); err != nil {
 			return fmt.Errorf("restart %s: %w (output: %s)", svc, err, string(output))
 		}
@@ -519,7 +520,7 @@ func downloadFile(ctx context.Context, url, destPath string) error {
 	if err != nil {
 		return fmt.Errorf("download: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("HTTP %d for %s", resp.StatusCode, url)
@@ -529,7 +530,7 @@ func downloadFile(ctx context.Context, url, destPath string) error {
 	if err != nil {
 		return fmt.Errorf("create file: %w", err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	if _, err := io.Copy(f, resp.Body); err != nil {
 		return fmt.Errorf("write file: %w", err)
