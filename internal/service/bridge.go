@@ -14,9 +14,7 @@ import (
 	"sync"
 	"time"
 
-	"go.uber.org/zap"
 	"golang.org/x/crypto/ssh"
-	"gorm.io/gorm"
 
 	"github.com/Yogdunana/deploypilot/internal/agent"
 	"github.com/Yogdunana/deploypilot/internal/crypto"
