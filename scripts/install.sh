@@ -37,12 +37,12 @@ function print_banner() {
     echo -e "${CYAN}"
     echo "╔═══════════════════════════════════════════════════════════════╗"
     echo "║                                                               ║"
-    echo "║   ██████╗ ███████╗██████╗ ██╗      ██████╗ ██╗   ██╗          ║"
-    echo "║   ██╔══██╗██╔════╝██╔══██╗██║     ██╔═══██╗╚██╗ ██╔╝          ║"
-    echo "║   ██║  ██║█████╗  ██████╔╝██║     ██║   ██║ ╚████╔╝           ║"
-    echo "║   ██║  ██║██╔══╝  ██╔═══╝ ██║     ██║   ██║  ╚██╔╝            ║"
-    echo "║   ██████╔╝███████╗██║     ███████╗╚██████╔╝   ██║             ║"
-    echo "║   ╚═════╝ ╚══════╝╚═╝     ╚══════╝ ╚═════╝    ╚═╝             ║"
+    echo "║   ██████╗ ███████╗██████╗ ██╗      ██████╗ ██╗   ██╗ ██████╗ ███████╗██████╗ ║"
+    echo "║   ██╔══██╗██╔════╝██╔══██╗██║     ██╔═══██╗╚██╗ ██╔╝██╔════╝ ██╔════╝██╔══██╗║"
+    echo "║   ██║  ██║█████╗  ██████╔╝██║     ██║   ██║ ╚████╔╝ █████╗  ██████╗ ██████╔╝║"
+    echo "║   ██║  ██║██╔══╝  ██╔═══╝ ██║     ██║   ██║  ╚██╔╝  ██╔══╝  ██╔═══╝ ██╔═══╝ ║"
+    echo "║   ██████╔╝███████╗██║     ███████╗╚██████╔╝   ██║   ███████╗██║     ██║      ║"
+    echo "║   ╚═════╝ ╚══════╝╚═╝     ╚══════╝ ╚═════╝    ╚═╝   ╚══════╝╚═╝     ╚═╝      ║"
     echo "║                                                               ║"
     echo "║                     一键安装脚本 v${SCRIPT_VERSION}                      ║"
     echo "║                                                               ║"
@@ -308,8 +308,8 @@ validate_port() {
 
 validate_install_dir() {
     local dir="$1"
-    if [[ "$dir" =~ [\$\`\|\;\&\>\<\(\)\{\}\[\]'"\!\\~
-] ]]; then
+    local bad_chars='[\$\`\|\;\&\>\<\(\)\{\}\[\]\\!~]'
+    if [[ "$dir" =~ ["\']"$bad_chars"["\'] ]] || [[ "$dir" =~ $bad_chars ]]; then
         print_error "安装路径包含非法字符"
         exit 1
     fi
@@ -433,13 +433,11 @@ server:
   port: ${PORT}
   host: 0.0.0.0
 database:
-  path: ${INSTALL_DIR}/data/deploypilot.db
-storage:
-  data_dir: ${INSTALL_DIR}/data
-  logs_dir: ${INSTALL_DIR}/logs
-  backups_dir: ${INSTALL_DIR}/backups
+  type: sqlite
+  dsn: ${INSTALL_DIR}/data/deploypilot.db
 auth:
   jwt_secret: ${JWT_SECRET}
+  token_expire: 24h
 EOF
 
     chmod 600 "$INSTALL_DIR/config/config.yaml"
@@ -455,18 +453,7 @@ EOF
     chown -R deploypilot:deploypilot "$INSTALL_DIR"
 
     print_info "正在初始化用户账号..."
-    cat > "$INSTALL_DIR/data/initial-users.json" << EOF
-[
-  {
-    "username": "${USERNAME}",
-    "password": "${PASSWORD}",
-    "role": "admin"
-  }
-]
-EOF
-    chown deploypilot:deploypilot "$INSTALL_DIR/data/initial-users.json"
-    chmod 600 "$INSTALL_DIR/data/initial-users.json"
-    print_success "用户初始化完成"
+    # Note: Users are created via API after the service starts (see below)
 
     print_step "10/10" "配置系统服务"
 
@@ -527,9 +514,20 @@ EOF
     # Start services
     print_info "正在启动 DeployPilot..."
     systemctl start deploypilot
-    sleep 2
+    sleep 3
     if systemctl is-active --quiet deploypilot; then
         print_success "DeployPilot API Server 启动成功"
+
+        # Create admin user via API
+        print_info "正在创建管理员账号..."
+        REGISTER_RESP=$(curl -s -X POST "http://localhost:${PORT}/api/v1/auth/register" \
+            -H "Content-Type: application/json" \
+            -d "{\"username\": \"${USERNAME}\", \"password\": \"${PASSWORD}\"}" 2>&1)
+        if echo "$REGISTER_RESP" | grep -q '"id"'; then
+            print_success "管理员账号创建成功"
+        else
+            print_warning "管理员账号创建失败（可能已存在），请手动注册: http://${IP_ADDRESS}:${PORT}"
+        fi
     else
         print_warning "DeployPilot API Server 启动失败，请检查日志: ${INSTALL_DIR}/logs/deploypilot.err.log"
     fi
@@ -564,8 +562,8 @@ EOF
     echo '  {'
     echo '    "mcpServers": {'
     echo '      "deploypilot": {'
-    echo '        "command": "/opt/deploypilot/bin/mcp-server",'
-    echo '        "args": ["--config", "/opt/deploypilot/config/config.yaml"]'
+    echo "        \"command\": \"${INSTALL_DIR}/bin/mcp-server\","
+    echo "        \"args\": [\"--config\", \"${INSTALL_DIR}/config/config.yaml\"]"
     echo '      }'
     echo '    }'
     echo '  }'

@@ -189,8 +189,10 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 		{
 			system.GET("/version", GetVersion)
 			system.GET("/update/check", CheckUpdate(bridge))
-			system.GET("/health", SystemHealth(db))
 		}
+
+	// Public health check endpoint (no auth required for Docker healthcheck)
+	api.GET("/system/health", SystemHealth(db))
 
 		// Deployments (2 endpoints)
 		deployments := protected.Group("/deployments")
