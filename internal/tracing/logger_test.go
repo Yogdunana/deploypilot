@@ -13,9 +13,8 @@ type mockHandler struct {
 }
 
 type mockRecord struct {
-	msg    string
-	attrs  map[string]string
-	groups []string
+	msg   string
+	attrs map[string]string
 }
 
 func (h *mockHandler) Enabled(_ context.Context, _ slog.Level) bool {
