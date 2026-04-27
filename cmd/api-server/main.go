@@ -88,7 +88,7 @@ func run(configFilePath, cliDriver, cliDSN, cliAddr string) error {
 	// Inject JWT secret from config into environment for jwt.go's os.Getenv("JWT_SECRET")
 	// This bridges config.yaml / DEPLOYPILOT_AUTH_JWT_SECRET → JWT_SECRET
 	if cfg.Auth.JWTSecret != "" && os.Getenv("JWT_SECRET") == "" {
-		os.Setenv("JWT_SECRET", cfg.Auth.JWTSecret)
+		_ = os.Setenv("JWT_SECRET", cfg.Auth.JWTSecret)
 	}
 
 	// Initialize structured logger
