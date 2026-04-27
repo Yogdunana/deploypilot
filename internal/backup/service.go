@@ -235,18 +235,17 @@ func (s *Service) backupSQLite(ctx context.Context) (string, int64, error) {
 	if err != nil {
 		return "", 0, fmt.Errorf("failed to open source database: %w", err)
 	}
-	defer func() { _ = srcDB.Close() }()
-
 	sqlDB, err := srcDB.DB()
 	if err != nil {
 		return "", 0, fmt.Errorf("failed to get underlying sql.DB: %w", err)
 	}
+	defer sqlDB.Close()
 
 	// Use BACKUP command for hot copy
-	result := sqlDB.Exec(fmt.Sprintf("VACUUM INTO '%s'", backupPath))
-	if result.Error != nil {
+	_, err = sqlDB.Exec(fmt.Sprintf("VACUUM INTO '%s'", backupPath))
+	if err != nil {
 		// Fallback: use file copy if VACUUM INTO fails (older SQLite versions)
-		slog.Debug("VACUUM INTO failed, falling back to file copy", "error", result.Error)
+		slog.Debug("VACUUM INTO failed, falling back to file copy", "error", err)
 		backupPath, fileSize, copyErr := s.fileCopyBackup(dbPath, backupPath)
 		if copyErr != nil {
 			return "", 0, copyErr
