@@ -80,7 +80,6 @@ type WSHub struct {
 	mu         sync.RWMutex
 	register   chan *wsClient
 	unregister chan *wsClient
-	done       chan struct{}
 }
 
 // NewWSHub creates a new WSHub.
@@ -89,7 +88,6 @@ func NewWSHub() *WSHub {
 		clients:    make(map[string]map[*websocket.Conn]bool),
 		register:   make(chan *wsClient),
 		unregister: make(chan *wsClient),
-		done:       make(chan struct{}),
 	}
 }
 
@@ -97,8 +95,6 @@ func NewWSHub() *WSHub {
 func (h *WSHub) Run() {
 	for {
 		select {
-		case <-h.done:
-			return
 		case client := <-h.register:
 			h.mu.Lock()
 			if h.clients[client.appID] == nil {
