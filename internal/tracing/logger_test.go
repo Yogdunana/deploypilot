@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 	"testing"
+	"time"
 )
 
 // mockHandler collects records for inspection.
@@ -22,7 +23,8 @@ func (h *mockHandler) Enabled(_ context.Context, _ slog.Level) bool {
 }
 
 func (h *mockHandler) Handle(_ context.Context, r slog.Record) error {
-	rec := mockRecord{msg: r.Message(), attrs: make(map[string]string)}
+	msg := r.Message
+	rec := mockRecord{msg: msg, attrs: make(map[string]string)}
 	r.Attrs(func(a slog.Attr) bool {
 		rec.attrs[a.Key] = a.Value.String()
 		return true
@@ -50,7 +52,7 @@ func TestTraceHandler_InjectsTraceID(t *testing.T) {
 	traceID := "abc-123-def"
 	ctx := ContextWithTraceID(context.Background(), traceID)
 
-	r := slog.NewRecord(0, slog.LevelInfo, "test message", 0)
+	r := slog.NewRecord(time.Now(), slog.LevelInfo, "test message")
 	if err := handler.Handle(ctx, r); err != nil {
 		t.Fatalf("Handle() error: %v", err)
 	}
@@ -69,7 +71,7 @@ func TestTraceHandler_NoTraceID(t *testing.T) {
 
 	ctx := context.Background()
 
-	r := slog.NewRecord(0, slog.LevelInfo, "test message", 0)
+	r := slog.NewRecord(time.Now(), slog.LevelInfo, "test message")
 	if err := handler.Handle(ctx, r); err != nil {
 		t.Fatalf("Handle() error: %v", err)
 	}
@@ -92,7 +94,7 @@ func TestTraceHandler_WithAttrs(t *testing.T) {
 	traceID := "trace-456"
 	ctx := ContextWithTraceID(context.Background(), traceID)
 
-	r := slog.NewRecord(0, slog.LevelInfo, "test", 0)
+	r := slog.NewRecord(time.Now(), slog.LevelInfo, "test")
 	if err := wrapped.Handle(ctx, r); err != nil {
 		t.Fatalf("Handle() error: %v", err)
 	}
@@ -111,7 +113,7 @@ func TestTraceHandler_WithGroup(t *testing.T) {
 	traceID := "trace-789"
 	ctx := ContextWithTraceID(context.Background(), traceID)
 
-	r := slog.NewRecord(0, slog.LevelInfo, "test", 0)
+	r := slog.NewRecord(time.Now(), slog.LevelInfo, "test")
 	if err := wrapped.Handle(ctx, r); err != nil {
 		t.Fatalf("Handle() error: %v", err)
 	}
