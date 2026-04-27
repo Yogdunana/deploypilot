@@ -28,8 +28,10 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
 	"strconv"
+	"syscall"
 	"time"
 
 	_ "github.com/Yogdunana/deploypilot/docs/swagger"
@@ -190,21 +192,74 @@ func run(configFilePath, cliDriver, cliDSN, cliAddr string) error {
 
 	// Initialize and start Prometheus metrics server
 	metrics.Init()
+	metricsServer := &http.Server{
+		Addr:         ":" + strconv.Itoa(cfg.Monitor.MetricsPort),
+		Handler:      metrics.Handler(),
+		ReadTimeout:  10 * time.Second,
+		WriteTimeout: 10 * time.Second,
+	}
 	go func() {
-		metricsPort := strconv.Itoa(cfg.Monitor.MetricsPort)
-		slog.Info("starting metrics server", "port", metricsPort)
-		metricsServer := &http.Server{
-			Addr:         ":" + metricsPort,
-			Handler:      metrics.Handler(),
-			ReadTimeout:  10 * time.Second,
-			WriteTimeout: 10 * time.Second,
-		}
-		if err := metricsServer.ListenAndServe(); err != nil {
+		slog.Info("starting metrics server", "port", cfg.Monitor.MetricsPort)
+		if err := metricsServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			slog.Error("metrics server failed", "error", err)
 		}
 	}()
 
+	// Start the API server in a goroutine so we can handle shutdown signals
+	serverErr := make(chan error, 1)
+	go func() {
+		serverErr <- srv.Run()
+	}()
+
 	slog.Info("DeployPilot API server starting", "version", appversion.Version, "addr", listenAddr)
 	slog.Info("database configured", "type", cfg.Database.Type, "dsn", cfg.Database.DSN)
-	return srv.Run()
+
+	// Wait for shutdown signal or server error
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+
+	select {
+	case err := <-serverErr:
+		return fmt.Errorf("server error: %w", err)
+	case sig := <-quit:
+		slog.Info("received shutdown signal", "signal", sig.String())
+	}
+
+	// Graceful shutdown with timeout
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer shutdownCancel()
+
+	slog.Info("starting graceful shutdown (timeout: 15s)...")
+
+	// 1. Shutdown metrics server
+	if err := metricsServer.Shutdown(shutdownCtx); err != nil {
+		slog.Warn("metrics server shutdown error", "error", err)
+	}
+
+	// 2. Shutdown main API server (includes WebSocket hub closure)
+	if err := srv.Shutdown(shutdownCtx); err != nil {
+		slog.Warn("API server shutdown error", "error", err)
+	}
+
+	// 3. Stop monitor if running
+	if bridge.Monitor != nil {
+		bridge.Monitor.Stop()
+	}
+
+	// 4. Close event bus
+	if eventBus != nil {
+		if err := eventBus.Close(); err != nil {
+			slog.Warn("event bus close error", "error", err)
+		}
+	}
+
+	// 5. Close database connection
+	if sqlDB, err := db.DB(); err == nil {
+		if err := sqlDB.Close(); err != nil {
+			slog.Warn("database close error", "error", err)
+		}
+	}
+
+	slog.Info("graceful shutdown complete")
+	return nil
 }

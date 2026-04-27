@@ -3,6 +3,7 @@
 package bruteforce
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"sync"
@@ -58,20 +59,26 @@ type AccountState struct {
 
 // Protector provides brute-force protection for login attempts.
 type Protector struct {
-	mu       sync.RWMutex
-	config   Config
+	mu     sync.RWMutex
+	config Config
+	cancel context.CancelFunc // for stopping cleanupLoop
+	done   chan struct{}       // signals cleanupLoop has stopped
+
 	accounts map[string]*AccountState // username -> state
 	ips      map[string]*AccountState // ip -> state
 }
 
 // New creates a new Protector with the given configuration.
 func New(cfg Config) *Protector {
+	ctx, cancel := context.WithCancel(context.Background())
 	p := &Protector{
 		config:   cfg,
+		cancel:   cancel,
+		done:     make(chan struct{}),
 		accounts: make(map[string]*AccountState),
 		ips:      make(map[string]*AccountState),
 	}
-	go p.cleanupLoop()
+	go p.cleanupLoop(ctx)
 	return p
 }
 
@@ -336,12 +343,26 @@ func (p *Protector) calculateDelay(failureCount int) time.Duration {
 	return delay
 }
 
-func (p *Protector) cleanupLoop() {
+func (p *Protector) cleanupLoop(ctx context.Context) {
 	ticker := time.NewTicker(5 * time.Minute)
 	defer ticker.Stop()
-	for range ticker.C {
-		p.cleanup()
+	defer close(p.done)
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			p.cleanup()
+		}
 	}
+}
+
+// Stop gracefully stops the brute-force protector's background cleanup goroutine.
+func (p *Protector) Stop() {
+	if p.cancel != nil {
+		p.cancel()
+	}
+	<-p.done // wait for cleanupLoop to exit
 }
 
 func (p *Protector) cleanup() {

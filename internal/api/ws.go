@@ -74,12 +74,15 @@ type wsClient struct {
 	appID string
 }
 
-// WSHub manages WebSocket connections for broadcasting.
+// WSHub manages WebSocket connections for broadcasting log/deployment events.
 type WSHub struct {
 	clients    map[string]map[*websocket.Conn]bool
 	mu         sync.RWMutex
 	register   chan *wsClient
 	unregister chan *wsClient
+	done       chan struct{} // signals the Run loop to stop
+	closeOnce  sync.Once     // ensures Close() is safe to call multiple times
+	runDone    chan struct{} // closed when Run() goroutine exits
 }
 
 // NewWSHub creates a new WSHub.
@@ -88,13 +91,18 @@ func NewWSHub() *WSHub {
 		clients:    make(map[string]map[*websocket.Conn]bool),
 		register:   make(chan *wsClient),
 		unregister: make(chan *wsClient),
+		done:       make(chan struct{}),
+		runDone:    make(chan struct{}),
 	}
 }
 
 // Run starts the background goroutine that handles register/unregister events.
 func (h *WSHub) Run() {
+	defer close(h.runDone)
 	for {
 		select {
+		case <-h.done:
+			return
 		case client := <-h.register:
 			h.mu.Lock()
 			if h.clients[client.appID] == nil {
@@ -115,6 +123,33 @@ func (h *WSHub) Run() {
 			metrics.WSConnections.Dec()
 		}
 	}
+}
+
+// Close gracefully shuts down the WebSocket hub.
+// It stops the Run loop and closes all active WebSocket connections.
+// Safe to call multiple times.
+func (h *WSHub) Close() {
+	h.closeOnce.Do(func() {
+		close(h.done) // signal Run() to exit
+	})
+
+	<-h.runDone // wait for Run() goroutine to exit
+
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	// Close all active WebSocket connections
+	for appID, conns := range h.clients {
+		for conn := range conns {
+			// Use WriteControl to send a close frame
+			_ = conn.WriteControl(websocket.CloseMessage,
+				websocket.FormatCloseMessage(websocket.CloseNormalClosure, "server shutting down"),
+				time.Now().Add(time.Second))
+			_ = conn.Close()
+		}
+		delete(h.clients, appID)
+	}
+	slog.Info("WebSocket hub closed")
 }
 
 // Register adds a WebSocket connection to the hub for the given appID.
