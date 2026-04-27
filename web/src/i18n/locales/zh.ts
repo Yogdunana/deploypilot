@@ -412,6 +412,7 @@ export default {
     serverNotFound: '服务器不存在',
     fetchFailed: '获取服务器信息失败',
     disconnectedMsg: '已断开终端连接',
+    quickCommands: '快速命令',
   },
 
   serverEnvironment: {

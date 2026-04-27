@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -355,8 +356,18 @@ func streamContainerLogs(ctx context.Context, bridge *service.Bridge, containerN
 	}
 }
 
-// TerminalWS handles WebSocket connections for SSH terminal.
+// TerminalWS handles WebSocket connections for interactive SSH terminal with PTY.
 // GET /ws/terminal/:server_id?ticket=xxx
+//
+// Protocol:
+//   Client → Server:
+//     {"type":"input","data":"<raw keystrokes>"}   — keystrokes to stdin
+//     {"type":"resize","data":{"rows":N,"cols":M}}  — terminal resize
+//   Server → Client:
+//     {"type":"output","data":"<base64>"}           — stdout/stderr (base64 encoded)
+//     {"type":"connected"}                           — session established
+//     {"type":"disconnected","data":"<reason>"}      — session ended
+//     {"type":"error","data":"<message>"}            — error occurred
 func TerminalWS(bridge *service.Bridge, hub *WSHub, ticketStore *auth.WSTicketStore) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// 1. Authenticate via ticket (preferred) or JWT token (backward compat)
@@ -380,54 +391,70 @@ func TerminalWS(bridge *service.Bridge, hub *WSHub, ticketStore *auth.WSTicketSt
 		}
 		defer func() { _ = conn.Close() }()
 
-		// 3. Get server info
-		var serverRow map[string]interface{}
-		if err := bridge.DB.Table("servers").Where("id = ?", serverID).Take(&serverRow).Error; err != nil {
-			hub.Send(conn, WSMessage{
-				Type: "error",
-				Data: "server not found",
-			})
-			return
-		}
-
-		// 4. Connect SSH using bridge's remote executor
+		// 4. Get remote executor
 		remoteExec, err := bridge.GetRemoteExecutorForTerminal(c.Request.Context(), serverID)
 		if err != nil {
-			hub.Send(conn, WSMessage{
-				Type: "error",
-				Data: "SSH connection failed: " + err.Error(),
-			})
+			_ = conn.WriteJSON(WSMessage{Type: "error", Data: "SSH connection failed: " + err.Error()})
 			return
 		}
 		defer func() { _ = remoteExec.Close() }()
 
-		// 5. Read loop: receive commands from client
-		for {
-			_, msg, err := conn.ReadMessage()
-			if err != nil {
-				break
-			}
-			var cmdMsg WSMessage
-			if err := json.Unmarshal(msg, &cmdMsg); err != nil {
-				continue
-			}
-			if cmdMsg.Type == "input" {
-				cmd, ok := cmdMsg.Data.(string)
-				if !ok {
+		// 5. Create interactive PTY session (default 24x80)
+		session, err := remoteExec.CreateInteractiveSession(c.Request.Context(), "xterm-256color", 24, 80)
+		if err != nil {
+			_ = conn.WriteJSON(WSMessage{Type: "error", Data: "Failed to create session: " + err.Error()})
+			return
+		}
+		defer func() { _ = session.Close() }()
+
+		// 6. Notify client that session is ready
+		_ = conn.WriteJSON(WSMessage{Type: "connected"})
+
+		// 7. Read goroutine: WebSocket → SSH stdin
+		go func() {
+			defer func() { _ = session.Close() }()
+			for {
+				_, msg, err := conn.ReadMessage()
+				if err != nil {
+					return // WebSocket closed
+				}
+				var wsMsg WSMessage
+				if err := json.Unmarshal(msg, &wsMsg); err != nil {
 					continue
 				}
-				output, err := remoteExec.RunCommand(c.Request.Context(), cmd)
-				if err != nil {
-					hub.Send(conn, WSMessage{
-						Type: "output",
-						Data: output + "\n" + err.Error(),
-					})
-				} else {
-					hub.Send(conn, WSMessage{
-						Type: "output",
-						Data: output,
-					})
+				switch wsMsg.Type {
+				case "input":
+					if data, ok := wsMsg.Data.(string); ok {
+						_, _ = session.StdinPipe().Write([]byte(data))
+					}
+				case "resize":
+					if m, ok := wsMsg.Data.(map[string]interface{}); ok {
+						rows := int(m["rows"].(float64))
+						cols := int(m["cols"].(float64))
+						_ = session.SetWindowSize(rows, cols)
+					}
 				}
+			}
+		}()
+
+		// 8. Write goroutine: SSH stdout → WebSocket (base64 encoded)
+		outputCh := session.Output()
+		doneCh := session.Done()
+		for {
+			select {
+			case data, ok := <-outputCh:
+				if !ok {
+					_ = conn.WriteJSON(WSMessage{Type: "disconnected", Data: "session closed"})
+					return
+				}
+				// Base64 encode binary data for safe JSON transport
+				encoded := base64.StdEncoding.EncodeToString(data)
+				if err := conn.WriteJSON(WSMessage{Type: "output", Data: encoded}); err != nil {
+					return
+				}
+			case <-doneCh:
+				_ = conn.WriteJSON(WSMessage{Type: "disconnected", Data: "session exited"})
+				return
 			}
 		}
 	}

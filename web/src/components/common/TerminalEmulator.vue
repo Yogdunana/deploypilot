@@ -8,6 +8,7 @@ import '@xterm/xterm/css/xterm.css'
 
 interface Props {
   serverId: string
+  onStatusChange?: (status: 'connecting' | 'connected' | 'disconnected' | 'error') => void
 }
 
 const props = defineProps<Props>()
@@ -17,6 +18,14 @@ let terminal: Terminal | null = null
 let fitAddon: FitAddon | null = null
 let resizeObserver: ResizeObserver | null = null
 
+function decodeBase64(data: string): string {
+  try {
+    return atob(data)
+  } catch {
+    return data
+  }
+}
+
 const { connected, reconnecting, send, disconnect, connect } = useWebSocket({
   path: `/ws/terminal/${props.serverId}`,
   onMessage(data: any) {
@@ -25,26 +34,45 @@ const { connected, reconnecting, send, disconnect, connect } = useWebSocket({
     if (typeof data === 'string') {
       terminal.write(data)
     } else if (data.type === 'output') {
-      terminal.write(data.data || '')
+      // Output is base64 encoded from backend
+      terminal.write(decodeBase64(data.data || ''))
     } else if (data.type === 'error') {
-      terminal.write(`\x1b[31m${data.data || '错误'}\x1b[0m\r\n`)
+      terminal.write(`\x1b[31m${data.data || 'Error'}\x1b[0m\r\n`)
+      props.onStatusChange?.('error')
     } else if (data.type === 'connected') {
-      terminal.write('\x1b[32m已连接到服务器\x1b[0m\r\n')
+      terminal.clear()
+      terminal.write('\x1b[32m✓ Connected to server\x1b[0m\r\n')
+      props.onStatusChange?.('connected')
     } else if (data.type === 'disconnected') {
-      terminal.write('\x1b[31m已断开连接\x1b[0m\r\n')
+      terminal.write(`\r\n\x1b[33m⚠ Disconnected: ${data.data || 'unknown'}\x1b[0m\r\n`)
+      props.onStatusChange?.('disconnected')
     }
   },
   onOpen() {
-    if (terminal) {
-      terminal.write('\x1b[32m正在连接...\x1b[0m\r\n')
-    }
+    props.onStatusChange?.('connecting')
   },
   onClose() {
     if (terminal) {
-      terminal.write('\r\n\x1b[33m连接已关闭\x1b[0m\r\n')
+      terminal.write('\r\n\x1b[33mConnection closed\x1b[0m\r\n')
     }
+    props.onStatusChange?.('disconnected')
   },
 })
+
+function sendResize() {
+  if (!terminal || !fitAddon || !connected.value) return
+  try {
+    send({
+      type: 'resize',
+      data: {
+        rows: terminal.rows,
+        cols: terminal.cols,
+      },
+    })
+  } catch {
+    // ignore send errors
+  }
+}
 
 function initTerminal() {
   if (!terminalRef.value || terminal) return
@@ -83,27 +111,34 @@ function initTerminal() {
     allowProposedApi: true,
   })
 
-  // 加载插件
+  // Load addons
   fitAddon = new FitAddon()
   terminal.loadAddon(fitAddon)
   terminal.loadAddon(new WebLinksAddon())
 
-  // 用户输入发送到 WebSocket
+  // Send keystrokes to WebSocket
   terminal.onData((data) => {
     send({ type: 'input', data })
   })
 
-  // 挂载到 DOM
+  // Send resize on terminal size change
+  terminal.onResize(() => {
+    sendResize()
+  })
+
+  // Mount to DOM
   terminal.open(terminalRef.value)
 
-  // 适配大小
+  // Fit to container
   nextTick(() => {
     fitAddon?.fit()
   })
 
-  // 监听容器大小变化
+  // Watch container size changes
   resizeObserver = new ResizeObserver(() => {
     fitAddon?.fit()
+    // Debounce resize message
+    setTimeout(sendResize, 100)
   })
   resizeObserver.observe(terminalRef.value)
 }
@@ -129,7 +164,7 @@ onBeforeUnmount(() => {
   disconnect()
 })
 
-// 监听 serverId 变化
+// Watch serverId changes
 watch(() => props.serverId, (newId, oldId) => {
   if (newId !== oldId) {
     disconnect()
@@ -141,12 +176,13 @@ watch(() => props.serverId, (newId, oldId) => {
   }
 })
 
-// 暴露方法
+// Expose methods
 defineExpose({
   disconnect,
   connect,
   connected,
   reconnecting,
+  fit: () => fitAddon?.fit(),
 })
 </script>
 
