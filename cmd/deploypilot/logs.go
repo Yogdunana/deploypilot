@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os/exec"
 	"strconv"
-	"strings"
 
 	"github.com/spf13/cobra"
 )

@@ -43,7 +43,7 @@ var upgradeCmd = &cobra.Command{
 
 		// Check if install.sh exists
 		installScript := installDir + "/../scripts/install.sh"
-		if _, err := exec.Command("test", "-f", installScript).Run(); err != nil {
+		if err := exec.Command("test", "-f", installScript).Run(); err != nil {
 			// Try downloading install.sh from GitHub
 			fmt.Println("Local install.sh not found, downloading from GitHub...")
 			downloadCmd := exec.Command("curl", "-fsSL",
