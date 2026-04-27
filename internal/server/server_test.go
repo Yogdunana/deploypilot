@@ -89,16 +89,12 @@ func TestWSHubCloseConcurrency(t *testing.T) {
 	go hub.Run()
 	time.Sleep(50 * time.Millisecond)
 
-	// Test concurrent close (should not panic)
+	// Test concurrent close (should not panic due to sync.Once)
 	var wg sync.WaitGroup
 	for i := 0; i < 5; i++ {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			// Only one Close() should succeed; others should handle closed channel
-			defer func() {
-				recover() // ignore panic from closing already-closed channel
-			}()
 			hub.Close()
 		}()
 	}

@@ -81,6 +81,7 @@ type WSHub struct {
 	register   chan *wsClient
 	unregister chan *wsClient
 	done       chan struct{} // signals the Run loop to stop
+	closeOnce  sync.Once     // ensures Close() is safe to call multiple times
 }
 
 // NewWSHub creates a new WSHub.
@@ -123,8 +124,11 @@ func (h *WSHub) Run() {
 
 // Close gracefully shuts down the WebSocket hub.
 // It stops the Run loop and closes all active WebSocket connections.
+// Safe to call multiple times.
 func (h *WSHub) Close() {
-	close(h.done) // signal Run() to exit
+	h.closeOnce.Do(func() {
+		close(h.done) // signal Run() to exit
+	})
 
 	h.mu.Lock()
 	defer h.mu.Unlock()

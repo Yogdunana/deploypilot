@@ -45,8 +45,10 @@ func setupTestService(t *testing.T) (*Service, func()) {
 	}
 
 	svc := New(cfg, db, "sqlite", "")
+	sqlDB, _ := db.DB()
 	cleanup := func() {
 		svc.Stop()
+		sqlDB.Close()
 	}
 
 	return svc, cleanup
@@ -265,6 +267,8 @@ func TestDeleteRecord(t *testing.T) {
 	db, _ := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Silent),
 	})
+	sqlDB, _ := db.DB()
+	defer sqlDB.Close()
 	db.Exec(`CREATE TABLE IF NOT EXISTS backup_records (
 		id TEXT PRIMARY KEY,
 		type TEXT NOT NULL DEFAULT 'database',
