@@ -52,7 +52,7 @@ func TestTraceHandler_InjectsTraceID(t *testing.T) {
 	traceID := "abc-123-def"
 	ctx := ContextWithTraceID(context.Background(), traceID)
 
-	r := slog.NewRecord(time.Now(), slog.LevelInfo, "test message")
+	r := slog.NewRecord(time.Now(), slog.LevelInfo, "test message", 0)
 	if err := handler.Handle(ctx, r); err != nil {
 		t.Fatalf("Handle() error: %v", err)
 	}
@@ -71,7 +71,7 @@ func TestTraceHandler_NoTraceID(t *testing.T) {
 
 	ctx := context.Background()
 
-	r := slog.NewRecord(time.Now(), slog.LevelInfo, "test message")
+	r := slog.NewRecord(time.Now(), slog.LevelInfo, "test message", 0)
 	if err := handler.Handle(ctx, r); err != nil {
 		t.Fatalf("Handle() error: %v", err)
 	}
@@ -94,7 +94,7 @@ func TestTraceHandler_WithAttrs(t *testing.T) {
 	traceID := "trace-456"
 	ctx := ContextWithTraceID(context.Background(), traceID)
 
-	r := slog.NewRecord(time.Now(), slog.LevelInfo, "test")
+	r := slog.NewRecord(time.Now(), slog.LevelInfo, "test", 0)
 	if err := wrapped.Handle(ctx, r); err != nil {
 		t.Fatalf("Handle() error: %v", err)
 	}
@@ -113,7 +113,7 @@ func TestTraceHandler_WithGroup(t *testing.T) {
 	traceID := "trace-789"
 	ctx := ContextWithTraceID(context.Background(), traceID)
 
-	r := slog.NewRecord(time.Now(), slog.LevelInfo, "test")
+	r := slog.NewRecord(time.Now(), slog.LevelInfo, "test", 0)
 	if err := wrapped.Handle(ctx, r); err != nil {
 		t.Fatalf("Handle() error: %v", err)
 	}
