@@ -18,6 +18,7 @@ import (
 	"github.com/Yogdunana/deploypilot/internal/engine/deployer"
 	"github.com/Yogdunana/deploypilot/internal/mcp"
 	"github.com/Yogdunana/deploypilot/internal/metrics"
+	"github.com/Yogdunana/deploypilot/internal/sandbox"
 	"github.com/Yogdunana/deploypilot/internal/service"
 	"github.com/mark3labs/mcp-go/server"
 	"github.com/spf13/cobra"
@@ -77,8 +78,10 @@ var serveCmd = &cobra.Command{
 			}
 		}
 
-		// Create executor + bridge
+		// Create executor + sandbox + bridge
 		var executor deployer.CommandExecutor = &localExecutor{}
+		sb := sandbox.New(sandbox.DefaultConfig())
+		sandboxedExecutor := deployer.NewSandboxExecutor(executor, sb)
 
 		// Load or generate encryption key
 		encKey, err := crypto.LoadEncryptionKeyFromEnv()
@@ -89,7 +92,7 @@ var serveCmd = &cobra.Command{
 			encKey = crypto.NewEncryptionKey()
 			slog.Warn("DEPLOYPILOT_ENCRYPTION_KEY not set, generated a temporary key (credentials will be lost on restart)")
 		}
-		bridge := service.NewBridge(db, executor, encKey, nil)
+		bridge := service.NewBridge(db, sandboxedExecutor, encKey, nil)
 
 		// Create MCP server
 		mcpServer := mcp.NewServer(bridge)

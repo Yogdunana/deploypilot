@@ -190,6 +190,8 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 			system.GET("/version", GetVersion)
 			system.GET("/update/check", CheckUpdate(bridge))
 			system.POST("/update/perform", auth.RoleRequired("owner", "admin"), DoUpdate(bridge))
+			system.GET("/sandbox", GetSandboxConfig(bridge))
+			system.POST("/sandbox/validate", ValidateSandboxCommand(bridge))
 		}
 
 	// Public health check endpoint (no auth required for Docker healthcheck)
