@@ -78,7 +78,7 @@ func TestCheckResourceAccess_AllResourceTypes(t *testing.T) {
 
 func TestCheckResourceAccess_UnknownType(t *testing.T) {
 	db := setupAuthTestDB(t)
-	if CheckResourceAccess(db, "unknown", "id-1", "owner", "user-1") {
+	if CheckResourceAccess(db, "unknown", "id-1", "dev", "user-1") {
 		t.Error("unknown resource type should return false")
 	}
 }

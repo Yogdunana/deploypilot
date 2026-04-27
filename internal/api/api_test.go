@@ -50,6 +50,7 @@ func setupTestDB(t *testing.T) *gorm.DB {
 	db.Exec(`CREATE TABLE IF NOT EXISTS users (
 		id TEXT PRIMARY KEY, tenant_id TEXT, role_id TEXT,
 		username TEXT UNIQUE NOT NULL, email TEXT UNIQUE NOT NULL, password_hash TEXT NOT NULL,
+		auth_provider TEXT, auth_uid TEXT, avatar_url TEXT,
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 	)`)
 	db.Exec(`CREATE TABLE IF NOT EXISTS credentials (
@@ -66,7 +67,7 @@ func setupTestDB(t *testing.T) *gorm.DB {
 	db.Exec(`CREATE TABLE IF NOT EXISTS servers (
 		id TEXT PRIMARY KEY, tenant_id TEXT, credential_id TEXT, provider_id TEXT,
 		name TEXT NOT NULL, host TEXT NOT NULL, port INTEGER DEFAULT 22,
-		tags TEXT, status TEXT DEFAULT 'unknown', detected_info TEXT,
+		tags TEXT, status TEXT DEFAULT 'unknown', detected_info TEXT, user_id TEXT,
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 	)`)
 	db.Exec(`CREATE TABLE IF NOT EXISTS apps (
