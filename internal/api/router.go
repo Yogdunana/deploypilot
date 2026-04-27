@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/Yogdunana/deploypilot/internal/auth"
+	"github.com/Yogdunana/deploypilot/internal/bruteforce"
 	"github.com/Yogdunana/deploypilot/internal/plugin"
 	"github.com/Yogdunana/deploypilot/internal/service"
 	"github.com/gin-gonic/gin"
@@ -55,7 +56,12 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 	authGroup := api.Group("/auth")
 	{
 		authGroup.POST("/register", Register(db))
-		authGroup.POST("/login", Login(db, bridge.BFProtector))
+		authGroup.POST("/login", Login(db, func() *bruteforce.Protector {
+			if bridge != nil {
+				return bridge.BFProtector
+			}
+			return nil
+		}()))
 		authGroup.POST("/ws-ticket", WSTicket(ticketStore, 30*time.Second))
 		authGroup.POST("/revoke", RevokeToken(blacklist))
 		if oauthSvc != nil {
