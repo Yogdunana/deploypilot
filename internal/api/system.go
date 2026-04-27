@@ -7,6 +7,7 @@ import (
 
 	"github.com/Yogdunana/deploypilot/internal/backup"
 	"github.com/Yogdunana/deploypilot/internal/confirm"
+	"github.com/Yogdunana/deploypilot/internal/model"
 	"github.com/Yogdunana/deploypilot/internal/service"
 	"github.com/Yogdunana/deploypilot/internal/version"
 	"github.com/gin-gonic/gin"
@@ -419,5 +420,21 @@ func RejectRequest(bridge *service.Bridge) gin.HandlerFunc {
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{"status": "success", "data": req})
+	}
+}
+
+// GetAuditLogsByTraceID returns audit logs for a specific trace ID.
+func GetAuditLogsByTraceID(auditSvc *service.AuditService) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		traceID := c.Param("trace_id")
+		logs, total, err := auditSvc.ListByTraceID(c.Request.Context(), traceID)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		if logs == nil {
+			logs = []model.AuditLog{}
+		}
+		c.JSON(http.StatusOK, gin.H{"trace_id": traceID, "total": total, "logs": logs})
 	}
 }

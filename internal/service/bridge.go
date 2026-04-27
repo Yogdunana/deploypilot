@@ -34,6 +34,7 @@ import (
 	registry "github.com/Yogdunana/deploypilot/internal/provider/registry"
 	"github.com/Yogdunana/deploypilot/internal/provider/server"
 	"github.com/Yogdunana/deploypilot/internal/sandbox"
+	"github.com/Yogdunana/deploypilot/internal/tracing"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
@@ -73,6 +74,7 @@ type DeployEvent struct {
 	Progress  int    `json:"progress"` // 0-100
 	Message   string `json:"message"`
 	Timestamp string `json:"timestamp"`
+	TraceID   string `json:"trace_id,omitempty"`
 }
 
 // Bridge implements mcp.Deployer by wiring DB + Docker executor.
@@ -500,6 +502,7 @@ func (is *interactiveSession) Close() error {
 // DeployAsync starts a deploy in a goroutine and returns a task ID immediately.
 func (b *Bridge) DeployAsync(ctx context.Context, cfg mcp.DeployConfig, appID string) (taskID string, err error) {
 	taskID = createTask("deploy")
+	traceID := tracing.TraceIDFromContext(ctx)
 	updateTask(taskID, "running", 0, "deploy started")
 	go func() {
 		cs, deployErr := b.Deploy(ctx, cfg)
@@ -513,6 +516,7 @@ func (b *Bridge) DeployAsync(ctx context.Context, cfg mcp.DeployConfig, appID st
 				Progress:  100,
 				Message:   deployErr.Error(),
 				Timestamp: time.Now().Format(time.RFC3339),
+				TraceID:   traceID,
 			})
 		} else {
 			updateTask(taskID, "success", 100, "deploy completed")
@@ -524,6 +528,7 @@ func (b *Bridge) DeployAsync(ctx context.Context, cfg mcp.DeployConfig, appID st
 				Progress:  100,
 				Message:   "deploy completed",
 				Timestamp: time.Now().Format(time.RFC3339),
+				TraceID:   traceID,
 			})
 			taskMu.Lock()
 			if t, ok := tasks[taskID]; ok {

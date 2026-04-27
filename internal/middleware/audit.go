@@ -21,6 +21,7 @@ func AuditMiddleware(auditSvc *service.AuditService) gin.HandlerFunc {
 
 		userID, _ := c.Get("userID")
 		username, _ := c.Get("username")
+		traceID, _ := c.Get(TraceIDContextKey)
 
 		action := mapMethodToAction(method, c.Request.URL.Path)
 		_ = auditSvc.Record(c.Request.Context(), service.AuditEntry{
@@ -31,6 +32,7 @@ func AuditMiddleware(auditSvc *service.AuditService) gin.HandlerFunc {
 			ResourceID:   extractResourceID(c.Request.URL.Path),
 			IPAddress:    service.ClientIP(c.ClientIP(), c.GetHeader("X-Forwarded-For")),
 			UserAgent:    c.Request.UserAgent(),
+			TraceID:      toString(traceID),
 		})
 	}
 }
