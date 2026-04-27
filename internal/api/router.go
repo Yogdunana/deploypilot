@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/Yogdunana/deploypilot/internal/auth"
+	"github.com/Yogdunana/deploypilot/internal/bruteforce"
 	"github.com/Yogdunana/deploypilot/internal/plugin"
 	"github.com/Yogdunana/deploypilot/internal/service"
 	"github.com/gin-gonic/gin"
@@ -55,7 +56,12 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 	authGroup := api.Group("/auth")
 	{
 		authGroup.POST("/register", Register(db))
-		authGroup.POST("/login", Login(db))
+		authGroup.POST("/login", Login(db, func() *bruteforce.Protector {
+			if bridge != nil {
+				return bridge.BFProtector
+			}
+			return nil
+		}()))
 		authGroup.POST("/ws-ticket", WSTicket(ticketStore, 30*time.Second))
 		authGroup.POST("/revoke", RevokeToken(blacklist))
 		if oauthSvc != nil {
@@ -195,6 +201,9 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 			system.GET("/confirmations", ListConfirmations(bridge))
 			system.POST("/confirmations/:id/confirm", auth.RoleRequired("owner", "admin"), ConfirmRequest(bridge))
 			system.POST("/confirmations/:id/reject", auth.RoleRequired("owner", "admin"), RejectRequest(bridge))
+			system.GET("/bruteforce", GetBruteForceStatus(bridge))
+			system.POST("/bruteforce/accounts/:username/unlock", auth.RoleRequired("owner", "admin"), UnlockBruteForceAccount(bridge))
+			system.POST("/bruteforce/ips/:ip/unlock", auth.RoleRequired("owner", "admin"), UnlockBruteForceIP(bridge))
 		}
 
 	// Public health check endpoint (no auth required for Docker healthcheck)

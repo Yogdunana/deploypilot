@@ -1290,7 +1290,7 @@ func TestLogin_RoleLookupError(t *testing.T) {
 		"roleerr-user-id", "tenant-default", "nonexistent-role", "roleerruser", "roleerr@example.com", hash)
 
 	r := gin.New()
-	r.POST("/api/v1/auth/login", Login(db))
+	r.POST("/api/v1/auth/login", Login(db, nil))
 
 	body, _ := json.Marshal(map[string]string{
 		"username": "roleerruser",

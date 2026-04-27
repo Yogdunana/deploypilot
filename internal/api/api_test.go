@@ -128,7 +128,7 @@ func setupTestRouter(db *gorm.DB) *gin.Engine {
 	authGroup := api.Group("/auth")
 	{
 		authGroup.POST("/register", Register(db))
-		authGroup.POST("/login", Login(db))
+		authGroup.POST("/login", Login(db, nil))
 	}
 
 	// Protected routes
