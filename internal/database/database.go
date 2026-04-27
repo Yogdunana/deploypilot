@@ -338,6 +338,28 @@ func Migrate(db *gorm.DB) error {
 				return tx.Migrator().DropTable("plugins")
 			},
 		},
+		// 202604270001: Enhance deployments table for rollback support
+		{
+			ID: "202604270001",
+			Migrate: func(tx *gorm.DB) error {
+				// Add new columns for rollback enhancement (safe: ignores if column exists)
+				tx.Exec(`ALTER TABLE deployments ADD COLUMN app_id TEXT`)
+				tx.Exec(`ALTER TABLE deployments ADD COLUMN previous_image TEXT`)
+				tx.Exec(`ALTER TABLE deployments ADD COLUMN deploy_type TEXT DEFAULT 'deploy'`)
+				tx.Exec(`ALTER TABLE deployments ADD COLUMN config_snapshot TEXT`)
+				// Create indexes for common queries
+				tx.Exec(`CREATE INDEX IF NOT EXISTS idx_deployments_container_name ON deployments(container_name)`)
+				tx.Exec(`CREATE INDEX IF NOT EXISTS idx_deployments_app_id ON deployments(app_id)`)
+				return nil
+			},
+			Rollback: func(tx *gorm.DB) error {
+				// SQLite: recreate table without new columns
+				tx.Exec(`CREATE TABLE deployments_backup AS SELECT id, tenant_id, server_id, app_name, container_name, image, status, preflight_code, preflight_message, preflight_checks, error_message, created_at, updated_at FROM deployments`)
+				tx.Exec(`DROP TABLE deployments`)
+				tx.Exec(`ALTER TABLE deployments_backup RENAME TO deployments`)
+				return nil
+			},
+		},
 	})
 
 	// Use InitSchema for initial creation (faster than Migrate)

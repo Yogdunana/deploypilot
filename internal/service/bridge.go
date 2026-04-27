@@ -871,8 +871,58 @@ func (b *Bridge) GetContainerLogs(ctx context.Context, name string, tail int) (s
 
 // ---------- 10. Rollback ----------
 
+// RollbackResult contains detailed information about a rollback operation.
+type RollbackResult struct {
+	ContainerStatus *mcp.ContainerStatus `json:"container_status"`
+	PreviousImage   string               `json:"previous_image"`
+	TargetImage     string               `json:"target_image"`
+	DeployType      string               `json:"deploy_type"` // rollback or auto_rollback
+}
+
+// Rollback reverts a container to a previous image version with full config preservation.
+// If previousImage is empty, it automatically finds the last successful deployment image.
+// The rollback preserves ports, env vars, volumes, network, labels, and resource limits.
 func (b *Bridge) Rollback(ctx context.Context, containerName, previousImage string) (*mcp.ContainerStatus, error) {
-	// Stop and remove the current container
+	return b.RollbackWithType(ctx, containerName, previousImage, "rollback")
+}
+
+// RollbackWithType performs a rollback with a specified deploy type (rollback or auto_rollback).
+func (b *Bridge) RollbackWithType(ctx context.Context, containerName, previousImage, deployType string) (*mcp.ContainerStatus, error) {
+	if deployType == "" {
+		deployType = "rollback"
+	}
+
+	// Step 1: Resolve the target image — auto-find if not specified
+	if previousImage == "" {
+		found, err := b.findPreviousSuccessfulImage(ctx, containerName)
+		if err != nil {
+			return nil, fmt.Errorf("no previous image found for rollback: %w", err)
+		}
+		previousImage = found
+		slog.Info("rollback: auto-resolved previous image", "container", containerName, "image", previousImage)
+	}
+
+	// Step 2: Get current running image for recording
+	currentImage := ""
+	if cs, err := b.d().GetContainerStatus(ctx, containerName); err == nil {
+		currentImage = cs.Image
+	}
+
+	// Step 3: Build full deploy config from app record (preserves all settings)
+	cfg, err := b.buildRollbackConfig(ctx, containerName, previousImage)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build rollback config: %w", err)
+	}
+
+	// Step 4: Atomic rollback — pull new image FIRST, then stop/remove old container
+	// This ensures we don't destroy the running container if the image pull fails
+	slog.Info("rollback: pulling target image", "container", containerName, "image", previousImage)
+	pullCmd := fmt.Sprintf("docker pull %s", previousImage)
+	if _, err := b.Executor.RunCommand(ctx, pullCmd); err != nil {
+		return nil, fmt.Errorf("rollback failed: could not pull image %s: %w", previousImage, err)
+	}
+
+	// Step 5: Stop and remove the current container
 	if err := b.d().Stop(ctx, containerName); err != nil {
 		slog.Warn("rollback: stop warning", "error", err)
 	}
@@ -880,13 +930,199 @@ func (b *Bridge) Rollback(ctx context.Context, containerName, previousImage stri
 		slog.Warn("rollback: remove warning", "error", err)
 	}
 
-	// Re-deploy with the previous image
+	// Step 6: Deploy with full config
+	cs, err := b.Deploy(ctx, cfg)
+	if err != nil {
+		// Record failed rollback
+		b.saveRollbackRecord(ctx, cfg, currentImage, deployType, "failed", err.Error())
+		return nil, fmt.Errorf("rollback deploy failed: %w", err)
+	}
+
+	// Step 7: Record successful rollback
+	b.saveRollbackRecord(ctx, cfg, currentImage, deployType, "success", "")
+
+	// Step 8: Update app's current version
+	if cfg.AppName != "" {
+		b.DB.Table("apps").Where("id = ? OR name = ?", cfg.AppName, cfg.AppName).
+			Update("current_version", previousImage)
+	}
+
+	slog.Info("rollback completed", "container", containerName,
+		"from", currentImage, "to", previousImage, "type", deployType)
+
+	return cs, nil
+}
+
+// findPreviousSuccessfulImage looks up the most recent successful deployment record
+// for a container and returns its image.
+func (b *Bridge) findPreviousSuccessfulImage(ctx context.Context, containerName string) (string, error) {
+	if b.DB == nil {
+		return "", fmt.Errorf("database not available")
+	}
+
+	var record model.DeploymentRecord
+	err := b.DB.Where("container_name = ? AND status = ?", containerName, "success").
+		Order("created_at DESC").
+		Limit(1).
+		First(&record).Error
+	if err != nil {
+		return "", fmt.Errorf("no successful deployment found for container %s", containerName)
+	}
+
+	return record.Image, nil
+}
+
+// buildRollbackConfig constructs a full DeployConfig for rollback by reading the app record.
+// This ensures ports, env vars, resource limits, etc. are preserved during rollback.
+func (b *Bridge) buildRollbackConfig(ctx context.Context, containerName, targetImage string) (mcp.DeployConfig, error) {
 	cfg := mcp.DeployConfig{
-		Image:         previousImage,
+		Image:         targetImage,
 		ContainerName: containerName,
 		RestartPolicy: "unless-stopped",
 	}
-	return b.Deploy(ctx, cfg)
+
+	if b.DB == nil {
+		return cfg, nil
+	}
+
+	// Look up the app by container_name or name
+	var app model.App
+	err := b.DB.Where("container_name = ? OR name = ?", containerName, containerName).First(&app).Error
+	if err != nil {
+		slog.Debug("rollback: no app record found, using minimal config", "container", containerName)
+		return cfg, nil
+	}
+
+	cfg.AppName = app.Name
+
+	// Restore ports from app record
+	if app.Domain != "" {
+		cfg.Ports = "80:80, 443:443"
+	}
+
+	// Restore env vars
+	if app.EnvVars != "" {
+		var envMap map[string]string
+		if json.Unmarshal([]byte(app.EnvVars), &envMap) == nil {
+			cfg.EnvVars = envMap
+		}
+	}
+
+	// Restore resource limits
+	if app.ResourceLimits != "" {
+		var limits map[string]string
+		if json.Unmarshal([]byte(app.ResourceLimits), &limits) == nil {
+			cfg.CPU = limits["cpu"]
+			cfg.Memory = limits["memory"]
+		}
+	}
+
+	// Try to get the config snapshot from the last successful deployment
+	var lastRecord model.DeploymentRecord
+	if err := b.DB.Where("container_name = ? AND status = ?", containerName, "success").
+		Order("created_at DESC").Limit(1).First(&lastRecord).Error; err == nil {
+		if lastRecord.ConfigSnapshot != "" {
+			var snapCfg mcp.DeployConfig
+			if json.Unmarshal([]byte(lastRecord.ConfigSnapshot), &snapCfg) == nil {
+				// Merge snapshot config (takes precedence over app record)
+				if snapCfg.Ports != "" {
+					cfg.Ports = snapCfg.Ports
+				}
+				if len(snapCfg.EnvVars) > 0 {
+					cfg.EnvVars = snapCfg.EnvVars
+				}
+				if snapCfg.Network != "" {
+					cfg.Network = snapCfg.Network
+				}
+				if snapCfg.Volumes != "" {
+					cfg.Volumes = snapCfg.Volumes
+				}
+				if len(snapCfg.Labels) > 0 {
+					cfg.Labels = snapCfg.Labels
+				}
+				if snapCfg.CPU != "" {
+					cfg.CPU = snapCfg.CPU
+				}
+				if snapCfg.Memory != "" {
+					cfg.Memory = snapCfg.Memory
+				}
+				if snapCfg.RestartPolicy != "" {
+					cfg.RestartPolicy = snapCfg.RestartPolicy
+				}
+			}
+		}
+	}
+
+	return cfg, nil
+}
+
+// saveRollbackRecord persists a rollback operation to the deployment records.
+func (b *Bridge) saveRollbackRecord(ctx context.Context, cfg mcp.DeployConfig, currentImage, deployType, status, errMsg string) {
+	if b.DB == nil {
+		return
+	}
+
+	// Serialize config snapshot
+	snapshotJSON, _ := json.Marshal(cfg)
+
+	record := &model.DeploymentRecord{
+		ID:             generateID(),
+		TenantID:       "tenant-default",
+		ServerID:       cfg.ServerID,
+		AppName:        cfg.AppName,
+		ContainerName:  cfg.ContainerName,
+		Image:          cfg.Image,
+		PreviousImage:  currentImage,
+		DeployType:     deployType,
+		ConfigSnapshot: string(snapshotJSON),
+		Status:         status,
+		ErrorMessage:   errMsg,
+		CreatedAt:      time.Now(),
+		UpdatedAt:      time.Now(),
+	}
+	if err := b.DB.Create(record).Error; err != nil {
+		slog.Error("failed to save rollback record", "error", err)
+	}
+}
+
+// GetDeploymentHistory returns the deployment history for a container, ordered by most recent first.
+func (b *Bridge) GetDeploymentHistory(ctx context.Context, containerName string, limit int) ([]model.DeploymentRecord, error) {
+	if b.DB == nil {
+		return nil, fmt.Errorf("database not available")
+	}
+	if limit <= 0 || limit > 100 {
+		limit = 20
+	}
+
+	var records []model.DeploymentRecord
+	err := b.DB.Where("container_name = ?", containerName).
+		Order("created_at DESC").
+		Limit(limit).
+		Find(&records).Error
+	if err != nil {
+		return nil, fmt.Errorf("failed to query deployment history: %w", err)
+	}
+	return records, nil
+}
+
+// GetAppDeploymentHistory returns the deployment history for an app by app ID.
+func (b *Bridge) GetAppDeploymentHistory(ctx context.Context, appID string, limit int) ([]model.DeploymentRecord, error) {
+	if b.DB == nil {
+		return nil, fmt.Errorf("database not available")
+	}
+	if limit <= 0 || limit > 100 {
+		limit = 20
+	}
+
+	var records []model.DeploymentRecord
+	err := b.DB.Where("app_id = ?", appID).
+		Order("created_at DESC").
+		Limit(limit).
+		Find(&records).Error
+	if err != nil {
+		return nil, fmt.Errorf("failed to query app deployment history: %w", err)
+	}
+	return records, nil
 }
 
 // ---------- 11. DetectEnv ----------
@@ -1807,6 +2043,21 @@ func (b *Bridge) HealContainer(ctx context.Context, containerName string) (inter
 	if err != nil {
 		return nil, fmt.Errorf("heal failed for %s: %w", containerName, err)
 	}
+
+	// If healer determined a rollback is needed, execute it automatically
+	if result.Action == "rolled_back" && h.GetConfig().AutoRollback {
+		slog.Info("healer: initiating auto-rollback", "container", containerName, "reason", result.Reason)
+		_, rollbackErr := b.RollbackWithType(ctx, containerName, "", "auto_rollback")
+		if rollbackErr != nil {
+			slog.Error("healer: auto-rollback failed", "container", containerName, "error", rollbackErr)
+			result.Action = "rollback_failed"
+			result.Reason = fmt.Sprintf("%s (rollback failed: %v)", result.Reason, rollbackErr)
+		} else {
+			result.NewState = "rolled_back"
+			slog.Info("healer: auto-rollback succeeded", "container", containerName)
+		}
+	}
+
 	return result, nil
 }
 
@@ -1861,15 +2112,32 @@ func (b *Bridge) saveDeploymentRecord(ctx context.Context, cfg mcp.DeployConfig,
 	if b.DB == nil {
 		return
 	}
+
+	// Serialize config snapshot for rollback support
+	snapshotJSON, _ := json.Marshal(cfg)
+
+	// Resolve app_id from app_name if possible
+	var appID string
+	if cfg.AppName != "" {
+		var app model.App
+		if err := b.DB.Select("id").Where("name = ?", cfg.AppName).First(&app).Error; err == nil {
+			appID = app.ID
+		}
+	}
+
 	record := &model.DeploymentRecord{
-		ID:            generateID(),
-		TenantID:      "tenant-default",
-		ServerID:      cfg.ServerID,
-		ContainerName: cfg.ContainerName,
-		Image:         cfg.Image,
-		Status:        status,
-		CreatedAt:     time.Now(),
-		UpdatedAt:     time.Now(),
+		ID:             generateID(),
+		TenantID:       "tenant-default",
+		ServerID:       cfg.ServerID,
+		AppName:        cfg.AppName,
+		AppID:          appID,
+		ContainerName:  cfg.ContainerName,
+		Image:          cfg.Image,
+		DeployType:     "deploy",
+		ConfigSnapshot: string(snapshotJSON),
+		Status:         status,
+		CreatedAt:      time.Now(),
+		UpdatedAt:      time.Now(),
 	}
 	if pfResult != nil {
 		record.PreflightCode = string(pfResult.Code)

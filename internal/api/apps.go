@@ -286,8 +286,9 @@ func RollbackApp(bridge *service.Bridge) gin.HandlerFunc {
 		var input struct {
 			PreviousImage string `json:"previous_image"`
 		}
+		// previous_image is now optional — if not provided, auto-resolve from history
 		if err := c.ShouldBindJSON(&input); err != nil {
-			respondErrori18n(c, http.StatusBadRequest, "error.app.previous_image_required")
+			respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request")
 			return
 		}
 
@@ -308,6 +309,43 @@ func RollbackApp(bridge *service.Bridge) gin.HandlerFunc {
 			return
 		}
 		respondSuccess(c, cs)
+	}
+}
+
+// GetDeploymentHistory returns the deployment history for an application.
+// @Summary      Get deployment history
+// @Description  Retrieve deployment history for an application, including normal deploys and rollbacks
+// @Tags         Apps
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id path string true "Application ID"
+// @Param        limit query int false "Number of records to return" default(20) maximum(100)
+// @Success      200 {object} map[string]interface{} "status, data (deployment history)"
+// @Failure      401 {object} map[string]interface{} "unauthorized"
+// @Failure      404 {object} map[string]interface{} "app not found"
+// @Router       /apps/{id}/history [get]
+func GetDeploymentHistory(bridge *service.Bridge) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		id := c.Param("id")
+
+		var app model.App
+		if err := bridge.DB.Where("id = ?", id).First(&app).Error; err != nil {
+			respondErrori18n(c, http.StatusNotFound, "error.app.not_found")
+			return
+		}
+
+		limit := 20
+		if l, err := strconv.Atoi(c.DefaultQuery("limit", "20")); err == nil && l > 0 && l <= 100 {
+			limit = l
+		}
+
+		records, err := bridge.GetAppDeploymentHistory(c.Request.Context(), id, limit)
+		if err != nil {
+			respondErrori18n(c, http.StatusInternalServerError, "error.common.internal_error")
+			return
+		}
+
+		respondSuccess(c, records)
 	}
 }
 

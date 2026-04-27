@@ -132,6 +132,7 @@ type Deployer interface {
 // DeployConfig mirrors deployer.DeployConfig to avoid circular imports.
 type DeployConfig struct {
 	Image         string            `json:"image"`
+	AppName       string            `json:"app_name,omitempty"`
 	ContainerName string            `json:"container_name"`
 	Ports         string            `json:"ports,omitempty"`
 	EnvVars       map[string]string `json:"env_vars,omitempty"`
@@ -379,14 +380,13 @@ func NewServer(deployer Deployer) *server.MCPServer {
 
 	// Register rollback tool
 	rollbackTool := mcp.NewTool("rollback_app",
-		mcp.WithDescription("Rollback a container to a previous image version"),
+		mcp.WithDescription("Rollback a container to a previous image version. If previous_image is omitted, automatically resolves the last successful deployment image."),
 		mcp.WithString("container_name",
 			mcp.Required(),
 			mcp.Description("Name of the container to rollback"),
 		),
 		mcp.WithString("previous_image",
-			mcp.Required(),
-			mcp.Description("Previous Docker image to rollback to"),
+			mcp.Description("Previous Docker image to rollback to (optional — auto-resolves from deployment history if omitted)"),
 		),
 	)
 
@@ -1344,19 +1344,22 @@ func handleRollback(ctx context.Context, deployer Deployer, request mcp.CallTool
 		return mcp.NewToolResultError(err.Error()), nil
 	}
 
-	previousImage, err := request.RequireString("previous_image")
-	if err != nil {
-		return mcp.NewToolResultError(err.Error()), nil
-	}
+	// previous_image is now optional — auto-resolves from deployment history
+	previousImage := request.GetString("previous_image", "")
 
 	status, err := deployer.Rollback(ctx, containerName, previousImage)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("rollback failed: %v", err)), nil
 	}
 
+	resolvedImage := previousImage
+	if resolvedImage == "" {
+		resolvedImage = "(auto-resolved)"
+	}
+
 	result := map[string]interface{}{
 		"status":  "success",
-		"message": fmt.Sprintf("Container %s rolled back to %s", containerName, previousImage),
+		"message": fmt.Sprintf("Container %s rolled back to %s", containerName, resolvedImage),
 		"container": map[string]string{
 			"id":     status.ID,
 			"name":   status.Name,

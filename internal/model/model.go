@@ -133,8 +133,12 @@ type DeploymentRecord struct {
 	TenantID         string    `gorm:"index" json:"tenant_id"`
 	ServerID         string    `gorm:"index" json:"server_id"`
 	AppName          string    `json:"app_name"`
-	ContainerName    string    `json:"container_name"`
+	AppID            string    `gorm:"index" json:"app_id,omitempty"`
+	ContainerName    string    `gorm:"index" json:"container_name"`
 	Image            string    `json:"image"`
+	PreviousImage    string    `json:"previous_image,omitempty"`    // image before this deployment (for rollback tracking)
+	DeployType       string    `gorm:"default:deploy" json:"deploy_type"` // deploy, rollback, auto_rollback
+	ConfigSnapshot   string    `gorm:"type:text" json:"config_snapshot,omitempty"` // JSON snapshot of full deploy config at time of deployment
 	Status           string    `json:"status"` // "preflight_failed", "deploying", "success", "failed"
 	PreflightCode    string    `gorm:"column:preflight_code" json:"preflight_code,omitempty"`
 	PreflightMessage string    `gorm:"column:preflight_message" json:"preflight_message,omitempty"`

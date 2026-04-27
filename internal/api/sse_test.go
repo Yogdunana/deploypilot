@@ -51,7 +51,9 @@ func setupSSETestDB(t *testing.T) *gorm.DB {
 	)`)
 	db.Exec(`CREATE TABLE IF NOT EXISTS deployments (
 		id TEXT PRIMARY KEY, tenant_id TEXT, server_id TEXT,
-		app_name TEXT, container_name TEXT, image TEXT,
+		app_name TEXT, app_id TEXT, container_name TEXT, image TEXT,
+		previous_image TEXT, deploy_type TEXT DEFAULT 'deploy',
+		config_snapshot TEXT,
 		status TEXT DEFAULT 'deploying', preflight_code TEXT,
 		preflight_message TEXT, preflight_checks TEXT, error_message TEXT,
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
