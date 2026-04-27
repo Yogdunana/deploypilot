@@ -88,6 +88,7 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 			apps.POST("/:id/build", auth.RequireResourceAccess(db, "app", "id"), BuildAndDeployApp(bridge))
 			apps.GET("/:id/status", auth.RequireResourceAccess(db, "app", "id"), GetAppStatus(bridge))
 			apps.POST("/:id/rollback", auth.RequireResourceAccess(db, "app", "id"), RollbackApp(bridge))
+			apps.GET("/:id/history", auth.RequireResourceAccess(db, "app", "id"), GetDeploymentHistory(bridge))
 			apps.GET("/:id/logs/container", auth.RequireResourceAccess(db, "app", "id"), GetContainerLogs(bridge))
 			apps.POST("/:id/backup", auth.RequireResourceAccess(db, "app", "id"), BackupApp(bridge))
 			apps.POST("/:id/restore", auth.RequireResourceAccess(db, "app", "id"), RestoreApp(bridge))
