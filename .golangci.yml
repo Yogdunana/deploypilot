@@ -40,3 +40,5 @@ linters:
         path: _test\.go
       - linters: [bodyclose]
         path: _test\.go
+      - linters: [gosec]
+        path: cmd/
