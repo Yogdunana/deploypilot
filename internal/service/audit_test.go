@@ -77,9 +77,9 @@ func TestAuditService_List(t *testing.T) {
 	svc := NewAuditService(db)
 
 	// Create multiple entries
-	for i := 0; i < 5; i++ {
+	for i := uint(0); i < 5; i++ {
 		_ = svc.Record(context.TODO(), AuditEntry{
-			UserID:   uint(i),
+			UserID:   i,
 			Username: "user",
 			Action:   "app.create",
 		})
