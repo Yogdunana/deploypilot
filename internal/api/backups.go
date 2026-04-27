@@ -4,31 +4,39 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/Yogdunana/deploypilot/internal/model"
+	"github.com/Yogdunana/deploypilot/internal/backup"
 	"github.com/Yogdunana/deploypilot/internal/service"
 	"github.com/gin-gonic/gin"
-	"gorm.io/gorm"
 )
 
-// ListBackups lists backups for an app (currently returns empty since backups are in-memory).
+// ListBackups lists backups for an app.
 // @Summary      List backups
 // @Description  Retrieve backup records for an application
 // @Tags         Backups
 // @Produce      json
 // @Security     BearerAuth
 // @Param        id path string true "Application ID"
-// @Success      200 {object} map[string]interface{} "status, data (array of DeploymentRecord)"
+// @Success      200 {object} map[string]interface{} "status, data (array of backup.Record)"
 // @Failure      401 {object} map[string]interface{} "unauthorized"
+// @Failure      500 {object} map[string]interface{} "internal error"
 // @Router       /apps/{id}/backups [get]
-func ListBackups(db *gorm.DB) gin.HandlerFunc {
+func ListBackups(backupSvc *backup.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// Backups are currently tracked in-memory in the bridge.
-		// Return an empty list as the backup system is not persisted to DB yet.
-		respondSuccess(c, []model.DeploymentRecord{})
+		appID := c.Param("id")
+		limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
+		records, err := backupSvc.ListByApp(appID, limit)
+		if err != nil {
+			respondErrori18n(c, http.StatusInternalServerError, "error.common.internal_error")
+			return
+		}
+		if records == nil {
+			records = []backup.Record{}
+		}
+		respondSuccess(c, records)
 	}
 }
 
-// DeleteBackup deletes a backup (placeholder).
+// DeleteBackup deletes a backup record and its file.
 // @Summary      Delete a backup
 // @Description  Delete a backup record by ID
 // @Tags         Backups
@@ -38,11 +46,16 @@ func ListBackups(db *gorm.DB) gin.HandlerFunc {
 // @Param        backupId path string true "Backup ID"
 // @Success      200 {object} map[string]interface{} "status, data.message, data.backup_id"
 // @Failure      401 {object} map[string]interface{} "unauthorized"
+// @Failure      404 {object} map[string]interface{} "not found"
+// @Failure      500 {object} map[string]interface{} "internal error"
 // @Router       /apps/{id}/backups/{backupId} [delete]
-func DeleteBackup(db *gorm.DB) gin.HandlerFunc {
+func DeleteBackup(backupSvc *backup.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		backupID := c.Param("backupId")
-		// Backups are in-memory; this is a placeholder for future persistence.
+		if err := backupSvc.DeleteRecord(backupID); err != nil {
+			respondErrori18n(c, http.StatusNotFound, "error.common.not_found")
+			return
+		}
 		respondSuccess(c, gin.H{"message": "backup deleted", "backup_id": backupID})
 	}
 }

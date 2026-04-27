@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"fmt"
+	"log/slog"
 	"strings"
 
 	"github.com/Yogdunana/deploypilot/internal/service"
@@ -24,7 +25,7 @@ func AuditMiddleware(auditSvc *service.AuditService) gin.HandlerFunc {
 		traceID, _ := c.Get(TraceIDContextKey)
 
 		action := mapMethodToAction(method, c.Request.URL.Path)
-		_ = auditSvc.Record(c.Request.Context(), service.AuditEntry{
+		if err := auditSvc.Record(c.Request.Context(), service.AuditEntry{
 			UserID:       toUint(userID),
 			Username:     toString(username),
 			Action:       action,
@@ -33,7 +34,9 @@ func AuditMiddleware(auditSvc *service.AuditService) gin.HandlerFunc {
 			IPAddress:    service.ClientIP(c.ClientIP(), c.GetHeader("X-Forwarded-For")),
 			UserAgent:    c.Request.UserAgent(),
 			TraceID:      toString(traceID),
-		})
+		}); err != nil {
+			slog.WarnContext(c.Request.Context(), "failed to record audit log", "error", err)
+		}
 	}
 }
 

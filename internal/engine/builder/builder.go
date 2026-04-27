@@ -3,7 +3,7 @@ package builder
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -129,7 +129,7 @@ func (b *Builder) BuildAndDeploy(ctx context.Context, cfg BuildConfig) (*BuildRe
 	if cfg.PushImage {
 		pushedRef, pushErr := b.PushImage(ctx, &cfg, imageTag)
 		if pushErr != nil {
-			log.Printf("warning: image push failed (build succeeded): %v", pushErr)
+			slog.Warn("image push failed (build succeeded)", "error", pushErr)
 		} else if pushedRef != "" {
 			result.PushedImage = pushedRef
 		}

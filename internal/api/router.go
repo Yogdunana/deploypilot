@@ -226,8 +226,8 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 		// Backups (2 endpoints)
 		backups := protected.Group("/apps/:id/backups")
 		{
-			backups.GET("", ListBackups(db))
-			backups.DELETE("/:backupId", DeleteBackup(db))
+			backups.GET("", ListBackups(backupSvc))
+			backups.DELETE("/:backupId", DeleteBackup(backupSvc))
 		}
 
 		// Monitor (6 endpoints)

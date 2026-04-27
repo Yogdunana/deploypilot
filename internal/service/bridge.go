@@ -846,8 +846,12 @@ func (b *Bridge) DeleteApp(ctx context.Context, appID string) error {
 
 	containerName := toString(row["container_name"])
 	if containerName != "" {
-		_ = b.d().Stop(ctx, containerName)
-		_ = b.d().Remove(ctx, containerName)
+		if err := b.d().Stop(ctx, containerName); err != nil {
+			slog.WarnContext(ctx, "failed to stop container during app deletion", "container", containerName, "error", err)
+		}
+		if err := b.d().Remove(ctx, containerName); err != nil {
+			slog.WarnContext(ctx, "failed to remove container during app deletion", "container", containerName, "error", err)
+		}
 	}
 
 	if err := b.DB.Table("apps").Where("id = ?", appID).Delete(nil).Error; err != nil {
@@ -1931,8 +1935,12 @@ func (b *Bridge) Restore(ctx context.Context, backupID string) (*mcp.ContainerSt
 
 	// Stop and remove current container
 	exec := b.Executor
-	_, _ = exec.RunCommand(ctx, fmt.Sprintf("docker stop %s", containerName))
-	_, _ = exec.RunCommand(ctx, fmt.Sprintf("docker rm -f %s", containerName))
+	if _, err := exec.RunCommand(ctx, fmt.Sprintf("docker stop %s", containerName)); err != nil {
+		slog.WarnContext(ctx, "failed to stop container during restore", "container", containerName, "error", err)
+	}
+	if _, err := exec.RunCommand(ctx, fmt.Sprintf("docker rm -f %s", containerName)); err != nil {
+		slog.WarnContext(ctx, "failed to remove container during restore", "container", containerName, "error", err)
+	}
 
 	// Restore from backup
 	timestamp := time.Now().Format("20060102-150405")

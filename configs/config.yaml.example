@@ -45,6 +45,7 @@ log:
   file: ./logs/deploypilot.log
   max_size: 100MB
   max_backups: 10
+  enable_tracing: true
 
 deploy:
   default_mode: api
@@ -56,3 +57,22 @@ deploy:
 monitor:
   enabled: true
   metrics_port: 9091
+
+# 备份配置
+backup:
+  enabled: true
+  interval: "6h"
+  retention_count: 10
+  retention_days: 30
+  backup_dir: "data/backups"
+
+# 暴力破解防护
+bruteforce:
+  max_attempts: 5
+  lockout_duration: "15m"
+  window_duration: "15m"
+  progressive_delay: true
+  base_delay: "1s"
+  max_delay: "30s"
+  ip_max_attempts: 20
+  ip_lockout_duration: "30m"
