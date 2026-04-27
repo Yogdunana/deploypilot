@@ -4,13 +4,13 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
+	"crypto/subtle"
 	"encoding/base64"
 	"errors"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 
 	"golang.org/x/crypto/argon2"
@@ -78,22 +78,6 @@ func Decrypt(key []byte, encoded string) (string, error) {
 		return "", fmt.Errorf("failed to decrypt: %w", err)
 	}
 	return string(plaintext), nil
-}
-
-// getBcryptCost returns the bcrypt cost factor from environment or default 12.
-func getBcryptCost() int {
-	costStr := os.Getenv("DEPLOYPILOT_BCRYPT_COST")
-	if costStr == "" {
-		return 12
-	}
-	cost, err := strconv.Atoi(costStr)
-	if err != nil || cost < 10 {
-		cost = 10
-	}
-	if cost > 31 {
-		cost = 31
-	}
-	return cost
 }
 
 // HashPasswordArgon2ID hashes a password using argon2id and returns a PHC-format string.

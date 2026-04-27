@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net"
 	"strings"
 
@@ -17,23 +18,38 @@ import (
 
 // AuditService handles audit log operations.
 type AuditService struct {
-	db      *gorm.DB
-	hmacKey []byte
+	db             *gorm.DB
+	hmacKey        []byte
+	externalWriter AuditWriter
 }
 
 // NewAuditService creates a new AuditService with a randomly generated HMAC key.
-func NewAuditService(db *gorm.DB) *AuditService {
+// Optionally accepts an external AuditWriter for writing audit entries to external storage.
+func NewAuditService(db *gorm.DB, externalWriter ...AuditWriter) *AuditService {
 	key := make([]byte, 32)
 	if _, err := rand.Read(key); err != nil {
 		// Fallback: use a zeroed key (should never happen with crypto/rand on modern systems)
 		key = make([]byte, 32)
 	}
-	return &AuditService{db: db, hmacKey: key}
+	svc := &AuditService{db: db, hmacKey: key}
+	if len(externalWriter) > 0 && externalWriter[0] != nil {
+		svc.externalWriter = externalWriter[0]
+	}
+	return svc
 }
 
 // SetHMACKey sets the HMAC key (useful for loading a persistent key from config).
 func (s *AuditService) SetHMACKey(key []byte) {
 	s.hmacKey = key
+}
+
+// Close closes the external audit writer if one is configured.
+func (s *AuditService) Close() {
+	if s.externalWriter != nil {
+		if err := s.externalWriter.Close(); err != nil {
+			slog.Error("failed to close external audit writer", "error", err)
+		}
+	}
 }
 
 // AuditEntry represents an audit event to record.
@@ -98,7 +114,20 @@ func (s *AuditService) Record(ctx context.Context, entry AuditEntry) error {
 	// Compute HMAC-SHA256 hash for tamper-evident integrity
 	log.RecordHash = s.computeRecordHash(log)
 
-	return s.db.WithContext(ctx).Create(log).Error
+	if err := s.db.WithContext(ctx).Create(log).Error; err != nil {
+		return err
+	}
+
+	// Write to external storage (non-blocking, best-effort)
+	if s.externalWriter != nil {
+		go func() {
+			if err := s.externalWriter.Write(entry); err != nil {
+				slog.Error("failed to write audit log to external storage", "error", err)
+			}
+		}()
+	}
+
+	return nil
 }
 
 // VerifyRecord checks whether an audit log record has been tampered with

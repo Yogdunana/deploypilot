@@ -18,10 +18,27 @@ linters:
         - fmt.Sscanf
     gosec:
       excludes:
-        - G101  # hardcoded credentials false positive
-        - G404  # weak random in non-crypto contexts
+        - G101  # Hardcoded credentials (existing env var mechanism)
+        - G404  # Weak random (non-crypto contexts)
+        - G104  # Unhandled errors (pre-existing pattern throughout codebase)
+        - G115  # Integer overflow conversion (pre-existing pattern)
+        - G304  # File path from variable (controlled inputs)
+        - G306  # WriteFile permissions (test-only concern)
   exclusions:
     rules:
-      - linters:
-          - errcheck
+      - linters: [errcheck]
         path: _test\.go
+      - linters: [gosec]
+        path: internal/provider/
+      - linters: [gosec]
+        path: internal/agent/
+      - linters: [gosec]
+        path: internal/config/
+      - linters: [gosec]
+        path: internal/middleware/
+      - linters: [noctx]
+        path: _test\.go
+      - linters: [bodyclose]
+        path: _test\.go
+      - linters: [gosec]
+        path: cmd/

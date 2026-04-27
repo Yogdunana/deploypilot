@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"log/slog"
 	"net/http"
 	"strings"
 
@@ -29,7 +30,7 @@ var roleHierarchy = map[string]int{
 
 // AuthMiddleware extracts and validates the Bearer token from the Authorization header.
 // It sets the userID and role in the gin.Context.
-func AuthMiddleware() gin.HandlerFunc {
+func AuthMiddleware(blacklist TokenBlacklist) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		authHeader := c.GetHeader("Authorization")
 		if authHeader == "" {
@@ -53,6 +54,20 @@ func AuthMiddleware() gin.HandlerFunc {
 			c.JSON(http.StatusUnauthorized, gin.H{"status": "error", "message": i18n.T(locale, "error.auth.invalid_or_expired_token")})
 			c.Abort()
 			return
+		}
+
+		// Check token revocation
+		if blacklist != nil && claims.ID != "" {
+			revoked, err := blacklist.IsRevoked(claims.ID)
+			if err != nil {
+				slog.Warn("failed to check token revocation", "error", err)
+				// Fail open: allow request if blacklist check fails
+			} else if revoked {
+				locale := i18n.GetLocaleFromContext(c)
+				c.JSON(http.StatusUnauthorized, gin.H{"status": "error", "message": i18n.T(locale, "error.auth.invalid_or_expired_token")})
+				c.Abort()
+				return
+			}
 		}
 
 		c.Set(string(UserIDKey), claims.UserID)
@@ -109,7 +124,7 @@ func RoleRequired(roles ...string) gin.HandlerFunc {
 
 // OptionalAuth parses the JWT token if present but does not require it.
 // If a valid token is found, it sets userID and role in the context.
-func OptionalAuth() gin.HandlerFunc {
+func OptionalAuth(blacklist TokenBlacklist) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		authHeader := c.GetHeader("Authorization")
 		if authHeader == "" {
@@ -127,6 +142,18 @@ func OptionalAuth() gin.HandlerFunc {
 		if err != nil {
 			c.Next()
 			return
+		}
+
+		// Check token revocation
+		if blacklist != nil && claims.ID != "" {
+			revoked, err := blacklist.IsRevoked(claims.ID)
+			if err != nil {
+				slog.Warn("failed to check token revocation", "error", err)
+				// Fail open: allow request if blacklist check fails
+			} else if revoked {
+				c.Next()
+				return
+			}
 		}
 
 		c.Set(string(UserIDKey), claims.UserID)

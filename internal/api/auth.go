@@ -1,12 +1,14 @@
 package api
 
 import (
+	"log/slog"
 	"net/http"
 	"strings"
 	"time"
 
 	"github.com/Yogdunana/deploypilot/internal/auth"
 	"github.com/Yogdunana/deploypilot/internal/crypto"
+	"github.com/Yogdunana/deploypilot/internal/service"
 	"github.com/Yogdunana/deploypilot/internal/model"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -82,6 +84,59 @@ func Register(db *gorm.DB) gin.HandlerFunc {
 			},
 			"token": token,
 		})
+	}
+}
+
+// RevokeToken revokes the current JWT token.
+// @Summary      Revoke token (logout)
+// @Description  Revoke the current JWT token, preventing further use
+// @Tags         Auth
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200 {object} map[string]interface{} "status, data.message"
+// @Failure      401 {object} map[string]interface{} "unauthorized"
+// @Failure      500 {object} map[string]interface{} "internal error"
+// @Router       /auth/revoke [post]
+func RevokeToken(blacklist auth.TokenBlacklist) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		authHeader := c.GetHeader("Authorization")
+		if authHeader == "" {
+			respondErrori18n(c, http.StatusUnauthorized, "error.auth.authorization_header_required")
+			return
+		}
+
+		parts := strings.SplitN(authHeader, " ", 2)
+		if len(parts) != 2 || !strings.EqualFold(parts[0], "bearer") {
+			respondErrori18n(c, http.StatusUnauthorized, "error.auth.invalid_authorization_format")
+			return
+		}
+
+		claims, err := auth.ParseToken(parts[1])
+		if err != nil {
+			respondErrori18n(c, http.StatusUnauthorized, "error.auth.invalid_or_expired_token")
+			return
+		}
+
+		if claims.ID == "" {
+			respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request")
+			return
+		}
+
+		// Calculate remaining TTL
+		ttl := time.Until(claims.ExpiresAt.Time)
+		if ttl <= 0 {
+			// Token already expired, no need to revoke
+			respondSuccess(c, gin.H{"message": "token_already_expired"})
+			return
+		}
+
+		if err := blacklist.Revoke(claims.ID, ttl); err != nil {
+			respondErrori18n(c, http.StatusInternalServerError, "error.common.internal_error")
+			return
+		}
+
+		respondSuccess(c, gin.H{"message": "token_revoked"})
 	}
 }
 
@@ -185,6 +240,96 @@ func Login(db *gorm.DB) gin.HandlerFunc {
 				RoleID:   user.RoleID,
 				Username: user.Username,
 				Email:    user.Email,
+			},
+			"token": token,
+		})
+	}
+}
+
+
+// OAuthLogin initiates an OAuth2 login flow.
+// @Summary      OAuth login
+// @Description  Redirect to OAuth provider for authentication
+// @Tags         Auth
+// @Produce      json
+// @Param        provider path string true "OAuth provider (github, gitee)"
+// @Success      302 {string} string "Redirect to OAuth provider"
+// @Failure      400 {object} map[string]interface{} "invalid provider"
+// @Router       /auth/oauth/{provider} [get]
+func OAuthLogin(oauthSvc *service.OAuthService, stateStore auth.StateStore) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		provider := c.Param("provider")
+		if !oauthSvc.IsProviderConfigured(provider) {
+			respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request")
+			return
+		}
+
+		state := uuid.New().String()
+		if err := stateStore.Generate(state, 5*time.Minute); err != nil {
+			respondErrori18n(c, http.StatusInternalServerError, "error.common.internal_error")
+			return
+		}
+
+		authURL, err := oauthSvc.AuthURL(provider, state)
+		if err != nil {
+			respondErrori18n(c, http.StatusInternalServerError, "error.common.internal_error")
+			return
+		}
+
+		c.Redirect(http.StatusTemporaryRedirect, authURL)
+	}
+}
+
+// OAuthCallback handles the OAuth2 callback.
+// @Summary      OAuth callback
+// @Description  Handle OAuth provider callback and return JWT token
+// @Tags         Auth
+// @Produce      json
+// @Param        provider path string true "OAuth provider (github, gitee)"
+// @Param        code query string true "Authorization code"
+// @Param        state query string true "State parameter"
+// @Success      200 {object} map[string]interface{} "status, data.user, data.token"
+// @Failure      400 {object} map[string]interface{} "invalid state or provider"
+// @Failure      500 {object} map[string]interface{} "internal error"
+// @Router       /auth/oauth/{provider}/callback [get]
+func OAuthCallback(oauthSvc *service.OAuthService, stateStore auth.StateStore) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		provider := c.Param("provider")
+		code := c.Query("code")
+		state := c.Query("state")
+
+		if code == "" || state == "" {
+			respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request")
+			return
+		}
+
+		if !stateStore.Validate(state) {
+			respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request")
+			return
+		}
+
+		user, roleName, err := oauthSvc.HandleCallback(c.Request.Context(), provider, code)
+		if err != nil {
+			slog.Error("OAuth callback failed", "provider", provider, "error", err)
+			respondErrori18n(c, http.StatusInternalServerError, "error.common.internal_error")
+			return
+		}
+
+		token, err := auth.GenerateToken(user.ID, roleName)
+		if err != nil {
+			respondErrori18n(c, http.StatusInternalServerError, "error.auth.failed_to_generate_token")
+			return
+		}
+
+		respondSuccess(c, gin.H{
+			"user": model.User{
+				ID:           user.ID,
+				TenantID:     user.TenantID,
+				RoleID:       user.RoleID,
+				Username:     user.Username,
+				Email:        user.Email,
+				AuthProvider: user.AuthProvider,
+				AvatarURL:    user.AvatarURL,
 			},
 			"token": token,
 		})

@@ -83,7 +83,7 @@ func run(cliDriver, cliDSN string) error {
 	// Ensure data directory exists
 	dataDir := filepath.Dir(cfg.Database.DSN)
 	if dataDir != "" && dataDir != "." {
-		if err := os.MkdirAll(dataDir, 0755); err != nil {
+		if err := os.MkdirAll(dataDir, 0750); err != nil {
 			return fmt.Errorf("create data directory: %w", err)
 		}
 	}

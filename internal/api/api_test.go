@@ -50,6 +50,7 @@ func setupTestDB(t *testing.T) *gorm.DB {
 	db.Exec(`CREATE TABLE IF NOT EXISTS users (
 		id TEXT PRIMARY KEY, tenant_id TEXT, role_id TEXT,
 		username TEXT UNIQUE NOT NULL, email TEXT UNIQUE NOT NULL, password_hash TEXT NOT NULL,
+		auth_provider TEXT, auth_uid TEXT, avatar_url TEXT,
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 	)`)
 	db.Exec(`CREATE TABLE IF NOT EXISTS credentials (
@@ -66,7 +67,7 @@ func setupTestDB(t *testing.T) *gorm.DB {
 	db.Exec(`CREATE TABLE IF NOT EXISTS servers (
 		id TEXT PRIMARY KEY, tenant_id TEXT, credential_id TEXT, provider_id TEXT,
 		name TEXT NOT NULL, host TEXT NOT NULL, port INTEGER DEFAULT 22,
-		tags TEXT, status TEXT DEFAULT 'unknown', detected_info TEXT,
+		tags TEXT, status TEXT DEFAULT 'unknown', detected_info TEXT, user_id TEXT,
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 	)`)
 	db.Exec(`CREATE TABLE IF NOT EXISTS apps (
@@ -132,7 +133,7 @@ func setupTestRouter(db *gorm.DB) *gin.Engine {
 
 	// Protected routes
 	protected := api.Group("")
-	protected.Use(auth.AuthMiddleware())
+	protected.Use(auth.AuthMiddleware(nil))
 	{
 		apps := protected.Group("/apps")
 		{
@@ -165,7 +166,7 @@ func setupFullTestRouter(db *gorm.DB, bridge *service.Bridge) *gin.Engine {
 	wsHub := NewWSHub()
 	go wsHub.Run()
 	auditSvc := service.NewAuditService(db)
-	RegisterRoutes(r, db, bridge, wsHub, auditSvc, nil)
+	RegisterRoutes(r, db, bridge, wsHub, auditSvc, nil, nil, nil)
 	return r
 }
 
@@ -1682,7 +1683,7 @@ func TestGetServerEnvironment_NotFound(t *testing.T) {
 
 	bridge := createTestBridge(t, db)
 	r := setupFullTestRouter(db, bridge)
-	token := getTestToken(t, "user-1", "viewer")
+	token := getTestToken(t, "user-1", "owner")
 
 	w := makeRequest(r, "GET", "/api/v1/servers/nonexistent/environment", nil, token)
 	if w.Code != http.StatusNotFound {
@@ -1696,7 +1697,7 @@ func TestGetServerEnvironment_Success(t *testing.T) {
 
 	bridge := createTestBridge(t, db)
 	r := setupFullTestRouter(db, bridge)
-	token := getTestToken(t, "user-1", "viewer")
+	token := getTestToken(t, "user-1", "owner")
 
 	srvID := uuid.New().String()
 	db.Exec(`INSERT INTO servers (id, tenant_id, name, host, port, status, detected_info) VALUES (?, 'tenant-default', 'envserver', '10.0.0.3', 22, 'unknown', '{"os":"linux"}')`, srvID)
@@ -1713,7 +1714,7 @@ func TestTestServer_NotFound(t *testing.T) {
 
 	bridge := createTestBridge(t, db)
 	r := setupFullTestRouter(db, bridge)
-	token := getTestToken(t, "user-1", "viewer")
+	token := getTestToken(t, "user-1", "owner")
 
 	w := makeRequest(r, "POST", "/api/v1/servers/nonexistent/test", nil, token)
 	if w.Code != http.StatusInternalServerError {
@@ -1727,7 +1728,7 @@ func TestTestServer_Success(t *testing.T) {
 
 	bridge := createTestBridge(t, db)
 	r := setupFullTestRouter(db, bridge)
-	token := getTestToken(t, "user-1", "viewer")
+	token := getTestToken(t, "user-1", "owner")
 
 	srvID := uuid.New().String()
 	db.Exec(`INSERT INTO servers (id, tenant_id, name, host, port, status) VALUES (?, 'tenant-default', 'testserver', '10.0.0.4', 22, 'unknown')`, srvID)
@@ -2127,7 +2128,7 @@ func TestContextKeys(t *testing.T) {
 func TestOptionalAuth_NoToken(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
-	r.Use(auth.OptionalAuth())
+	r.Use(auth.OptionalAuth(nil))
 	r.GET("/test", func(c *gin.Context) {
 		_, exists := c.Get(string(auth.UserIDKey))
 		if exists {
@@ -2148,7 +2149,7 @@ func TestOptionalAuth_NoToken(t *testing.T) {
 func TestOptionalAuth_WithToken(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
-	r.Use(auth.OptionalAuth())
+	r.Use(auth.OptionalAuth(nil))
 	r.GET("/test", func(c *gin.Context) {
 		userID, exists := c.Get(string(auth.UserIDKey))
 		if !exists {
@@ -2175,7 +2176,7 @@ func TestOptionalAuth_WithToken(t *testing.T) {
 func TestOptionalAuth_InvalidToken(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
-	r.Use(auth.OptionalAuth())
+	r.Use(auth.OptionalAuth(nil))
 	r.GET("/test", func(c *gin.Context) {
 		_, exists := c.Get(string(auth.UserIDKey))
 		if exists {
@@ -2197,7 +2198,7 @@ func TestOptionalAuth_InvalidToken(t *testing.T) {
 func TestOptionalAuth_InvalidFormat(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
-	r.Use(auth.OptionalAuth())
+	r.Use(auth.OptionalAuth(nil))
 	r.GET("/test", func(c *gin.Context) {
 		_, exists := c.Get(string(auth.UserIDKey))
 		if exists {
@@ -2221,7 +2222,7 @@ func TestOptionalAuth_InvalidFormat(t *testing.T) {
 func TestAuthMiddleware_InvalidFormat(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
-	r.Use(auth.AuthMiddleware())
+	r.Use(auth.AuthMiddleware(nil))
 	r.GET("/test", func(c *gin.Context) {
 		c.JSON(200, gin.H{"ok": true})
 	})
@@ -2239,7 +2240,7 @@ func TestAuthMiddleware_InvalidFormat(t *testing.T) {
 func TestAuthMiddleware_InvalidToken(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
-	r.Use(auth.AuthMiddleware())
+	r.Use(auth.AuthMiddleware(nil))
 	r.GET("/test", func(c *gin.Context) {
 		c.JSON(200, gin.H{"ok": true})
 	})

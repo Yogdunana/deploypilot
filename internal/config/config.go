@@ -20,6 +20,12 @@ type Config struct {
 	Monitor    MonitorConfig    `mapstructure:"monitor"`
 	Redis      RedisConfig      `mapstructure:"redis"`
 	Kubernetes KubernetesConfig `mapstructure:"kubernetes"`
+	Audit      AuditConfig      `mapstructure:"audit"`
+}
+
+// AuditConfig holds configuration for audit logging.
+type AuditConfig struct {
+	ExternalLogPath string `mapstructure:"external_log_path"`
 }
 
 // RedisConfig holds Redis connection settings for Pub/Sub.
@@ -49,8 +55,19 @@ type AuthConfig struct {
 	JWTSecret      string `mapstructure:"jwt_secret"`
 	TokenExpire    string `mapstructure:"token_expire"`
 	WSTicketExpire string `mapstructure:"ws_ticket_expire"`
+	OAuthProviders []OAuthProviderConfig `mapstructure:"oauth_providers"`
 }
 
+
+
+// OAuthProviderConfig holds configuration for an OAuth2 provider.
+type OAuthProviderConfig struct {
+	Provider     string   `mapstructure:"provider"`
+	ClientID     string   `mapstructure:"client_id"`
+	ClientSecret string   `mapstructure:"client_secret"`
+	RedirectURL  string   `mapstructure:"redirect_url"`
+	Scopes       []string `mapstructure:"scopes"`
+}
 // DeployConfig holds deployment engine settings.
 type DeployConfig struct {
 	DefaultMode         string `mapstructure:"default_mode"`
@@ -217,4 +234,7 @@ func setDefaults(v *viper.Viper) {
 	// Kubernetes
 	v.SetDefault("kubernetes.enabled", false)
 	v.SetDefault("kubernetes.default_namespace", "default")
+
+	// Audit
+	v.SetDefault("audit.external_log_path", "")
 }

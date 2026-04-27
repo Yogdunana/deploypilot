@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strconv"
+	"time"
 
 	"github.com/Yogdunana/deploypilot/internal/config"
 	"github.com/Yogdunana/deploypilot/internal/crypto"
@@ -53,7 +54,7 @@ var serveCmd = &cobra.Command{
 		// Ensure data directory exists
 		dataDir := filepath.Dir(cfg.Database.DSN)
 		if dataDir != "" && dataDir != "." {
-			if err := os.MkdirAll(dataDir, 0755); err != nil {
+			if err := os.MkdirAll(dataDir, 0750); err != nil {
 				return fmt.Errorf("create data directory: %w", err)
 			}
 		}
@@ -98,7 +99,13 @@ var serveCmd = &cobra.Command{
 		go func() {
 			metricsPort := strconv.Itoa(cfg.Monitor.MetricsPort)
 			slog.Info("starting metrics server", "port", metricsPort)
-			if err := http.ListenAndServe(":"+metricsPort, metrics.Handler()); err != nil {
+			metricsServer := &http.Server{
+				Addr:         ":" + metricsPort,
+				Handler:      metrics.Handler(),
+				ReadTimeout:  10 * time.Second,
+				WriteTimeout: 10 * time.Second,
+			}
+			if err := metricsServer.ListenAndServe(); err != nil {
 				slog.Error("metrics server failed", "error", err)
 			}
 		}()

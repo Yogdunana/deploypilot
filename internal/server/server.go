@@ -2,10 +2,12 @@ package server
 
 import (
 	"io/fs"
+	"log/slog"
 	"net/http"
 	"strings"
 
 	"github.com/Yogdunana/deploypilot/internal/api"
+	"github.com/Yogdunana/deploypilot/internal/auth"
 	"github.com/Yogdunana/deploypilot/internal/config"
 	"github.com/Yogdunana/deploypilot/internal/i18n"
 	"github.com/Yogdunana/deploypilot/internal/middleware"
@@ -24,7 +26,7 @@ type Server struct {
 }
 
 // New creates a new API server with the given address, database, bridge, and config.
-func New(addr string, db *gorm.DB, bridge *service.Bridge, cfg *config.Config) *Server {
+func New(addr string, db *gorm.DB, bridge *service.Bridge, cfg *config.Config, blacklist auth.TokenBlacklist, oauthSvc *service.OAuthService) *Server {
 	r := gin.Default()
 
 	// Security middleware
@@ -44,15 +46,27 @@ func New(addr string, db *gorm.DB, bridge *service.Bridge, cfg *config.Config) *
 	)
 	r.Use(rateLimiter.Middleware())
 
-	// Audit logging
-	auditSvc := service.NewAuditService(db)
+	// Audit logging — optionally enable external file writer
+	var auditSvc *service.AuditService
+	if cfg.Audit.ExternalLogPath != "" {
+		fileWriter, err := service.NewFileAuditWriter(cfg.Audit.ExternalLogPath)
+		if err != nil {
+			slog.Warn("failed to create external audit writer", "error", err)
+			auditSvc = service.NewAuditService(db)
+		} else {
+			auditSvc = service.NewAuditService(db, fileWriter)
+			slog.Info("external audit logging enabled", "path", cfg.Audit.ExternalLogPath)
+		}
+	} else {
+		auditSvc = service.NewAuditService(db)
+	}
 	r.Use(middleware.AuditMiddleware(auditSvc))
 
 	// WebSocket hub
 	wsHub := api.NewWSHub()
 	go wsHub.Run()
 
-	api.RegisterRoutes(r, db, bridge, wsHub, auditSvc, nil)
+	api.RegisterRoutes(r, db, bridge, wsHub, auditSvc, nil, blacklist, oauthSvc)
 
 	// Serve embedded frontend static files
 	serveStaticFiles(r)

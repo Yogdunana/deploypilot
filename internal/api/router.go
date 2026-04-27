@@ -15,14 +15,14 @@ import (
 )
 
 // RegisterRoutes registers all API routes on the given Gin engine.
-func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *WSHub, auditSvc *service.AuditService, pluginManager *plugin.Manager) {
+func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *WSHub, auditSvc *service.AuditService, pluginManager *plugin.Manager, blacklist auth.TokenBlacklist, oauthSvc *service.OAuthService) {
 	// Swagger documentation — only accessible in development mode.
 	// In production, the endpoint is disabled to prevent information leakage.
 	if os.Getenv("DEPLOYPILOT_ENV") == "development" || os.Getenv("GIN_MODE") == "debug" {
 		r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 	} else {
 		// In production, require authentication to access Swagger docs
-		r.GET("/swagger/*any", auth.AuthMiddleware(), ginSwagger.WrapHandler(swaggerFiles.Handler))
+		r.GET("/swagger/*any", auth.AuthMiddleware(blacklist), ginSwagger.WrapHandler(swaggerFiles.Handler))
 	}
 
 	api := r.Group("/api/v1")
@@ -46,7 +46,7 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 
 	// SSE routes (requires auth)
 	sseGroup := api.Group("/sse")
-	sseGroup.Use(auth.AuthMiddleware())
+	sseGroup.Use(auth.AuthMiddleware(blacklist))
 	{
 		sseGroup.GET("/deploy/:app_id", DeploySSE(bridge))
 	}
@@ -57,29 +57,36 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 		authGroup.POST("/register", Register(db))
 		authGroup.POST("/login", Login(db))
 		authGroup.POST("/ws-ticket", WSTicket(ticketStore, 30*time.Second))
+		authGroup.POST("/revoke", RevokeToken(blacklist))
+		if oauthSvc != nil {
+			stateStore := auth.NewMemoryStateStore()
+			go stateStore.StartCleanup(context.Background(), 5*time.Minute)
+			authGroup.GET("/oauth/:provider", OAuthLogin(oauthSvc, stateStore))
+			authGroup.GET("/oauth/:provider/callback", OAuthCallback(oauthSvc, stateStore))
+		}
 	}
 
 	// Protected routes
 	protected := api.Group("")
-	protected.Use(auth.AuthMiddleware())
+	protected.Use(auth.AuthMiddleware(blacklist))
 	{
 		// Apps (12 endpoints)
 		apps := protected.Group("/apps")
 		{
 			apps.POST("", CreateApp(db))
 			apps.GET("", ListApps(db))
-			apps.GET("/:id", GetApp(db))
-			apps.PUT("/:id", UpdateApp(db))
-			apps.DELETE("/:id", DeleteApp(bridge))
-			apps.POST("/:id/deploy", DeployApp(bridge))
-			apps.POST("/:id/build", BuildAndDeployApp(bridge))
-			apps.GET("/:id/status", GetAppStatus(bridge))
-			apps.POST("/:id/rollback", RollbackApp(bridge))
-			apps.GET("/:id/logs/container", GetContainerLogs(bridge))
-			apps.POST("/:id/backup", BackupApp(bridge))
-			apps.POST("/:id/restore", RestoreApp(bridge))
-			apps.GET("/:id/env", GetAppEnv(db))
-			apps.PUT("/:id/env", UpdateAppEnv(db))
+			apps.GET("/:id", auth.RequireResourceAccess(db, "app", "id"), GetApp(db))
+			apps.PUT("/:id", auth.RequireResourceAccess(db, "app", "id"), UpdateApp(db))
+			apps.DELETE("/:id", auth.RequireResourceAccess(db, "app", "id"), DeleteApp(bridge))
+			apps.POST("/:id/deploy", auth.RequireResourceAccess(db, "app", "id"), DeployApp(bridge))
+			apps.POST("/:id/build", auth.RequireResourceAccess(db, "app", "id"), BuildAndDeployApp(bridge))
+			apps.GET("/:id/status", auth.RequireResourceAccess(db, "app", "id"), GetAppStatus(bridge))
+			apps.POST("/:id/rollback", auth.RequireResourceAccess(db, "app", "id"), RollbackApp(bridge))
+			apps.GET("/:id/logs/container", auth.RequireResourceAccess(db, "app", "id"), GetContainerLogs(bridge))
+			apps.POST("/:id/backup", auth.RequireResourceAccess(db, "app", "id"), BackupApp(bridge))
+			apps.POST("/:id/restore", auth.RequireResourceAccess(db, "app", "id"), RestoreApp(bridge))
+			apps.GET("/:id/env", auth.RequireResourceAccess(db, "app", "id"), GetAppEnv(db))
+			apps.PUT("/:id/env", auth.RequireResourceAccess(db, "app", "id"), UpdateAppEnv(db))
 		}
 
 		// Servers (7 endpoints)
@@ -87,11 +94,11 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 		{
 			servers.POST("", AddServer(bridge))
 			servers.GET("", ListServers(bridge))
-			servers.PUT("/:id", UpdateServer(bridge))
-			servers.DELETE("/:id", DeleteServer(bridge))
-			servers.POST("/:id/detect", DetectEnvironment(bridge))
-			servers.GET("/:id/environment", GetServerEnvironment(bridge))
-			servers.POST("/:id/test", TestServer(bridge))
+			servers.PUT("/:id", auth.RequireResourceAccess(db, "server", "id"), UpdateServer(bridge))
+			servers.DELETE("/:id", auth.RequireResourceAccess(db, "server", "id"), DeleteServer(bridge))
+			servers.POST("/:id/detect", auth.RequireResourceAccess(db, "server", "id"), DetectEnvironment(bridge))
+			servers.GET("/:id/environment", auth.RequireResourceAccess(db, "server", "id"), GetServerEnvironment(bridge))
+			servers.POST("/:id/test", auth.RequireResourceAccess(db, "server", "id"), TestServer(bridge))
 		}
 
 		// Credentials (5 endpoints)
@@ -99,9 +106,9 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 		{
 			creds.GET("", ListCredentials(bridge))
 			creds.POST("", CreateCredential(bridge))
-			creds.PUT("/:id", UpdateCredential(bridge))
-			creds.DELETE("/:id", DeleteCredential(bridge))
-			creds.POST("/:id/rotate", RotateCredential(bridge, auditSvc))
+			creds.PUT("/:id", auth.RequireResourceAccess(db, "credential", "id"), UpdateCredential(bridge))
+			creds.DELETE("/:id", auth.RequireResourceAccess(db, "credential", "id"), DeleteCredential(bridge))
+			creds.POST("/:id/rotate", auth.RequireResourceAccess(db, "credential", "id"), RotateCredential(bridge, auditSvc))
 		}
 
 		// Clusters (6 endpoints)

@@ -34,6 +34,7 @@ import (
 
 	_ "github.com/Yogdunana/deploypilot/docs/swagger"
 	"github.com/Yogdunana/deploypilot/internal/agent"
+	"github.com/Yogdunana/deploypilot/internal/auth"
 	"github.com/Yogdunana/deploypilot/internal/config"
 	"github.com/Yogdunana/deploypilot/internal/crypto"
 	"github.com/Yogdunana/deploypilot/internal/database"
@@ -97,7 +98,7 @@ func run(cliDriver, cliDSN, cliAddr string) error {
 	// Ensure data directory exists
 	dataDir := filepath.Dir(cfg.Database.DSN)
 	if dataDir != "" && dataDir != "." {
-		if err := os.MkdirAll(dataDir, 0755); err != nil {
+		if err := os.MkdirAll(dataDir, 0750); err != nil {
 			return fmt.Errorf("create data directory: %w", err)
 		}
 	}
@@ -133,8 +134,9 @@ func run(cliDriver, cliDSN, cliAddr string) error {
 		slog.Warn("DEPLOYPILOT_ENCRYPTION_KEY not set, generated a temporary key (credentials will be lost on restart)")
 	}
 
-	// Initialize event bus (Redis if available, otherwise in-memory)
+	// Initialize event bus and token blacklist (Redis if available, otherwise in-memory)
 	var eventBus service.EventBus
+	var tokenBlacklist auth.TokenBlacklist
 	if cfg.Redis.Addr != "" {
 		rdb := redis.NewClient(&redis.Options{
 			Addr:     cfg.Redis.Addr,
@@ -142,14 +144,17 @@ func run(cliDriver, cliDSN, cliAddr string) error {
 			DB:       cfg.Redis.DB,
 		})
 		if err := rdb.Ping(context.Background()).Err(); err != nil {
-			slog.Warn("Redis unavailable, falling back to in-memory event bus", "error", err)
+			slog.Warn("Redis unavailable, falling back to in-memory implementations", "error", err)
 			eventBus = service.NewInMemoryEventBus()
+			tokenBlacklist = auth.NewMemoryTokenBlacklist()
 		} else {
 			eventBus = service.NewRedisEventBus(rdb)
-			slog.Info("using Redis Pub/Sub event bus")
+			tokenBlacklist = auth.NewRedisTokenBlacklist(rdb)
+			slog.Info("using Redis for event bus and token blacklist")
 		}
 	} else {
 		eventBus = service.NewInMemoryEventBus()
+		tokenBlacklist = auth.NewMemoryTokenBlacklist()
 	}
 
 	// Initialize agent tunnel manager
@@ -165,14 +170,27 @@ func run(cliDriver, cliDSN, cliAddr string) error {
 		listenAddr = fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port)
 	}
 
-	srv := server.New(listenAddr, db, bridge, cfg)
+	// Initialize OAuth service (if providers are configured)
+	var oauthSvc *service.OAuthService
+	if len(cfg.Auth.OAuthProviders) > 0 {
+		oauthSvc = service.NewOAuthService(db, cfg.Auth.OAuthProviders)
+		slog.Info("OAuth service initialized", "providers", len(cfg.Auth.OAuthProviders))
+	}
+
+	srv := server.New(listenAddr, db, bridge, cfg, tokenBlacklist, oauthSvc)
 
 	// Initialize and start Prometheus metrics server
 	metrics.Init()
 	go func() {
 		metricsPort := strconv.Itoa(cfg.Monitor.MetricsPort)
 		slog.Info("starting metrics server", "port", metricsPort)
-		if err := http.ListenAndServe(":"+metricsPort, metrics.Handler()); err != nil {
+		metricsServer := &http.Server{
+			Addr:         ":" + metricsPort,
+			Handler:      metrics.Handler(),
+			ReadTimeout:  10 * time.Second,
+			WriteTimeout: 10 * time.Second,
+		}
+		if err := metricsServer.ListenAndServe(); err != nil {
 			slog.Error("metrics server failed", "error", err)
 		}
 	}()

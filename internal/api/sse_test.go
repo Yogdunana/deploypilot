@@ -71,7 +71,7 @@ func setupSSERouter(db *gorm.DB, bridge *service.Bridge) *gin.Engine {
 	})
 
 	api := r.Group("/api/v1")
-	api.Use(auth.AuthMiddleware())
+	api.Use(auth.AuthMiddleware(nil))
 	{
 		api.GET("/sse/deploy/:app_id", DeploySSE(bridge))
 	}

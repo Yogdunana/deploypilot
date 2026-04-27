@@ -33,7 +33,10 @@ type User struct {
 	RoleID       string    `gorm:"index" json:"role_id"`
 	Username     string    `gorm:"uniqueIndex;not null" json:"username"`
 	Email        string    `gorm:"uniqueIndex;not null" json:"email"`
-	PasswordHash string    `gorm:"not null" json:"-"`
+	PasswordHash string    `gorm:"" json:"-"`
+	AuthProvider string `gorm:"size:20;index" json:"auth_provider,omitempty"`
+	AuthUID      string `gorm:"size:100;index" json:"auth_uid,omitempty"`
+	AvatarURL    string `gorm:"size:500" json:"avatar_url,omitempty"`
 	CreatedAt    time.Time `gorm:"autoCreateTime" json:"created_at"`
 	UpdatedAt    time.Time `gorm:"autoUpdateTime" json:"updated_at"`
 

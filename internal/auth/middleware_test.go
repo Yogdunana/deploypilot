@@ -23,7 +23,7 @@ func TestAuthMiddleware_ValidToken(t *testing.T) {
 	}
 
 	handlerCalled := false
-	r.Use(AuthMiddleware())
+	r.Use(AuthMiddleware(nil))
 	r.GET("/test", func(c *gin.Context) {
 		handlerCalled = true
 		userID, exists := c.Get(string(UserIDKey))
@@ -82,7 +82,7 @@ func TestAuthMiddleware_NoToken(t *testing.T) {
 	r := setupGinTest()
 
 	handlerCalled := false
-	r.Use(AuthMiddleware())
+	r.Use(AuthMiddleware(nil))
 	r.GET("/test", func(c *gin.Context) {
 		handlerCalled = true
 		c.Status(http.StatusOK)
@@ -104,7 +104,7 @@ func TestAuthMiddleware_InvalidToken(t *testing.T) {
 	r := setupGinTest()
 
 	handlerCalled := false
-	r.Use(AuthMiddleware())
+	r.Use(AuthMiddleware(nil))
 	r.GET("/test", func(c *gin.Context) {
 		handlerCalled = true
 		c.Status(http.StatusOK)
@@ -135,7 +135,7 @@ func TestAuthMiddleware_ExpiredToken(t *testing.T) {
 	token := createTokenFromClaims(expiredClaims)
 
 	handlerCalled := false
-	r.Use(AuthMiddleware())
+	r.Use(AuthMiddleware(nil))
 	r.GET("/test", func(c *gin.Context) {
 		handlerCalled = true
 		c.Status(http.StatusOK)
@@ -168,7 +168,7 @@ func TestAuthMiddleware_InvalidFormat(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			handlerCalled := false
 			r2 := setupGinTest()
-			r2.Use(AuthMiddleware())
+			r2.Use(AuthMiddleware(nil))
 			r2.GET("/test", func(c *gin.Context) {
 				handlerCalled = true
 				c.Status(http.StatusOK)
@@ -192,7 +192,7 @@ func TestAuthMiddleware_InvalidFormat(t *testing.T) {
 func TestRoleRequired_OwnerCanAccessAdmin(t *testing.T) {
 	r := setupGinTest()
 
-	r.Use(AuthMiddleware())
+	r.Use(AuthMiddleware(nil))
 	r.Use(RoleRequired("admin"))
 	r.GET("/test", func(c *gin.Context) {
 		c.Status(http.StatusOK)
@@ -212,7 +212,7 @@ func TestRoleRequired_OwnerCanAccessAdmin(t *testing.T) {
 func TestRoleRequired_AdminCannotAccessOwner(t *testing.T) {
 	r := setupGinTest()
 
-	r.Use(AuthMiddleware())
+	r.Use(AuthMiddleware(nil))
 	r.Use(RoleRequired("owner"))
 	r.GET("/test", func(c *gin.Context) {
 		c.Status(http.StatusOK)
@@ -232,7 +232,7 @@ func TestRoleRequired_AdminCannotAccessOwner(t *testing.T) {
 func TestRoleRequired_ViewerCannotAccessDev(t *testing.T) {
 	r := setupGinTest()
 
-	r.Use(AuthMiddleware())
+	r.Use(AuthMiddleware(nil))
 	r.Use(RoleRequired("dev"))
 	r.GET("/test", func(c *gin.Context) {
 		c.Status(http.StatusOK)
@@ -269,7 +269,7 @@ func TestRoleRequired_NoAuth(t *testing.T) {
 func TestRoleRequired_ViewerCanAccessViewer(t *testing.T) {
 	r := setupGinTest()
 
-	r.Use(AuthMiddleware())
+	r.Use(AuthMiddleware(nil))
 	r.Use(RoleRequired("viewer"))
 	r.GET("/test", func(c *gin.Context) {
 		c.Status(http.StatusOK)
@@ -290,7 +290,7 @@ func TestOptionalAuth_ValidToken(t *testing.T) {
 	r := setupGinTest()
 
 	handlerCalled := false
-	r.Use(OptionalAuth())
+	r.Use(OptionalAuth(nil))
 	r.GET("/test", func(c *gin.Context) {
 		handlerCalled = true
 		userID, exists := c.Get(string(UserIDKey))
@@ -321,7 +321,7 @@ func TestOptionalAuth_NoToken(t *testing.T) {
 	r := setupGinTest()
 
 	handlerCalled := false
-	r.Use(OptionalAuth())
+	r.Use(OptionalAuth(nil))
 	r.GET("/test", func(c *gin.Context) {
 		handlerCalled = true
 		// Should NOT have userID in context
@@ -348,7 +348,7 @@ func TestOptionalAuth_InvalidToken(t *testing.T) {
 	r := setupGinTest()
 
 	handlerCalled := false
-	r.Use(OptionalAuth())
+	r.Use(OptionalAuth(nil))
 	r.GET("/test", func(c *gin.Context) {
 		handlerCalled = true
 		_, exists := c.Get(string(UserIDKey))
@@ -375,7 +375,7 @@ func TestOptionalAuth_InvalidFormat(t *testing.T) {
 	r := setupGinTest()
 
 	handlerCalled := false
-	r.Use(OptionalAuth())
+	r.Use(OptionalAuth(nil))
 	r.GET("/test", func(c *gin.Context) {
 		handlerCalled = true
 		c.Status(http.StatusOK)
@@ -429,7 +429,7 @@ func TestRoleRequired_UnknownRole(t *testing.T) {
 	}
 	token := createTokenFromClaims(unknownClaims)
 
-	r.Use(AuthMiddleware())
+	r.Use(AuthMiddleware(nil))
 	r.Use(RoleRequired("admin"))
 	r.GET("/test", func(c *gin.Context) {
 		c.Status(http.StatusOK)
@@ -449,7 +449,7 @@ func TestRoleRequired_EmptyRoles(t *testing.T) {
 	r := setupGinTest()
 
 	token, _ := GenerateToken("viewer-user", "viewer")
-	r.Use(AuthMiddleware())
+	r.Use(AuthMiddleware(nil))
 	r.Use(RoleRequired()) // no roles required
 	r.GET("/test", func(c *gin.Context) {
 		c.Status(http.StatusOK)
