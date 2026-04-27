@@ -331,7 +331,201 @@ validate_username() {
     fi
 }
 
+# ─── Upgrade Function ────────────────────────────────────────────────
+function do_upgrade() {
+    local target_version="${1:-latest}"
+
+    print_banner
+    check_root
+
+    echo -e "${BOLD}${MAGENTA}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+    echo -e "${BOLD}${MAGENTA} 🔄 DeployPilot 升级模式${RESET}"
+    echo -e "${BOLD}${MAGENTA}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+
+    # Step 1: Detect existing installation
+    print_step "1/7" "检测现有安装"
+
+    INSTALL_DIR="${DEFAULT_INSTALL_DIR}"
+    if [ -f "${INSTALL_DIR}/config/config.yaml" ]; then
+        print_success "检测到已有安装: ${INSTALL_DIR}"
+    elif [ -d "${INSTALL_DIR}/bin" ]; then
+        print_success "检测到安装目录: ${INSTALL_DIR}"
+    else
+        print_error "未检测到 DeployPilot 安装 (${INSTALL_DIR} 不存在)"
+        print_info "请先运行安装脚本: curl -fsSL https://raw.githubusercontent.com/${GITHUB_REPO}/main/scripts/install.sh | bash"
+        exit 1
+    fi
+
+    # Detect current version
+    local current_version="unknown"
+    if [ -x "${INSTALL_DIR}/bin/api-server" ]; then
+        current_version=$("${INSTALL_DIR}/bin/api-server" --version 2>/dev/null | awk '{print $2}' || echo "unknown")
+    fi
+    print_info "当前版本: ${current_version}"
+
+    # Step 2: Fetch target version
+    print_step "2/7" "获取目标版本"
+
+    if [ "$target_version" = "latest" ]; then
+        target_version=$(get_latest_version)
+        if [ -z "$target_version" ]; then
+            print_error "无法获取最新版本信息"
+            exit 1
+        fi
+    fi
+    print_success "目标版本: ${target_version}"
+
+    if [ "$current_version" = "$target_version" ]; then
+        print_warning "当前版本已是 ${target_version}，无需升级"
+        exit 0
+    fi
+
+    # Step 3: Pre-flight checks
+    print_step "3/7" "预检查"
+
+    ARCH=$(detect_arch)
+    print_info "系统架构: ${ARCH}"
+
+    # Check disk space (need at least 100MB)
+    local available_mb
+    available_mb=$(df -BM "${INSTALL_DIR}" | awk 'NR==2 {print $4}' | tr -d 'M')
+    if [ "$available_mb" -lt 100 ]; then
+        print_error "磁盘空间不足: 仅剩 ${available_mb}MB，至少需要 100MB"
+        exit 1
+    fi
+    print_success "磁盘空间充足: ${available_mb}MB 可用"
+
+    # Check services are running
+    local services_stopped=false
+    if systemctl is-active --quiet deploypilot 2>/dev/null; then
+        print_info "API 服务正在运行"
+    fi
+
+    # Step 4: Backup current binaries
+    print_step "4/7" "备份当前二进制文件"
+
+    local backup_timestamp
+    backup_timestamp=$(date +%Y%m%d-%H%M%S)
+    local backup_dir="${INSTALL_DIR}/backups/upgrade-${backup_timestamp}"
+
+    mkdir -p "$backup_dir"
+
+    local backup_count=0
+    for binary in api-server mcp-server deploypilot; do
+        if [ -f "${INSTALL_DIR}/bin/${binary}" ]; then
+            cp -f "${INSTALL_DIR}/bin/${binary}" "${backup_dir}/${binary}"
+            backup_count=$((backup_count + 1))
+        fi
+    done
+
+    # Backup config
+    if [ -f "${INSTALL_DIR}/config/config.yaml" ]; then
+        cp -f "${INSTALL_DIR}/config/config.yaml" "${backup_dir}/config.yaml"
+    fi
+
+    print_success "已备份 ${backup_count} 个二进制文件到 ${backup_dir}"
+
+    # Step 5: Download new binaries
+    print_step "5/7" "下载新版本二进制文件"
+
+    local download_base="https://github.com/${GITHUB_REPO}/releases/download/${target_version}"
+    local download_failed=false
+
+    for binary in api-server mcp-server deploypilot; do
+        local filename="${binary}-linux-${ARCH}"
+        local download_url="${download_base}/${filename}"
+        local tmp_file="/tmp/${binary}.new"
+
+        print_info "正在下载 ${binary}..."
+        if ! download_file "$download_url" "$tmp_file" "$binary"; then
+            print_error "下载 ${binary} 失败"
+            download_failed=true
+            break
+        fi
+
+        chmod +x "$tmp_file"
+        mv -f "$tmp_file" "${INSTALL_DIR}/bin/${binary}"
+        print_success "${binary} 已更新"
+    done
+
+    if [ "$download_failed" = true ]; then
+        print_error "下载失败，正在回滚..."
+        for binary in api-server mcp-server deploypilot; do
+            if [ -f "${backup_dir}/${binary}" ]; then
+                cp -f "${backup_dir}/${binary}" "${INSTALL_DIR}/bin/${binary}"
+            fi
+        done
+        print_warning "已回滚到之前版本"
+        exit 1
+    fi
+
+    # Step 6: Verify new binaries
+    print_step "6/7" "验证新版本"
+
+    local verify_failed=false
+    for binary in api-server mcp-server deploypilot; do
+        if [ -x "${INSTALL_DIR}/bin/${binary}" ]; then
+            local new_ver
+            new_ver=$("${INSTALL_DIR}/bin/${binary}" --version 2>/dev/null | awk '{print $2}' || echo "unknown")
+            print_info "${binary}: ${new_ver}"
+        else
+            print_error "${binary} 不可执行"
+            verify_failed=true
+        fi
+    done
+
+    if [ "$verify_failed" = true ]; then
+        print_error "验证失败，正在回滚..."
+        for binary in api-server mcp-server deploypilot; do
+            if [ -f "${backup_dir}/${binary}" ]; then
+                cp -f "${backup_dir}/${binary}" "${INSTALL_DIR}/bin/${binary}"
+            fi
+        done
+        systemctl restart deploypilot deploypilot-mcp 2>/dev/null || true
+        print_warning "已回滚到之前版本"
+        exit 1
+    fi
+
+    # Step 7: Restart services
+    print_step "7/7" "重启服务"
+
+    if systemctl is-active --quiet deploypilot-mcp 2>/dev/null; then
+        systemctl restart deploypilot-mcp
+        print_success "MCP 服务已重启"
+    fi
+
+    if systemctl is-active --quiet deploypilot 2>/dev/null; then
+        systemctl restart deploypilot
+        print_success "API 服务已重启"
+    fi
+
+    # Success
+    echo ""
+    echo -e "${GREEN}${BOLD}╔═══════════════════════════════════════════════════════════════╗${RESET}"
+    echo -e "${GREEN}${BOLD}║                                                               ║${RESET}"
+    echo -e "${GREEN}${BOLD}║                    🎉 升级成功完成！                           ║${RESET}"
+    echo -e "${GREEN}${BOLD}║                                                               ║${RESET}"
+    echo -e "${GREEN}${BOLD}╚═══════════════════════════════════════════════════════════════╝${RESET}"
+    echo ""
+    echo -e "${BOLD}${WHITE}  升级信息:${RESET}"
+    echo -e "  ${CYAN}────────────────────────────────────────────────────────────────${RESET}"
+    echo -e "  ${CYAN}旧版本:${RESET}      ${current_version}"
+    echo -e "  ${CYAN}新版本:${RESET}      ${target_version}"
+    echo -e "  ${CYAN}备份位置:${RESET}    ${backup_dir}"
+    echo ""
+    echo -e "${YELLOW}${BOLD}  如需回滚:${RESET}"
+    echo -e "  ${YELLOW}────────────────────────────────────────────────────────────────${RESET}"
+    echo -e "  ${YELLOW}cp ${backup_dir}/* ${INSTALL_DIR}/bin/ && systemctl restart deploypilot deploypilot-mcp${RESET}"
+    echo ""
+}
+
 function main() {
+    # Handle --upgrade flag
+    if [ "${1:-}" = "--upgrade" ] || [ "${1:-}" = "-U" ]; then
+        do_upgrade "${2:-latest}"
+        return
+    fi
+
     print_banner
 
     check_root

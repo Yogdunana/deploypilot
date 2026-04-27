@@ -428,8 +428,18 @@ func TestCheckSystemUpdate(t *testing.T) {
 		t.Fatalf("CheckSystemUpdate failed: %v", err)
 	}
 	m, ok := result.(map[string]interface{})
-	if !ok || m["update_available"] != false {
-		t.Fatalf("expected update_available=false, got %v", m)
+	if !ok {
+		t.Fatal("expected map result")
+	}
+	// update_available can be true or false depending on current version vs latest release
+	if _, hasUpdate := m["update_available"]; !hasUpdate {
+		t.Fatal("expected update_available field in response")
+	}
+	if _, hasCurrent := m["current_version"]; !hasCurrent {
+		t.Fatal("expected current_version field in response")
+	}
+	if _, hasLatest := m["latest_version"]; !hasLatest {
+		t.Fatal("expected latest_version field in response")
 	}
 }
 

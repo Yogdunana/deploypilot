@@ -1,5 +1,6 @@
 * [[Home]]
 * [[Getting-Started]]
+* [[Roadmap]]
 * [[Architecture]]
 * [[MCP-Integration]]
 * [[Configuration]]

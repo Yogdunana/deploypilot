@@ -36,10 +36,17 @@ jobs:
           GOARCH: ${{ matrix.goarch }}
           CGO_ENABLED: 0
           VERSION: ${{ github.ref_name }}
+          GIT_COMMIT: ${{ github.sha }}
+          BUILD_TIME: ${{ needs.build-binaries.result != 'skipped' && steps.build.outputs.build_time || '' }}
         run: |
+          BUILD_TIME="${BUILD_TIME:-$(date -u '+%Y-%m-%dT%H:%M:%SZ')}"
           mkdir -p dist
+          LDFLAGS="-s -w \
+            -X github.com/Yogdunana/deploypilot/internal/version.Version=${VERSION} \
+            -X github.com/Yogdunana/deploypilot/internal/version.GitCommit=${GIT_COMMIT:0:8} \
+            -X github.com/Yogdunana/deploypilot/internal/version.BuildTime=${BUILD_TIME}"
           for cmd in deploypilot api-server mcp-server; do
-            go build -ldflags="-s -w -X github.com/Yogdunana/deploypilot/cmd/${cmd}.version=${VERSION}" -o dist/${cmd}-${{ matrix.goos }}-${{ matrix.goarch }} ./cmd/${cmd}/
+            go build -ldflags="${LDFLAGS}" -o dist/${cmd}-${{ matrix.goos }}-${{ matrix.goarch }} ./cmd/${cmd}/
           done
 
       - uses: actions/upload-artifact@v4

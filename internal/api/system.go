@@ -5,6 +5,7 @@ import (
 	"runtime"
 
 	"github.com/Yogdunana/deploypilot/internal/service"
+	"github.com/Yogdunana/deploypilot/internal/version"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
@@ -19,12 +20,15 @@ import (
 // @Failure      401 {object} map[string]interface{} "unauthorized"
 // @Router       /system/version [get]
 func GetVersion(c *gin.Context) {
+	info := version.Info()
 	respondSuccess(c, gin.H{
-		"version":  "0.6.0",
-		"go":       runtime.Version(),
-		"goos":     runtime.GOOS,
-		"goarch":   runtime.GOARCH,
-		"num_cpu":  runtime.NumCPU(),
+		"version":    info["version"],
+		"build_time": info["build_time"],
+		"git_commit": info["git_commit"],
+		"go":         runtime.Version(),
+		"goos":       runtime.GOOS,
+		"goarch":     runtime.GOARCH,
+		"num_cpu":    runtime.NumCPU(),
 	})
 }
 
@@ -41,6 +45,27 @@ func GetVersion(c *gin.Context) {
 func CheckUpdate(bridge *service.Bridge) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		result, err := bridge.CheckSystemUpdate(c.Request.Context())
+		if err != nil {
+			respondErrori18n(c, http.StatusInternalServerError, "error.common.internal_error")
+			return
+		}
+		respondSuccess(c, result)
+	}
+}
+
+// DoUpdate performs a system upgrade.
+// @Summary      Perform system upgrade
+// @Description  Trigger a system upgrade to the latest available version
+// @Tags         System
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200 {object} map[string]interface{} "status, data (upgrade result)"
+// @Failure      401 {object} map[string]interface{} "unauthorized"
+// @Failure      500 {object} map[string]interface{} "internal error"
+// @Router       /system/update/perform [post]
+func DoUpdate(bridge *service.Bridge) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		result, err := bridge.PerformSystemUpdate(c.Request.Context())
 		if err != nil {
 			respondErrori18n(c, http.StatusInternalServerError, "error.common.internal_error")
 			return

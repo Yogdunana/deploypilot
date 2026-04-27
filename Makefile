@@ -1,7 +1,9 @@
 .PHONY: build build-mcp build-api build-all test lint coverage clean docker-build run swagger
 
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
-LDFLAGS := -ldflags "-s -w -X main.version=$(VERSION)"
+GIT_COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+BUILD_TIME ?= $(shell date -u '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null || echo "unknown")
+LDFLAGS := -ldflags "-s -w -X github.com/Yogdunana/deploypilot/internal/version.Version=$(VERSION) -X github.com/Yogdunana/deploypilot/internal/version.GitCommit=$(GIT_COMMIT) -X github.com/Yogdunana/deploypilot/internal/version.BuildTime=$(BUILD_TIME)"
 
 # Go parameters
 GOCMD = go

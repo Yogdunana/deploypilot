@@ -16,11 +16,12 @@ import (
 	"github.com/Yogdunana/deploypilot/internal/engine/deployer"
 	"github.com/Yogdunana/deploypilot/internal/mcp"
 	"github.com/Yogdunana/deploypilot/internal/service"
+	appversion "github.com/Yogdunana/deploypilot/internal/version"
 	"github.com/mark3labs/mcp-go/server"
 	"gorm.io/gorm"
 )
 
-// version is set via -ldflags at build time.
+// version is set via -ldflags at build time (kept for --version flag compatibility).
 var version = "dev"
 
 // localExecutor runs commands on the local machine.
@@ -43,7 +44,7 @@ func main() {
 	flag.Parse()
 
 	if *showHelp {
-		fmt.Fprintf(os.Stderr, "DeployPilot MCP Server v%s\n\n", version)
+		fmt.Fprintf(os.Stderr, "DeployPilot MCP Server v%s\n\n", appversion.Version)
 		fmt.Fprintf(os.Stderr, "Usage: mcp-server [options]\n\n")
 		fmt.Fprintf(os.Stderr, "Options:\n")
 		flag.PrintDefaults()
@@ -55,7 +56,7 @@ func main() {
 	}
 
 	if *showVersion {
-		fmt.Printf("mcp-server %s\n", version)
+		fmt.Printf("mcp-server %s\n", appversion.Version)
 		os.Exit(0)
 	}
 
@@ -125,7 +126,7 @@ func run(configFilePath, cliDriver, cliDSN string) error {
 	mcpServer := mcp.NewServer(bridge)
 
 	// Start stdio transport
-	slog.Info("DeployPilot MCP server starting", "version", version, "transport", "stdio")
+	slog.Info("DeployPilot MCP server starting", "version", appversion.Version, "transport", "stdio")
 	slog.Info("database configured", "type", cfg.Database.Type, "dsn", cfg.Database.DSN)
 	return server.ServeStdio(mcpServer)
 }

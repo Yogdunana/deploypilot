@@ -931,8 +931,9 @@ func TestCheckSystemUpdate_Cov(t *testing.T) {
 	if !ok {
 		t.Fatal("expected map")
 	}
-	if m["update_available"] != false {
-		t.Errorf("expected update_available=false, got %v", m["update_available"])
+	// update_available can be true or false depending on current version vs latest release
+	if _, hasUpdate := m["update_available"]; !hasUpdate {
+		t.Fatal("expected update_available field in response")
 	}
 }
 
