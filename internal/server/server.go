@@ -1,10 +1,13 @@
 package server
 
 import (
+	"context"
+	"fmt"
 	"io/fs"
 	"log/slog"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/Yogdunana/deploypilot/internal/api"
 	"github.com/Yogdunana/deploypilot/internal/auth"
@@ -19,10 +22,12 @@ import (
 
 // Server wraps a Gin engine with application dependencies.
 type Server struct {
-	router *gin.Engine
-	db     *gorm.DB
-	bridge *service.Bridge
-	addr   string
+	router  *gin.Engine
+	httpSrv *http.Server
+	db      *gorm.DB
+	bridge  *service.Bridge
+	wsHub   *api.WSHub
+	addr    string
 }
 
 // New creates a new API server with the given address, database, bridge, and config.
@@ -71,7 +76,7 @@ func New(addr string, db *gorm.DB, bridge *service.Bridge, cfg *config.Config, b
 	// Serve embedded frontend static files
 	serveStaticFiles(r)
 
-	return &Server{router: r, db: db, bridge: bridge, addr: addr}
+	return &Server{router: r, db: db, bridge: bridge, wsHub: wsHub, addr: addr}
 }
 
 // serveStaticFiles sets up serving of embedded frontend assets with SPA fallback.
@@ -123,7 +128,40 @@ func serveStaticFiles(r *gin.Engine) {
 
 // Run starts the HTTP server.
 func (s *Server) Run() error {
-	return s.router.Run(s.addr)
+	s.httpSrv = &http.Server{
+		Addr:              s.addr,
+		Handler:           s.router,
+		ReadHeaderTimeout: 10 * time.Second,
+	}
+	slog.Info("HTTP server listening", "addr", s.addr)
+	return s.httpSrv.ListenAndServe()
+}
+
+// Shutdown gracefully shuts down the server.
+// It stops accepting new connections, closes the WebSocket hub,
+// and waits for active requests to complete (up to the context deadline).
+func (s *Server) Shutdown(ctx context.Context) error {
+	slog.Info("server shutting down...")
+
+	// 1. Close WebSocket hub (close all WS connections)
+	if s.wsHub != nil {
+		s.wsHub.Close()
+	}
+
+	// 2. Shutdown HTTP server (stop accepting new requests, drain active ones)
+	if s.httpSrv != nil {
+		if err := s.httpSrv.Shutdown(ctx); err != nil {
+			return fmt.Errorf("HTTP server shutdown: %w", err)
+		}
+	}
+
+	slog.Info("server shutdown complete")
+	return nil
+}
+
+// WSHub returns the WebSocket hub (for external access if needed).
+func (s *Server) WSHub() *api.WSHub {
+	return s.wsHub
 }
 
 // Router returns the underlying Gin engine (useful for testing).
