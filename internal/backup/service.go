@@ -239,7 +239,11 @@ func (s *Service) backupSQLite(ctx context.Context) (string, int64, error) {
 	if err != nil {
 		return "", 0, fmt.Errorf("failed to get underlying sql.DB: %w", err)
 	}
-	defer sqlDB.Close()
+	defer func() {
+		if err := sqlDB.Close(); err != nil {
+			slog.Warn("failed to close source database", "error", err)
+		}
+	}()
 
 	// Use BACKUP command for hot copy
 	_, err = sqlDB.Exec(fmt.Sprintf("VACUUM INTO '%s'", backupPath))
