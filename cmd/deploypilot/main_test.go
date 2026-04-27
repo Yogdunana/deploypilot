@@ -207,8 +207,8 @@ func TestBackupCreateFlags(t *testing.T) {
 
 func TestBackupRestoreFlags(t *testing.T) {
 	output, _ := executeCommand("backup", "restore", "--help")
-	if !strings.Contains(output, "--file") {
-		t.Error("missing --file flag")
+	if !strings.Contains(output, "--name") {
+		t.Error("missing --name flag")
 	}
 	if !strings.Contains(output, "--force") {
 		t.Error("missing --force flag")
@@ -221,9 +221,15 @@ func TestAllCommandsRegistered(t *testing.T) {
 	commands := [][]string{
 		{"version"},
 		{"serve"},
+		{"status"}, {"start"}, {"stop"}, {"restart"}, {"reload"},
+		{"logs"}, {"config"}, {"config", "show"}, {"config", "get"}, {"config", "set"},
+		{"upgrade"}, {"uninstall"},
+		{"reset"}, {"reset", "password"}, {"reset", "port"}, {"reset", "secret"},
+		{"user-info"},
 		{"app"}, {"app", "list"}, {"app", "create"}, {"app", "deploy"}, {"app", "delete"},
 		{"server"}, {"server", "list"}, {"server", "add"}, {"server", "test"},
 		{"backup"}, {"backup", "create"}, {"backup", "restore"}, {"backup", "list"},
+		{"credential"}, {"credential", "add"},
 	}
 
 	for _, cmd := range commands {
