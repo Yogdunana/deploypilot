@@ -33,21 +33,17 @@ func (s *MemoryStateStore) Generate(state string, ttl time.Duration) error {
 }
 
 func (s *MemoryStateStore) Validate(state string) bool {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	expiry, exists := s.items[state]
 	if !exists {
 		return false
 	}
 	if time.Now().After(expiry) {
+		delete(s.items, state)
 		return false
 	}
-	// Remove after validation (one-time use)
-	s.mu.RUnlock()
-	s.mu.Lock()
 	delete(s.items, state)
-	s.mu.Unlock()
-	s.mu.RLock()
 	return true
 }
 
