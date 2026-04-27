@@ -3,7 +3,6 @@ package service
 import (
 	"testing"
 
-	"github.com/Yogdunana/deploypilot/internal/model"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
@@ -14,7 +13,11 @@ func setupAuthTestDB(t *testing.T) *gorm.DB {
 	if err != nil {
 		t.Fatalf("failed to open test database: %v", err)
 	}
-	db.AutoMigrate(&model.App{}, &model.Server{}, &model.Credential{})
+	// Create tables with user_id column for RBAC testing
+	// (model structs don't include user_id, so AutoMigrate won't create it)
+	db.Exec(`CREATE TABLE apps (id TEXT PRIMARY KEY, name TEXT, user_id TEXT, tenant_id TEXT)`)
+	db.Exec(`CREATE TABLE servers (id TEXT PRIMARY KEY, name TEXT, user_id TEXT, tenant_id TEXT)`)
+	db.Exec(`CREATE TABLE credentials (id TEXT PRIMARY KEY, name TEXT, user_id TEXT, tenant_id TEXT)`)
 	return db
 }
 

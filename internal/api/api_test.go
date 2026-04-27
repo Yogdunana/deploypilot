@@ -132,7 +132,7 @@ func setupTestRouter(db *gorm.DB) *gin.Engine {
 
 	// Protected routes
 	protected := api.Group("")
-	protected.Use(auth.AuthMiddleware())
+	protected.Use(auth.AuthMiddleware(nil))
 	{
 		apps := protected.Group("/apps")
 		{
@@ -165,7 +165,7 @@ func setupFullTestRouter(db *gorm.DB, bridge *service.Bridge) *gin.Engine {
 	wsHub := NewWSHub()
 	go wsHub.Run()
 	auditSvc := service.NewAuditService(db)
-	RegisterRoutes(r, db, bridge, wsHub, auditSvc, nil)
+	RegisterRoutes(r, db, bridge, wsHub, auditSvc, nil, nil, nil)
 	return r
 }
 
@@ -2127,7 +2127,7 @@ func TestContextKeys(t *testing.T) {
 func TestOptionalAuth_NoToken(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
-	r.Use(auth.OptionalAuth())
+	r.Use(auth.OptionalAuth(nil))
 	r.GET("/test", func(c *gin.Context) {
 		_, exists := c.Get(string(auth.UserIDKey))
 		if exists {
@@ -2148,7 +2148,7 @@ func TestOptionalAuth_NoToken(t *testing.T) {
 func TestOptionalAuth_WithToken(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
-	r.Use(auth.OptionalAuth())
+	r.Use(auth.OptionalAuth(nil))
 	r.GET("/test", func(c *gin.Context) {
 		userID, exists := c.Get(string(auth.UserIDKey))
 		if !exists {
@@ -2175,7 +2175,7 @@ func TestOptionalAuth_WithToken(t *testing.T) {
 func TestOptionalAuth_InvalidToken(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
-	r.Use(auth.OptionalAuth())
+	r.Use(auth.OptionalAuth(nil))
 	r.GET("/test", func(c *gin.Context) {
 		_, exists := c.Get(string(auth.UserIDKey))
 		if exists {
@@ -2197,7 +2197,7 @@ func TestOptionalAuth_InvalidToken(t *testing.T) {
 func TestOptionalAuth_InvalidFormat(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
-	r.Use(auth.OptionalAuth())
+	r.Use(auth.OptionalAuth(nil))
 	r.GET("/test", func(c *gin.Context) {
 		_, exists := c.Get(string(auth.UserIDKey))
 		if exists {
@@ -2221,7 +2221,7 @@ func TestOptionalAuth_InvalidFormat(t *testing.T) {
 func TestAuthMiddleware_InvalidFormat(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
-	r.Use(auth.AuthMiddleware())
+	r.Use(auth.AuthMiddleware(nil))
 	r.GET("/test", func(c *gin.Context) {
 		c.JSON(200, gin.H{"ok": true})
 	})
@@ -2239,7 +2239,7 @@ func TestAuthMiddleware_InvalidFormat(t *testing.T) {
 func TestAuthMiddleware_InvalidToken(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
-	r.Use(auth.AuthMiddleware())
+	r.Use(auth.AuthMiddleware(nil))
 	r.GET("/test", func(c *gin.Context) {
 		c.JSON(200, gin.H{"ok": true})
 	})
