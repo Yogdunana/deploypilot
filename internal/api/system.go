@@ -107,3 +107,73 @@ func SystemHealth(db *gorm.DB) gin.HandlerFunc {
 		c.JSON(code, gin.H{"status": "success", "data": health})
 	}
 }
+
+// GetSandboxConfig returns the current sandbox configuration.
+// @Summary      Get sandbox configuration
+// @Description  Retrieve the current command sandbox rules and mode
+// @Tags         System
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200 {object} map[string]interface{} "sandbox config"
+// @Router       /system/sandbox [get]
+func GetSandboxConfig(bridge *service.Bridge) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		sb := bridge.GetSandbox()
+		if sb == nil {
+			c.JSON(http.StatusOK, gin.H{"status": "success", "data": gin.H{"mode": "off", "rules": []interface{}{}}})
+			return
+		}
+		cfg := sb.GetConfig()
+		// Don't expose compiled regex to JSON
+		type ruleOut struct {
+			ID          string `json:"id"`
+			Pattern     string `json:"pattern"`
+			Description string `json:"description"`
+			Enabled     bool   `json:"enabled"`
+		}
+		rules := make([]ruleOut, len(cfg.Rules))
+		for i, r := range cfg.Rules {
+			rules[i] = ruleOut{ID: r.ID, Pattern: r.Pattern, Description: r.Description, Enabled: r.Enabled}
+		}
+		c.JSON(http.StatusOK, gin.H{"status": "success", "data": gin.H{
+			"mode":        cfg.Mode,
+			"log_blocked": cfg.LogBlocked,
+			"rules":       rules,
+		}})
+	}
+}
+
+// ValidateSandboxCommand tests a command against sandbox rules without executing it.
+// @Summary      Validate command against sandbox
+// @Description  Check if a command would be allowed or blocked by the sandbox
+// @Tags         System
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        body body object{command=string} true "Command to validate"
+// @Success      200 {object} map[string]interface{} "validation result"
+// @Router       /system/sandbox/validate [post]
+func ValidateSandboxCommand(bridge *service.Bridge) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var req struct {
+			Command string `json:"command" binding:"required"`
+		}
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"status": "error", "message": "command is required"})
+			return
+		}
+		sb := bridge.GetSandbox()
+		if sb == nil {
+			c.JSON(http.StatusOK, gin.H{"status": "success", "data": gin.H{"allowed": true, "mode": "off"}})
+			return
+		}
+		if err := sb.Validate(req.Command); err != nil {
+			c.JSON(http.StatusOK, gin.H{"status": "success", "data": gin.H{
+				"allowed": false,
+				"error":   err.Error(),
+			}})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"status": "success", "data": gin.H{"allowed": true}})
+	}
+}

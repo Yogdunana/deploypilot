@@ -31,6 +31,7 @@ import (
 	"github.com/Yogdunana/deploypilot/internal/provider/notify"
 	registry "github.com/Yogdunana/deploypilot/internal/provider/registry"
 	"github.com/Yogdunana/deploypilot/internal/provider/server"
+	"github.com/Yogdunana/deploypilot/internal/sandbox"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
@@ -112,6 +113,21 @@ func NewBridge(db *gorm.DB, executor deployer.CommandExecutor, encryptionKey []b
 // d returns a deployer.DockerDeployer backed by the bridge's executor.
 func (b *Bridge) d() *deployer.DockerDeployer {
 	return deployer.New(b.Executor)
+}
+
+// GetSandbox returns the sandbox instance if the executor is a SandboxExecutor.
+func (b *Bridge) GetSandbox() interface {
+	GetConfig() sandbox.Config
+	Validate(cmd string) error
+	AddRule(rule sandbox.Rule) error
+	RemoveRule(ruleID string)
+	ToggleRule(ruleID string, enabled bool)
+	UpdateConfig(cfg sandbox.Config) error
+} {
+	if se, ok := b.Executor.(*deployer.SandboxExecutor); ok {
+		return se.Sandbox()
+	}
+	return nil
 }
 
 // getDNSProvider loads the first enabled DNS provider from DB and returns a DNSProvider interface.
