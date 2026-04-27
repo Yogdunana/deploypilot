@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"runtime"
 
+	"github.com/Yogdunana/deploypilot/internal/bruteforce"
 	"github.com/Yogdunana/deploypilot/internal/confirm"
 	"github.com/Yogdunana/deploypilot/internal/service"
 	"github.com/Yogdunana/deploypilot/internal/version"
@@ -225,6 +226,78 @@ func ConfirmRequest(bridge *service.Bridge) gin.HandlerFunc {
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{"status": "success", "data": req})
+	}
+}
+
+// GetBruteForceStatus returns locked accounts and blocked IPs.
+// @Summary      Get brute-force protection status
+// @Description  List locked accounts and blocked IPs
+// @Tags         System
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200 {object} map[string]interface{}
+// @Router       /system/bruteforce [get]
+func GetBruteForceStatus(bridge *service.Bridge) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		bf := bridge.BFProtector
+		if bf == nil {
+			c.JSON(http.StatusOK, gin.H{"status": "success", "data": gin.H{"locked_accounts": []interface{}{}, "blocked_ips": []interface{}{}}})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"status": "success", "data": gin.H{
+			"locked_accounts": bf.ListLockedAccounts(),
+			"blocked_ips":     bf.ListBlockedIPs(),
+		}})
+	}
+}
+
+// UnlockBruteForceAccount unlocks a locked account.
+// @Summary      Unlock a locked account
+// @Description  Manually unlock an account that was locked by brute-force protection
+// @Tags         System
+// @Produce      json
+// @Security     BearerAuth
+// @Param        username path string true "Username to unlock"
+// @Success      200 {object} map[string]interface{}
+// @Router       /system/bruteforce/accounts/{username}/unlock [post]
+func UnlockBruteForceAccount(bridge *service.Bridge) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		username := c.Param("username")
+		bf := bridge.BFProtector
+		if bf == nil {
+			c.JSON(http.StatusBadRequest, gin.H{"status": "error", "message": "brute-force protection not available"})
+			return
+		}
+		if bf.UnlockAccount(username) {
+			c.JSON(http.StatusOK, gin.H{"status": "success", "message": "account unlocked"})
+		} else {
+			c.JSON(http.StatusBadRequest, gin.H{"status": "error", "message": "account is not locked"})
+		}
+	}
+}
+
+// UnlockBruteForceIP unlocks a blocked IP.
+// @Summary      Unlock a blocked IP
+// @Description  Manually unlock an IP that was blocked by brute-force protection
+// @Tags         System
+// @Produce      json
+// @Security     BearerAuth
+// @Param        ip path string true "IP address to unlock"
+// @Success      200 {object} map[string]interface{}
+// @Router       /system/bruteforce/ips/{ip}/unlock [post]
+func UnlockBruteForceIP(bridge *service.Bridge) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ip := c.Param("ip")
+		bf := bridge.BFProtector
+		if bf == nil {
+			c.JSON(http.StatusBadRequest, gin.H{"status": "error", "message": "brute-force protection not available"})
+			return
+		}
+		if bf.UnlockIP(ip) {
+			c.JSON(http.StatusOK, gin.H{"status": "success", "message": "IP unlocked"})
+		} else {
+			c.JSON(http.StatusBadRequest, gin.H{"status": "error", "message": "IP is not blocked"})
+		}
 	}
 }
 

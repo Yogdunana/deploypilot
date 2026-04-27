@@ -1,12 +1,14 @@
 package api
 
 import (
+	"fmt"
 	"log/slog"
 	"net/http"
 	"strings"
 	"time"
 
 	"github.com/Yogdunana/deploypilot/internal/auth"
+	"github.com/Yogdunana/deploypilot/internal/bruteforce"
 	"github.com/Yogdunana/deploypilot/internal/crypto"
 	"github.com/Yogdunana/deploypilot/internal/service"
 	"github.com/Yogdunana/deploypilot/internal/model"
@@ -198,7 +200,7 @@ func WSTicket(ticketStore *auth.WSTicketStore, expire time.Duration) gin.Handler
 // @Failure      401 {object} map[string]interface{} "invalid credentials"
 // @Failure      500 {object} map[string]interface{} "internal error"
 // @Router       /auth/login [post]
-func Login(db *gorm.DB) gin.HandlerFunc {
+func Login(db *gorm.DB, bf *bruteforce.Protector) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var input struct {
 			Username string `json:"username" binding:"required"`
@@ -209,15 +211,42 @@ func Login(db *gorm.DB) gin.HandlerFunc {
 			return
 		}
 
+		clientIP := c.ClientIP()
+
+		// Check brute-force protection
+		if bf != nil {
+			check := bf.Check(input.Username, clientIP)
+			if !check.Allowed {
+				c.Header("Retry-After", fmt.Sprintf("%d", int(time.Until(check.LockedUntil).Seconds())))
+				respondError(c, http.StatusTooManyRequests, bruteforce.IsAccountLockedError(check))
+				return
+			}
+			// Apply progressive delay
+			if check.Delay > 0 {
+				time.Sleep(check.Delay)
+			}
+		}
+
 		var user model.User
 		if err := db.Where("username = ?", input.Username).First(&user).Error; err != nil {
+			if bf != nil {
+				bf.RecordFailure(input.Username, clientIP, "user_not_found")
+			}
 			respondErrori18n(c, http.StatusUnauthorized, "error.auth.invalid_credentials")
 			return
 		}
 
 		if !crypto.CheckPassword(input.Password, user.PasswordHash) {
+			if bf != nil {
+				bf.RecordFailure(input.Username, clientIP, "invalid_password")
+			}
 			respondErrori18n(c, http.StatusUnauthorized, "error.auth.invalid_credentials")
 			return
+		}
+
+		// Successful login — clear failures
+		if bf != nil {
+			bf.RecordSuccess(input.Username, clientIP)
 		}
 
 		// Determine role name

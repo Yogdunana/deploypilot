@@ -17,6 +17,7 @@ import (
 	"golang.org/x/crypto/ssh"
 
 	"github.com/Yogdunana/deploypilot/internal/agent"
+	"github.com/Yogdunana/deploypilot/internal/bruteforce"
 	"github.com/Yogdunana/deploypilot/internal/confirm"
 	"github.com/Yogdunana/deploypilot/internal/crypto"
 	"github.com/Yogdunana/deploypilot/internal/engine/builder"
@@ -86,6 +87,7 @@ type Bridge struct {
 	PluginMgr     *plugin.Manager          // plugin lifecycle manager
 	UpgradeSvc    *UpgradeService          // system upgrade service
 	ConfirmStore  *confirm.Store
+	BFProtector   *bruteforce.Protector
 }
 
 // TunnelManager defines the interface for agent reverse tunnel management.
@@ -110,6 +112,7 @@ func NewBridge(db *gorm.DB, executor deployer.CommandExecutor, encryptionKey []b
 		EncryptionKey: encryptionKey,
 		EventBus:      eventBus,
 		ConfirmStore:  confirm.NewStore(),
+		BFProtector:   bruteforce.New(bruteforce.DefaultConfig()),
 	}
 }
 
