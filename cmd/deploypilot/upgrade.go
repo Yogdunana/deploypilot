@@ -64,8 +64,8 @@ var upgradeCmd = &cobra.Command{
 
 		if !force {
 			fmt.Print("\nContinue? [y/N]: ")
-			var confirm string
-			fmt.Scanln(&confirm)
+		var confirm string
+		_, _ = fmt.Scanln(&confirm) //nolint:errcheck // user input, ignore error
 			if confirm != "y" && confirm != "Y" {
 				fmt.Println("Upgrade cancelled.")
 				return nil
@@ -106,7 +106,7 @@ var uninstallCmd = &cobra.Command{
 			}
 			fmt.Print("\nAre you sure? [y/N]: ")
 			var confirm string
-			fmt.Scanln(&confirm)
+			_, _ = fmt.Scanln(&confirm) //nolint:errcheck // user input, ignore error
 			if confirm != "y" && confirm != "Y" {
 				fmt.Println("Uninstall cancelled.")
 				return nil

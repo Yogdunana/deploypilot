@@ -104,9 +104,9 @@ var backupRestoreCmd = &cobra.Command{
 
 		if !force {
 			fmt.Printf("⚠️  Restoring from '%s' will overwrite current data.\n", backupName)
-			fmt.Print("Continue? [y/N]: ")
+			fmt.Print("\nContinue? [y/N]: ")
 			var confirm string
-			fmt.Scanln(&confirm)
+			_, _ = fmt.Scanln(&confirm) //nolint:errcheck // user input, ignore error
 			if confirm != "y" && confirm != "Y" {
 				fmt.Println("Restore cancelled.")
 				return nil
