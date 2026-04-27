@@ -2,10 +2,10 @@
     "swagger": "2.0",
     "info": {
         "description": "AI-native deployment platform REST API",
-        "title": "Deploypilot API",
+        "title": "DeployPilot API",
         "termsOfService": "http://swagger.io/terms/",
         "contact": {
-            "name": "Deploypilot",
+            "name": "DeployPilot",
             "url": "https://github.com/Yogdunana/deploypilot"
         },
         "license": {
@@ -3217,7 +3217,7 @@
                         "BearerAuth": []
                     }
                 ],
-                "description": "Check if a newer version of Deploypilot is available",
+                "description": "Check if a newer version of DeployPilot is available",
                 "produces": [
                     "application/json"
                 ],

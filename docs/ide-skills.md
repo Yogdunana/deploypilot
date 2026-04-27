@@ -77,6 +77,77 @@ In TRAE IDE, configure MCP servers in the settings:
 ### Rules File
 Place the rules file at `.trae/rules/deploypilot.md` in your project root.
 
+## TRAE Solo Setup (Cloud Sandbox)
+
+TRAE Solo runs in a cloud sandbox environment with no direct SSH access to servers. DeployPilot is specifically designed to solve this problem.
+
+### How It Works
+
+TRAE Solo's sandbox cannot SSH to your servers directly. DeployPilot bridges this gap:
+
+1. DeployPilot runs on your server (self-hosted)
+2. TRAE Solo connects to DeployPilot via MCP protocol over the network
+3. DeployPilot executes deployment operations on the server locally
+
+### Configuration
+
+Since TRAE Solo runs in a sandbox, you need to use the network MCP transport instead of local stdio:
+
+1. Deploy DeployPilot on your server first (see [Quick Start](../README.md))
+2. Enable MCP remote access in DeployPilot config
+3. In TRAE Solo, configure the MCP server endpoint
+
+```json
+{
+  "mcpServers": {
+    "deploypilot": {
+      "url": "https://your-server:8080/api/v1/mcp",
+      "headers": {
+        "Authorization": "Bearer YOUR_API_TOKEN"
+      }
+    }
+  }
+}
+```
+
+### Important Notes
+
+- Ensure your server's firewall allows inbound connections on port 8080 (or your configured port)
+- Use HTTPS in production for secure communication
+- Create a dedicated API token with appropriate permissions in DeployPilot's admin panel
+
+## Coze (扣子) Setup
+
+Coze (扣子) is ByteDance's AI bot platform. DeployPilot can be integrated as an MCP tool provider.
+
+### Configuration
+
+1. Deploy DeployPilot on your server
+2. In Coze's plugin/MCP configuration, add the DeployPilot MCP server endpoint:
+
+```json
+{
+  "mcpServers": {
+    "deploypilot": {
+      "url": "https://your-server:8080/api/v1/mcp",
+      "headers": {
+        "Authorization": "Bearer YOUR_API_TOKEN"
+      }
+    }
+  }
+}
+```
+
+### Bastion/Jump Host Scenario
+
+For enterprise servers behind a bastion host (跳板机):
+
+1. Deploy DeployPilot on the bastion host or a server with network access to internal servers
+2. Configure DeployPilot with SSH credentials that can reach internal servers through the bastion
+3. Coze/TRAE Solo connects to DeployPilot via MCP, and DeployPilot handles the SSH tunneling internally
+
+This eliminates the need for AI IDEs to directly connect to internal servers.
+
 ## Available Tools Reference
 
 ### Core Operations

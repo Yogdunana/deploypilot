@@ -151,3 +151,45 @@ export DEPLOYPILOT_ENCRYPTION_KEY=$(openssl rand -base64 32)
 ```bash
 export GOPROXY=https://goproxy.cn,direct
 ```
+
+## v1.0.0 更新
+
+### OAuth 登录问题
+
+**现象：** GitHub/Gitee OAuth 登录失败，回调报错。
+
+**排查步骤：**
+1. 确认 OAuth Provider 已在 `config.yaml` 中正确配置（client_id, client_secret, redirect_uri）
+2. 确认 GitHub/Gitee OAuth App 的回调 URL 与 DeployPilot 地址匹配
+3. 检查服务器日志中的 OAuth 错误信息
+4. 确认网络可以访问 GitHub/Gitee API（企业内网可能需要代理）
+
+### argon2id 密码兼容性
+
+**现象：** v1.0.0 升级后旧密码无法登录。
+
+**说明：** v1.0.0 默认使用 argon2id 哈希算法（PHC 格式），但完全向下兼容 bcrypt。旧 bcrypt 哈希的密码会自动使用 bcrypt 验证。新注册用户和修改密码的用户将使用 argon2id。
+
+**无需操作：** 旧密码无需重新设置，系统会自动识别哈希格式。
+
+### MCP 远程连接超时
+
+**现象：** TRAE Solo / Coze 连接 DeployPilot MCP 超时。
+
+**排查步骤：**
+1. 确认 DeployPilot 服务正在运行：`curl http://your-server:8080/api/v1/health`
+2. 检查防火墙是否放行 MCP 端口（默认 8080）
+3. 确认使用 HTTPS（生产环境必须）
+4. 检查 API Token 是否有效且未过期
+5. 如果通过跳板机访问，确认 DeployPilot 部署在可访问的网络位置
+
+### Token 吊销后仍可访问
+
+**现象：** 已吊销的 JWT Token 仍能访问 API。
+
+**说明：** Token 吊销依赖 Redis。如果 Redis 不可用，系统会使用内存黑名单（fail-open 策略）。
+
+**排查步骤：**
+1. 确认 Redis 服务正在运行
+2. 检查 `config.yaml` 中 Redis 配置是否正确
+3. 查看服务器日志中是否有 Redis 连接错误

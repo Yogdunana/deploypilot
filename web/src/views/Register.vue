@@ -95,7 +95,7 @@ function handleKeydown(e: KeyboardEvent) {
     <div class="w-full max-w-sm">
       <!-- Logo & Title -->
       <div class="text-center mb-8">
-        <img src="/logo.png" alt="DeployPilot" class="h-12 mx-auto mb-4" />
+        <img src="/icon.svg" alt="DeployPilot" class="h-12 mx-auto mb-4" />
         <h1 class="text-2xl font-bold text-foreground">DeployPilot</h1>
         <p class="mt-1 text-sm text-muted-foreground">{{ t('register.title') }}</p>
       </div>

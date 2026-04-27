@@ -1,20 +1,24 @@
 <p align="center">
-  <img src="docs/assets/logo.svg" alt="DeployPilot" width="280">
+  <img src="docs/logo/logo.svg" alt="DeployPilot" width="280">
 </p>
 
 <h1 align="center">DeployPilot</h1>
 
 <p align="center">
-  <strong>The AI-native deployment gateway for your server.</strong><br>
-  Bridge the gap between sandboxed AI IDEs and your infrastructure.
+  <strong>The AI-native deployment gateway</strong> — bridge sandboxed AI IDEs to your infrastructure.
 </p>
 
 <p align="center">
-  <a href="#quickstart"><b>Quickstart</b></a> ·
-  <a href="#features"><b>Features</b></a> ·
-  <a href="#architecture"><b>Architecture</b></a> ·
-  <a href="docs/PRD.md"><b>PRD</b></a> ·
+  <a href="#quick-start"><b>Quick Start</b></a> &middot;
+  <a href="#features"><b>Features</b></a> &middot;
+  <a href="#architecture"><b>Architecture</b></a> &middot;
+  <a href="#supported-ai-ides"><b>AI IDEs</b></a> &middot;
+  <a href="#documentation"><b>Docs</b></a> &middot;
   <a href="#contributing"><b>Contributing</b></a>
+</p>
+
+<p align="center">
+  <a href="README_zh-CN.md">中文文档</a>
 </p>
 
 <p align="center">
@@ -30,49 +34,66 @@
 
 ## The Problem
 
-AI IDEs like **Claude**, **Cursor**, **SOLO**, and **Windsurf** run in cloud sandboxes — they **cannot SSH into your server**. This means AI can't help you with:
+AI coding assistants such as **Claude**, **Cursor**, **TRAE**, **Coze**, and **SOLO** are powerful, but they all share a fundamental limitation: they run inside sandboxed cloud environments with **no direct SSH access** to your servers.
 
-- ❌ Deploying applications
-- ❌ Allocating ports (3 projects all default to port 5000?)
-- ❌ Configuring reverse proxies
-- ❌ Managing DNS records
-- ❌ Provisioning SSL certificates
-- ❌ Opening firewall rules on 1Panel / BT Panel
+This means your AI assistant cannot:
 
-**DeployPilot solves this.** It runs on your server and exposes a standard **MCP interface** that any AI IDE can call — securely, remotely, and autonomously.
+- Deploy applications to production servers
+- Configure reverse proxies or allocate ports
+- Manage DNS records across providers
+- Provision or renew SSL certificates
+- Open firewall rules on server management panels
 
----
+The situation is even harder in enterprise environments where servers sit behind **bastion hosts** or **jump servers** that cloud-based IDEs cannot reach at all. Manual deployment remains tedious, error-prone, and wastes developer time.
 
-## TL;DR
-
-> DeployPilot is a self-hosted deployment gateway that lets sandboxed AI IDEs securely manage your server through the MCP protocol. One-line install, full automation.
+**DeployPilot bridges this gap** by running on your server and exposing a standard **MCP (Model Context Protocol)** interface that any AI IDE can call — securely, remotely, and autonomously.
 
 ---
 
-## Quickstart
+## What is DeployPilot?
 
-### One-line install (recommended)
+DeployPilot is a **self-hosted AI IDE deployment gateway** that uses the MCP protocol to let sandboxed AI assistants manage your server infrastructure. It installs in one line and gives your AI IDE full control over deployment, DNS, SSL, monitoring, and more.
+
+> **One command to install. One prompt to deploy.**
+
+```bash
+docker compose up -d
+```
+
+Then tell your AI:
+
+> *"Deploy my project, set up DNS, and provision SSL."*
+
+DeployPilot handles the rest.
+
+---
+
+## Quick Start
+
+### Docker (recommended)
+
+```bash
+# Clone the repository
+git clone https://github.com/Yogdunana/deploypilot.git
+cd deploypilot
+
+# Set required environment variables
+export JWT_SECRET=$(openssl rand -base64 24)
+export REDIS_PASSWORD=$(openssl rand -base64 24)
+
+# Start the service
+docker compose up -d
+```
+
+Open **http://localhost:8080** and register an admin account.
+
+### One-line install (binary)
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/Yogdunana/deploypilot/main/scripts/install.sh | bash
 ```
 
-The script automatically:
-- ✅ Downloads the latest binary for your architecture
-- ✅ Generates admin credentials (random username + strong password)
-- ✅ Configures systemd services (API server + MCP server)
-- ✅ Sets up JWT authentication
-
-After installation, open `http://<YOUR_SERVER_IP>:8080` and log in with the printed credentials.
-
-### Docker
-
-```bash
-docker run -d --name deploypilot \
-  -p 8080:8080 \
-  -v deploypilot-data:/app/data \
-  ghcr.io/yogdunana/deploypilot:latest
-```
+The install script automatically downloads the latest binary, generates admin credentials, and sets up systemd services.
 
 ### From source
 
@@ -81,42 +102,23 @@ git clone https://github.com/Yogdunana/deploypilot.git
 cd deploypilot && make build-all
 ```
 
----
-
-## AI IDE Integration
-
-Configure DeployPilot as an MCP server in your AI IDE:
-
-```json
-{
-  "mcpServers": {
-    "deploypilot": {
-      "command": "/opt/deploypilot/bin/mcp-server",
-      "args": ["--config", "/opt/deploypilot/config/config.yaml"]
-    }
-  }
-}
-```
-
-Then just tell your AI:
-
-> *"Deploy this project, set up DNS and SSL."*
-
-DeployPilot handles the rest — port allocation, reverse proxy, DNS records, SSL certificates, and firewall rules.
+See [DEPLOY.md](DEPLOY.md) for the full deployment guide, including PostgreSQL setup, reverse proxy configuration, and production hardening.
 
 ---
 
 ## Architecture
 
+DeployPilot uses a **three-layer architecture** designed for both AI agents and human operators:
+
 ```mermaid
 graph LR
     subgraph "AI IDE (Sandbox)"
-        A[Claude / Cursor / SOLO]
+        A[Claude / Cursor / TRAE / Coze / SOLO]
     end
 
-    subgraph "DeployPilot (Your Server)"
-        B[MCP Server<br>37+ tools]
-        C[REST API<br>68 endpoints]
+    subgraph "DeployPilot Gateway (Your Server)"
+        B[MCP Server<br>52+ tools]
+        C[REST API<br>JWT + RBAC]
         D[WebSocket / SSE]
         E[Deploy Engine]
         F[Provider Plugins]
@@ -124,9 +126,9 @@ graph LR
 
     subgraph "Infrastructure"
         G[1Panel / BT Panel]
-        H[Docker / K8s]
+        H[Docker / Kubernetes]
         I[Cloudflare / Aliyun DNS]
-        J[GitHub Actions]
+        J[GitHub Actions / Gitea]
     end
 
     A -- "MCP (stdio)" --> B
@@ -140,103 +142,157 @@ graph LR
     F --> J
 ```
 
-**Why MCP, not SSH?** AI IDEs live in sandboxes with no SSH capability. MCP is the native AI plugin protocol — DeployPilot speaks it fluently.
+| Layer | Protocol | Purpose |
+|-------|----------|---------|
+| **MCP Server** | stdio | Native AI IDE integration — 52+ tools for deployment, DNS, SSL, monitoring |
+| **REST API** | HTTP + JWT | Programmatic access with full RBAC — 68+ endpoints, Swagger docs at `/swagger/` |
+| **WebSocket / SSE** | ws://, text/event-stream | Real-time log streaming, SSH terminal, deployment progress |
+
+The embedded **web dashboard** (Vue 3 + TypeScript + Tailwind CSS) provides a full management UI accessible at `http://localhost:8080`.
 
 ---
 
 ## Features
 
-### Deployment Engine
-| Feature | Description |
-|---------|-------------|
-| **3 deploy modes** | Direct, Git build, CI/CD trigger |
-| **Auto port allocation** | No more port conflicts |
-| **Health checks** | HTTP/TCP probes with configurable retries |
-| **Backup & rollback** | One-click rollback to any version |
-| **Self-healing** | Auto-restart crashed containers, auto-rollback on threshold |
-| **App templates** | 9 presets (Node.js, Python, Go, Java, Rust, etc.) |
+### MCP Protocol Integration
 
-### AI Integration
-| Feature | Description |
-|---------|-------------|
-| **MCP Server** | 37+ tools, stdio transport, native AI IDE support |
-| **REST API** | 68 endpoints, JWT auth + RBAC |
-| **Swagger docs** | Interactive API explorer at `/swagger/` |
+52+ MCP tools covering the complete deployment lifecycle. AI IDEs connect via stdio transport and can autonomously manage your infrastructure through natural language.
 
-### Provider Ecosystem
-| Category | Providers |
-|----------|-----------|
-| **DNS** | Cloudflare, Aliyun, Tencent Cloud (DNSPod) |
-| **Notifications** | Webhook, Email, Telegram, DingTalk, Feishu |
-| **CI/CD** | GitHub Actions, Gitea |
-| **Panels** | 1Panel, BT Panel |
-| **Containers** | Docker (local + remote), Kubernetes (multi-cluster) |
+### Multi-Server Management
 
-### Security
-| Feature | Description |
-|---------|-------------|
-| **JWT authentication** | Token-based auth with configurable expiry |
-| **RBAC** | 4-tier roles: owner > admin > dev > viewer |
-| **Credential encryption** | AES-256-GCM, no plaintext in database |
-| **ws-ticket** | One-time WebSocket tickets, prevents JWT leakage |
-| **Audit log** | Full change tracking with user, action, IP, timestamp |
-| **Rate limiting** | Token bucket, role-based (50-200 req/min) |
+Register and manage multiple servers. Supports SSH-based remote servers, Docker (local and remote), and Kubernetes multi-cluster deployments. Detects server environments and installed panels automatically.
 
-### Web Dashboard
-- Vue 3 + TypeScript + Tailwind CSS 4
-- 27 pages: dashboard, apps, servers, DNS, credentials, deployments, monitoring, SSL, audit log, and more
-- Real-time log streaming, SSH terminal, deployment progress
-- i18n (English / Chinese), responsive design
+### Docker Container Lifecycle
 
----
+Full container management — create, deploy, start, stop, remove, and monitor containers. Supports automatic port allocation, health checks with configurable retries, backup and rollback, and self-healing with auto-restart and auto-rollback on failure thresholds.
 
-## Why DeployPilot?
+### DNS Management
 
-| | DeployPilot | 1Panel / BT | Dokploy / Coolify | AI SSH Clients |
-|---|:---:|:---:|:---:|:---:|
-| **Web panel** | ✅ | ✅ | ✅ | ❌ |
-| **AI-native (MCP)** | ✅ | ❌ | ❌ | ✅ |
-| **Full-chain automation** | ✅ | ❌ | Partial | ❌ |
-| **One-line install** | ✅ | ✅ | ✅ | ❌ |
-| **Port / DNS / SSL** | ✅ | Manual | ✅ | ❌ |
-| **Panel integration** | ✅ | — | ❌ | ❌ |
+Unified DNS record management across multiple providers:
 
-**DeployPilot is the only tool that combines a web panel, AI-native MCP support, and full deployment automation in one self-hosted package.**
+| Provider | ID |
+|----------|----|
+| Cloudflare | `dns-cloudflare` |
+| Alibaba Cloud DNS | `dns-aliyun` |
+| Tencent Cloud DNSPod | `dns-tencent` |
+| WestDNS / west.cn | `dns-west-dns` |
+
+### SSL Certificate Automation
+
+Request, list, renew, and delete SSL certificates directly from the MCP interface or web dashboard.
+
+### CI/CD Pipeline Integration
+
+Trigger and monitor CI/CD builds without leaving your AI IDE. Supports GitHub Actions and Gitea.
+
+### Monitoring & Self-Healing
+
+Real-time container and system metrics, configurable alert rules, and automatic container healing when failures are detected.
+
+### OAuth Login
+
+Sign in with your GitHub or Gitee account — no separate password needed.
+
+### RBAC Authorization
+
+Four-tier role-based access control: **owner > admin > dev > viewer**. Fine-grained permissions on every resource.
+
+### Audit Logging
+
+Full change tracking with user identity, action type, IP address, and timestamp. Every operation is recorded and auditable.
+
+### i18n
+
+Web dashboard available in English and Chinese, with a pluggable locale system.
 
 ---
 
-## Tech Stack
+## Supported AI IDEs
 
-<p>
-  <img src="https://img.shields.io/badge/Go-1.23-00ADD8?style=flat-square&logo=go&logoColor=white">
-  <img src="https://img.shields.io/badge/Gin-Web_Framework-00ADD8?style=flat-square&logo=go&logoColor=white">
-  <img src="https://img.shields.io/badge/GORM-ORM-02A25F?style=flat-square&logo=go&logoColor=white">
-  <img src="https://img.shields.io/badge/Vue-3.5-4FC08D?style=flat-square&logo=vue.js&logoColor=white">
-  <img src="https://img.shields.io/badge/TypeScript-5.6-3178C6?style=flat-square&logo=typescript&logoColor=white">
-  <img src="https://img.shields.io/badge/Tailwind_CSS-4-06B6D4?style=flat-square&logo=tailwindcss&logoColor=white">
-  <img src="https://img.shields.io/badge/MCP-Protocol-7C3AED?style=flat-square">
-  <img src="https://img.shields.io/badge/Docker-Container-2496ED?style=flat-square&logo=docker&logoColor=white">
-  <img src="https://img.shields.io/badge/SQLite-Database-003B57?style=flat-square&logo=sqlite&logoColor=white">
-  <img src="https://img.shields.io/badge/Redis-Cache-DC382D?style=flat-square&logo=redis&logoColor=white">
-</p>
+DeployPilot integrates with any IDE that supports the MCP protocol. Configuration details for each IDE are available in [docs/ide-skills.md](docs/ide-skills.md).
+
+| IDE | Transport | Setup |
+|-----|-----------|-------|
+| **Claude Desktop** | MCP stdio | Add to `claude_desktop_config.json` |
+| **Cursor** | MCP stdio | Add in Settings > MCP |
+| **TRAE** | MCP stdio | Add in IDE MCP settings |
+| **Coze / 扣子** | MCP stdio | Configure as MCP plugin |
+| **SOLO** | MCP stdio | Add to MCP server config |
+
+All IDEs use the same configuration pattern:
+
+```json
+{
+  "mcpServers": {
+    "deploypilot": {
+      "command": "/path/to/mcp-server",
+      "args": ["--config", "/path/to/config.yaml"]
+    }
+  }
+}
+```
+
+See [docs/ide-skills.md](docs/ide-skills.md) for IDE-specific instructions, skill files, and rules templates.
 
 ---
 
-## Roadmap
+## Configuration
 
-- [ ] MCP context memory (session-level operation history)
-- [ ] Container registry management (Docker Hub, GHCR)
-- [ ] Prometheus / Grafana metrics export
-- [ ] OAuth login (GitHub / Gitee)
-- [ ] Full mobile responsive layout
-- [ ] More DNS / notification providers
+DeployPilot is configured via `config.yaml`. All settings can also be overridden with environment variables using the `DEPLOYPILOT_` prefix (e.g., `DEPLOYPILOT_SERVER_PORT` for `server.port`).
+
+```yaml
+server:
+  host: "0.0.0.0"
+  port: 8080
+  mode: "release"          # debug | release | test
+
+database:
+  driver: "sqlite"          # sqlite | postgres
+  dsn: "data/deploypilot.db"
+
+auth:
+  jwt_secret: "change-me-in-production"  # Required: set a strong random value
+  token_expiry: "24h"
+
+deploy:
+  default_docker_socket: "/var/run/docker.sock"
+  max_concurrent_deploys: 5
+  health_check_timeout: "120s"
+  rollback_on_failure: true
+
+log:
+  level: "info"             # debug | info | warn | error
+  format: "json"            # json | console
+  output: "stdout"
+
+monitor:
+  enabled: true
+  metrics_path: "/metrics"
+  collect_interval: "15s"
+```
+
+See [configs/config.yaml.example](configs/config.yaml.example) for the full example and [DEPLOY.md](DEPLOY.md) for all environment variables.
+
+---
+
+## Documentation
+
+| Document | Description |
+|----------|-------------|
+| [docs/PRD.md](docs/PRD.md) | Product Requirements Document |
+| [docs/ide-skills.md](docs/ide-skills.md) | IDE integration guide with setup instructions for each AI IDE |
+| [docs/troubleshooting.md](docs/troubleshooting.md) | Troubleshooting guide for common issues |
+| [DEPLOY.md](DEPLOY.md) | Full deployment guide (Docker, binary, source, reverse proxy, production) |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | Contributing guidelines |
 
 ---
 
 ## Contributing
 
-Contributions are welcome! Please read [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) for guidelines.
+Contributions are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, coding conventions, and pull request guidelines.
+
+---
 
 ## License
 
-[MIT](LICENSE) © 2026 Yogdunana
+[MIT](LICENSE) &copy; 2026 Yogdunana

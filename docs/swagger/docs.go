@@ -11,7 +11,7 @@ const docTemplate = `{
         "title": "{{.Title}}",
         "termsOfService": "http://swagger.io/terms/",
         "contact": {
-            "name": "Deploypilot",
+            "name": "DeployPilot",
             "url": "https://github.com/Yogdunana/deploypilot"
         },
         "license": {
@@ -3223,7 +3223,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Check if a newer version of Deploypilot is available",
+                "description": "Check if a newer version of DeployPilot is available",
                 "produces": [
                     "application/json"
                 ],
@@ -3801,7 +3801,7 @@ var SwaggerInfo = &swag.Spec{
 	Host:             "localhost:8080",
 	BasePath:         "/api/v1",
 	Schemes:          []string{},
-	Title:            "Deploypilot API",
+	Title:            "DeployPilot API",
 	Description:      "AI-native deployment platform REST API",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,

@@ -1,7 +1,7 @@
 # DeployPilot 差距分析报告
 
 > 基于代码实际实现 vs 产品愿景的对比分析
-> 日期: 2026-04-26
+> 日期: 2026-04-27
 
 ---
 
@@ -11,11 +11,11 @@
 |------|:----:|------|
 | **架构设计** | ⭐⭐⭐⭐⭐ | MCP + REST + WebSocket 三层架构设计合理，Provider 插件化 |
 | **代码完成度** | ⭐⭐⭐⭐ | P0 核心骨架基本完成，P1 部分完成 |
-| **可用性** | ⭐⭐ | 安装脚本二进制是占位符，项目当前无法真正运行 |
-| **文档质量** | ⭐⭐⭐ | 功能列表完整，但缺少核心痛点描述 |
+| **可用性** | ⭐⭐⭐⭐ | Docker 一键部署可用，GitHub Release 自动发布二进制，安装脚本已支持从 Release 下载 |
+| **文档质量** | ⭐⭐⭐⭐ | README 已重写，突出 AI IDE 沙箱部署痛点，中英双语，Wiki 已建立 |
 | **测试覆盖** | ⭐⭐⭐⭐ | ~89.6% 覆盖率，持续提升中 |
 
-**一句话总结：架构和代码质量都不错，但「最后一公里」——安装脚本和端到端可用性——还没打通。**
+**一句话总结：v1.0.0 已打通核心链路——Docker 部署、GitHub Release、OAuth 登录、安全审计全部就位。剩余工作为体验优化和面板集成完善。**
 
 ---
 
@@ -23,38 +23,17 @@
 
 ### 🔴 严重 — 阻塞用户使用
 
-#### 1. 安装脚本二进制是占位符
+#### 1. 安装脚本二进制 ~~是占位符~~ ✅ 已解决
 
-**现状：** `scripts/install.sh`（~450行）能完成环境准备（Docker 安装、目录创建、配置生成、systemd 注册），但核心二进制文件是一个 bash 脚本占位符：
+**现状：** v1.0.0 已通过 GitHub Release 自动发布预编译二进制（linux/amd64 + linux/arm64），安装脚本已支持从 Release 下载。Docker 一键部署也已可用。
 
-```bash
-#!/bin/bash
-echo "部署服务已启动!"
-sleep infinity  # ← 这就是全部"功能"
-```
-
-**影响：** 用户执行安装脚本后，DeployPilot **不会真正启动**。REST API、MCP Server、Web 面板全部不可用。
-
-**需要做的：**
-- [ ] 方案 A：安装脚本从 GitHub Release 下载预编译二进制（推荐）
-- [ ] 方案 B：安装脚本在服务器上编译 Go 源码（需要安装 Go 环境，较慢）
-- [ ] 方案 C：Docker 一键部署作为主要安装方式，脚本作为备选
-
-**建议：** 优先方案 A。需要在 CI/CD 中配置 `release.yml` 自动构建多平台二进制（linux/amd64、linux/arm64），安装脚本从 `ghcr.io` 或 GitHub Release 下载。
+**产物：** 每次 tag push 自动构建 6 个二进制文件（deploypilot/api-server/mcp-server × amd64/arm64）并上传到 GitHub Release。
 
 ---
 
-#### 2. 缺少 GitHub Release 自动发布
+#### 2. ~~缺少~~ GitHub Release 自动发布 ✅ 已解决
 
-**现状：** Roadmap 中有 "GitHub Release 自动发布"，但 `release.yml` 工作流虽然存在，尚未确认是否真正能产出可用的二进制产物。
-
-**影响：** 即使安装脚本改为下载模式，也没有二进制可以下载。
-
-**需要做的：**
-- [ ] 确认 `release.yml` 能正确构建 `api-server`、`mcp-server`、`deploypilot` 三个二进制
-- [ ] 配置多平台交叉编译（linux/amd64 + linux/arm64）
-- [ ] 自动上传到 GitHub Release
-- [ ] 安装脚本改为从 Release 下载
+**现状：** `release.yml` 工作流已配置，每次推送 `v*` tag 自动构建多平台二进制并创建 GitHub Release。Docker image 同步发布到 `ghcr.io/yogdunana/deploypilot:<version>`。
 
 ---
 
@@ -146,13 +125,11 @@ sleep infinity  # ← 这就是全部"功能"
 
 ---
 
-#### 10. 缺少 OAuth 登录
+#### 10. ~~缺少~~ OAuth 登录 ✅ 已实现
 
-**现状：** 只有用户名密码 + JWT 登录。
+**现状：** v1.0.0 已实现 GitHub/Gitee OAuth2 登录，支持 CSRF 保护（state 参数）、自动用户创建、角色分配。
 
-**影响：** 不影响核心功能，但 OAuth 登录（GitHub/Gitee）能显著提升体验，特别是对 AI IDE 集成场景。
-
-**优先级：** P3，可以后续再做。
+**优先级：** ~~P3~~ 已完成。
 
 ---
 
@@ -176,11 +153,11 @@ sleep infinity  # ← 这就是全部"功能"
 | SSH 终端 | ✅ | ⚠️ | ✅ | 🟡 |
 | Agent 隧道 | ✅ | ⚠️ | ✅ | 🟡 |
 | Web 面板 | ✅ | ⚠️ | ✅ | 🟡 |
-| **安装脚本** | ✅ | ❌ | ✅ | 🔴 |
+| **安装脚本** | ✅ | ✅ | ✅ | 🟢 |
 | **自动端口分配** | ⚠️ | ❌ | ❌ | 🔴 |
 | **1Panel API 提醒** | ❌ | ❌ | ❌ | 🔴 |
-| **GitHub Release** | ⚠️ | ❌ | ❌ | 🔴 |
-| OAuth 登录 | ❌ | ❌ | ❌ | ⚪ |
+| **GitHub Release** | ✅ | ✅ | ❌ | 🟢 |
+| OAuth 登录 | ✅ | ⚠️ | ❌ | 🟡 |
 | MCP 上下文记忆 | ❌ | ❌ | ❌ | ⚪ |
 | 镜像仓库管理 | ❌ | ❌ | ❌ | ⚪ |
 

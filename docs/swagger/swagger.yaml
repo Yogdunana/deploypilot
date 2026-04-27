@@ -2,14 +2,14 @@ basePath: /api/v1
 host: localhost:8080
 info:
   contact:
-    name: Deploypilot
+    name: DeployPilot
     url: https://github.com/Yogdunana/deploypilot
   description: AI-native deployment platform REST API
   license:
     name: MIT
     url: https://github.com/Yogdunana/deploypilot/blob/main/LICENSE
   termsOfService: http://swagger.io/terms/
-  title: Deploypilot API
+  title: DeployPilot API
   version: "1.0"
 paths:
   /apps:
@@ -2125,7 +2125,7 @@ paths:
       - System
   /system/update/check:
     get:
-      description: Check if a newer version of Deploypilot is available
+      description: Check if a newer version of DeployPilot is available
       produces:
       - application/json
       responses:

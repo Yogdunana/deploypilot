@@ -1,9 +1,9 @@
-// @title           Deploypilot API
+// @title           DeployPilot API
 // @version         1.0
 // @description     AI-native deployment platform REST API
 // @termsOfService  http://swagger.io/terms/
 
-// @contact.name   Deploypilot
+// @contact.name   DeployPilot
 // @contact.url    https://github.com/Yogdunana/deploypilot
 
 // @license.name  MIT

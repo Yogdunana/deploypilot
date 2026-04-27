@@ -200,7 +200,7 @@ function handleNavClick() {
         <!-- Mobile sidebar header -->
         <div class="flex h-12 items-center justify-between px-4 border-b border-border">
           <div class="flex items-center gap-2">
-            <img src="/logo.png" alt="DeployPilot" class="h-7 w-7 rounded shrink-0 object-contain" />
+            <img src="/icon.svg" alt="DeployPilot" class="h-7 w-7 rounded shrink-0 object-contain" />
             <span class="text-sm font-semibold text-foreground whitespace-nowrap">
               DeployPilot
             </span>
@@ -278,7 +278,7 @@ function handleNavClick() {
     >
       <!-- Logo -->
       <div class="flex h-12 items-center gap-2 px-4 border-b border-border">
-        <img src="/logo.png" alt="DeployPilot" class="h-7 w-7 rounded shrink-0 object-contain" />
+        <img src="/icon.svg" alt="DeployPilot" class="h-7 w-7 rounded shrink-0 object-contain" />
         <Transition
           enter-active-class="transition duration-150 ease-out"
           enter-from-class="opacity-0"

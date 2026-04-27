@@ -90,8 +90,8 @@ func serveStaticFiles(r *gin.Engine) {
 	}
 
 	// Serve other root-level static files (favicon, etc.)
-	r.GET("/vite.svg", func(c *gin.Context) {
-		data, err := fs.ReadFile(distFS, "vite.svg")
+	r.GET("/icon.svg", func(c *gin.Context) {
+		data, err := fs.ReadFile(distFS, "icon.svg")
 		if err != nil {
 			c.Status(http.StatusNotFound)
 			return
