@@ -192,6 +192,9 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 			system.POST("/update/perform", auth.RoleRequired("owner", "admin"), DoUpdate(bridge))
 			system.GET("/sandbox", GetSandboxConfig(bridge))
 			system.POST("/sandbox/validate", ValidateSandboxCommand(bridge))
+			system.GET("/confirmations", ListConfirmations(bridge))
+			system.POST("/confirmations/:id/confirm", auth.RoleRequired("owner", "admin"), ConfirmRequest(bridge))
+			system.POST("/confirmations/:id/reject", auth.RoleRequired("owner", "admin"), RejectRequest(bridge))
 		}
 
 	// Public health check endpoint (no auth required for Docker healthcheck)

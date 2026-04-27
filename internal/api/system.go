@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"runtime"
 
+	"github.com/Yogdunana/deploypilot/internal/confirm"
 	"github.com/Yogdunana/deploypilot/internal/service"
 	"github.com/Yogdunana/deploypilot/internal/version"
 	"github.com/gin-gonic/gin"
@@ -175,5 +176,81 @@ func ValidateSandboxCommand(bridge *service.Bridge) gin.HandlerFunc {
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{"status": "success", "data": gin.H{"allowed": true}})
+	}
+}
+
+// ListConfirmations lists pending confirmation requests.
+// @Summary      List confirmations
+// @Description  List all pending confirmation requests
+// @Tags         System
+// @Produce      json
+// @Security     BearerAuth
+// @Param        status query string false "Filter by status (pending/approved/rejected/expired/executed)"
+// @Success      200 {object} map[string]interface{}
+// @Router       /system/confirmations [get]
+func ListConfirmations(bridge *service.Bridge) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		store := bridge.GetConfirmationStore()
+		if store == nil {
+			c.JSON(http.StatusOK, gin.H{"status": "success", "data": []interface{}{}})
+			return
+		}
+		statusFilter := c.Query("status")
+		requests := store.List(confirm.Status(statusFilter))
+		c.JSON(http.StatusOK, gin.H{"status": "success", "data": requests})
+	}
+}
+
+// ConfirmRequest approves a pending confirmation.
+// @Summary      Confirm a request
+// @Description  Approve a pending confirmation request by ID
+// @Tags         System
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id path string true "Confirmation ID"
+// @Success      200 {object} map[string]interface{}
+// @Router       /system/confirmations/{id}/confirm [post]
+func ConfirmRequest(bridge *service.Bridge) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		id := c.Param("id")
+		store := bridge.GetConfirmationStore()
+		if store == nil {
+			c.JSON(http.StatusBadRequest, gin.H{"status": "error", "message": "confirmation system not available"})
+			return
+		}
+		req, err := store.Confirm(id, c.GetString("user_id"))
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"status": "error", "message": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"status": "success", "data": req})
+	}
+}
+
+// RejectRequest rejects a pending confirmation.
+// @Summary      Reject a request
+// @Description  Reject a pending confirmation request by ID
+// @Tags         System
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id path string true "Confirmation ID"
+// @Success      200 {object} map[string]interface{}
+// @Router       /system/confirmations/{id}/reject [post]
+func RejectRequest(bridge *service.Bridge) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		id := c.Param("id")
+		store := bridge.GetConfirmationStore()
+		if store == nil {
+			c.JSON(http.StatusBadRequest, gin.H{"status": "error", "message": "confirmation system not available"})
+			return
+		}
+		req, err := store.Reject(id, c.GetString("user_id"))
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"status": "error", "message": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"status": "success", "data": req})
 	}
 }

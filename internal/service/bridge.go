@@ -17,6 +17,7 @@ import (
 	"golang.org/x/crypto/ssh"
 
 	"github.com/Yogdunana/deploypilot/internal/agent"
+	"github.com/Yogdunana/deploypilot/internal/confirm"
 	"github.com/Yogdunana/deploypilot/internal/crypto"
 	"github.com/Yogdunana/deploypilot/internal/engine/builder"
 	"github.com/Yogdunana/deploypilot/internal/engine/deployer"
@@ -84,6 +85,7 @@ type Bridge struct {
 	TunnelManager TunnelManager            // agent reverse tunnel manager
 	PluginMgr     *plugin.Manager          // plugin lifecycle manager
 	UpgradeSvc    *UpgradeService          // system upgrade service
+	ConfirmStore  *confirm.Store
 }
 
 // TunnelManager defines the interface for agent reverse tunnel management.
@@ -107,6 +109,7 @@ func NewBridge(db *gorm.DB, executor deployer.CommandExecutor, encryptionKey []b
 		Executor:      executor,
 		EncryptionKey: encryptionKey,
 		EventBus:      eventBus,
+		ConfirmStore:  confirm.NewStore(),
 	}
 }
 
@@ -128,6 +131,11 @@ func (b *Bridge) GetSandbox() interface {
 		return se.Sandbox()
 	}
 	return nil
+}
+
+// GetConfirmationStore returns the confirmation store.
+func (b *Bridge) GetConfirmationStore() *confirm.Store {
+	return b.ConfirmStore
 }
 
 // getDNSProvider loads the first enabled DNS provider from DB and returns a DNSProvider interface.
