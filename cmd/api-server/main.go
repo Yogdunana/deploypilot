@@ -60,6 +60,7 @@ func (e *localExecutor) RunCommand(ctx context.Context, cmd string) (string, err
 
 func main() {
 	showVersion := flag.Bool("version", false, "print version and exit")
+	configPath := flag.String("config", "", "path to config.yaml file")
 	dbDriver := flag.String("db-driver", "", "database driver: sqlite, postgres")
 	dbDSN := flag.String("db-dsn", "", "database DSN")
 	addr := flag.String("addr", "", "listen address (e.g. 0.0.0.0:8080)")
@@ -70,18 +71,24 @@ func main() {
 		os.Exit(0)
 	}
 
-	if err := run(*dbDriver, *dbDSN, *addr); err != nil {
+	if err := run(*configPath, *dbDriver, *dbDSN, *addr); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		os.Exit(1)
 	}
 }
 
-func run(cliDriver, cliDSN, cliAddr string) error {
+func run(configFilePath, cliDriver, cliDSN, cliAddr string) error {
 	// Load config
-	cfg, err := config.Load("")
+	cfg, err := config.Load(configFilePath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "warning: config load failed, using defaults: %v\n", err)
 		cfg = config.DefaultConfig()
+	}
+
+	// Inject JWT secret from config into environment for jwt.go's os.Getenv("JWT_SECRET")
+	// This bridges config.yaml / DEPLOYPILOT_AUTH_JWT_SECRET → JWT_SECRET
+	if cfg.Auth.JWTSecret != "" && os.Getenv("JWT_SECRET") == "" {
+		_ = os.Setenv("JWT_SECRET", cfg.Auth.JWTSecret)
 	}
 
 	// Initialize structured logger

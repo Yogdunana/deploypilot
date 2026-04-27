@@ -9,12 +9,14 @@ services:
     environment:
       - DEPLOYPILOT_DATABASE_TYPE=sqlite
       - DEPLOYPILOT_DATABASE_DSN=/app/data/deploypilot.db
-      # SECURITY: JWT_SECRET must be set to a strong random value (min 16 chars).
-      # Generate one with: openssl rand -base64 24
-      - DEPLOYPILOT_AUTH_JWT_SECRET=${JWT_SECRET:?JWT_SECRET environment variable is required}
+      # JWT secret (min 16 chars). Generate: openssl rand -base64 24
+      - JWT_SECRET=${JWT_SECRET:?JWT_SECRET environment variable is required}
       - DEPLOYPILOT_SERVER_PORT=8080
       - DEPLOYPILOT_LOG_LEVEL=info
       - DEPLOYPILOT_LOG_FORMAT=json
+      # Redis (optional, for Pub/Sub and token blacklist)
+      - DEPLOYPILOT_REDIS_ADDR=redis:6379
+      - DEPLOYPILOT_REDIS_PASSWORD=${REDIS_PASSWORD:-}
     volumes:
       - deploypilot-data:/app/data
     healthcheck:
@@ -23,24 +25,22 @@ services:
       timeout: 10s
       retries: 3
       start_period: 10s
+    depends_on:
+      - redis
 
-  # Optional: Redis (for Pub/Sub event bus, recommended for multi-instance deployments)
+  # Redis (for Pub/Sub event bus and token blacklist)
   redis:
     image: redis:7-alpine
     container_name: deploypilot-redis
     restart: unless-stopped
     # SECURITY: Redis port is NOT exposed to host.
     # Only accessible from within the Docker network.
-    # ports:
-    #   - "6379:6379"
     volumes:
       - redis-data:/data
-    # SECURITY: Redis requires password authentication.
-    # Set REDIS_PASSWORD environment variable before running docker-compose.
     command: >
-      sh -c "redis-server --appendonly yes --requirepass $${REDIS_PASSWORD:?REDIS_PASSWORD environment variable is required}"
+      sh -c "if [ -n \"$${REDIS_PASSWORD}\" ]; then redis-server --appendonly yes --requirepass \"$${REDIS_PASSWORD}\"; else redis-server --appendonly yes; fi"
     environment:
-      - REDIS_PASSWORD=${REDIS_PASSWORD:?REDIS_PASSWORD environment variable is required}
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
 
 volumes:
   deploypilot-data:

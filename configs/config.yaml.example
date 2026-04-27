@@ -1,35 +1,58 @@
 # DeployPilot Configuration
-# Copy this file to config.yaml and modify as needed
+# Copy this file to config.yaml and customize as needed
 
 server:
-  host: "0.0.0.0"
+  host: 0.0.0.0
   port: 8080
-  mode: "release" # debug | release | test
+  cors_allowed_origins:
+    - "*"
 
 database:
-  driver: "sqlite" # sqlite | postgres
-  dsn: "data/deploypilot.db"
-  # postgres example:
-  # driver: "postgres"
-  # dsn: "host=172.17.0.1 port=5432 user=deploypilot password=changeme dbname=deploypilot sslmode=disable"
+  type: sqlite
+  dsn: ./data/deploypilot.db
+  # For PostgreSQL:
+  # type: postgres
+  # dsn: host=localhost port=5432 user=deploypilot password=secret dbname=deploypilot sslmode=disable
+
+redis:
+  addr: localhost:6379
+  password: ""
+  db: 0
 
 auth:
-  jwt_secret: "change-me-in-production"
-  token_expiry: "24h"
+  jwt_secret: ""           # REQUIRED: set a strong random string (min 16 chars)
+  token_expire: 24h        # JWT token expiration
+  # OAuth providers (optional)
+  # oauth_providers:
+  #   - provider: github
+  #     client_id: ""
+  #     client_secret: ""
+  #     redirect_url: "http://localhost:8080/api/v1/auth/oauth/github/callback"
 
-deploy:
-  default_docker_socket: "/var/run/docker.sock"
-  max_concurrent_deploys: 5
-  health_check_timeout: "120s"
-  rollback_on_failure: true
+security:
+  rate_limit_default: 100
+  rate_limit_owner: 200
+  rate_limit_admin: 150
+  rate_limit_dev: 100
+  rate_limit_viewer: 50
+
+audit:
+  external_log_path: ""    # Optional: path for external audit log (JSON Lines)
 
 log:
-  level: "info" # debug | info | warn | error
-  format: "json" # json | console
-  output: "stdout" # stdout | file
-  file_path: "logs/deploypilot.log"
+  level: info               # debug, info, warn, error
+  format: json              # json or text
+  file: ./logs/deploypilot.log
+  max_size: 100MB
+  max_backups: 10
+
+deploy:
+  default_mode: api
+  build_timeout: 10m
+  health_check_interval: 30s
+  health_check_retries: 3
+  rollback_on_failure: true
 
 monitor:
   enabled: true
-  metrics_path: "/metrics"
-  collect_interval: "15s"
+  metrics_port: 9091

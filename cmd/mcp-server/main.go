@@ -36,6 +36,7 @@ func main() {
 	// Flags
 	showVersion := flag.Bool("version", false, "print version and exit")
 	showHelp := flag.Bool("help", false, "print help and exit")
+	configPath := flag.String("config", "", "path to config.yaml file")
 	dbDriver := flag.String("db-driver", "", "database driver: sqlite, postgres (default: sqlite)")
 	dbDSN := flag.String("db-dsn", "", "database DSN (default: ./data/deploypilot.db)")
 	flag.BoolVar(showHelp, "h", false, "print help and exit")
@@ -58,15 +59,15 @@ func main() {
 		os.Exit(0)
 	}
 
-	if err := run(*dbDriver, *dbDSN); err != nil {
+	if err := run(*configPath, *dbDriver, *dbDSN); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		os.Exit(1)
 	}
 }
 
-func run(cliDriver, cliDSN string) error {
+func run(configFilePath, cliDriver, cliDSN string) error {
 	// Load config (optional — falls back to defaults)
-	cfg, err := config.Load("")
+	cfg, err := config.Load(configFilePath)
 	if err != nil {
 		slog.Warn("config load failed, using defaults", "error", err)
 		cfg = config.DefaultConfig()
