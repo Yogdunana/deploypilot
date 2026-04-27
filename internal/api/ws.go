@@ -81,8 +81,6 @@ type WSHub struct {
 	register   chan *wsClient
 	unregister chan *wsClient
 	done       chan struct{}
-	closeOnce  sync.Once
-	runDone    chan struct{}
 }
 
 // NewWSHub creates a new WSHub.
@@ -92,13 +90,11 @@ func NewWSHub() *WSHub {
 		register:   make(chan *wsClient),
 		unregister: make(chan *wsClient),
 		done:       make(chan struct{}),
-		runDone:    make(chan struct{}),
 	}
 }
 
 // Run starts the background goroutine that handles register/unregister events.
 func (h *WSHub) Run() {
-	defer close(h.runDone)
 	for {
 		select {
 		case <-h.done:
@@ -133,27 +129,6 @@ func (h *WSHub) Register(conn *websocket.Conn, appID string) {
 // Unregister removes a WebSocket connection from the hub.
 func (h *WSHub) Unregister(conn *websocket.Conn, appID string) {
 	h.unregister <- &wsClient{conn: conn, appID: appID}
-}
-
-// Close gracefully shuts down the WebSocket hub.
-// Safe to call multiple times.
-func (h *WSHub) Close() {
-	h.closeOnce.Do(func() {
-		close(h.done)
-	})
-	<-h.runDone
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	for appID, conns := range h.clients {
-		for conn := range conns {
-			_ = conn.WriteControl(websocket.CloseMessage,
-				websocket.FormatCloseMessage(websocket.CloseNormalClosure, "server shutting down"),
-				time.Now().Add(time.Second))
-			_ = conn.Close()
-		}
-		delete(h.clients, appID)
-	}
-	slog.Info("WebSocket hub closed")
 }
 
 // Broadcast sends a message to all connections subscribed to the given appID.
