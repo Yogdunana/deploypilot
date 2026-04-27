@@ -360,6 +360,26 @@ func Migrate(db *gorm.DB) error {
 				return nil
 			},
 		},
+		// 202604270002: Create backup_records table
+		{
+			ID: "202604270002",
+			Migrate: func(tx *gorm.DB) error {
+				return tx.Exec(`CREATE TABLE IF NOT EXISTS backup_records (
+					id TEXT PRIMARY KEY,
+					type TEXT NOT NULL DEFAULT 'database',
+					app_id TEXT,
+					status TEXT NOT NULL DEFAULT 'completed',
+					file_path TEXT,
+					file_size INTEGER DEFAULT 0,
+					trigger TEXT DEFAULT 'manual',
+					error TEXT,
+					created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+				)`).Error
+			},
+			Rollback: func(tx *gorm.DB) error {
+				return tx.Migrator().DropTable("backup_records")
+			},
+		},
 	})
 
 	// Use InitSchema for initial creation (faster than Migrate)

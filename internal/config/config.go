@@ -21,6 +21,16 @@ type Config struct {
 	Redis      RedisConfig      `mapstructure:"redis"`
 	Kubernetes KubernetesConfig `mapstructure:"kubernetes"`
 	Audit      AuditConfig      `mapstructure:"audit"`
+	Backup     BackupConfig     `mapstructure:"backup"`
+}
+
+// BackupConfig holds database auto-backup settings.
+type BackupConfig struct {
+	Enabled        bool   `mapstructure:"enabled"`
+	Interval       string `mapstructure:"interval"`         // e.g. "6h", "30m"
+	RetentionCount int    `mapstructure:"retention_count"`  // max backup files (default: 10)
+	RetentionDays  int    `mapstructure:"retention_days"`   // max days to keep (default: 30)
+	BackupDir      string `mapstructure:"backup_dir"`       // backup directory (default: ./data/backups)
 }
 
 // AuditConfig holds configuration for audit logging.
@@ -244,4 +254,11 @@ func setDefaults(v *viper.Viper) {
 
 	// Audit
 	v.SetDefault("audit.external_log_path", "")
+
+	// Backup
+	v.SetDefault("backup.enabled", true)
+	v.SetDefault("backup.interval", "6h")
+	v.SetDefault("backup.retention_count", 10)
+	v.SetDefault("backup.retention_days", 30)
+	v.SetDefault("backup.backup_dir", "./data/backups")
 }

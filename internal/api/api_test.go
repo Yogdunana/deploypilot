@@ -168,7 +168,7 @@ func setupFullTestRouter(db *gorm.DB, bridge *service.Bridge) *gin.Engine {
 	wsHub := NewWSHub()
 	go wsHub.Run()
 	auditSvc := service.NewAuditService(db)
-	RegisterRoutes(r, db, bridge, wsHub, auditSvc, nil, nil, nil)
+	RegisterRoutes(r, db, bridge, wsHub, auditSvc, nil, nil, nil, nil)
 	return r
 }
 
