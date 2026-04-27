@@ -26,7 +26,7 @@ type FileAuditWriter struct {
 func NewFileAuditWriter(filePath string) (*FileAuditWriter, error) {
 	// Ensure parent directory exists
 	if dir := filepath.Dir(filePath); dir != "." && dir != "" {
-		if err := os.MkdirAll(dir, 0755); err != nil {
+		if err := os.MkdirAll(dir, 0750); err != nil {
 			return nil, err
 		}
 	}
