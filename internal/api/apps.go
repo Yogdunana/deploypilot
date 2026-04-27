@@ -287,7 +287,10 @@ func RollbackApp(bridge *service.Bridge) gin.HandlerFunc {
 			PreviousImage string `json:"previous_image"`
 		}
 		// previous_image is now optional — if not provided, auto-resolve from history
-		_ = c.ShouldBindJSON(&input)
+		if err := c.ShouldBindJSON(&input); err != nil {
+			respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request")
+			return
+		}
 
 		var app model.App
 		if err := bridge.DB.Where("id = ?", id).First(&app).Error; err != nil {
