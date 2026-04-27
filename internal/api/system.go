@@ -3,7 +3,9 @@ package api
 import (
 	"net/http"
 	"runtime"
+	"strconv"
 
+	"github.com/Yogdunana/deploypilot/internal/backup"
 	"github.com/Yogdunana/deploypilot/internal/confirm"
 	"github.com/Yogdunana/deploypilot/internal/service"
 	"github.com/Yogdunana/deploypilot/internal/version"
@@ -297,6 +299,99 @@ func UnlockBruteForceIP(bridge *service.Bridge) gin.HandlerFunc {
 		} else {
 			c.JSON(http.StatusBadRequest, gin.H{"status": "error", "message": "IP is not blocked"})
 		}
+	}
+}
+
+// GetBackupStatus returns the database backup service status.
+// @Summary      Get backup status
+// @Description  Get database auto-backup service status and configuration
+// @Tags         System
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200 {object} map[string]interface{}
+// @Router       /system/backup/status [get]
+func GetBackupStatus(backupSvc *backup.Service) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if backupSvc == nil {
+			c.JSON(http.StatusOK, gin.H{"status": "success", "data": gin.H{"enabled": false}})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"status": "success", "data": backupSvc.GetStatus()})
+	}
+}
+
+// TriggerBackup manually triggers a database backup.
+// @Summary      Trigger database backup
+// @Description  Manually trigger a database backup
+// @Tags         System
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200 {object} map[string]interface{}
+// @Router       /system/backup/trigger [post]
+func TriggerBackup(backupSvc *backup.Service) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if backupSvc == nil {
+			c.JSON(http.StatusBadRequest, gin.H{"status": "error", "message": "backup service not available"})
+			return
+		}
+		record, err := backupSvc.CreateBackup(c.Request.Context(), "manual")
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"status": "error", "message": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"status": "success", "data": record})
+	}
+}
+
+// ListBackupRecords lists database backup records.
+// @Summary      List backup records
+// @Description  List database backup history
+// @Tags         System
+// @Produce      json
+// @Security     BearerAuth
+// @Param        limit query int false "Number of records" default(20)
+// @Success      200 {object} map[string]interface{}
+// @Router       /system/backup/records [get]
+func ListBackupRecords(backupSvc *backup.Service) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if backupSvc == nil {
+			c.JSON(http.StatusOK, gin.H{"status": "success", "data": []interface{}{}})
+			return
+		}
+		limit := 20
+		if l, err := strconv.Atoi(c.DefaultQuery("limit", "20")); err == nil && l > 0 && l <= 100 {
+			limit = l
+		}
+		records, err := backupSvc.ListRecords(limit)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"status": "error", "message": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"status": "success", "data": records})
+	}
+}
+
+// DeleteBackupRecord deletes a backup record and its file.
+// @Summary      Delete backup record
+// @Description  Delete a backup record and its associated file
+// @Tags         System
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id path string true "Backup record ID"
+// @Success      200 {object} map[string]interface{}
+// @Router       /system/backup/records/{id} [delete]
+func DeleteBackupRecord(backupSvc *backup.Service) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if backupSvc == nil {
+			c.JSON(http.StatusBadRequest, gin.H{"status": "error", "message": "backup service not available"})
+			return
+		}
+		id := c.Param("id")
+		if err := backupSvc.DeleteRecord(id); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"status": "error", "message": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"status": "success", "message": "backup deleted", "id": id})
 	}
 }
 
