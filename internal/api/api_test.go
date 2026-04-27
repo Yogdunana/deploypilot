@@ -1683,7 +1683,7 @@ func TestGetServerEnvironment_NotFound(t *testing.T) {
 
 	bridge := createTestBridge(t, db)
 	r := setupFullTestRouter(db, bridge)
-	token := getTestToken(t, "user-1", "viewer")
+	token := getTestToken(t, "user-1", "owner")
 
 	w := makeRequest(r, "GET", "/api/v1/servers/nonexistent/environment", nil, token)
 	if w.Code != http.StatusNotFound {
@@ -1697,7 +1697,7 @@ func TestGetServerEnvironment_Success(t *testing.T) {
 
 	bridge := createTestBridge(t, db)
 	r := setupFullTestRouter(db, bridge)
-	token := getTestToken(t, "user-1", "viewer")
+	token := getTestToken(t, "user-1", "owner")
 
 	srvID := uuid.New().String()
 	db.Exec(`INSERT INTO servers (id, tenant_id, name, host, port, status, detected_info) VALUES (?, 'tenant-default', 'envserver', '10.0.0.3', 22, 'unknown', '{"os":"linux"}')`, srvID)
@@ -1714,7 +1714,7 @@ func TestTestServer_NotFound(t *testing.T) {
 
 	bridge := createTestBridge(t, db)
 	r := setupFullTestRouter(db, bridge)
-	token := getTestToken(t, "user-1", "viewer")
+	token := getTestToken(t, "user-1", "owner")
 
 	w := makeRequest(r, "POST", "/api/v1/servers/nonexistent/test", nil, token)
 	if w.Code != http.StatusInternalServerError {
@@ -1728,7 +1728,7 @@ func TestTestServer_Success(t *testing.T) {
 
 	bridge := createTestBridge(t, db)
 	r := setupFullTestRouter(db, bridge)
-	token := getTestToken(t, "user-1", "viewer")
+	token := getTestToken(t, "user-1", "owner")
 
 	srvID := uuid.New().String()
 	db.Exec(`INSERT INTO servers (id, tenant_id, name, host, port, status) VALUES (?, 'tenant-default', 'testserver', '10.0.0.4', 22, 'unknown')`, srvID)
