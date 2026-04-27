@@ -55,7 +55,9 @@ jobs:
         run: go mod tidy
 
       - name: Run tests with race detector
-        run: go test -race -coverprofile=coverage.out -count=1 ./...
+        run: |
+          go test -race -coverprofile=coverage.out -count=1 -v ./... 2>&1 | tail -200
+          echo "=== DONE ==="
 
       - name: Check coverage threshold (80%)
         run: |
