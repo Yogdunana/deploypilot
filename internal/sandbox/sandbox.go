@@ -49,7 +49,7 @@ type Sandbox struct {
 // New creates a new Sandbox with the given configuration.
 func New(cfg Config) *Sandbox {
 	s := &Sandbox{config: cfg}
-	s.compileRules()
+	_ = s.compileRules() //nolint:errcheck // invalid rules are logged but not fatal
 	return s
 }
 
@@ -88,7 +88,7 @@ func DefaultConfig() Config {
 			// System-critical operations
 			{
 				ID:          "deny-shutdown",
-				Pattern:     `(shutdown|reboot|halt|poweroff|init\s+[06])\s`,
+				Pattern:     `(?:^|\s)(?:shutdown|reboot|halt|poweroff)\b`,
 				Description: "Deny system shutdown/reboot",
 				Enabled:     true,
 			},
@@ -124,7 +124,7 @@ func DefaultConfig() Config {
 			},
 			{
 				ID:          "deny-wget-pipe-sh",
-				Pattern:     `wget\s+.*(-O-|-qO-)\s*\|\s*(ba)?sh`,
+				Pattern:     `wget\s+.*\|\s*(ba)?sh`,
 				Description: "Deny wget | sh (remote script execution)",
 				Enabled:     true,
 			},
