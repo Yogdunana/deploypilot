@@ -79,6 +79,7 @@ type Bridge struct {
 	EventBus      EventBus                 // pub/sub for deploy progress events
 	TunnelManager TunnelManager            // agent reverse tunnel manager
 	PluginMgr     *plugin.Manager          // plugin lifecycle manager
+	UpgradeSvc    *UpgradeService          // system upgrade service
 }
 
 // TunnelManager defines the interface for agent reverse tunnel management.
@@ -1633,14 +1634,14 @@ func (b *Bridge) BatchDNS(ctx context.Context, records []map[string]interface{})
 }
 
 // ---------- 39. CheckSystemUpdate ----------
+// Implemented in upgrade.go
 
-func (b *Bridge) CheckSystemUpdate(ctx context.Context) (interface{}, error) {
-	return map[string]interface{}{
-		"current_version":  "0.1.0",
-		"latest_version":   "0.1.0",
-		"update_available": false,
-		"message":          "you are running the latest version of DeployPilot",
-	}, nil
+// PerformSystemUpdate delegates to UpgradeService.
+func (b *Bridge) PerformSystemUpdate(ctx context.Context) (interface{}, error) {
+	if b.UpgradeSvc == nil {
+		return nil, fmt.Errorf("upgrade service not initialized")
+	}
+	return b.UpgradeSvc.PerformUpgrade(ctx, "latest")
 }
 
 // ---------- 40. HealContainer ----------

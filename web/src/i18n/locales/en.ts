@@ -910,6 +910,14 @@ export default {
     alreadyLatest: 'Already the latest version',
     checkFailed: 'Failed to check for updates',
     fetchFailed: 'Failed to fetch system info',
+    doUpgrade: 'Upgrade Now',
+    upgradeConfirm: 'Are you sure you want to upgrade DeployPilot to {version}?\n\nServices will be briefly interrupted during the upgrade.',
+    upgradeStarting: 'Preparing upgrade...',
+    upgradeSuccess: 'Upgrade successful! Updated to {version}',
+    upgradeFailed: 'Upgrade failed, please check logs',
+    upgradeWarning: 'Services will be briefly interrupted during the upgrade',
+    noUpdateAvailable: 'No updates available',
+    releaseNotes: 'Release Notes',
   },
 
   layout: {

@@ -42,11 +42,12 @@ import (
 	"github.com/Yogdunana/deploypilot/internal/metrics"
 	"github.com/Yogdunana/deploypilot/internal/server"
 	"github.com/Yogdunana/deploypilot/internal/service"
+	appversion "github.com/Yogdunana/deploypilot/internal/version"
 	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
 )
 
-// version is set via -ldflags at build time.
+// version is set via -ldflags at build time (kept for --version flag compatibility).
 var version = "dev"
 
 // localExecutor runs commands on the local machine.
@@ -67,7 +68,7 @@ func main() {
 	flag.Parse()
 
 	if *showVersion {
-		fmt.Printf("api-server %s\n", version)
+		fmt.Printf("api-server %s\n", appversion.Version)
 		os.Exit(0)
 	}
 
@@ -170,6 +171,7 @@ func run(configFilePath, cliDriver, cliDSN, cliAddr string) error {
 
 	bridge := service.NewBridge(db, executor, encKey, eventBus)
 	bridge.TunnelManager = tunnelManager
+	bridge.UpgradeSvc = service.NewUpgradeService("")
 
 	// Determine listen address
 	listenAddr := cliAddr
@@ -202,7 +204,7 @@ func run(configFilePath, cliDriver, cliDSN, cliAddr string) error {
 		}
 	}()
 
-	slog.Info("DeployPilot API server starting", "version", version, "addr", listenAddr)
+	slog.Info("DeployPilot API server starting", "version", appversion.Version, "addr", listenAddr)
 	slog.Info("database configured", "type", cfg.Database.Type, "dsn", cfg.Database.DSN)
 	return srv.Run()
 }

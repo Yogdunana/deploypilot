@@ -184,11 +184,12 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 		// Audit logs
 		protected.GET("/audit-logs", ListAuditLogs(auditSvc))
 
-		// System (3 endpoints)
+		// System (4 endpoints)
 		system := protected.Group("/system")
 		{
 			system.GET("/version", GetVersion)
 			system.GET("/update/check", CheckUpdate(bridge))
+			system.POST("/update/perform", auth.RoleRequired("owner", "admin"), DoUpdate(bridge))
 		}
 
 	// Public health check endpoint (no auth required for Docker healthcheck)

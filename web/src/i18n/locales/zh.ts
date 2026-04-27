@@ -910,6 +910,14 @@ export default {
     alreadyLatest: '当前已是最新版本',
     checkFailed: '检查更新失败',
     fetchFailed: '获取系统信息失败',
+    doUpgrade: '立即升级',
+    upgradeConfirm: '确定要将 DeployPilot 升级到 {version} 吗？\n\n升级过程中服务会短暂中断，建议在低峰期操作。',
+    upgradeStarting: '正在准备升级...',
+    upgradeSuccess: '升级成功！已更新到 {version}',
+    upgradeFailed: '升级失败，请查看日志',
+    upgradeWarning: '升级过程中服务会短暂中断，建议在低峰期操作',
+    noUpdateAvailable: '没有可用的更新',
+    releaseNotes: '发布说明',
   },
 
   layout: {
