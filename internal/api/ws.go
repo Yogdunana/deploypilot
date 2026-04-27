@@ -74,12 +74,13 @@ type wsClient struct {
 	appID string
 }
 
-// WSHub manages WebSocket connections for broadcasting.
+// WSHub manages WebSocket connections for broadcasting log/deployment events.
 type WSHub struct {
 	clients    map[string]map[*websocket.Conn]bool
 	mu         sync.RWMutex
 	register   chan *wsClient
 	unregister chan *wsClient
+	done       chan struct{} // signals the Run loop to stop
 }
 
 // NewWSHub creates a new WSHub.
@@ -88,6 +89,7 @@ func NewWSHub() *WSHub {
 		clients:    make(map[string]map[*websocket.Conn]bool),
 		register:   make(chan *wsClient),
 		unregister: make(chan *wsClient),
+		done:       make(chan struct{}),
 	}
 }
 
@@ -95,6 +97,8 @@ func NewWSHub() *WSHub {
 func (h *WSHub) Run() {
 	for {
 		select {
+		case <-h.done:
+			return
 		case client := <-h.register:
 			h.mu.Lock()
 			if h.clients[client.appID] == nil {
@@ -115,6 +119,28 @@ func (h *WSHub) Run() {
 			metrics.WSConnections.Dec()
 		}
 	}
+}
+
+// Close gracefully shuts down the WebSocket hub.
+// It stops the Run loop and closes all active WebSocket connections.
+func (h *WSHub) Close() {
+	close(h.done) // signal Run() to exit
+
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	// Close all active WebSocket connections
+	for appID, conns := range h.clients {
+		for conn := range conns {
+			// Use WriteControl to send a close frame
+			_ = conn.WriteControl(websocket.CloseMessage,
+				websocket.FormatCloseMessage(websocket.CloseNormalClosure, "server shutting down"),
+				time.Now().Add(time.Second))
+			_ = conn.Close()
+		}
+		delete(h.clients, appID)
+	}
+	slog.Info("WebSocket hub closed")
 }
 
 // Register adds a WebSocket connection to the hub for the given appID.
