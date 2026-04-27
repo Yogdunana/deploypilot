@@ -128,7 +128,11 @@ func TestCreateBackup_WithRealDB(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create test db: %v", err)
 	}
-	defer func() { _ = db.Close() }()
+	sqlDB, err := db.DB()
+	if err != nil {
+		t.Fatalf("failed to get underlying sql.DB: %v", err)
+	}
+	defer sqlDB.Close()
 
 	// Create backup_records table in the real DB
 	db.Exec(`CREATE TABLE IF NOT EXISTS backup_records (
