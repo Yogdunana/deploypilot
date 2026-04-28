@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Docker Compose 部署支持** (PR #101): ComposeDeployer 引擎（up/down/ps/logs/restart），App 模型新增 ComposeContent/ComposeProjectName 字段，5 个 compose MCP 工具
+- **exec_command MCP 工具** (PR #101): 在本地/远程服务器执行任意命令（admin 级别）
+- **list_images MCP 工具** (PR #101): 列出 Docker 镜像，支持 grep 过滤（viewer 级别）
+- **port_forward MCP 工具** (PR #101): SSH 端口转发管理 create/delete/list（dev 级别）
+
 ## [1.2.0] - 2026-04-28
 
 ### Changed

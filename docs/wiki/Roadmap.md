@@ -56,9 +56,9 @@
 
 | Phase | 内容 |
 |-------|------|
-| 3.1 | docker-compose 部署支持 |
+| 3.1 | docker-compose 部署支持 | ✅ 已完成 (PR #101) |
 | 3.2 | 多环境分离（Staging / Production / Development） |
-| 3.3 | MCP 工具补全（exec_command, port_forward, list_images） |
+| 3.3 | MCP 工具补全（exec_command, port_forward, list_images） | ✅ 已完成 (PR #101) |
 | 3.4 | 环境变量模板（MySQL, Redis, PostgreSQL, MongoDB, Nginx） |
 | 3.5 | 部署前预检可视化（端口冲突、磁盘、内存） |
 | 3.6 | 缓存层（Redis: 权限、服务器状态、DNS 记录） |
