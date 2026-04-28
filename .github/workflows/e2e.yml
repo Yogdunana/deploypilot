@@ -18,7 +18,8 @@ on:
         default: "22"
         type: string
 
-permissions: contents: read
+permissions:
+  contents: read
 
 jobs:
   e2e:
