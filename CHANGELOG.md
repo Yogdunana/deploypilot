@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Bridge God Object 拆分** (PR #85-#88): bridge.go 从 2986 行拆分为 18 个文件 448 行，87 个方法按领域分布到独立 service 文件
 - **MCP Server 拆分** (PR #90): server.go 从 2510 行拆分为 34 个文件 71 行，63 个工具按领域分布
 - **适配器注册表集成** (PR #93): DNS/Notify/CI/CD/Registry 服务消除 switch/case 硬编码，统一使用 plugin.Registry 查找和创建 provider 实例
+- **Panel 适配器重构** (PR #96): 定义 PanelClient 接口，PanelProvider 改为依赖注入，消除 4 处 switch/case
+- **OAuth 适配器重构** (PR #96): 定义 OAuthProvider 接口，提取 GitHub/Gitee provider 到独立文件，消除 3 处 switch/case
 - **plugin.Global() 自动注册** (PR #93): Global() 首次访问时自动调用 RegisterBuiltinPlugins()，确保所有内置 provider 可用
 
 ### Added

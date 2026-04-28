@@ -372,8 +372,8 @@ monitor:
 - [x] DNS 适配器重构（4 provider → registry）
 - [x] Notify 适配器重构（6 channel → registry）
 - [x] CI/CD + Registry 适配器重构
-- [ ] Panel 适配器重构（定义接口 → registry）
-- [ ] OAuth 适配器重构（定义接口 → registry）
+- [x] Panel 适配器重构（定义接口 → registry）
+- [x] OAuth 适配器重构（定义接口 → registry）
 - [ ] SSL 适配器重构（定义接口 → ACME/Lego）
 - [ ] Database 适配器重构（registry + 可配置连接池）
 - [ ] 外部调用熔断器（Circuit Breaker + 降级策略）
