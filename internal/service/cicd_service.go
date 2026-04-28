@@ -3,12 +3,17 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	"github.com/Yogdunana/deploypilot/internal/model"
 	"github.com/Yogdunana/deploypilot/internal/plugin"
 	"github.com/Yogdunana/deploypilot/internal/provider/cicd"
 )
+
+// errCICDNotConfigured indicates the CI/CD provider is not configured in DB.
+// This should return 200 with error in body (client error), not 500 (server error).
+var errCICDNotConfigured = errors.New("CI/CD provider not configured")
 
 // getCICDProvider resolves a CI/CD provider via the plugin registry.
 func (b *Bridge) getCICDProvider(ctx context.Context, providerType string) (cicd.CICDProvider, error) {
@@ -18,7 +23,7 @@ func (b *Bridge) getCICDProvider(ctx context.Context, providerType string) (cicd
 	var provider model.Provider
 	err := b.DB.Where("type = ? AND enabled = ?", "cicd-"+providerType, true).First(&provider).Error
 	if err != nil {
-		return nil, fmt.Errorf("no enabled CI/CD provider found for type: %s", providerType)
+		return nil, fmt.Errorf("%w: no enabled CI/CD provider found for type: %s", errCICDNotConfigured, providerType)
 	}
 
 	typeMap := map[string]string{
@@ -55,6 +60,14 @@ func (b *Bridge) getCICDProvider(ctx context.Context, providerType string) (cicd
 func (b *Bridge) TriggerCIBuild(ctx context.Context, providerType, repo, branch string) (interface{}, error) {
 	provider, err := b.getCICDProvider(ctx, providerType)
 	if err != nil {
+		// "not configured" is a client error → return 200 with error in body
+		if errors.Is(err, errCICDNotConfigured) {
+			return map[string]interface{}{
+				"status":  "error",
+				"message": err.Error(),
+			}, nil
+		}
+		// Other errors (DB unavailable, config parse, etc.) → server error (500)
 		return nil, err
 	}
 	runID, err := provider.TriggerBuild(ctx, repo, branch)
@@ -78,6 +91,12 @@ func (b *Bridge) TriggerCIBuild(ctx context.Context, providerType, repo, branch 
 func (b *Bridge) GetCIBuildStatus(ctx context.Context, providerType, runID string) (interface{}, error) {
 	provider, err := b.getCICDProvider(ctx, providerType)
 	if err != nil {
+		if errors.Is(err, errCICDNotConfigured) {
+			return map[string]interface{}{
+				"status":  "error",
+				"message": err.Error(),
+			}, nil
+		}
 		return nil, err
 	}
 	status, err := provider.GetBuildStatus(ctx, runID)
