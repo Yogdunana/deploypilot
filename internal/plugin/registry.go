@@ -2,6 +2,7 @@ package plugin
 
 import (
 	"fmt"
+	"log/slog"
 	"sync"
 )
 
@@ -36,9 +37,14 @@ var globalRegistry *Registry
 var once sync.Once
 
 // Global returns the global plugin registry singleton.
+// It automatically registers all built-in plugins on first access.
 func Global() *Registry {
 	once.Do(func() {
 		globalRegistry = NewRegistry()
+		if err := RegisterBuiltinPlugins(globalRegistry); err != nil {
+			// Log but don't panic — the registry is still usable
+			slog.Error("failed to register builtin plugins", "error", err)
+		}
 	})
 	return globalRegistry
 }

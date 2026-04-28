@@ -55,10 +55,7 @@ func (b *Bridge) getCICDProvider(ctx context.Context, providerType string) (cicd
 func (b *Bridge) TriggerCIBuild(ctx context.Context, providerType, repo, branch string) (interface{}, error) {
 	provider, err := b.getCICDProvider(ctx, providerType)
 	if err != nil {
-		return map[string]interface{}{
-			"status":  "error",
-			"message": err.Error(),
-		}, nil
+		return nil, err
 	}
 	runID, err := provider.TriggerBuild(ctx, repo, branch)
 	if err != nil {
@@ -81,10 +78,7 @@ func (b *Bridge) TriggerCIBuild(ctx context.Context, providerType, repo, branch 
 func (b *Bridge) GetCIBuildStatus(ctx context.Context, providerType, runID string) (interface{}, error) {
 	provider, err := b.getCICDProvider(ctx, providerType)
 	if err != nil {
-		return map[string]interface{}{
-			"status":  "error",
-			"message": err.Error(),
-		}, nil
+		return nil, err
 	}
 	status, err := provider.GetBuildStatus(ctx, runID)
 	if err != nil {
