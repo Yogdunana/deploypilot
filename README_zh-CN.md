@@ -351,17 +351,33 @@ monitor:
 
 ## 路线图
 
-### v1.1 安全与稳定性（进行中）
+### v1.1 安全与稳定性
 
 - [x] 回滚增强（部署历史链 + 备份持久化 + 一键回滚）
 - [x] 数据库自动备份（SQLite .backup + 定时 + 保留策略）
 - [x] 登录暴力破解防护（失败锁定 + IP 限流）
 - [x] 优雅关机（SIGTERM 处理 + WebSocket 关闭 + 超时）
 - [x] 请求链路追踪（X-Request-ID + 日志关联）
-- [ ] 命令沙箱（白名单 + 黑名单 + 自定义扩展）
-- [ ] 二次确认（状态机 + 按操作类型配置 + MCP 集成）
-- [ ] CLI 工具补全（status/restart/stop/logs/config/upgrade/backup/restore/reset）
-- [ ] Web 终端（xterm.js 在线终端 + 多主机 + 全屏 + 快速命令）
+- [x] 命令沙箱（白名单 + 黑名单 + 自定义扩展）
+- [x] 二次确认（状态机 + 按操作类型配置 + MCP 集成）
+- [x] CLI 工具补全（status/restart/stop/logs/config/upgrade/backup/restore/reset）
+- [x] Web 终端（xterm.js 在线终端 + 多主机 + 全屏 + 快速命令）
+- [x] Bridge God Object 拆分（bridge.go 2986→448 行，18 个文件）
+- [x] MCP Server 拆分（server.go 2510→71 行，34 个文件）
+- [x] 前端 Vitest 测试基础设施（14 个单元测试）
+
+### v1.2 适配器层重构（进行中）
+
+- [x] 通用注册表基础设施（plugin.Registry + 自动注册内置插件）
+- [x] DNS 适配器重构（4 provider → registry）
+- [x] Notify 适配器重构（6 channel → registry）
+- [x] CI/CD + Registry 适配器重构
+- [ ] Panel 适配器重构（定义接口 → registry）
+- [ ] OAuth 适配器重构（定义接口 → registry）
+- [ ] SSL 适配器重构（定义接口 → ACME/Lego）
+- [ ] Database 适配器重构（registry + 可配置连接池）
+- [ ] 外部调用熔断器（Circuit Breaker + 降级策略）
+- [ ] 许可证切换（MIT → BUSL-1.1）
 
 ### 近期计划
 
