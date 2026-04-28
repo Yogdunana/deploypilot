@@ -72,11 +72,14 @@ func New(config Config) *CircuitBreaker {
 }
 
 // State returns the current state (thread-safe).
+// If the circuit has been open longer than the timeout, it atomically
+// transitions to half-open.
 func (cb *CircuitBreaker) State() State {
-	cb.mu.RLock()
-	defer cb.mu.RUnlock()
+	cb.mu.Lock()
+	defer cb.mu.Unlock()
 	if cb.state == Open && time.Since(cb.lastFailureTime) > cb.config.Timeout {
-		return HalfOpen
+		cb.state = HalfOpen
+		cb.successes = 0
 	}
 	return cb.state
 }
