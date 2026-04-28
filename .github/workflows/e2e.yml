@@ -18,6 +18,8 @@ on:
         default: "22"
         type: string
 
+permissions: contents: read
+
 jobs:
   e2e:
     name: E2E on Real Server
@@ -29,6 +31,13 @@ jobs:
       - uses: actions/setup-go@v6
         with:
           go-version: "1.23"
+
+      - name: Cache Go modules
+        uses: actions/cache@v4
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: ${{ runner.os }}-go-
 
       - name: Build binaries
         run: |

@@ -7,9 +7,14 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build-binaries:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     strategy:
       matrix:
         include:
@@ -23,6 +28,24 @@ jobs:
       - uses: actions/setup-go@v6
         with:
           go-version: '1.23'
+
+      - name: Cache Go modules
+        uses: actions/cache@v4
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: ${{ runner.os }}-go-
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Cache npm modules
+        uses: actions/cache@v4
+        with:
+          path: web/node_modules
+          key: ${{ runner.os }}-node-${{ hashFiles('web/package-lock.json') }}
+          restore-keys: ${{ runner.os }}-node-
 
       - name: Build frontend
         working-directory: web
@@ -69,6 +92,9 @@ jobs:
         with:
           path: dist/
           merge-multiple: true
+
+      - name: Generate checksums
+        run: cd dist && sha256sum * > checksums-sha256.txt
 
       - name: Generate changelog
         id: changelog
