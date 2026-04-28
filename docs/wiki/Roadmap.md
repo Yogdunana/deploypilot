@@ -4,7 +4,7 @@
 
 ---
 
-## 📍 v1.1 — 安全与稳定性（当前）
+## 📍 v1.1 — 安全与稳定性
 
 > 修复运行时问题 + 基础安全加固 + 升级机制
 
@@ -21,27 +21,30 @@
 | 1.9 | 请求链路追踪（X-Request-ID + 日志关联）（PR #62） | ✅ 已完成 |
 | 1.10 | CLI 工具补全（status/restart/stop/logs/config/upgrade/backup/restore/reset） | ✅ 已完成 |
 | 1.11 | Web 终端（xterm.js 在线终端 + 多主机 + 全屏 + 快速命令） | ✅ 已完成 |
+| — | Bridge God Object 拆分（PR #85-#88）：bridge.go 2986→448 行，18 个文件 | ✅ 已完成 |
+| — | MCP Server 拆分（PR #90）：server.go 2510→71 行，34 个文件 | ✅ 已完成 |
+| — | 前端 Vitest 测试基础设施（PR #91）：14 个单元测试 | ✅ 已完成 |
 
 **相关 Issue**: #37, #38, #39, #40
 
 ---
 
-## 🏗️ v1.2 — 适配器层重构
+## 🏗️ v1.2 — 适配器层重构（当前）
 
 > 消除所有硬编码，建立插件化架构
 
-| Phase | 内容 |
-|-------|------|
-| 2.1 | 通用注册表基础设施（`ProviderRegistry[T]` + `ConfigParser`） |
-| 2.2 | DNS 适配器重构（4 provider → registry） |
-| 2.3 | Notify 适配器重构（6 channel → registry + Slack） |
-| 2.4 | CI/CD + Registry 适配器重构 |
-| 2.5 | Panel 适配器重构（定义接口 → registry） |
-| 2.6 | OAuth 适配器重构（定义接口 → registry） |
-| 2.7 | SSL 适配器重构（定义接口 → ACME/Lego） |
-| 2.8 | Database 适配器重构（registry + 可配置连接池） |
-| 2.9 | 外部调用熔断器（Circuit Breaker + 降级策略） |
-| 2.10 | 许可证切换（MIT → BUSL-1.1） |
+| Phase | 内容 | 状态 |
+|-------|------|------|
+| 2.1 | 通用注册表基础设施（plugin.Registry + 自动注册内置插件） | ✅ 已完成 (PR #93) |
+| 2.2 | DNS 适配器重构（4 provider → registry） | ✅ 已完成 (PR #93) |
+| 2.3 | Notify 适配器重构（6 channel → registry） | ✅ 已完成 (PR #93) |
+| 2.4 | CI/CD + Registry 适配器重构 | ✅ 已完成 (PR #93) |
+| 2.5 | Panel 适配器重构（定义接口 → registry） | 🔨 进行中 |
+| 2.6 | OAuth 适配器重构（定义接口 → registry） | 🔨 进行中 |
+| 2.7 | SSL 适配器重构（定义接口 → ACME/Lego） | ⏳ 待开始 |
+| 2.8 | Database 适配器重构（registry + 可配置连接池） | ⏳ 待开始 |
+| 2.9 | 外部调用熔断器（Circuit Breaker + 降级策略） | ⏳ 待开始 |
+| 2.10 | 许可证切换（MIT → BUSL-1.1） | ⏳ 待开始 |
 
 **相关 Issue**: #41
 
@@ -210,7 +213,7 @@
 | GitHub Stars | 100 | 1,000 | 5,000 |
 | 安装量 | 500 | 10,000 | 100,000 |
 | 付费用户 | — | 100 | 1,000 |
-| MCP 工具数 | 52+ | 60+ | 80+ |
-| 适配器数 | 15 | 25 | 40+ |
-| CI 覆盖率 | 60% | 80% | 90% |
+| MCP 工具数 | 63+ | 60+ | 80+ |
+| 适配器数 | 14 | 25 | 40+ |
+| CI 覆盖率 | ~90% | 80% | 90% |
 | 社区贡献者 | 1 | 10 | 50 |

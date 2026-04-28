@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+- **Bridge God Object 拆分** (PR #85-#88): bridge.go 从 2986 行拆分为 18 个文件 448 行，87 个方法按领域分布到独立 service 文件
+- **MCP Server 拆分** (PR #90): server.go 从 2510 行拆分为 34 个文件 71 行，63 个工具按领域分布
+- **适配器注册表集成** (PR #93): DNS/Notify/CI/CD/Registry 服务消除 switch/case 硬编码，统一使用 plugin.Registry 查找和创建 provider 实例
+- **plugin.Global() 自动注册** (PR #93): Global() 首次访问时自动调用 RegisterBuiltinPlugins()，确保所有内置 provider 可用
+
+### Added
+- **前端 Vitest 测试基础设施** (PR #91): 新增 vitest + @vue/test-utils + jsdom，14 个单元测试（utils + theme store），CI 集成 npm test
+- **AI 操作指南** (PR #89, #92, #94): 17 条踩坑记录，项目结构路径表，MCP Server 层架构表，前端架构表
+
 ## [1.1.0] - 2026-04-27
 
 ### Added
