@@ -86,6 +86,31 @@ gh pr merge <number> --squash --admin
 ```
 使用 `--merge` 会报错：`Merge commits are not allowed on this repository.`
 
+### 11. Go factored import 不用逗号分隔
+Go 的 factored import（分组导入）中，每个 import 字符串后面**不需要**逗号：
+```go
+// ❌ 错误 — 会导致 syntax error: unexpected comma
+import (
+    "fmt",
+    "encoding/json",
+)
+
+// ✅ 正确
+import (
+    "fmt"
+    "encoding/json"
+)
+```
+
+### 12. 提取闭包到独立函数时注意变量名
+从大函数中提取闭包到独立函数时，闭包中引用的外层变量名需要更新为函数参数名。例如 `NewServer(deployer Deployer)` 中的闭包引用 `deployer`，提取为 `registerXxxTools(s, d Deployer)` 后，闭包中的 `deployer` 需要改为 `d`。
+
+### 13. @pinia/testing 需要 Pinia v3
+`@pinia/testing@1.x` 要求 `pinia >= 3.0.4`，与项目使用的 Pinia 2.x 不兼容。测试 Pinia store 时使用原生 `createPinia()` + `setActivePinia()` 即可。
+
+### 14. 合并 PR 后必须确认 main CI 通过
+不能仅凭 PR branch CI 通过就标记完成。合并后 main 分支会触发新的 CI run，**必须等待该 run 全部通过**后再确认任务完成。main CI 可能因 squash merge 的 commit hash 不同而暴露新问题。
+
 ## 项目结构关键路径
 
 | 路径 | 说明 |
@@ -94,7 +119,10 @@ gh pr merge <number> --squash --admin
 | `internal/database/database.go` | 数据库迁移定义 |
 | `internal/config/config.go` | 配置结构体定义 |
 | `configs/config.yaml.example` | 配置文件示例（权威来源） |
-| `internal/mcp/server.go` | MCP 工具注册（63 个） |
+| `internal/mcp/server.go` | MCP 入口（NewServer + context/permission helpers，71 行） |
+| `internal/mcp/types.go` | Deployer 接口 + 12 个 struct 定义 |
+| `internal/mcp/handler_*.go` | 16 个 MCP 工具 handler 文件 |
+| `internal/mcp/register_*.go` | 16 个 MCP 工具注册文件 |
 | `internal/service/bridge.go` | Bridge 结构体定义 + 基础设施方法（448 行） |
 | `internal/service/*_service.go` | 17 个领域服务文件（Deployer 接口实现） |
 | `docs/mcp-tools.md` | MCP 工具规范表（权威来源） |
@@ -103,6 +131,9 @@ gh pr merge <number> --squash --admin
 | `.github/workflows/docker.yml` | Docker 构建推送 |
 | `.github/workflows/release.yml` | Release 发布 |
 | `internal/version/version.go` | 版本号（默认 "dev"） |
+| `web/` | 前端项目根目录（Vue 3 + TypeScript + Vite 6） |
+| `web/vitest.config.ts` | Vitest 测试配置 |
+| `web/src/lib/utils.ts` | 前端工具函数（cn, formatDate, formatRelativeTime） |
 
 ## Service 层架构（v1.2 重构后）
 
@@ -130,6 +161,47 @@ Bridge God Object 已拆分为 18 个文件，87 个方法按领域分布：
 | `template_service.go` | ~37 | 2 | 部署模板查询 |
 
 **重要**: 所有方法仍使用 `(b *Bridge)` receiver，满足 `mcp.Deployer` 接口（69 个方法签名）。
+
+## MCP Server 层架构（v1.2 重构后）
+
+`internal/mcp/server.go` 已拆分为 34 个文件，63 个工具按领域分布：
+
+| 文件 | 行数 | 内容 |
+|------|------|------|
+| `server.go` | 71 | NewServer 入口 + context/permission helpers |
+| `types.go` | 209 | Deployer 接口 + PreflightErrorInfo + 12 个 struct |
+| `helpers.go` | 81 | validateVolumePath, validateImageRegistry 等 |
+| `handler_deploy.go` | ~410 | 部署相关 handler（deploy, rollback, batch 等） |
+| `handler_server.go` | ~176 | 服务器管理 handler |
+| `handler_credential.go` | ~91 | 凭证管理 handler |
+| `handler_dns.go` | ~89 | DNS 管理 handler |
+| `handler_backup.go` | ~72 | 备份恢复 handler |
+| `handler_monitor.go` | ~123 | 监控指标 handler |
+| `handler_k8s.go` | ~130 | K8s 部署 handler |
+| `handler_ssl.go` | ~63 | SSL 证书 handler |
+| `handler_registry.go` | ~87 | 镜像仓库 handler |
+| `handler_plugin.go` | ~51 | 插件管理 handler |
+| `handler_cicd.go` | ~48 | CI/CD handler |
+| 其他 handler 文件 | ~200 | log, notification, template, task, system |
+| 16 个 `register_*.go` | ~870 | 工具注册函数（s.AddTool 调用） |
+
+## 前端架构
+
+| 项目 | 详情 |
+|------|------|
+| 框架 | Vue 3.5 + Composition API (`<script setup lang="ts">`) |
+| 语言 | TypeScript (strict 模式) |
+| 构建工具 | Vite 6 |
+| CSS | Tailwind CSS 4 + Radix Vue |
+| 状态管理 | Pinia 2 |
+| 路由 | Vue Router 4 (History 模式) |
+| HTTP | Axios |
+| 包管理器 | npm |
+| 测试 | Vitest 4 + @vue/test-utils + jsdom |
+| 嵌入方式 | Go `embed` 嵌入到后端二进制（`web/embed.go`） |
+
+**前端测试命令**: `npm test`（在 `web/` 目录下）
+**CI 集成**: `Build Frontend` job 中包含 `npm test` 步骤
 
 ## 文档同步规则
 
