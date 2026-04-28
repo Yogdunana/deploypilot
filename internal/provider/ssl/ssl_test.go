@@ -17,20 +17,24 @@ func TestNewSSLProvider(t *testing.T) {
 	if p == nil {
 		t.Fatal("expected non-nil provider")
 	}
-	if p.certDir == "" {
-		t.Error("expected certDir to be set")
-	}
-	if p.accountKey == nil {
-		t.Error("expected accountKey to be set")
-	}
+	// Verify the provider implements CertificateProvider
+	var _ CertificateProvider = p
 
-	// Verify directory was created
-	info, err := os.Stat(p.certDir)
-	if err != nil {
-		t.Fatalf("cert directory not created: %v", err)
-	}
-	if !info.IsDir() {
-		t.Error("expected certDir to be a directory")
+	// Verify directory was created via concrete type assertion
+	if concrete, ok := p.(*SSLProvider); ok {
+		if concrete.certDir == "" {
+			t.Error("expected certDir to be set")
+		}
+		if concrete.accountKey == nil {
+			t.Error("expected accountKey to be set")
+		}
+		info, err := os.Stat(concrete.certDir)
+		if err != nil {
+			t.Fatalf("cert directory not created: %v", err)
+		}
+		if !info.IsDir() {
+			t.Error("expected certDir to be a directory")
+		}
 	}
 }
 
