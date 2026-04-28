@@ -36,8 +36,8 @@ var _ deployer.CommandExecutor = (*builderMockExecutor)(nil)
 func TestBuilder_GitClone_New(t *testing.T) {
 	exec := &builderMockExecutor{
 		responses: map[string]string{
-			"test -d /tmp/builds/.git": "", // directory does not exist
-			"git rev-parse HEAD":        "abcdef1234567890",
+			"test -d '/tmp/builds'/.git": "", // directory does not exist
+			"git rev-parse HEAD":            "abcdef1234567890",
 		},
 	}
 	b := NewBuilder(exec)
@@ -60,8 +60,8 @@ func TestBuilder_GitClone_New(t *testing.T) {
 func TestBuilder_GitClone_Existing(t *testing.T) {
 	exec := &builderMockExecutor{
 		responses: map[string]string{
-			"test -d /tmp/builds/.git": "exists",
-			"git rev-parse HEAD":        "fedcba0987654321",
+			"test -d '/tmp/builds'/.git": "exists",
+			"git rev-parse HEAD":         "fedcba0987654321",
 		},
 	}
 	b := NewBuilder(exec)
@@ -164,11 +164,11 @@ func TestBuildAndDeploy_Full(t *testing.T) {
 	commitHash := "a1b2c3d4e5f6g7h8i9j0"
 	exec := &builderMockExecutor{
 		responses: map[string]string{
-			"test -d /tmp/deploypilot-builds/myapp/.git": "", // new clone
-			"git rev-parse HEAD":                           commitHash,
-			"test -f /tmp/deploypilot-builds/myapp/go.mod": "exists",
-			"docker build":                                 "Successfully built",
-			"docker inspect":                               "sha256:image123",
+			"test -d '/tmp/deploypilot-builds/myapp'/.git": "", // new clone
+			"git rev-parse HEAD":                              commitHash,
+			"test -f /tmp/deploypilot-builds/myapp/go.mod":   "exists",
+			"docker build":                                    "Successfully built",
+			"docker inspect":                                  "sha256:image123",
 		},
 	}
 	b := NewBuilder(exec)
@@ -203,8 +203,8 @@ func TestBuildAndDeploy_AutoDetect(t *testing.T) {
 	commitHash := "11223344556677889900"
 	exec := &builderMockExecutor{
 		responses: map[string]string{
-			"test -d /tmp/deploypilot-builds/pyapp/.git": "",
-			"git rev-parse HEAD":                          commitHash,
+			"test -d '/tmp/deploypilot-builds/pyapp'/.git": "", // new clone
+			"git rev-parse HEAD":                               commitHash,
 			// No specific framework files, but requirements.txt exists
 			"test -f /tmp/deploypilot-builds/pyapp/requirements.txt": "exists",
 			"docker build": "built ok",
@@ -233,8 +233,8 @@ func TestBuildAndDeploy_Defaults(t *testing.T) {
 	commitHash := "ffeeddccbbaa99887766"
 	exec := &builderMockExecutor{
 		responses: map[string]string{
-			"test -d /tmp/deploypilot-builds/testapp/.git": "",
-			"git rev-parse HEAD":                            commitHash,
+			"test -d '/tmp/deploypilot-builds/testapp'/.git": "", // new clone
+			"git rev-parse HEAD":                                commitHash,
 			// No framework files detected -> default to "docker"
 			"docker build": "built",
 			"docker inspect": "sha256:default",
@@ -272,7 +272,7 @@ func TestNewBuilder(t *testing.T) {
 func TestBuilder_GitClone_PullError(t *testing.T) {
 	exec := &builderMockExecutor{
 		responses: map[string]string{
-			"test -d /tmp/builds/.git": "exists",
+			"test -d '/tmp/builds'/.git": "exists",
 		},
 		errs: map[string]error{
 			"git pull": fmt.Errorf("pull failed"),
@@ -298,7 +298,7 @@ func TestBuilder_GitClone_PullError(t *testing.T) {
 func TestBuilder_GitClone_RevParseError(t *testing.T) {
 	exec := &builderMockExecutor{
 		responses: map[string]string{
-			"test -d /tmp/builds/.git": "",
+			"test -d '/tmp/builds'/.git": "",
 		},
 		errs: map[string]error{
 			"git rev-parse HEAD": fmt.Errorf("not a git repo"),
@@ -322,12 +322,12 @@ func TestBuildAndDeploy_DockerfileWriteError(t *testing.T) {
 	commitHash := "a1b2c3d4e5f6g7h8i9j0"
 	exec := &builderMockExecutor{
 		responses: map[string]string{
-			"test -d /tmp/deploypilot-builds/writefail/.git": "",
-			"git rev-parse HEAD":                              commitHash,
-			"test -f /tmp/deploypilot-builds/writefail/go.mod": "exists",
+			"test -d '/tmp/deploypilot-builds/writefail'/.git": "",
+			"git rev-parse HEAD":                                  commitHash,
+			"test -f /tmp/deploypilot-builds/writefail/go.mod":   "exists",
 		},
 		errs: map[string]error{
-			"cat > /tmp/deploypilot-builds/writefail/Dockerfile": fmt.Errorf("permission denied"),
+			"cat > '/tmp/deploypilot-builds/writefail'/Dockerfile": fmt.Errorf("permission denied"),
 		},
 	}
 	b := NewBuilder(exec)
@@ -351,9 +351,9 @@ func TestBuildAndDeploy_DockerBuildError(t *testing.T) {
 	commitHash := "a1b2c3d4e5f6g7h8i9j0"
 	exec := &builderMockExecutor{
 		responses: map[string]string{
-			"test -d /tmp/deploypilot-builds/buildfail/.git": "",
-			"git rev-parse HEAD":                              commitHash,
-			"docker build": "error: no space left on device",
+			"test -d '/tmp/deploypilot-builds/buildfail'/.git": "",
+			"git rev-parse HEAD":                                 commitHash,
+			"docker build":                                      "error: no space left on device",
 		},
 		errs: map[string]error{
 			"docker build": fmt.Errorf("no space left on device"),
@@ -380,10 +380,10 @@ func TestBuildAndDeploy_ExplicitBranchAndProjectDir(t *testing.T) {
 	commitHash := "aabbccddeeff00112233"
 	exec := &builderMockExecutor{
 		responses: map[string]string{
-			"test -d /custom/dir/.git": "",
-			"git rev-parse HEAD":       commitHash,
-			"docker build":             "built",
-			"docker inspect":           "sha256:custom",
+			"test -d '/custom/dir'/.git": "", // new clone
+			"git rev-parse HEAD":          commitHash,
+			"docker build":                "built",
+			"docker inspect":              "sha256:custom",
 		},
 	}
 	b := NewBuilder(exec)

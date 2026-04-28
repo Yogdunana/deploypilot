@@ -121,7 +121,11 @@ func (b *Builder) BuildAndDeploy(ctx context.Context, cfg BuildConfig) (*BuildRe
 	}
 
 	// 5. Docker build
-	imageTag := fmt.Sprintf("%s:%s", cfg.AppName, commitHash[:8])
+	shortHash := commitHash
+	if len(shortHash) > 8 {
+		shortHash = shortHash[:8]
+	}
+	imageTag := fmt.Sprintf("%s:%s", cfg.AppName, shortHash)
 	buildLog, err := b.dockerBuild(ctx, cfg.ProjectDir, imageTag, cfg.BuildArgs)
 	if err != nil {
 		return nil, fmt.Errorf("docker build failed: %w\n%s", err, buildLog)

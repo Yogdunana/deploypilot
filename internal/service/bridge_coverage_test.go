@@ -15,7 +15,7 @@ import (
 
 func TestBuildAndDeploy_BuildFails(t *testing.T) {
 	b, exec := newTestBridge(t)
-	exec.err["mkdir -p /tmp/deploypilot-builds/build-fail-app && git clone --branch main --depth 1 https://github.com/test/test /tmp/deploypilot-builds/build-fail-app"] = fmt.Errorf("git clone failed")
+	exec.err["mkdir -p '/tmp/deploypilot-builds/build-fail-app' && git clone --branch 'main' --depth 1 'https://github.com/test/test' '/tmp/deploypilot-builds/build-fail-app'"] = fmt.Errorf("git clone failed")
 
 	_, err := b.BuildAndDeploy(context.TODO(), mcp.BuildAndDeployConfig{
 		RepoURL: "https://github.com/test/test",
@@ -28,13 +28,13 @@ func TestBuildAndDeploy_BuildFails(t *testing.T) {
 
 func TestBuildAndDeploy_DeployFails(t *testing.T) {
 	b, exec := newTestBridge(t)
-	exec.output["mkdir -p /tmp/deploypilot-builds/deploy-fail-app && git clone --branch main --depth 1 https://github.com/test/test /tmp/deploypilot-builds/deploy-fail-app"] = ""
-	exec.output["test -d /tmp/deploypilot-builds/deploy-fail-app/.git && echo 'exists'"] = ""
-	exec.output["cd /tmp/deploypilot-builds/deploy-fail-app && git fetch origin && git checkout main && git pull origin main"] = ""
-	exec.output["cd /tmp/deploypilot-builds/deploy-fail-app && git rev-parse HEAD"] = "abc123def4567890"
-	exec.output["cat > /tmp/deploypilot-builds/deploy-fail-app/Dockerfile << 'DEPLOYPilot_EOF'\nFROM alpine\nRUN echo hello\nDEPLOYPilot_EOF"] = ""
-	exec.output["docker build -t deploy-fail-app:abc123de /tmp/deploypilot-builds/deploy-fail-app"] = "built ok"
-	exec.output["docker inspect --format='{{.Id}}' deploy-fail-app:abc123de 2>/dev/null"] = "sha256:digest123"
+	exec.output["mkdir -p '/tmp/deploypilot-builds/deploy-fail-app' && git clone --branch 'main' --depth 1 'https://github.com/test/test' '/tmp/deploypilot-builds/deploy-fail-app'"] = ""
+	exec.output["test -d '/tmp/deploypilot-builds/deploy-fail-app'/.git && echo 'exists'"] = ""
+	exec.output["cd '/tmp/deploypilot-builds/deploy-fail-app' && git fetch origin && git checkout 'main' && git pull origin 'main'"] = ""
+	exec.output["cd '/tmp/deploypilot-builds/deploy-fail-app' && git rev-parse HEAD"] = "abc123def4567890"
+	exec.output["cat > '/tmp/deploypilot-builds/deploy-fail-app'/Dockerfile << 'DEPLOYPilot_EOF'\nFROM alpine\nRUN echo hello\nDEPLOYPilot_EOF"] = ""
+	exec.output["docker build -t 'deploy-fail-app:abc123de' '/tmp/deploypilot-builds/deploy-fail-app'"] = "built ok"
+	exec.output["docker inspect --format='{{.Id}}' 'deploy-fail-app:abc123de' 2>/dev/null"] = "sha256:digest123"
 	// Make deploy fail at docker version check (preflight)
 	exec.err["docker version --format '{{.Server.Version}}' 2>/dev/null"] = fmt.Errorf("docker not available")
 	// Also make the Deploy preflight fail
@@ -51,13 +51,13 @@ func TestBuildAndDeploy_DeployFails(t *testing.T) {
 
 func TestBuildAndDeploy_BuildSuccess_DeployFails(t *testing.T) {
 	b, exec := newTestBridge(t)
-	exec.output["mkdir -p /tmp/deploypilot-builds/build-ok-dep-fail && git clone --branch main --depth 1 https://github.com/test/test /tmp/deploypilot-builds/build-ok-dep-fail"] = ""
-	exec.output["test -d /tmp/deploypilot-builds/build-ok-dep-fail/.git && echo 'exists'"] = ""
-	exec.output["cd /tmp/deploypilot-builds/build-ok-dep-fail && git fetch origin && git checkout main && git pull origin main"] = ""
-	exec.output["cd /tmp/deploypilot-builds/build-ok-dep-fail && git rev-parse HEAD"] = "abc123def4567890"
-	exec.output["cat > /tmp/deploypilot-builds/build-ok-dep-fail/Dockerfile << 'DEPLOYPilot_EOF'\nFROM alpine\nRUN echo hello\nDEPLOYPilot_EOF"] = ""
-	exec.output["docker build -t build-ok-dep-fail:abc123de /tmp/deploypilot-builds/build-ok-dep-fail"] = "built ok"
-	exec.output["docker inspect --format='{{.Id}}' build-ok-dep-fail:abc123de 2>/dev/null"] = "sha256:digest123"
+	exec.output["mkdir -p '/tmp/deploypilot-builds/build-ok-dep-fail' && git clone --branch 'main' --depth 1 'https://github.com/test/test' '/tmp/deploypilot-builds/build-ok-dep-fail'"] = ""
+	exec.output["test -d '/tmp/deploypilot-builds/build-ok-dep-fail'/.git && echo 'exists'"] = ""
+	exec.output["cd '/tmp/deploypilot-builds/build-ok-dep-fail' && git fetch origin && git checkout 'main' && git pull origin 'main'"] = ""
+	exec.output["cd '/tmp/deploypilot-builds/build-ok-dep-fail' && git rev-parse HEAD"] = "abc123def4567890"
+	exec.output["cat > '/tmp/deploypilot-builds/build-ok-dep-fail'/Dockerfile << 'DEPLOYPilot_EOF'\nFROM alpine\nRUN echo hello\nDEPLOYPilot_EOF"] = ""
+	exec.output["docker build -t 'build-ok-dep-fail:abc123de' '/tmp/deploypilot-builds/build-ok-dep-fail'"] = "built ok"
+	exec.output["docker inspect --format='{{.Id}}' 'build-ok-dep-fail:abc123de' 2>/dev/null"] = "sha256:digest123"
 	exec.output["docker version --format '{{.Server.Version}}' 2>/dev/null"] = "24.0"
 	exec.output["docker info --format '{{.NCPU}}' 2>/dev/null"] = "4"
 	exec.output["docker info --format '{{.MemTotal}}' 2>/dev/null"] = "8192000000"

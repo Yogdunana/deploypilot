@@ -21,6 +21,7 @@ func setupAuditTestDB(t *testing.T) *gorm.DB {
 		id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, username TEXT,
 		action TEXT, resource_type TEXT, resource_id TEXT, detail TEXT,
 		ip_address TEXT, user_agent TEXT, record_hash TEXT,
+		trace_id TEXT,
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 	)`)
 	return db

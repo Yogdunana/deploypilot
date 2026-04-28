@@ -49,7 +49,9 @@ func setupPluginTestDB(t *testing.T) *gorm.DB {
 	db.Exec(`CREATE TABLE IF NOT EXISTS audit_logs (
 		id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, username TEXT,
 		action TEXT, resource_type TEXT, resource_id TEXT, detail TEXT,
-		ip_address TEXT, user_agent TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+		ip_address TEXT, user_agent TEXT, record_hash TEXT,
+		trace_id TEXT,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 	)`)
 
 	// Seed roles

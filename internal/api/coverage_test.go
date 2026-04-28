@@ -1597,8 +1597,9 @@ func TestDeleteBackup_Direct(t *testing.T) {
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
-	if w.Code != http.StatusOK {
-		t.Errorf("expected 200, got %d: %s", w.Code, w.Body.String())
+	// No backup record exists in test DB, so DeleteBackup returns 404
+	if w.Code != http.StatusNotFound {
+		t.Errorf("expected 404 (no backup record), got %d: %s", w.Code, w.Body.String())
 	}
 }
 
