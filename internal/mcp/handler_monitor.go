@@ -2,8 +2,8 @@ package mcp
 
 import (
 	"context"
-	"fmt",
-	"strings",
+	"fmt"
+	"strings"
 	"github.com/mark3labs/mcp-go/mcp"
 )
 func handleDetectEnv(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {

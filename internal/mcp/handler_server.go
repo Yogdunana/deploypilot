@@ -2,7 +2,7 @@ package mcp
 
 import (
 	"context"
-	"fmt",
+	"fmt"
 	"github.com/mark3labs/mcp-go/mcp"
 )
 func handleListServers(ctx context.Context, deployer Deployer, _ mcp.CallToolRequest) (*mcp.CallToolResult, error) {

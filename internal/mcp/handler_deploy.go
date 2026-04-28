@@ -2,9 +2,9 @@ package mcp
 
 import (
 	"context"
-	"fmt",
-	"strconv",
-	"strings",
+	"fmt"
+	"strconv"
+	"strings"
 	"github.com/mark3labs/mcp-go/mcp"
 )
 func handleBuildAndDeploy(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
