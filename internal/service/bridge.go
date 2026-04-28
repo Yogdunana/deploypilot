@@ -731,7 +731,11 @@ func (b *Bridge) PortForward(ctx context.Context, action, serverID string, local
 				slog.Error("failed to create SSH tunnel", "error", err)
 				return
 			}
-			defer remoteExec.Close()
+			defer func() {
+				if cerr := remoteExec.Close(); cerr != nil {
+					slog.Warn("failed to close remote executor", "error", cerr)
+				}
+			}()
 
 			tunnelCmd := fmt.Sprintf("ssh -f -N -L %d:%s:%d -p %d %s@%s",
 				localPort, remoteHost, remotePort, port, username, host)
