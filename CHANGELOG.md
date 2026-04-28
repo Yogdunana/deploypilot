@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-04-28
+
 ### Changed
 - **Bridge God Object 拆分** (PR #85-#88): bridge.go 从 2986 行拆分为 18 个文件 448 行，87 个方法按领域分布到独立 service 文件
 - **MCP Server 拆分** (PR #90): server.go 从 2510 行拆分为 34 个文件 71 行，63 个工具按领域分布
@@ -80,5 +82,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CORS configuration
 - Input validation and sanitization
 
+[1.2.0]: https://github.com/Yogdunana/deploypilot/releases/tag/v1.2.0
 [1.1.0]: https://github.com/Yogdunana/deploypilot/releases/tag/v1.1.0
 [1.0.0]: https://github.com/Yogdunana/deploypilot/releases/tag/v1.0.0

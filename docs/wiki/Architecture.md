@@ -66,6 +66,16 @@ DeployPilot uses a three-layer architecture: **MCP + REST + WebSocket/SSE**.
 - 27 pages covering all features
 - i18n support (English / Chinese)
 
+### Panel HTTP Server
+
+DeployPilot 的 Web Dashboard 由 Go 二进制直接提供服务，**不依赖** Apache、Nginx 或 OpenResty 作为前端服务器。
+
+- **HTTP 服务器**: Go `net/http.Server` + Gin 框架
+- **前端嵌入**: Vue SPA 构建产物通过 Go `embed` 嵌入二进制（`web/embed.go`）
+- **静态文件**: 由 `internal/server/server.go` 的 `serveStaticFiles()` 提供 SPA fallback
+- **端口配置**: 通过 `server.port` 配置项可调（默认 8080，非固定）
+- **端口管理**: 用户可通过 `deploypilot reset port --port <新端口>` 修改
+
 ### Provider Layer
 - Pluggable architecture for external services
 - DNS: Cloudflare, Alibaba Cloud, Tencent Cloud, WestDNS

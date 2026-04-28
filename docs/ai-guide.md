@@ -131,6 +131,47 @@ import (
 ### 19. NewSSLProvider 返回接口后测试需要类型断言
 当构造函数返回接口类型（如 `CertificateProvider`）而非具体类型（如 `*SSLProvider`）时，测试中需要通过类型断言 `p.(*SSLProvider)` 访问内部字段。staticcheck 会报 `var _ Interface = x` 冗余。
 
+### 20. 版本完成必须执行完整检查清单
+完成一个版本的所有 Phase 后，不能只标记 Roadmap 状态为 ✅。必须执行完整的版本完成流程：
+1. **Milestone Issue 清理**: 确认 milestone 中 0 个 open issue（关闭已实现的，移除延后的）
+2. **Milestone 关闭**: 通过 API 关闭 milestone
+3. **CHANGELOG 更新**: 将 [Unreleased] 内容移至版本段，添加日期和链接
+4. **Tag + Release**: 创建 annotated tag 并推送，触发 release.yml 自动构建
+5. **孤立 Issue 巡检**: 检查并关联所有无 milestone 的 open issues
+6. **Roadmap 确认**: 确认所有 Phase 状态正确
+
+**反例**: v1.2 Roadmap 全部 ✅ 但 milestone 仍 OPEN、无 Release/Tag、存在孤立 issues。
+
+### 21. 数据库安装前必须预检测已有实例
+AI 工作流中安装 MySQL/PostgreSQL/Redis/MongoDB 前，必须先检测目标服务器是否已存在该数据库服务。
+检测方式: `systemctl status <service>` 或 `docker ps | grep <name>` 或 `ss -tlnp | grep <port>`。
+如果已存在，必须让用户选择:
+- **复用已有实例**: 跳过安装，直接配置连接信息
+- **全新安装**: 继续安装流程（需警告端口冲突风险）
+不要静默覆盖已有数据库实例，会导致数据丢失。
+
+### 22. Web 服务器组件缺失时必须提示用户选择
+当 AI 检测到部署需要 Apache/Nginx/OpenResty 但目标服务器未安装时，不能自行决定安装哪个。
+必须暂停工作流，提示用户选择:
+- Apache（兼容性最好，适合传统 PHP/Python 项目）
+- Nginx（性能最优，适合高并发静态/反向代理）
+- OpenResty（Nginx + Lua，适合需要动态路由的场景）
+
+**参照 BT-Panel 模式**: 在面板初始化完成后立即提示安装组件，而非在项目部署中途打断用户。
+**注意**: DeployPilot 面板自身不使用 Apache/Nginx/OpenResty 作为前端服务器（见 #23）。
+
+### 23. DeployPilot 面板使用 Go 内嵌 HTTP 服务器，端口可配置
+DeployPilot 的 Web Dashboard **不依赖** Apache、Nginx 或 OpenResty 来提供前端服务。
+架构细节:
+- 后端使用 Go `net/http.Server` + Gin 框架直接监听端口
+- 前端通过 Go `embed` 嵌入到二进制中（`web/embed.go` → `webfs.DistFS`）
+- 静态文件由 `internal/server/server.go` 的 `serveStaticFiles()` 提供
+- 默认端口 8080，但完全通过 `server.port` 配置项可调
+- 用户可通过 `deploypilot reset port --port <新端口>` 修改端口
+
+**不要**: 假设面板前端由 Nginx 代理或固定在 8080 端口。
+**不要**: 在部署用户项目时将面板自身的端口配置与项目的 Web 服务器混淆。
+
 ## 项目结构关键路径
 
 | 路径 | 说明 |
@@ -231,14 +272,19 @@ Bridge God Object 已拆分为 18 个文件，87 个方法按领域分布：
 3. **新增 MCP 工具** → `internal/mcp/server.go` + `docs/mcp-tools.md` + `docs/wiki/MCP-Integration.md`
 4. **数据库 Schema 变更** → `internal/database/database.go` + 测试文件中的 CREATE TABLE
 5. **Roadmap Phase 完成** → `docs/wiki/Roadmap.md` + 关联 Issue + Milestone 状态
+6. **版本完成** → Milestone 关闭 + CHANGELOG 更新 + Tag/Release 创建 + 孤立 Issue 关联
 
 ## 版本发布流程
 
-1. 确认 main CI 全部通过（包括 build-and-push 和 Release）
-2. 创建 git tag: `git tag -a v1.x.0 -m "v1.x.0 — Title"`
-3. 推送 tag: `git push origin v1.x.0`
-4. Release workflow 自动触发，创建 GitHub Release + 构建产物
-5. 如需手动创建 Release，用 GitHub API
+1. **Milestone 清理**: 确认 milestone 中 0 open issues，关闭/移除遗留 issues
+2. **Milestone 关闭**: 通过 GitHub API 关闭 milestone
+3. **CHANGELOG 更新**: 将 [Unreleased] 变更移至版本段，添加日期和链接
+4. **提交 CHANGELOG**: 创建 PR 合并到 main（需通过 CI）
+5. **确认 main CI 通过**: 合并后等待 main 分支 CI 全部通过
+6. **创建 Tag**: `git tag -a v1.x.0 -m "v1.x.0 — Title"`
+7. **推送 Tag**: `git push origin v1.x.0`
+8. **验证 Release**: release.yml 自动触发，确认 GitHub Release + 构建产物正确
+9. **孤立 Issue 巡检**: 关联所有无 milestone 的 open issues 到对应版本
 
 ## Dependabot PR 处理规则
 
