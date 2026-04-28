@@ -30,7 +30,6 @@ import (
 	"github.com/Yogdunana/deploypilot/internal/provider/server"
 	"github.com/Yogdunana/deploypilot/internal/sandbox"
 	"github.com/Yogdunana/deploypilot/internal/tracing"
-	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
