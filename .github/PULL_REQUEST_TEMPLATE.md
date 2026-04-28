@@ -14,6 +14,7 @@
 ## Related Issue
 
 <!-- Link to the related issue, e.g. Fixes #123 -->
+<!-- IMPORTANT: Use "Fixes #123" or "Closes #123" to auto-close the linked issue on merge -->
 
 ## Changes Made
 
@@ -24,6 +25,10 @@
 - [ ] Unit tests pass (`make test`)
 - [ ] Linting passes (`make lint`)
 - [ ] Manual testing performed
+
+## Breaking Changes (if applicable)
+- [ ] Migration guide documented
+- [ ] Deprecated features listed with removal timeline
 
 ## Checklist
 
