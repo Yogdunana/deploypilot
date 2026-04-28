@@ -1,0 +1,16 @@
+# Default code owners
+* @Yogdunana
+
+# Backend
+/internal/ @Yogdunana
+/cmd/ @Yogdunana
+
+# Frontend
+/web/ @Yogdunana
+
+# CI/CD
+.github/workflows/ @Yogdunana
+
+# Documentation
+/docs/ @Yogdunana
+README.md @Yogdunana
