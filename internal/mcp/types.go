@@ -89,6 +89,12 @@ type Deployer interface {
 	ExecCommand(ctx context.Context, serverID, command string, timeout int) (string, error)
 	ListImages(ctx context.Context, serverID, filter string) (string, error)
 	PortForward(ctx context.Context, action, serverID string, localPort, remotePort int, remoteHost string) (string, error)
+	// Phase 3.1: Compose operations
+	ComposeDeploy(ctx context.Context, appID string) (string, error)
+	ComposeStop(ctx context.Context, appID string) (string, error)
+	ComposePs(ctx context.Context, appID string) (string, error)
+	ComposeLogs(ctx context.Context, appID, service, tail string) (string, error)
+	ComposeRestart(ctx context.Context, appID, service string) (string, error)
 }
 
 // DeployConfig mirrors deployer.DeployConfig to avoid circular imports.

@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log/slog"
@@ -19,6 +20,7 @@ import (
 	"github.com/Yogdunana/deploypilot/internal/crypto"
 	"github.com/Yogdunana/deploypilot/internal/engine/deployer"
 	"github.com/Yogdunana/deploypilot/internal/engine/healer"
+	"github.com/Yogdunana/deploypilot/internal/model"
 	"github.com/Yogdunana/deploypilot/internal/monitor"
 	"github.com/Yogdunana/deploypilot/internal/plugin"
 	"github.com/Yogdunana/deploypilot/internal/provider/server"
@@ -437,6 +439,140 @@ func defaultVal(val, def string) string {
 
 
 // ---------- GetServersByTags ----------
+
+// ---------- Phase 3.1: Compose Operations ----------
+
+// ComposeDeploy deploys an app using docker-compose.
+func (b *Bridge) ComposeDeploy(ctx context.Context, app *model.App) (string, error) {
+	executor, err := b.getRemoteExecutor(ctx, app.ServerID)
+	if err != nil {
+		return "", err
+	}
+	defer func() {
+		if cerr := executor.Close(); cerr != nil {
+			slog.Warn("failed to close remote executor", "error", cerr)
+		}
+	}()
+
+	workDir := fmt.Sprintf("/opt/deploypilot/apps/%s", app.Name)
+	projectName := app.ComposeProjectName
+	if projectName == "" {
+		projectName = app.Name
+	}
+
+	// Prepend project name to compose content if not present
+	composeContent := app.ComposeContent
+	if !strings.Contains(composeContent, "name:") && !strings.Contains(composeContent, "version:") {
+		// Wrap with project name
+		composeContent = fmt.Sprintf("name: %s\n\n%s", projectName, composeContent)
+	}
+
+	// Parse env vars from JSON string
+	var envVars map[string]string
+	if app.EnvVars != "" {
+		_ = json.Unmarshal([]byte(app.EnvVars), &envVars)
+	}
+
+	deployer := deployer.NewComposeDeployer(executor)
+	out, err := deployer.ComposeUp(ctx, workDir, composeContent, envVars)
+	if err != nil {
+		return out, err
+	}
+
+	// Save deployment record
+	if b.DB != nil {
+		snapshotJSON, _ := json.Marshal(map[string]interface{}{
+			"compose_content":     composeContent,
+			"compose_project_name": projectName,
+			"env_vars":            envVars,
+		})
+		record := &model.DeploymentRecord{
+			ID:             generateID(),
+			TenantID:       app.TenantID,
+			ServerID:       app.ServerID,
+			AppName:        app.Name,
+			AppID:          app.ID,
+			DeployType:     "compose_up",
+			ConfigSnapshot: string(snapshotJSON),
+			Status:         "success",
+			CreatedAt:      time.Now(),
+			UpdatedAt:      time.Now(),
+		}
+		if err := b.DB.Create(record).Error; err != nil {
+			slog.Error("failed to save compose deployment record", "error", err)
+		}
+	}
+
+	return out, nil
+}
+
+// ComposeStop stops a compose deployment.
+func (b *Bridge) ComposeStop(ctx context.Context, app *model.App) (string, error) {
+	executor, err := b.getRemoteExecutor(ctx, app.ServerID)
+	if err != nil {
+		return "", err
+	}
+	defer func() {
+		if cerr := executor.Close(); cerr != nil {
+			slog.Warn("failed to close remote executor", "error", cerr)
+		}
+	}()
+
+	workDir := fmt.Sprintf("/opt/deploypilot/apps/%s", app.Name)
+	deployer := deployer.NewComposeDeployer(executor)
+	return deployer.ComposeDown(ctx, workDir)
+}
+
+// ComposePs lists compose containers.
+func (b *Bridge) ComposePs(ctx context.Context, app *model.App) (string, error) {
+	executor, err := b.getRemoteExecutor(ctx, app.ServerID)
+	if err != nil {
+		return "", err
+	}
+	defer func() {
+		if cerr := executor.Close(); cerr != nil {
+			slog.Warn("failed to close remote executor", "error", cerr)
+		}
+	}()
+
+	workDir := fmt.Sprintf("/opt/deploypilot/apps/%s", app.Name)
+	deployer := deployer.NewComposeDeployer(executor)
+	return deployer.ComposePs(ctx, workDir)
+}
+
+// ComposeLogs gets compose service logs.
+func (b *Bridge) ComposeLogs(ctx context.Context, app *model.App, service, tail string) (string, error) {
+	executor, err := b.getRemoteExecutor(ctx, app.ServerID)
+	if err != nil {
+		return "", err
+	}
+	defer func() {
+		if cerr := executor.Close(); cerr != nil {
+			slog.Warn("failed to close remote executor", "error", cerr)
+		}
+	}()
+
+	workDir := fmt.Sprintf("/opt/deploypilot/apps/%s", app.Name)
+	deployer := deployer.NewComposeDeployer(executor)
+	return deployer.ComposeLogs(ctx, workDir, service, tail)
+}
+
+// ComposeRestart restarts compose services.
+func (b *Bridge) ComposeRestart(ctx context.Context, app *model.App, service string) (string, error) {
+	executor, err := b.getRemoteExecutor(ctx, app.ServerID)
+	if err != nil {
+		return "", err
+	}
+	defer func() {
+		if cerr := executor.Close(); cerr != nil {
+			slog.Warn("failed to close remote executor", "error", cerr)
+		}
+	}()
+
+	workDir := fmt.Sprintf("/opt/deploypilot/apps/%s", app.Name)
+	deployer := deployer.NewComposeDeployer(executor)
+	return deployer.ComposeRestart(ctx, workDir, service)
+}
 
 // ---------- Phase 3.3: ExecCommand ----------
 

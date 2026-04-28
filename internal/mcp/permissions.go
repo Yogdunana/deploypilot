@@ -35,6 +35,10 @@ var ToolPermissions = map[string]int{
 	"port_forward": 2,
 	// Viewer-level (read-only images)
 	"list_images": 1,
+	// Phase 3.1: Compose operations
+	"compose_deploy": 3, "compose_stop": 3,
+	"compose_ps": 1, "compose_logs": 1,
+	"compose_restart": 2,
 	// Owner-level (system)
 	"update_user_role": 4, "delete_user": 4,
 }
