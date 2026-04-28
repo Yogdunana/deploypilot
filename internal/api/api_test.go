@@ -95,6 +95,11 @@ func setupTestDB(t *testing.T) *gorm.DB {
 		trace_id TEXT,
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 	)`)
+	db.Exec(`CREATE TABLE IF NOT EXISTS backup_records (
+		id TEXT PRIMARY KEY, app_id TEXT, filename TEXT, file_path TEXT,
+		file_size INTEGER, db_type TEXT, status TEXT DEFAULT 'completed',
+		error TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+	)`)
 	db.Exec(`CREATE TABLE IF NOT EXISTS clusters (
 		id TEXT PRIMARY KEY, tenant_id TEXT, name TEXT NOT NULL,
 		description TEXT, provider TEXT DEFAULT 'kubernetes', api_server TEXT NOT NULL,

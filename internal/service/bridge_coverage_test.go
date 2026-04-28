@@ -15,7 +15,7 @@ import (
 
 func TestBuildAndDeploy_BuildFails(t *testing.T) {
 	b, exec := newTestBridge(t)
-	exec.err["mkdir -p /tmp/deploypilot-builds/build-fail-app && git clone --branch main --depth 1 https://github.com/test/test /tmp/deploypilot-builds/build-fail-app"] = fmt.Errorf("git clone failed")
+	exec.err["mkdir -p '/tmp/deploypilot-builds/build-fail-app' && git clone --branch 'main' --depth 1 'https://github.com/test/test' '/tmp/deploypilot-builds/build-fail-app'"] = fmt.Errorf("git clone failed")
 
 	_, err := b.BuildAndDeploy(context.TODO(), mcp.BuildAndDeployConfig{
 		RepoURL: "https://github.com/test/test",
@@ -28,13 +28,13 @@ func TestBuildAndDeploy_BuildFails(t *testing.T) {
 
 func TestBuildAndDeploy_DeployFails(t *testing.T) {
 	b, exec := newTestBridge(t)
-	exec.output["mkdir -p /tmp/deploypilot-builds/deploy-fail-app && git clone --branch main --depth 1 https://github.com/test/test /tmp/deploypilot-builds/deploy-fail-app"] = ""
-	exec.output["test -d /tmp/deploypilot-builds/deploy-fail-app/.git && echo 'exists'"] = ""
-	exec.output["cd /tmp/deploypilot-builds/deploy-fail-app && git fetch origin && git checkout main && git pull origin main"] = ""
-	exec.output["cd /tmp/deploypilot-builds/deploy-fail-app && git rev-parse HEAD"] = "abc123def4567890"
-	exec.output["cat > /tmp/deploypilot-builds/deploy-fail-app/Dockerfile << 'DEPLOYPilot_EOF'\nFROM alpine\nRUN echo hello\nDEPLOYPilot_EOF"] = ""
-	exec.output["docker build -t deploy-fail-app:abc123de /tmp/deploypilot-builds/deploy-fail-app"] = "built ok"
-	exec.output["docker inspect --format='{{.Id}}' deploy-fail-app:abc123de 2>/dev/null"] = "sha256:digest123"
+	exec.output["mkdir -p '/tmp/deploypilot-builds/deploy-fail-app' && git clone --branch 'main' --depth 1 'https://github.com/test/test' '/tmp/deploypilot-builds/deploy-fail-app'"] = ""
+	exec.output["test -d '/tmp/deploypilot-builds/deploy-fail-app'/.git && echo 'exists'"] = ""
+	exec.output["cd '/tmp/deploypilot-builds/deploy-fail-app' && git fetch origin && git checkout 'main' && git pull origin 'main'"] = ""
+	exec.output["cd '/tmp/deploypilot-builds/deploy-fail-app' && git rev-parse HEAD"] = "abc123def4567890"
+	exec.output["cat > '/tmp/deploypilot-builds/deploy-fail-app'/Dockerfile << 'DEPLOYPilot_EOF'\nFROM alpine\nRUN echo hello\nDEPLOYPilot_EOF"] = ""
+	exec.output["docker build -t 'deploy-fail-app:abc123de' '/tmp/deploypilot-builds/deploy-fail-app'"] = "built ok"
+	exec.output["docker inspect --format='{{.Id}}' 'deploy-fail-app:abc123de' 2>/dev/null"] = "sha256:digest123"
 	// Make deploy fail at docker version check (preflight)
 	exec.err["docker version --format '{{.Server.Version}}' 2>/dev/null"] = fmt.Errorf("docker not available")
 	// Also make the Deploy preflight fail
@@ -51,19 +51,19 @@ func TestBuildAndDeploy_DeployFails(t *testing.T) {
 
 func TestBuildAndDeploy_BuildSuccess_DeployFails(t *testing.T) {
 	b, exec := newTestBridge(t)
-	exec.output["mkdir -p /tmp/deploypilot-builds/build-ok-dep-fail && git clone --branch main --depth 1 https://github.com/test/test /tmp/deploypilot-builds/build-ok-dep-fail"] = ""
-	exec.output["test -d /tmp/deploypilot-builds/build-ok-dep-fail/.git && echo 'exists'"] = ""
-	exec.output["cd /tmp/deploypilot-builds/build-ok-dep-fail && git fetch origin && git checkout main && git pull origin main"] = ""
-	exec.output["cd /tmp/deploypilot-builds/build-ok-dep-fail && git rev-parse HEAD"] = "abc123def4567890"
-	exec.output["cat > /tmp/deploypilot-builds/build-ok-dep-fail/Dockerfile << 'DEPLOYPilot_EOF'\nFROM alpine\nRUN echo hello\nDEPLOYPilot_EOF"] = ""
-	exec.output["docker build -t build-ok-dep-fail:abc123de /tmp/deploypilot-builds/build-ok-dep-fail"] = "built ok"
-	exec.output["docker inspect --format='{{.Id}}' build-ok-dep-fail:abc123de 2>/dev/null"] = "sha256:digest123"
+	exec.output["mkdir -p '/tmp/deploypilot-builds/build-ok-dep-fail' && git clone --branch 'main' --depth 1 'https://github.com/test/test' '/tmp/deploypilot-builds/build-ok-dep-fail'"] = ""
+	exec.output["test -d '/tmp/deploypilot-builds/build-ok-dep-fail'/.git && echo 'exists'"] = ""
+	exec.output["cd '/tmp/deploypilot-builds/build-ok-dep-fail' && git fetch origin && git checkout 'main' && git pull origin 'main'"] = ""
+	exec.output["cd '/tmp/deploypilot-builds/build-ok-dep-fail' && git rev-parse HEAD"] = "abc123def4567890"
+	exec.output["cat > '/tmp/deploypilot-builds/build-ok-dep-fail'/Dockerfile << 'DEPLOYPilot_EOF'\nFROM alpine\nRUN echo hello\nDEPLOYPilot_EOF"] = ""
+	exec.output["docker build -t 'build-ok-dep-fail:abc123de' '/tmp/deploypilot-builds/build-ok-dep-fail'"] = "built ok"
+	exec.output["docker inspect --format='{{.Id}}' 'build-ok-dep-fail:abc123de' 2>/dev/null"] = "sha256:digest123"
 	exec.output["docker version --format '{{.Server.Version}}' 2>/dev/null"] = "24.0"
 	exec.output["docker info --format '{{.NCPU}}' 2>/dev/null"] = "4"
 	exec.output["docker info --format '{{.MemTotal}}' 2>/dev/null"] = "8192000000"
-	exec.output["docker pull build-ok-dep-fail:abc123de"] = "Downloaded"
-	exec.output["docker rm -f build-ok-dep-fail 2>/dev/null || true"] = ""
-	exec.err["docker run -d --name build-ok-dep-fail --restart unless-stopped build-ok-dep-fail:abc123de"] = fmt.Errorf("no space left")
+	exec.output["docker pull 'build-ok-dep-fail:abc123de'"] = "Downloaded"
+	exec.output["docker rm -f 'build-ok-dep-fail' 2>/dev/null || true"] = ""
+	exec.err["docker run -d --name 'build-ok-dep-fail' --restart unless-stopped 'build-ok-dep-fail:abc123de'"] = fmt.Errorf("no space left")
 
 	_, err := b.BuildAndDeploy(context.TODO(), mcp.BuildAndDeployConfig{
 		RepoURL: "https://github.com/test/test",
@@ -459,9 +459,9 @@ func TestUpdateServer_SuccessPath(t *testing.T) {
 func TestBatchDeploy_SingleApp_Cov(t *testing.T) {
 	b, exec := newTestBridge(t)
 	exec.output["docker version --format '{{.Server.Version}}'"] = "24.0"
-	exec.output["docker pull nginx:alpine"] = "Downloaded"
-	exec.output["docker rm -f batch-ok-0-cov 2>/dev/null || true"] = ""
-	exec.output["docker run -d --name batch-ok-0-cov --restart unless-stopped nginx:alpine"] = "container-id-0"
+	exec.output["docker pull 'nginx:alpine'"] = "Downloaded"
+	exec.output["docker rm -f 'batch-ok-0-cov' 2>/dev/null || true"] = ""
+	exec.output["docker run -d --name 'batch-ok-0-cov' --restart unless-stopped 'nginx:alpine'"] = "container-id-0"
 	exec.output["docker inspect --format '{{.Id}}|{{.Name}}|{{.Config.Image}}|{{.State.Status}}|{{.Created}}' batch-ok-0-cov 2>/dev/null"] = "id0|batch-ok-0-cov|nginx:alpine|running|2026-04-07T00:00:00Z"
 
 	res, err := b.BatchDeploy(context.TODO(), []map[string]interface{}{
@@ -484,9 +484,9 @@ func TestBatchDeploy_SingleApp_Cov(t *testing.T) {
 func TestBatchDeploy_SingleAppFailure(t *testing.T) {
 	b, exec := newTestBridge(t)
 	exec.output["docker version --format '{{.Server.Version}}'"] = "24.0"
-	exec.output["docker pull nginx:alpine"] = "Downloaded"
-	exec.output["docker rm -f batch-fail-0-cov 2>/dev/null || true"] = ""
-	exec.err["docker run -d --name batch-fail-0-cov --restart unless-stopped nginx:alpine"] = fmt.Errorf("no space")
+	exec.output["docker pull 'nginx:alpine'"] = "Downloaded"
+	exec.output["docker rm -f 'batch-fail-0-cov' 2>/dev/null || true"] = ""
+	exec.err["docker run -d --name 'batch-fail-0-cov' --restart unless-stopped 'nginx:alpine'"] = fmt.Errorf("no space")
 
 	res, err := b.BatchDeploy(context.TODO(), []map[string]interface{}{
 		{"image": "nginx:alpine", "container_name": "batch-fail-0-cov"},
@@ -508,9 +508,9 @@ func TestBatchDeploy_SingleAppFailure(t *testing.T) {
 func TestBatchDeploy_WithEnvVars_Cov(t *testing.T) {
 	b, exec := newTestBridge(t)
 	exec.output["docker version --format '{{.Server.Version}}'"] = "24.0"
-	exec.output["docker pull nginx:alpine"] = "Downloaded"
-	exec.output["docker rm -f batch-env-0 2>/dev/null || true"] = ""
-	exec.output["docker run -d --name batch-env-0 --restart unless-stopped -e FOO=bar nginx:alpine"] = "container-id-env"
+	exec.output["docker pull 'nginx:alpine'"] = "Downloaded"
+	exec.output["docker rm -f 'batch-env-0' 2>/dev/null || true"] = ""
+	exec.output["docker run -d --name 'batch-env-0' --restart unless-stopped -e FOO=bar 'nginx:alpine'"] = "container-id-env"
 	exec.output["docker inspect --format '{{.Id}}|{{.Name}}|{{.Config.Image}}|{{.State.Status}}|{{.Created}}' batch-env-0 2>/dev/null"] = "id-env|batch-env-0|nginx:alpine|running|2026-04-07T00:00:00Z"
 
 	envJSON, _ := json.Marshal(map[string]string{"FOO": "bar"})
@@ -1424,9 +1424,9 @@ func TestRemove_Error_Cov(t *testing.T) {
 func TestDeployAsync_Cov(t *testing.T) {
 	b, exec := newTestBridge(t)
 	exec.output["docker version --format '{{.Server.Version}}' 2>/dev/null"] = "24.0"
-	exec.output["docker pull nginx:alpine"] = "Downloaded"
-	exec.output["docker rm -f async-deploy-cov 2>/dev/null || true"] = ""
-	exec.output["docker run -d --name async-deploy-cov --restart unless-stopped nginx:alpine"] = "container-id"
+	exec.output["docker pull 'nginx:alpine'"] = "Downloaded"
+	exec.output["docker rm -f 'async-deploy-cov' 2>/dev/null || true"] = ""
+	exec.output["docker run -d --name 'async-deploy-cov' --restart unless-stopped 'nginx:alpine'"] = "container-id"
 	exec.output["docker inspect --format '{{.Id}}|{{.Name}}|{{.Config.Image}}|{{.State.Status}}|{{.Created}}' async-deploy-cov 2>/dev/null"] = "id|async-deploy-cov|nginx:alpine|running|2026-04-07T00:00:00Z"
 
 	id, _ := b.CreateApp(context.TODO(), mcp.CreateAppConfig{Name: "async-deploy-cov", RepoURL: "https://x.com/x"})
@@ -1493,7 +1493,7 @@ func TestDeploy_ServerNotFound_Cov(t *testing.T) {
 func TestDeploy_PullFailure_Cov(t *testing.T) {
 	b, exec := newTestBridge(t)
 	exec.output["docker version --format '{{.Server.Version}}' 2>/dev/null"] = "24.0"
-	exec.err["docker pull nginx:latest"] = fmt.Errorf("pull failed")
+	exec.err["docker pull 'nginx:latest'"] = fmt.Errorf("pull failed")
 
 	_, err := b.Deploy(context.TODO(), mcp.DeployConfig{
 		Image:          "nginx:latest",
