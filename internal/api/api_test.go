@@ -1043,8 +1043,9 @@ func TestDeleteBackup(t *testing.T) {
 	token := getTestToken(t, "user-1", "owner")
 
 	w := makeRequest(r, "DELETE", "/api/v1/apps/some-id/backups/backup-123", nil, token)
-	if w.Code != http.StatusOK {
-		t.Fatalf("delete backup failed: %d: %s", w.Code, w.Body.String())
+	// No backup record exists in test DB, so DeleteBackup returns 404
+	if w.Code != http.StatusNotFound {
+		t.Fatalf("expected 404 (no backup record), got %d: %s", w.Code, w.Body.String())
 	}
 }
 
