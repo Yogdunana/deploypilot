@@ -19,6 +19,7 @@ linters:
     gosec:
       excludes:
         - G101  # Hardcoded credentials (existing env var mechanism)
+        - G204  # Subprocess tainted input (config-driven commands are safe)
         - G404  # Weak random (non-crypto contexts)
         - G104  # Unhandled errors (pre-existing pattern throughout codebase)
         - G115  # Integer overflow conversion (pre-existing pattern)

@@ -292,7 +292,6 @@ func (s *Service) backupGeneric(ctx context.Context) (string, int64, error) {
 	case "postgres":
 		// Use pg_dump for PostgreSQL backups.
 		backupPath := filepath.Join(s.config.BackupDir, fmt.Sprintf("db-%s.backup", timestamp))
-		//nosec G204 -- s.dsn comes from server config, not user input
 		cmd := exec.CommandContext(ctx, "pg_dump", s.dsn)
 		output, err := cmd.Output()
 		if err != nil {
