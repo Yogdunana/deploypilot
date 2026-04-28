@@ -374,10 +374,10 @@ monitor:
 - [x] CI/CD + Registry 适配器重构
 - [x] Panel 适配器重构（定义接口 → registry）
 - [x] OAuth 适配器重构（定义接口 → registry）
-- [ ] SSL 适配器重构（定义接口 → ACME/Lego）
-- [ ] Database 适配器重构（registry + 可配置连接池）
-- [ ] 外部调用熔断器（Circuit Breaker + 降级策略）
-- [ ] 许可证切换（MIT → BUSL-1.1）
+- [x] SSL 适配器重构（定义接口 → ACME/Lego）
+- [x] Database 适配器重构（registry + 可配置连接池）
+- [x] 外部调用熔断器（Circuit Breaker + 降级策略）
+- [x] 许可证切换（MIT → BUSL-1.1）
 
 ### 近期计划
 

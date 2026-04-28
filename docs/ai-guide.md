@@ -125,6 +125,12 @@ import (
 ### 17. config 从 struct 改为 map[string]interface{} 后测试需要更新
 将 config 解析从强类型 struct 改为 `map[string]interface{}` 后，原来会因类型不匹配而失败的 config 现在不会失败（map 接受任何 JSON）。相关测试需要更新期望值。
 
+### 18. Circuit Breaker 的 State() 方法必须原子更新状态
+`State()` 方法在检测到 Open 超时后应原子地更新状态为 HalfOpen（使用写 Lock），而不是只返回 HalfOpen 但不修改状态（读 RLock）。否则 `Execute()` 中读到的 state 可能不一致，导致状态转换错误。
+
+### 19. NewSSLProvider 返回接口后测试需要类型断言
+当构造函数返回接口类型（如 `CertificateProvider`）而非具体类型（如 `*SSLProvider`）时，测试中需要通过类型断言 `p.(*SSLProvider)` 访问内部字段。staticcheck 会报 `var _ Interface = x` 冗余。
+
 ## 项目结构关键路径
 
 | 路径 | 说明 |
