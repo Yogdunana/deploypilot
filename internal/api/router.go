@@ -124,10 +124,10 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 		{
 			clusters.GET("", ListClusters(bridge))
 			clusters.POST("", CreateCluster(bridge))
-			clusters.GET("/:id", GetCluster(bridge))
-			clusters.PUT("/:id", UpdateCluster(bridge))
-			clusters.DELETE("/:id", DeleteCluster(bridge))
-			clusters.POST("/:id/test", TestClusterConnection(bridge))
+			clusters.GET("/:id", auth.RequireResourceAccess(db, "cluster", "id"), GetCluster(bridge))
+			clusters.PUT("/:id", auth.RequireResourceAccess(db, "cluster", "id"), UpdateCluster(bridge))
+			clusters.DELETE("/:id", auth.RequireResourceAccess(db, "cluster", "id"), DeleteCluster(bridge))
+			clusters.POST("/:id/test", auth.RequireResourceAccess(db, "cluster", "id"), TestClusterConnection(bridge))
 		}
 
 		// Registries (5 endpoints)
