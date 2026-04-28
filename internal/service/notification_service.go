@@ -3,10 +3,12 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"time"
 
 	"github.com/Yogdunana/deploypilot/internal/model"
+	"github.com/Yogdunana/deploypilot/internal/plugin"
 	"github.com/Yogdunana/deploypilot/internal/provider/notify"
 )
 
@@ -22,44 +24,32 @@ func (b *Bridge) getNotifiers(ctx context.Context) ([]notify.Notifier, error) {
 	}
 	var notifiers []notify.Notifier
 	for _, p := range providers {
-		var cfg struct {
-			Channel    string            `json:"channel"` // webhook, email, telegram, dingtalk, feishu
-			URL        string            `json:"url"`
-			Headers    map[string]string `json:"headers"`
-			SMTPHost   string            `json:"smtp_host"`
-			SMTPPort   int               `json:"smtp_port"`
-			Username   string            `json:"username"`
-			Password   string            `json:"password"`
-			From       string            `json:"from"`
-			BotToken   string            `json:"bot_token"`
-			ChatID     string            `json:"chat_id"`
-			WebhookURL string            `json:"webhook_url"`
-			Secret     string            `json:"secret"`
-		}
-		if err := json.Unmarshal([]byte(p.Config), &cfg); err != nil {
+		var config map[string]interface{}
+		if err := json.Unmarshal([]byte(p.Config), &config); err != nil {
 			slog.Error("failed to parse notify provider config", "provider", p.Name, "error", err)
 			continue
 		}
-		switch cfg.Channel {
-		case "webhook":
-			notifiers = append(notifiers, notify.NewWebhookNotifier(cfg.URL, cfg.Headers))
-		case "email":
-			notifiers = append(notifiers, notify.NewEmailNotifier(notify.EmailConfig{
-				SMTPHost: cfg.SMTPHost,
-				SMTPPort: cfg.SMTPPort,
-				Username: cfg.Username,
-				Password: cfg.Password,
-				From:     cfg.From,
-			}))
-		case "telegram":
-			notifiers = append(notifiers, notify.NewTelegramNotifier(cfg.BotToken, cfg.ChatID))
-		case "dingtalk":
-			notifiers = append(notifiers, notify.NewDingTalkNotifier(cfg.WebhookURL, cfg.Secret))
-		case "feishu":
-			notifiers = append(notifiers, notify.NewFeishuNotifier(cfg.WebhookURL))
-		case "wecom":
-			notifiers = append(notifiers, notify.NewWeComNotifier(cfg.WebhookURL))
+		channel, _ := config["channel"].(string)
+		if channel == "" {
+			slog.Error("notify provider missing channel", "provider", p.Name)
+			continue
 		}
+		desc, ok := plugin.Global().GetDescriptor("notify", channel)
+		if !ok {
+			slog.Error("no plugin registered for notify channel", "channel", channel, "provider", p.Name)
+			continue
+		}
+		instance, err := plugin.Global().CreateInstance(fmt.Sprintf("notify-%s", p.ID), desc, config)
+		if err != nil {
+			slog.Error("failed to create notify instance", "provider", p.Name, "error", err)
+			continue
+		}
+		notifier, ok := instance.(notify.Notifier)
+		if !ok {
+			slog.Error("notify plugin does not implement Notifier", "provider", p.Name)
+			continue
+		}
+		notifiers = append(notifiers, notifier)
 	}
 	return notifiers, nil
 }
