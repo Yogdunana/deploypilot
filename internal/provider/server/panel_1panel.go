@@ -163,6 +163,14 @@ func (p *Panel1Client) CloseFirewall(ctx context.Context, port int, protocol str
 	return nil
 }
 
+// GetInfo returns information about the 1Panel client.
+func (p *Panel1Client) GetInfo() map[string]interface{} {
+	return map[string]interface{}{
+		"name":     "1Panel",
+		"features": []string{"container_management", "website_management", "firewall", "database"},
+	}
+}
+
 // CreateReverseProxy creates a reverse proxy via the 1Panel API.
 func (p *Panel1Client) CreateReverseProxy(ctx context.Context, domain, targetURL string, port int) error {
 	slog.Info("1Panel: creating reverse proxy", "domain", domain, "targetURL", targetURL, "port", port)

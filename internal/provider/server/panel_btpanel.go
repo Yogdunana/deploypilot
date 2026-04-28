@@ -216,6 +216,14 @@ func (p *BTPanelClient) CloseFirewall(ctx context.Context, port int, protocol st
 	return nil
 }
 
+// GetInfo returns information about the BT Panel client.
+func (p *BTPanelClient) GetInfo() map[string]interface{} {
+	return map[string]interface{}{
+		"name":     "BT-Panel (宝塔)",
+		"features": []string{"website_management", "database", "ftp", "ssl", "cron"},
+	}
+}
+
 // CreateReverseProxy creates a reverse proxy via the BT Panel API.
 func (p *BTPanelClient) CreateReverseProxy(ctx context.Context, domain, targetURL string, port int) error {
 	slog.Info("BT Panel: creating reverse proxy", "domain", domain, "targetURL", targetURL, "port", port)
