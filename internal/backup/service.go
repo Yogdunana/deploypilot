@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -285,24 +286,39 @@ func (s *Service) fileCopyBackup(srcPath, dstPath string) (string, int64, error)
 
 // backupGeneric creates a backup for non-SQLite databases using SQL dump.
 func (s *Service) backupGeneric(ctx context.Context) (string, int64, error) {
-	// For PostgreSQL and other databases, we'd use pg_dump or similar.
-	// For now, create a placeholder backup file with metadata.
 	timestamp := time.Now().Format("20060102-150405")
-	backupPath := filepath.Join(s.config.BackupDir, fmt.Sprintf("db-%s.meta.json", timestamp))
 
-	meta := fmt.Sprintf(`{"type":"database","db_type":"%s","timestamp":"%s","note":"automated backup"}`,
-		s.dbType, time.Now().Format(time.RFC3339))
-
-	if err := os.WriteFile(backupPath, []byte(meta), 0640); err != nil {
-		return "", 0, fmt.Errorf("failed to write backup metadata: %w", err)
+	switch strings.ToLower(s.dbType) {
+	case "postgres":
+		// Use pg_dump for PostgreSQL backups
+		backupPath := filepath.Join(s.config.BackupDir, fmt.Sprintf("db-%s.backup", timestamp))
+		cmd := exec.CommandContext(ctx, "pg_dump", s.dsn)
+		output, err := cmd.Output()
+		if err != nil {
+			return "", 0, fmt.Errorf("pg_dump failed: %w\n%s", err, string(output))
+		}
+		if err := os.WriteFile(backupPath, output, 0640); err != nil {
+			return "", 0, fmt.Errorf("failed to write pg_dump output: %w", err)
+		}
+		info, err := os.Stat(backupPath)
+		if err != nil {
+			return backupPath, 0, nil
+		}
+		return backupPath, info.Size(), nil
+	default:
+		// Fallback: write metadata-only backup file
+		backupPath := filepath.Join(s.config.BackupDir, fmt.Sprintf("db-%s.meta.json", timestamp))
+		meta := fmt.Sprintf(`{"type":"database","db_type":"%s","timestamp":"%s","note":"automated backup"}`,
+			s.dbType, time.Now().Format(time.RFC3339))
+		if err := os.WriteFile(backupPath, []byte(meta), 0640); err != nil {
+			return "", 0, fmt.Errorf("failed to write backup metadata: %w", err)
+		}
+		info, err := os.Stat(backupPath)
+		if err != nil {
+			return backupPath, 0, nil
+		}
+		return backupPath, info.Size(), nil
 	}
-
-	info, err := os.Stat(backupPath)
-	if err != nil {
-		return backupPath, 0, nil
-	}
-
-	return backupPath, info.Size(), nil
 }
 
 // ApplyRetention removes old backups based on retention policy.

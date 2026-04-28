@@ -175,6 +175,15 @@ func run(configFilePath, cliDriver, cliDSN, cliAddr string) error {
 	bridge.TunnelManager = tunnelManager
 	bridge.UpgradeSvc = service.NewUpgradeService("")
 
+	// Apply brute-force config from configuration file
+	bf := cfg.BruteForce
+	bridge.SetBruteForceConfig(service.BruteForceConfigFromMap(
+		bf.MaxAttempts, bf.IPMaxAttempts,
+		bf.LockoutDuration, bf.WindowDuration,
+		bf.BaseDelay, bf.MaxDelay, bf.IPLockoutDuration,
+		bf.ProgressiveDelay,
+	))
+
 	// Determine listen address
 	listenAddr := cliAddr
 	if listenAddr == "" {

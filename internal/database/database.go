@@ -3,6 +3,7 @@ package database
 import (
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/go-gormigrate/gormigrate/v2"
 	"gorm.io/driver/postgres"
@@ -47,6 +48,22 @@ func Connect(driver, dsn string) (*gorm.DB, error) {
 	sqlDB.SetMaxOpenConns(50)
 
 	return db, nil
+}
+
+// ignoreDuplicateColumnError ignores "duplicate column" and "already exists" errors
+// that occur when ALTER TABLE ADD COLUMN is run on a column that already exists.
+// This makes migrations idempotent across both SQLite and PostgreSQL.
+func ignoreDuplicateColumnError(tx *gorm.DB, err error) error {
+	if err == nil {
+		return nil
+	}
+	msg := err.Error()
+	if strings.Contains(msg, "duplicate column") ||
+		strings.Contains(msg, "already exists") ||
+		strings.Contains(msg, "Duplicate column") {
+		return nil
+	}
+	return err
 }
 
 // Migrate runs all database migrations using gormigrate.
@@ -246,9 +263,15 @@ func Migrate(db *gorm.DB) error {
 			ID: "202604250002",
 			Migrate: func(tx *gorm.DB) error {
 				// Add lifecycle columns to credentials table (safe to run if columns already exist)
-				tx.Exec(`ALTER TABLE credentials ADD COLUMN expires_at DATETIME`)
-				tx.Exec(`ALTER TABLE credentials ADD COLUMN last_rotated DATETIME`)
-				tx.Exec(`ALTER TABLE credentials ADD COLUMN rotation_days INTEGER DEFAULT 90`)
+				if err := ignoreDuplicateColumnError(tx, tx.Exec(`ALTER TABLE credentials ADD COLUMN expires_at DATETIME`).Error); err != nil {
+					return err
+				}
+				if err := ignoreDuplicateColumnError(tx, tx.Exec(`ALTER TABLE credentials ADD COLUMN last_rotated DATETIME`).Error); err != nil {
+					return err
+				}
+				if err := ignoreDuplicateColumnError(tx, tx.Exec(`ALTER TABLE credentials ADD COLUMN rotation_days INTEGER DEFAULT 90`).Error); err != nil {
+					return err
+				}
 				// Create index on expires_at for expiry queries
 				tx.Exec(`CREATE INDEX IF NOT EXISTS idx_credentials_expires_at ON credentials(expires_at)`)
 				return nil
@@ -343,10 +366,18 @@ func Migrate(db *gorm.DB) error {
 			ID: "202604270001",
 			Migrate: func(tx *gorm.DB) error {
 				// Add new columns for rollback enhancement (safe: ignores if column exists)
-				tx.Exec(`ALTER TABLE deployments ADD COLUMN app_id TEXT`)
-				tx.Exec(`ALTER TABLE deployments ADD COLUMN previous_image TEXT`)
-				tx.Exec(`ALTER TABLE deployments ADD COLUMN deploy_type TEXT DEFAULT 'deploy'`)
-				tx.Exec(`ALTER TABLE deployments ADD COLUMN config_snapshot TEXT`)
+				if err := ignoreDuplicateColumnError(tx, tx.Exec(`ALTER TABLE deployments ADD COLUMN app_id TEXT`).Error); err != nil {
+					return err
+				}
+				if err := ignoreDuplicateColumnError(tx, tx.Exec(`ALTER TABLE deployments ADD COLUMN previous_image TEXT`).Error); err != nil {
+					return err
+				}
+				if err := ignoreDuplicateColumnError(tx, tx.Exec(`ALTER TABLE deployments ADD COLUMN deploy_type TEXT DEFAULT 'deploy'`).Error); err != nil {
+					return err
+				}
+				if err := ignoreDuplicateColumnError(tx, tx.Exec(`ALTER TABLE deployments ADD COLUMN config_snapshot TEXT`).Error); err != nil {
+					return err
+				}
 				// Create indexes for common queries
 				tx.Exec(`CREATE INDEX IF NOT EXISTS idx_deployments_container_name ON deployments(container_name)`)
 				tx.Exec(`CREATE INDEX IF NOT EXISTS idx_deployments_app_id ON deployments(app_id)`)
@@ -384,7 +415,7 @@ func Migrate(db *gorm.DB) error {
 		{
 			ID: "202604270003",
 			Migrate: func(tx *gorm.DB) error {
-				return tx.Exec("ALTER TABLE audit_logs ADD COLUMN trace_id TEXT DEFAULT ''").Error
+				return ignoreDuplicateColumnError(tx, tx.Exec("ALTER TABLE audit_logs ADD COLUMN trace_id TEXT DEFAULT ''").Error)
 			},
 			Rollback: func(tx *gorm.DB) error {
 				// SQLite: drop column not natively supported, recreate approach too complex

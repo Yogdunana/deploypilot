@@ -22,6 +22,7 @@ type Config struct {
 	Kubernetes KubernetesConfig `mapstructure:"kubernetes"`
 	Audit      AuditConfig      `mapstructure:"audit"`
 	Backup     BackupConfig     `mapstructure:"backup"`
+	BruteForce BruteForceConfig `mapstructure:"bruteforce"`
 }
 
 // BackupConfig holds database auto-backup settings.
@@ -31,6 +32,18 @@ type BackupConfig struct {
 	RetentionCount int    `mapstructure:"retention_count"`  // max backup files (default: 10)
 	RetentionDays  int    `mapstructure:"retention_days"`   // max days to keep (default: 30)
 	BackupDir      string `mapstructure:"backup_dir"`       // backup directory (default: ./data/backups)
+}
+
+// BruteForceConfig holds brute-force protection settings.
+type BruteForceConfig struct {
+	MaxAttempts       int    `mapstructure:"max_attempts"`
+	LockoutDuration   string `mapstructure:"lockout_duration"`
+	WindowDuration    string `mapstructure:"window_duration"`
+	ProgressiveDelay  bool   `mapstructure:"progressive_delay"`
+	BaseDelay         string `mapstructure:"base_delay"`
+	MaxDelay          string `mapstructure:"max_delay"`
+	IPMaxAttempts     int    `mapstructure:"ip_max_attempts"`
+	IPLockoutDuration string `mapstructure:"ip_lockout_duration"`
 }
 
 // AuditConfig holds configuration for audit logging.
@@ -263,4 +276,14 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("backup.retention_count", 10)
 	v.SetDefault("backup.retention_days", 30)
 	v.SetDefault("backup.backup_dir", "./data/backups")
+
+	// BruteForce
+	v.SetDefault("bruteforce.max_attempts", 5)
+	v.SetDefault("bruteforce.lockout_duration", "15m")
+	v.SetDefault("bruteforce.window_duration", "15m")
+	v.SetDefault("bruteforce.progressive_delay", true)
+	v.SetDefault("bruteforce.base_delay", "1s")
+	v.SetDefault("bruteforce.max_delay", "30s")
+	v.SetDefault("bruteforce.ip_max_attempts", 20)
+	v.SetDefault("bruteforce.ip_lockout_duration", "30m")
 }

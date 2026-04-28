@@ -10,6 +10,11 @@ import (
 	"github.com/Yogdunana/deploypilot/internal/engine/deployer"
 )
 
+// shellQuote safely escapes a string for use in a shell command.
+func shellQuote(s string) string {
+	return "'" + strings.ReplaceAll(s, "'", "'\"'\"'") + "'"
+}
+
 // BuildConfig holds parameters for a build operation.
 type BuildConfig struct {
 	RepoURL             string            // Git repository URL
@@ -72,6 +77,17 @@ func NewBuilderWithDocker(executor deployer.CommandExecutor, runner dockerRunner
 func (b *Builder) BuildAndDeploy(ctx context.Context, cfg BuildConfig) (*BuildResult, error) {
 	start := time.Now()
 
+	// Validate inputs to prevent command injection
+	if cfg.AppName == "" || strings.ContainsAny(cfg.AppName, " &'\"\\$`|;<>{}()[]*?!") {
+		return nil, fmt.Errorf("invalid app name: must not contain shell special characters")
+	}
+	if strings.ContainsAny(cfg.Branch, " &'\"\\$`|;<>{}()[]*?!") {
+		return nil, fmt.Errorf("invalid branch name: must not contain shell special characters")
+	}
+	if strings.ContainsAny(cfg.RepoURL, " &'\"\\$`|;<>") {
+		return nil, fmt.Errorf("invalid repo URL: must not contain shell special characters")
+	}
+
 	// 1. Prepare project directory
 	if cfg.ProjectDir == "" {
 		cfg.ProjectDir = fmt.Sprintf("/tmp/deploypilot-builds/%s", cfg.AppName)
@@ -99,7 +115,7 @@ func (b *Builder) BuildAndDeploy(ctx context.Context, cfg BuildConfig) (*BuildRe
 	dockerfile := tmpl.GenerateDockerfile(cfg.DockerfileOverrides)
 
 	// Write Dockerfile to project dir
-	_, err = b.executor.RunCommand(ctx, fmt.Sprintf("cat > %s/Dockerfile << 'DEPLOYPilot_EOF'\n%s\nDEPLOYPilot_EOF", cfg.ProjectDir, dockerfile))
+	_, err = b.executor.RunCommand(ctx, fmt.Sprintf("cat > %s/Dockerfile << 'DEPLOYPilot_EOF'\n%s\nDEPLOYPilot_EOF", shellQuote(cfg.ProjectDir), dockerfile))
 	if err != nil {
 		return nil, fmt.Errorf("failed to write Dockerfile: %w", err)
 	}
@@ -112,7 +128,7 @@ func (b *Builder) BuildAndDeploy(ctx context.Context, cfg BuildConfig) (*BuildRe
 	}
 
 	// 6. Get image digest
-	digest, _ := b.executor.RunCommand(ctx, fmt.Sprintf("docker inspect --format='{{.Id}}' %s 2>/dev/null", imageTag))
+	digest, _ := b.executor.RunCommand(ctx, fmt.Sprintf("docker inspect --format='{{.Id}}' %s 2>/dev/null", shellQuote(imageTag)))
 
 	duration := time.Since(start).Seconds()
 
@@ -141,24 +157,24 @@ func (b *Builder) BuildAndDeploy(ctx context.Context, cfg BuildConfig) (*BuildRe
 // gitClone clones or pulls a git repository.
 func (b *Builder) gitClone(ctx context.Context, cfg BuildConfig) (string, error) {
 	// Check if directory exists
-	output, _ := b.executor.RunCommand(ctx, fmt.Sprintf("test -d %s/.git && echo 'exists'", cfg.ProjectDir))
+	output, _ := b.executor.RunCommand(ctx, fmt.Sprintf("test -d %s/.git && echo 'exists'", shellQuote(cfg.ProjectDir)))
 
 	if strings.TrimSpace(output) == "exists" {
 		// Pull latest
-		_, err := b.executor.RunCommand(ctx, fmt.Sprintf("cd %s && git fetch origin && git checkout %s && git pull origin %s", cfg.ProjectDir, cfg.Branch, cfg.Branch))
+		_, err := b.executor.RunCommand(ctx, fmt.Sprintf("cd %s && git fetch origin && git checkout %s && git pull origin %s", shellQuote(cfg.ProjectDir), shellQuote(cfg.Branch), shellQuote(cfg.Branch)))
 		if err != nil {
 			return "", fmt.Errorf("git pull failed: %w", err)
 		}
 	} else {
 		// Clone
-		_, err := b.executor.RunCommand(ctx, fmt.Sprintf("mkdir -p %s && git clone --branch %s --depth 1 %s %s", cfg.ProjectDir, cfg.Branch, cfg.RepoURL, cfg.ProjectDir))
+		_, err := b.executor.RunCommand(ctx, fmt.Sprintf("mkdir -p %s && git clone --branch %s --depth 1 %s %s", shellQuote(cfg.ProjectDir), shellQuote(cfg.Branch), shellQuote(cfg.RepoURL), shellQuote(cfg.ProjectDir)))
 		if err != nil {
 			return "", fmt.Errorf("git clone failed: %w", err)
 		}
 	}
 
 	// Get commit hash
-	hash, err := b.executor.RunCommand(ctx, fmt.Sprintf("cd %s && git rev-parse HEAD", cfg.ProjectDir))
+	hash, err := b.executor.RunCommand(ctx, fmt.Sprintf("cd %s && git rev-parse HEAD", shellQuote(cfg.ProjectDir)))
 	if err != nil {
 		return "", fmt.Errorf("failed to get commit hash: %w", err)
 	}
@@ -168,11 +184,11 @@ func (b *Builder) gitClone(ctx context.Context, cfg BuildConfig) (string, error)
 
 // dockerBuild executes docker build.
 func (b *Builder) dockerBuild(ctx context.Context, projectDir, imageTag string, buildArgs map[string]string) (string, error) {
-	cmd := fmt.Sprintf("docker build -t %s", imageTag)
+	cmd := fmt.Sprintf("docker build -t %s", shellQuote(imageTag))
 	for k, v := range buildArgs {
-		cmd += fmt.Sprintf(" --build-arg %s=%s", k, v)
+		cmd += fmt.Sprintf(" --build-arg %s=%s", shellQuote(k), shellQuote(v))
 	}
-	cmd += fmt.Sprintf(" %s", projectDir)
+	cmd += fmt.Sprintf(" %s", shellQuote(projectDir))
 
 	output, err := b.executor.RunCommand(ctx, cmd)
 	return output, err

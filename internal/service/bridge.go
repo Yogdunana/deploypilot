@@ -118,6 +118,38 @@ func NewBridge(db *gorm.DB, executor deployer.CommandExecutor, encryptionKey []b
 	}
 }
 
+// SetBruteForceConfig replaces the brute-force protector with one using the given config.
+func (b *Bridge) SetBruteForceConfig(cfg bruteforce.Config) {
+	b.BFProtector = bruteforce.New(cfg)
+}
+
+// BruteForceConfigFromMap creates a bruteforce.Config from raw config values.
+// Durations are parsed from strings; invalid values fall back to defaults.
+func BruteForceConfigFromMap(maxAttempts, ipMaxAttempts int, lockoutDuration, windowDuration, baseDelay, maxDelay, ipLockoutDuration string, progressiveDelay bool) bruteforce.Config {
+	return bruteforce.Config{
+		MaxAttempts:       maxAttempts,
+		LockoutDuration:   parseDuration(lockoutDuration, 15*time.Minute),
+		WindowDuration:    parseDuration(windowDuration, 15*time.Minute),
+		ProgressiveDelay:  progressiveDelay,
+		BaseDelay:         parseDuration(baseDelay, 1*time.Second),
+		MaxDelay:          parseDuration(maxDelay, 30*time.Second),
+		IPMaxAttempts:     ipMaxAttempts,
+		IPLockoutDuration: parseDuration(ipLockoutDuration, 30*time.Minute),
+	}
+}
+
+// parseDuration parses a duration string, returning the fallback on error.
+func parseDuration(s string, fallback time.Duration) time.Duration {
+	if s == "" {
+		return fallback
+	}
+	d, err := time.ParseDuration(s)
+	if err != nil {
+		return fallback
+	}
+	return d
+}
+
 // d returns a deployer.DockerDeployer backed by the bridge's executor.
 func (b *Bridge) d() *deployer.DockerDeployer {
 	return deployer.New(b.Executor)
@@ -1909,6 +1941,11 @@ func (b *Bridge) Backup(ctx context.Context, appID string) (string, error) {
 
 // ---------- 36. Restore ----------
 
+// shellQuote safely escapes a string for use in a shell command.
+func shellQuote(s string) string {
+	return "'" + strings.ReplaceAll(s, "'", "'\"'\"'") + "'"
+}
+
 func (b *Bridge) Restore(ctx context.Context, backupID string) (*mcp.ContainerStatus, error) {
 	if b.DB == nil {
 		return nil, fmt.Errorf("database not available")
@@ -1935,10 +1972,10 @@ func (b *Bridge) Restore(ctx context.Context, backupID string) (*mcp.ContainerSt
 
 	// Stop and remove current container
 	exec := b.Executor
-	if _, err := exec.RunCommand(ctx, fmt.Sprintf("docker stop %s", containerName)); err != nil {
+	if _, err := exec.RunCommand(ctx, fmt.Sprintf("docker stop %s", shellQuote(containerName))); err != nil {
 		slog.WarnContext(ctx, "failed to stop container during restore", "container", containerName, "error", err)
 	}
-	if _, err := exec.RunCommand(ctx, fmt.Sprintf("docker rm -f %s", containerName)); err != nil {
+	if _, err := exec.RunCommand(ctx, fmt.Sprintf("docker rm -f %s", shellQuote(containerName))); err != nil {
 		slog.WarnContext(ctx, "failed to remove container during restore", "container", containerName, "error", err)
 	}
 
@@ -1946,7 +1983,7 @@ func (b *Bridge) Restore(ctx context.Context, backupID string) (*mcp.ContainerSt
 	timestamp := time.Now().Format("20060102-150405")
 	backupFile := fmt.Sprintf("/tmp/backup-%s-%s.tar.gz", containerName, timestamp)
 	cmd := fmt.Sprintf("docker run --rm -v /tmp:/backup -v %s-data:/data alpine sh -c 'cd /data && tar xzf /backup/%s 2>/dev/null || true'",
-		containerName, filepath.Base(backupFile))
+		shellQuote(containerName), shellQuote(filepath.Base(backupFile)))
 	output, err := exec.RunCommand(ctx, cmd)
 	if err != nil {
 		slog.Warn("restore extract warning", "error", err, "output", output)
