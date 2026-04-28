@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **适配器注册表集成** (PR #93): DNS/Notify/CI/CD/Registry 服务消除 switch/case 硬编码，统一使用 plugin.Registry 查找和创建 provider 实例
 - **Panel 适配器重构** (PR #96): 定义 PanelClient 接口，PanelProvider 改为依赖注入，消除 4 处 switch/case
 - **OAuth 适配器重构** (PR #96): 定义 OAuthProvider 接口，提取 GitHub/Gitee provider 到独立文件，消除 3 处 switch/case
+- **SSL 适配器重构** (PR #98): 定义 CertificateProvider 接口，注册 self-signed-ssl 插件
+- **Database 驱动注册表** (PR #98): DriverFactory + RegisterDriver 替代 switch/case
+- **熔断器** (PR #98): 通用 CircuitBreaker 实现（Closed/Open/HalfOpen 三态）
+- **许可证切换** (PR #98): MIT → BUSL-1.1（Change Date: 2029-04-28, Change License: MIT）
 - **plugin.Global() 自动注册** (PR #93): Global() 首次访问时自动调用 RegisterBuiltinPlugins()，确保所有内置 provider 可用
 
 ### Added
