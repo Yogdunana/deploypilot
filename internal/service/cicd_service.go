@@ -3,17 +3,12 @@ package service
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 
 	"github.com/Yogdunana/deploypilot/internal/model"
 	"github.com/Yogdunana/deploypilot/internal/plugin"
 	"github.com/Yogdunana/deploypilot/internal/provider/cicd"
 )
-
-// errCICDProviderNotFound indicates the CI/CD provider type is not supported or not configured.
-// This is a client error (should return 200 with error in body), not a server error (500).
-var errCICDProviderNotFound = errors.New("CI/CD provider not found")
 
 // getCICDProvider resolves a CI/CD provider via the plugin registry.
 func (b *Bridge) getCICDProvider(ctx context.Context, providerType string) (cicd.CICDProvider, error) {
@@ -23,7 +18,7 @@ func (b *Bridge) getCICDProvider(ctx context.Context, providerType string) (cicd
 	var provider model.Provider
 	err := b.DB.Where("type = ? AND enabled = ?", "cicd-"+providerType, true).First(&provider).Error
 	if err != nil {
-		return nil, fmt.Errorf("%w: no enabled CI/CD provider found for type: %s", errCICDProviderNotFound, providerType)
+		return nil, fmt.Errorf("no enabled CI/CD provider found for type: %s", providerType)
 	}
 
 	typeMap := map[string]string{
@@ -32,7 +27,7 @@ func (b *Bridge) getCICDProvider(ctx context.Context, providerType string) (cicd
 	}
 	pluginType, ok := typeMap[providerType]
 	if !ok {
-		return nil, fmt.Errorf("%w: unsupported CI/CD provider type: %s", errCICDProviderNotFound, providerType)
+		return nil, fmt.Errorf("unsupported CI/CD provider type: %s", providerType)
 	}
 
 	var config map[string]interface{}
@@ -42,7 +37,7 @@ func (b *Bridge) getCICDProvider(ctx context.Context, providerType string) (cicd
 
 	desc, ok := plugin.Global().GetDescriptor("cicd", pluginType)
 	if !ok {
-		return nil, fmt.Errorf("%w: no plugin registered for cicd:%s", errCICDProviderNotFound, pluginType)
+		return nil, fmt.Errorf("no plugin registered for cicd:%s", pluginType)
 	}
 	instance, err := plugin.Global().CreateInstance(fmt.Sprintf("cicd-%s", provider.ID), desc, config)
 	if err != nil {
@@ -60,12 +55,6 @@ func (b *Bridge) getCICDProvider(ctx context.Context, providerType string) (cicd
 func (b *Bridge) TriggerCIBuild(ctx context.Context, providerType, repo, branch string) (interface{}, error) {
 	provider, err := b.getCICDProvider(ctx, providerType)
 	if err != nil {
-		if errors.Is(err, errCICDProviderNotFound) {
-			return map[string]interface{}{
-				"status":  "error",
-				"message": err.Error(),
-			}, nil
-		}
 		return nil, err
 	}
 	runID, err := provider.TriggerBuild(ctx, repo, branch)
@@ -89,12 +78,6 @@ func (b *Bridge) TriggerCIBuild(ctx context.Context, providerType, repo, branch 
 func (b *Bridge) GetCIBuildStatus(ctx context.Context, providerType, runID string) (interface{}, error) {
 	provider, err := b.getCICDProvider(ctx, providerType)
 	if err != nil {
-		if errors.Is(err, errCICDProviderNotFound) {
-			return map[string]interface{}{
-				"status":  "error",
-				"message": err.Error(),
-			}, nil
-		}
 		return nil, err
 	}
 	status, err := provider.GetBuildStatus(ctx, runID)
