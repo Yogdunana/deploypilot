@@ -8,6 +8,7 @@ import (
 	"github.com/Yogdunana/deploypilot/internal/provider/notify"
 	"github.com/Yogdunana/deploypilot/internal/provider/registry"
 	"github.com/Yogdunana/deploypilot/internal/provider/server"
+	"github.com/Yogdunana/deploypilot/internal/provider/ssl"
 )
 
 // RegisterBuiltinPlugins registers all existing providers as built-in plugins.
@@ -315,8 +316,28 @@ func RegisterBuiltinPlugins(r *Registry) error {
 		},
 	}
 
+	// SSL providers
+	sslPlugins := []*PluginDescriptor{
+		{
+			Name:        "self-signed-ssl",
+			DisplayName: "Self-Signed SSL",
+			Version:     "1.0.0",
+			Description: "Self-signed certificate provider (placeholder for ACME/Lego)",
+			Author:      "DeployPilot",
+			Provider:    "ssl",
+			Type:        "self-signed",
+			Factory: func(cfg map[string]interface{}) (interface{}, error) {
+				certDir, _ := cfg["cert_dir"].(string)
+				if certDir == "" {
+					certDir = "./data/certs"
+				}
+				return ssl.NewSSLProvider(certDir)
+			},
+		},
+	}
+
 	// Register all plugins
-	allPlugins := append(append(append(append(dnsPlugins, notifyPlugins...), registryPlugins...), cicdPlugins...), serverPlugins...)
+	allPlugins := append(append(append(append(append(dnsPlugins, notifyPlugins...), registryPlugins...), cicdPlugins...), serverPlugins...), sslPlugins...)
 	for _, desc := range allPlugins {
 		if err := r.Register(desc); err != nil {
 			return fmt.Errorf("failed to register built-in plugin %s: %w", desc.Name, err)

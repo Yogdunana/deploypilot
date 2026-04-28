@@ -12,6 +12,25 @@ import (
 	"gorm.io/gorm/logger"
 )
 
+// DriverFactory creates a *gorm.DB from a DSN and config.
+type DriverFactory func(dsn string, config *gorm.Config) (*gorm.DB, error)
+
+var drivers = map[string]DriverFactory{}
+
+// RegisterDriver registers a database driver factory.
+func RegisterDriver(name string, factory DriverFactory) {
+	drivers[name] = factory
+}
+
+func init() {
+	RegisterDriver("sqlite", func(dsn string, cfg *gorm.Config) (*gorm.DB, error) {
+		return gorm.Open(sqlite.Open(dsn), cfg)
+	})
+	RegisterDriver("postgres", func(dsn string, cfg *gorm.Config) (*gorm.DB, error) {
+		return gorm.Open(postgres.Open(dsn), cfg)
+	})
+}
+
 // Connect establishes a database connection based on the driver type.
 // Supported drivers: "sqlite", "postgres".
 func Connect(driver, dsn string) (*gorm.DB, error) {
@@ -22,18 +41,13 @@ func Connect(driver, dsn string) (*gorm.DB, error) {
 	var db *gorm.DB
 	var err error
 
-	switch driver {
-	case "sqlite":
-		db, err = gorm.Open(sqlite.Open(dsn), &gorm.Config{
-			Logger: logger.Default.LogMode(logger.Silent),
-		})
-	case "postgres":
-		db, err = gorm.Open(postgres.Open(dsn), &gorm.Config{
-			Logger: logger.Default.LogMode(logger.Silent),
-		})
-	default:
+	factory, ok := drivers[driver]
+	if !ok {
 		return nil, fmt.Errorf("unsupported database driver: %s", driver)
 	}
+	db, err = factory(dsn, &gorm.Config{
+		Logger: logger.Default.LogMode(logger.Silent),
+	})
 
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to database (%s): %w", driver, err)
