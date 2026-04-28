@@ -17,12 +17,10 @@ import (
 	"github.com/Yogdunana/deploypilot/internal/crypto"
 	"github.com/Yogdunana/deploypilot/internal/engine/deployer"
 	"github.com/Yogdunana/deploypilot/internal/engine/healer"
-	"github.com/Yogdunana/deploypilot/internal/mcp"
 	"github.com/Yogdunana/deploypilot/internal/monitor"
 	"github.com/Yogdunana/deploypilot/internal/plugin"
 	"github.com/Yogdunana/deploypilot/internal/provider/server"
 	"github.com/Yogdunana/deploypilot/internal/sandbox"
-	"github.com/Yogdunana/deploypilot/internal/tracing"
 	"gorm.io/gorm"
 )
 
