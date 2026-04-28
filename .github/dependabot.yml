@@ -7,6 +7,15 @@ updates:
     open-pull-requests-limit: 10
     labels:
       - "dependencies"
+    reviewers:
+      - "Yogdunana"
+    groups:
+      go-minor-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
 
   - package-ecosystem: "npm"
     directory: "/web"
@@ -15,6 +24,15 @@ updates:
     open-pull-requests-limit: 10
     labels:
       - "dependencies"
+    reviewers:
+      - "Yogdunana"
+    groups:
+      npm-minor-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
 
   - package-ecosystem: "github-actions"
     directory: "/"
@@ -24,3 +42,5 @@ updates:
     labels:
       - "dependencies"
       - "github-actions"
+    reviewers:
+      - "Yogdunana"
