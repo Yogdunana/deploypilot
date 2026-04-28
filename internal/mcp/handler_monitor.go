@@ -2,6 +2,7 @@ package mcp
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"github.com/mark3labs/mcp-go/mcp"
