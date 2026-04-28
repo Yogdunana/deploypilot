@@ -24,6 +24,22 @@ func (m *mockCommandExecutor) RunCommand(_ context.Context, cmd string) (string,
 	return "", nil
 }
 
+// mockPanelClient implements PanelClient for tests.
+type mockPanelClient struct {
+	name     string
+	features []string
+}
+
+func (m *mockPanelClient) OpenFirewall(_ context.Context, _ int, _ string) error { return nil }
+func (m *mockPanelClient) CloseFirewall(_ context.Context, _ int, _ string) error { return nil }
+func (m *mockPanelClient) CreateReverseProxy(_ context.Context, _, _ string, _ int) error { return nil }
+func (m *mockPanelClient) GetInfo() map[string]interface{} {
+	return map[string]interface{}{
+		"name":     m.name,
+		"features": m.features,
+	}
+}
+
 // setupPanelProviderTestServer creates a mock HTTP server that handles both 1Panel and BT-Panel API calls.
 func setupPanelProviderTestServer() *httptest.Server {
 	mux := http.NewServeMux()
@@ -90,9 +106,9 @@ func TestDetectPanel_None(t *testing.T) {
 		},
 	}
 
-	panel := DetectPanel(context.TODO(), executor)
-	if panel != PanelNone {
-		t.Errorf("DetectPanel() = %q, want %q", panel, PanelNone)
+	client := DetectPanel(context.TODO(), executor)
+	if client != nil {
+		t.Errorf("DetectPanel() = %v, want nil", client)
 	}
 }
 
@@ -103,9 +119,13 @@ func TestDetectPanel_1Panel(t *testing.T) {
 		},
 	}
 
-	panel := DetectPanel(context.TODO(), executor)
-	if panel != Panel1Panel {
-		t.Errorf("DetectPanel() = %q, want %q", panel, Panel1Panel)
+	client := DetectPanel(context.TODO(), executor)
+	if client == nil {
+		t.Fatal("DetectPanel() returned nil, want PanelClient")
+	}
+	info := client.GetInfo()
+	if info["name"] != "1Panel" {
+		t.Errorf("detected panel name = %v, want 1Panel", info["name"])
 	}
 }
 
@@ -117,59 +137,46 @@ func TestDetectPanel_BTPanel(t *testing.T) {
 		},
 	}
 
-	panel := DetectPanel(context.TODO(), executor)
-	if panel != PanelBTPanel {
-		t.Errorf("DetectPanel() = %q, want %q", panel, PanelBTPanel)
+	client := DetectPanel(context.TODO(), executor)
+	if client == nil {
+		t.Fatal("DetectPanel() returned nil, want PanelClient")
+	}
+	info := client.GetInfo()
+	if info["name"] != "BT-Panel (宝塔)" {
+		t.Errorf("detected panel name = %v, want BT-Panel (宝塔)", info["name"])
 	}
 }
 
 func TestGetPanelInfo_None(t *testing.T) {
-	p := NewPanelProvider(PanelNone, "", "")
-	_, err := p.GetPanelInfo(context.TODO())
+	p := NewPanelProvider(nil)
+	_, err := p.GetPanelInfo()
 	if err == nil {
-		t.Error("GetPanelInfo() should return error for PanelNone")
+		t.Error("GetPanelInfo() should return error for nil client")
 	}
 }
 
-func TestGetPanelInfo_1Panel(t *testing.T) {
-	p := NewPanelProvider(Panel1Panel, "http://localhost:8888", "test-key")
-	info, err := p.GetPanelInfo(context.TODO())
+func TestGetPanelInfo_WithClient(t *testing.T) {
+	mock := &mockPanelClient{
+		name:     "TestPanel",
+		features: []string{"feature1", "feature2"},
+	}
+	p := NewPanelProvider(mock)
+	info, err := p.GetPanelInfo()
 	if err != nil {
 		t.Fatalf("GetPanelInfo() error = %v", err)
 	}
-	if info["type"] != "1panel" {
-		t.Errorf("info[type] = %v, want %q", info["type"], "1panel")
+	if info["type"] != "detected" {
+		t.Errorf("info[type] = %v, want %q", info["type"], "detected")
 	}
-	if info["name"] != "1Panel" {
-		t.Errorf("info[name] = %v, want %q", info["name"], "1Panel")
+	if info["name"] != "TestPanel" {
+		t.Errorf("info[name] = %v, want %q", info["name"], "TestPanel")
 	}
 	features, ok := info["features"].([]string)
 	if !ok {
 		t.Fatal("info[features] is not []string")
 	}
-	if len(features) == 0 {
-		t.Error("1Panel should have features")
-	}
-}
-
-func TestGetPanelInfo_BTPanel(t *testing.T) {
-	p := NewPanelProvider(PanelBTPanel, "http://localhost:8888", "test-key")
-	info, err := p.GetPanelInfo(context.TODO())
-	if err != nil {
-		t.Fatalf("GetPanelInfo() error = %v", err)
-	}
-	if info["type"] != "bt-panel" {
-		t.Errorf("info[type] = %v, want %q", info["type"], "bt-panel")
-	}
-	if info["name"] != "BT-Panel (宝塔)" {
-		t.Errorf("info[name] = %v, want %q", info["name"], "BT-Panel (宝塔)")
-	}
-	features, ok := info["features"].([]string)
-	if !ok {
-		t.Fatal("info[features] is not []string")
-	}
-	if len(features) == 0 {
-		t.Error("BT-Panel should have features")
+	if len(features) != 2 {
+		t.Errorf("features count = %d, want 2", len(features))
 	}
 }
 
@@ -177,7 +184,8 @@ func TestOpenFirewall_1Panel(t *testing.T) {
 	server := setupPanelProviderTestServer()
 	defer server.Close()
 
-	p := NewPanelProvider(Panel1Panel, server.URL, "test-key")
+	client := NewPanel1Client(server.URL, "test-key")
+	p := NewPanelProvider(client)
 	err := p.OpenFirewall(context.TODO(), 8080, "tcp")
 	if err != nil {
 		t.Errorf("OpenFirewall() error = %v", err)
@@ -188,7 +196,8 @@ func TestOpenFirewall_BTPanel(t *testing.T) {
 	server := setupPanelProviderTestServer()
 	defer server.Close()
 
-	p := NewPanelProvider(PanelBTPanel, server.URL, "test-key")
+	client := NewBTPanelClient(server.URL, "admin", "test-key")
+	p := NewPanelProvider(client)
 	err := p.OpenFirewall(context.TODO(), 8080, "tcp")
 	if err != nil {
 		t.Errorf("OpenFirewall() error = %v", err)
@@ -196,18 +205,10 @@ func TestOpenFirewall_BTPanel(t *testing.T) {
 }
 
 func TestOpenFirewall_None(t *testing.T) {
-	p := NewPanelProvider(PanelNone, "", "")
+	p := NewPanelProvider(nil)
 	err := p.OpenFirewall(context.TODO(), 8080, "tcp")
 	if err != nil {
-		t.Errorf("OpenFirewall() for PanelNone should not error, got = %v", err)
-	}
-}
-
-func TestOpenFirewall_MissingCredentials(t *testing.T) {
-	p := NewPanelProvider(Panel1Panel, "", "")
-	err := p.OpenFirewall(context.TODO(), 8080, "tcp")
-	if err == nil {
-		t.Error("OpenFirewall() should return error when credentials are missing")
+		t.Errorf("OpenFirewall() for nil client should not error, got = %v", err)
 	}
 }
 
@@ -215,7 +216,8 @@ func TestCloseFirewall_1Panel(t *testing.T) {
 	server := setupPanelProviderTestServer()
 	defer server.Close()
 
-	p := NewPanelProvider(Panel1Panel, server.URL, "test-key")
+	client := NewPanel1Client(server.URL, "test-key")
+	p := NewPanelProvider(client)
 	err := p.CloseFirewall(context.TODO(), 8080, "tcp")
 	if err != nil {
 		t.Errorf("CloseFirewall() error = %v", err)
@@ -226,7 +228,8 @@ func TestCloseFirewall_BTPanel(t *testing.T) {
 	server := setupPanelProviderTestServer()
 	defer server.Close()
 
-	p := NewPanelProvider(PanelBTPanel, server.URL, "test-key")
+	client := NewBTPanelClient(server.URL, "admin", "test-key")
+	p := NewPanelProvider(client)
 	err := p.CloseFirewall(context.TODO(), 8080, "tcp")
 	if err != nil {
 		t.Errorf("CloseFirewall() error = %v", err)
@@ -234,10 +237,10 @@ func TestCloseFirewall_BTPanel(t *testing.T) {
 }
 
 func TestCloseFirewall_None(t *testing.T) {
-	p := NewPanelProvider(PanelNone, "", "")
+	p := NewPanelProvider(nil)
 	err := p.CloseFirewall(context.TODO(), 8080, "tcp")
 	if err != nil {
-		t.Errorf("CloseFirewall() for PanelNone should not error, got = %v", err)
+		t.Errorf("CloseFirewall() for nil client should not error, got = %v", err)
 	}
 }
 
@@ -245,7 +248,8 @@ func TestCreateReverseProxy_1Panel(t *testing.T) {
 	server := setupPanelProviderTestServer()
 	defer server.Close()
 
-	p := NewPanelProvider(Panel1Panel, server.URL, "test-key")
+	client := NewPanel1Client(server.URL, "test-key")
+	p := NewPanelProvider(client)
 	err := p.CreateReverseProxy(context.TODO(), "example.com", "http://localhost:3000", 3000)
 	if err != nil {
 		t.Errorf("CreateReverseProxy() error = %v", err)
@@ -256,7 +260,8 @@ func TestCreateReverseProxy_BTPanel(t *testing.T) {
 	server := setupPanelProviderTestServer()
 	defer server.Close()
 
-	p := NewPanelProvider(PanelBTPanel, server.URL, "test-key")
+	client := NewBTPanelClient(server.URL, "admin", "test-key")
+	p := NewPanelProvider(client)
 	err := p.CreateReverseProxy(context.TODO(), "example.com", "http://localhost:3000", 3000)
 	if err != nil {
 		t.Errorf("CreateReverseProxy() error = %v", err)
@@ -264,18 +269,10 @@ func TestCreateReverseProxy_BTPanel(t *testing.T) {
 }
 
 func TestCreateReverseProxy_None(t *testing.T) {
-	p := NewPanelProvider(PanelNone, "", "")
+	p := NewPanelProvider(nil)
 	err := p.CreateReverseProxy(context.TODO(), "example.com", "http://localhost:3000", 3000)
 	if err != nil {
-		t.Errorf("CreateReverseProxy() for PanelNone should not error, got = %v", err)
-	}
-}
-
-func TestCreateReverseProxy_MissingCredentials(t *testing.T) {
-	p := NewPanelProvider(PanelBTPanel, "", "")
-	err := p.CreateReverseProxy(context.TODO(), "example.com", "http://localhost:3000", 3000)
-	if err == nil {
-		t.Error("CreateReverseProxy() should return error when credentials are missing")
+		t.Errorf("CreateReverseProxy() for nil client should not error, got = %v", err)
 	}
 }
 
@@ -310,8 +307,12 @@ func TestDetectPanel_ProcessFallback(t *testing.T) {
 		},
 	}
 
-	panel := DetectPanel(context.TODO(), executor)
-	if panel != Panel1Panel {
-		t.Errorf("DetectPanel() = %q, want %q (process fallback)", panel, Panel1Panel)
+	client := DetectPanel(context.TODO(), executor)
+	if client == nil {
+		t.Fatal("DetectPanel() returned nil (process fallback)")
+	}
+	info := client.GetInfo()
+	if info["name"] != "1Panel" {
+		t.Errorf("detected panel name = %v, want 1Panel (process fallback)", info["name"])
 	}
 }
