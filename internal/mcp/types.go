@@ -85,6 +85,10 @@ type Deployer interface {
 	PluginOps(pluginID string, action string) (interface{}, error)
 	ListPlugins(provider string) (interface{}, error)
 	GetPluginInfo(pluginID string) (interface{}, error)
+	// Phase 3.3: Server operations
+	ExecCommand(ctx context.Context, serverID, command string, timeout int) (string, error)
+	ListImages(ctx context.Context, serverID, filter string) (string, error)
+	PortForward(ctx context.Context, action, serverID string, localPort, remotePort int, remoteHost string) (string, error)
 }
 
 // DeployConfig mirrors deployer.DeployConfig to avoid circular imports.

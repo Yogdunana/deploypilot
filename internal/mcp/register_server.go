@@ -60,5 +60,14 @@ func registerServerTools(s *server.MCPServer, d Deployer) {
 	s.AddTool(doctorTool, withPermissionCheck("doctor", withValidation("doctor", doctorTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return handleDoctor(ctx, d, request)
 	})))
+	execCommandTool := mcp.NewTool("exec_command",
+		mcp.WithDescription("Execute a command on a server. Runs locally if server_id is omitted, or remotely via SSH if server_id is provided."),
+		mcp.WithString("command", mcp.Required(), mcp.Description("Command to execute")),
+		mcp.WithString("server_id", mcp.Description("Target server ID (omit for local execution)")),
+		mcp.WithNumber("timeout", mcp.Description("Timeout in seconds (default: 30)")),
+	)
+	s.AddTool(execCommandTool, withPermissionCheck("exec_command", withValidation("exec_command", execCommandTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleExecCommand(ctx, d, request)
+	})))
 
 }

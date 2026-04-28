@@ -7,6 +7,8 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"strings"
+	"sync"
 	"time"
 
 	"golang.org/x/crypto/ssh"
@@ -435,5 +437,188 @@ func defaultVal(val, def string) string {
 
 
 // ---------- GetServersByTags ----------
+
+// ---------- Phase 3.3: ExecCommand ----------
+
+func (b *Bridge) ExecCommand(ctx context.Context, serverID, command string, timeout int) (string, error) {
+	execCtx, cancel := context.WithTimeout(ctx, time.Duration(timeout)*time.Second)
+	defer cancel()
+
+	if serverID == "" {
+		// Local execution
+		return b.Executor.RunCommand(execCtx, command)
+	}
+
+	// Remote execution via SSH
+	remoteExec, err := b.getRemoteExecutor(ctx, serverID)
+	if err != nil {
+		return "", fmt.Errorf("failed to get remote executor for server %s: %w", serverID, err)
+	}
+	defer func() {
+		if cerr := remoteExec.Close(); cerr != nil {
+			slog.Warn("failed to close remote executor", "error", cerr)
+		}
+	}()
+
+	return remoteExec.RunCommand(execCtx, command)
+}
+
+// ---------- Phase 3.3: ListImages ----------
+
+func (b *Bridge) ListImages(ctx context.Context, serverID, filter string) (string, error) {
+	dockerCmd := `docker images --format "{{.Repository}}:{{.Tag}}\t{{.Size}}\t{{.CreatedSince}}"`
+	if filter != "" {
+		dockerCmd += " | grep " + filter
+	}
+
+	execCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+
+	if serverID == "" {
+		return b.Executor.RunCommand(execCtx, dockerCmd)
+	}
+
+	remoteExec, err := b.getRemoteExecutor(ctx, serverID)
+	if err != nil {
+		return "", fmt.Errorf("failed to get remote executor for server %s: %w", serverID, err)
+	}
+	defer func() {
+		if cerr := remoteExec.Close(); cerr != nil {
+			slog.Warn("failed to close remote executor", "error", cerr)
+		}
+	}()
+
+	return remoteExec.RunCommand(execCtx, dockerCmd)
+}
+
+// ---------- Phase 3.3: PortForward ----------
+
+// portForwardEntry tracks an active SSH port forward.
+type portForwardEntry struct {
+	ServerID   string
+	LocalPort  int
+	RemotePort int
+	RemoteHost string
+	Command    string
+}
+
+// portForwardMu protects portForwards map.
+var portForwardMu sync.RWMutex
+
+// portForwards stores active port forwards keyed by "serverID:localPort".
+var portForwards = make(map[string]*portForwardEntry)
+
+func (b *Bridge) PortForward(ctx context.Context, action, serverID string, localPort, remotePort int, remoteHost string) (string, error) {
+	switch action {
+	case "list":
+		portForwardMu.RLock()
+		defer portForwardMu.RUnlock()
+		if len(portForwards) == 0 {
+			return "No active port forwards.", nil
+		}
+		var lines []string
+		for key, pf := range portForwards {
+			lines = append(lines, fmt.Sprintf("  %s -> server=%s remote=%s:%d (key=%s)", pf.Command, pf.ServerID, pf.RemoteHost, pf.RemotePort, key))
+		}
+		return fmt.Sprintf("Active port forwards (%d):\n%s", len(portForwards), strings.Join(lines, "\n")), nil
+
+	case "create":
+		if serverID == "" {
+			return "", fmt.Errorf("server_id is required for create action")
+		}
+		if localPort <= 0 || remotePort <= 0 {
+			return "", fmt.Errorf("local_port and remote_port must be positive integers")
+		}
+		if remoteHost == "" {
+			remoteHost = "127.0.0.1"
+		}
+
+		key := fmt.Sprintf("%s:%d", serverID, localPort)
+		portForwardMu.Lock()
+		defer portForwardMu.Unlock()
+
+		if _, exists := portForwards[key]; exists {
+			return "", fmt.Errorf("port forward already exists for %s (local port %d is already in use)", key, localPort)
+		}
+
+		// Get server info for SSH connection
+		row := make(map[string]interface{})
+		if err := b.DB.Table("servers").Where("id = ?", serverID).Take(&row).Error; err != nil {
+			return "", fmt.Errorf("server not found: %w", err)
+		}
+
+		host := toString(row["host"])
+		port := toInt(row["port"])
+		username := toString(row["username"])
+		if username == "" {
+			username = os.Getenv("DEPLOYPILOT_SSH_DEFAULT_USER")
+		}
+		if username == "" {
+			username = "root"
+		}
+
+		sshCmd := fmt.Sprintf("ssh -N -L %d:%s:%d -p %d %s@%s",
+			localPort, remoteHost, remotePort, port, username, host)
+
+		// Execute SSH tunnel in background
+		execCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+		// We run the SSH command and let it run in the background
+		// Since CommandExecutor.RunCommand is blocking, we launch it in a goroutine
+		go func() {
+			remoteExec, err := b.getRemoteExecutor(ctx, serverID)
+			if err != nil {
+				slog.Error("failed to create SSH tunnel", "error", err)
+				return
+			}
+			defer remoteExec.Close()
+
+			tunnelCmd := fmt.Sprintf("ssh -f -N -L %d:%s:%d -p %d %s@%s",
+				localPort, remoteHost, remotePort, port, username, host)
+			if _, err := remoteExec.RunCommand(execCtx, tunnelCmd); err != nil {
+				slog.Error("SSH tunnel command failed", "error", err)
+			}
+			cancel()
+		}()
+
+		portForwards[key] = &portForwardEntry{
+			ServerID:   serverID,
+			LocalPort:  localPort,
+			RemotePort: remotePort,
+			RemoteHost: remoteHost,
+			Command:    sshCmd,
+		}
+
+		return fmt.Sprintf("Port forward created: localhost:%d -> %s:%d:%d (server: %s)", localPort, remoteHost, remotePort, port, serverID), nil
+
+	case "delete":
+		if serverID == "" {
+			return "", fmt.Errorf("server_id is required for delete action")
+		}
+		if localPort <= 0 {
+			return "", fmt.Errorf("local_port must be a positive integer")
+		}
+
+		key := fmt.Sprintf("%s:%d", serverID, localPort)
+		portForwardMu.Lock()
+		defer portForwardMu.Unlock()
+
+		entry, exists := portForwards[key]
+		if !exists {
+			return "", fmt.Errorf("port forward not found for %s", key)
+		}
+
+		// Kill the SSH tunnel process
+		killCmd := fmt.Sprintf("pkill -f 'ssh.*-L %d:%s:%d'", localPort, entry.RemoteHost, entry.RemotePort)
+		if _, err := b.Executor.RunCommand(ctx, killCmd); err != nil {
+			slog.Warn("failed to kill SSH tunnel process", "error", err)
+		}
+
+		delete(portForwards, key)
+		return fmt.Sprintf("Port forward deleted: %s", key), nil
+
+	default:
+		return "", fmt.Errorf("invalid action: %s (must be 'create', 'delete', or 'list')", action)
+	}
+}
 
 

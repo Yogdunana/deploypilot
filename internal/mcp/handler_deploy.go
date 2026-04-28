@@ -56,6 +56,28 @@ func handleBuildAndDeploy(ctx context.Context, deployer Deployer, request mcp.Ca
 	data, _ := json.MarshalIndent(result, "", "  ")
 	return mcp.NewToolResultText(string(data)), nil
 }
+func handleListImages(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	serverID := request.GetString("server_id", "")
+	filter := request.GetString("filter", "")
+
+	output, err := deployer.ListImages(ctx, serverID, filter)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("failed to list images: %v", err)), nil
+	}
+
+	result := map[string]interface{}{
+		"status": "success",
+		"output": output,
+	}
+	if serverID != "" {
+		result["server_id"] = serverID
+	}
+	if filter != "" {
+		result["filter"] = filter
+	}
+	data, _ := json.MarshalIndent(result, "", "  ")
+	return mcp.NewToolResultText(string(data)), nil
+}
 func handleDeployApp(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	image, err := request.RequireString("image")
 	if err != nil {

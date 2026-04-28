@@ -179,5 +179,13 @@ func registerDeployTools(s *server.MCPServer, d Deployer) {
 	s.AddTool(healContainerTool, withPermissionCheck("heal_container", withValidation("heal_container", healContainerTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return handleHealContainer(ctx, d, request)
 	})))
+	listImagesTool := mcp.NewTool("list_images",
+		mcp.WithDescription("List Docker images on a server. Runs locally if server_id is omitted, or remotely via SSH if server_id is provided."),
+		mcp.WithString("server_id", mcp.Description("Target server ID (omit for local execution)")),
+		mcp.WithString("filter", mcp.Description("Grep filter to apply to the output")),
+	)
+	s.AddTool(listImagesTool, withPermissionCheck("list_images", withValidation("list_images", listImagesTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleListImages(ctx, d, request)
+	})))
 
 }
