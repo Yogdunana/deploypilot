@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/Yogdunana/deploypilot/internal/model"
+	"github.com/Yogdunana/deploypilot/internal/plugin"
 	"github.com/Yogdunana/deploypilot/internal/provider/dns"
 )
 
@@ -21,31 +22,39 @@ func (b *Bridge) getDNSProvider(ctx context.Context) (dns.DNSProvider, error) {
 	if err != nil {
 		return nil, fmt.Errorf("no enabled DNS provider found: %w", err)
 	}
-	// Parse config JSON
-	var cfg struct {
-		APIToken        string `json:"api_token"`
-		AccountEmail    string `json:"account_email"`
-		AccessKeyID     string `json:"access_key_id"`
-		AccessKeySecret string `json:"access_key_secret"`
-		SecretID        string `json:"secret_id"`
-		SecretKey       string `json:"secret_key"`
+
+	// Map DB type to registry type
+	typeMap := map[string]string{
+		"dns-cloudflare": "cloudflare",
+		"dns-aliyun":     "alidns",
+		"dns-tencent":    "tencentcloud",
+		"dns-west-dns":   "westdns",
 	}
-	if err := json.Unmarshal([]byte(provider.Config), &cfg); err != nil {
+	pluginType, ok := typeMap[provider.Type]
+	if !ok {
+		return nil, fmt.Errorf("unsupported DNS provider type: %s", provider.Type)
+	}
+
+	// Parse config as map
+	var config map[string]interface{}
+	if err := json.Unmarshal([]byte(provider.Config), &config); err != nil {
 		return nil, fmt.Errorf("failed to parse DNS provider config: %w", err)
 	}
 
-	switch provider.Type {
-	case "dns-cloudflare":
-		return dns.NewCloudflareProvider(cfg.APIToken, cfg.AccountEmail), nil
-	case "dns-aliyun":
-		return dns.NewAliyunProvider(cfg.AccessKeyID, cfg.AccessKeySecret), nil
-	case "dns-tencent":
-		return dns.NewTencentProvider(cfg.SecretID, cfg.SecretKey), nil
-	case "dns-west-dns":
-		return dns.NewWestDNSProvider(cfg.APIToken, cfg.AccessKeySecret), nil
-	default:
-		return nil, fmt.Errorf("unsupported DNS provider type: %s", provider.Type)
+	// Use plugin registry
+	desc, ok := plugin.Global().GetDescriptor("dns", pluginType)
+	if !ok {
+		return nil, fmt.Errorf("no plugin registered for dns:%s", pluginType)
 	}
+	instance, err := plugin.Global().CreateInstance(fmt.Sprintf("dns-%s", provider.ID), desc, config)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create DNS provider: %w", err)
+	}
+	dnsProvider, ok := instance.(dns.DNSProvider)
+	if !ok {
+		return nil, fmt.Errorf("plugin dns:%s does not implement DNSProvider", pluginType)
+	}
+	return dnsProvider, nil
 }
 
 // ---------- 19. DNSCreateRecord ----------

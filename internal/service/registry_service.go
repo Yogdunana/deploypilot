@@ -6,6 +6,7 @@ import (
 
 	"github.com/Yogdunana/deploypilot/internal/crypto"
 	"github.com/Yogdunana/deploypilot/internal/model"
+	"github.com/Yogdunana/deploypilot/internal/plugin"
 	registry "github.com/Yogdunana/deploypilot/internal/provider/registry"
 )
 
@@ -53,10 +54,23 @@ func (b *Bridge) RegistryOps(registryID string, operation string, args map[strin
 		}
 	}
 
-	// Create registry provider
-	provider, err := registry.NewRegistryProvider(reg.Provider, regURL, regUser, regPass)
+	// Create registry provider via plugin registry
+	config := map[string]interface{}{
+		"url":      regURL,
+		"username": regUser,
+		"password": regPass,
+	}
+	desc, ok := plugin.Global().GetDescriptor("registry", reg.Provider)
+	if !ok {
+		return nil, fmt.Errorf("no plugin registered for registry:%s", reg.Provider)
+	}
+	instance, err := plugin.Global().CreateInstance(fmt.Sprintf("registry-%s", registryID), desc, config)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create registry provider: %w", err)
+	}
+	provider, ok := instance.(registry.RegistryProvider)
+	if !ok {
+		return nil, fmt.Errorf("plugin registry:%s does not implement RegistryProvider", reg.Provider)
 	}
 
 	ctx := context.Background()
