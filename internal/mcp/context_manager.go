@@ -58,3 +58,6 @@ func (cm *ContextManager) cleanupLoop() {
 		cm.mu.Unlock()
 	}
 }
+
+// contextManager is the global session context manager.
+var contextManager = NewContextManager()
