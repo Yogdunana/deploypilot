@@ -111,6 +111,20 @@ import (
 ### 14. 合并 PR 后必须确认 main CI 通过
 不能仅凭 PR branch CI 通过就标记完成。合并后 main 分支会触发新的 CI run，**必须等待该 run 全部通过**后再确认任务完成。main CI 可能因 squash merge 的 commit hash 不同而暴露新问题。
 
+### 15. plugin.Global() 必须自动注册内置插件
+`plugin.Global()` 创建空 Registry 后必须调用 `RegisterBuiltinPlugins()`，否则所有通过 registry 查找 provider 的代码都会失败。已在 `registry.go` 的 `Global()` 中自动调用。
+
+### 16. 重构 service 层 switch/case 时注意错误语义
+原始代码中不同错误类型有不同的 HTTP 响应码：
+- **provider 未配置**（DB 中没有）→ 200 + error body（客户端错误）
+- **不支持的 provider type** → 500（Go error，服务端错误）
+- **database not available** → 500（Go error，服务端错误）
+
+用 sentinel error（`errors.New` + `errors.Is`）区分"客户端错误"和"服务端错误"，确保 API 行为不变。
+
+### 17. config 从 struct 改为 map[string]interface{} 后测试需要更新
+将 config 解析从强类型 struct 改为 `map[string]interface{}` 后，原来会因类型不匹配而失败的 config 现在不会失败（map 接受任何 JSON）。相关测试需要更新期望值。
+
 ## 项目结构关键路径
 
 | 路径 | 说明 |
