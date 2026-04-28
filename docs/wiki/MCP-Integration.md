@@ -2,7 +2,7 @@
 
 ## What is MCP?
 
-The Model Context Protocol (MCP) is a standardized protocol that allows AI assistants to interact with external tools and services. DeployPilot exposes 52+ MCP tools for server deployment management.
+The Model Context Protocol (MCP) is a standardized protocol that allows AI assistants to interact with external tools and services. DeployPilot exposes 37 MCP tools for server deployment management.
 
 ## Supported AI IDEs
 
@@ -104,24 +104,81 @@ This eliminates the need for AI IDEs to directly connect to internal servers.
 
 ## Available Tools
 
-### Deployment
-- `deploy_app` — Deploy an application
-- `get_deploy_status` — Check deployment status
-- `rollback_app` — Rollback to previous version
-- `batch_deploy` — Deploy multiple apps
+### Deployment (5 tools)
+| Tool | Description | RBAC |
+|------|-------------|------|
+| `deploy_app` | Deploy an application | dev |
+| `get_deploy_status` | Check deployment status | viewer |
+| `rollback_app` | Rollback to previous version | dev |
+| `batch_deploy` | Deploy multiple apps at once | admin |
+| `check_deploy_readiness` | Check if deployment prerequisites are met | viewer |
 
-### Application Management
-- `list_apps` / `create_app` / `update_app` / `delete_app` / `get_app_detail`
+### Application Management (5 tools)
+| Tool | Description | RBAC |
+|------|-------------|------|
+| `list_apps` | List all applications | viewer |
+| `create_app` | Register a new application | dev |
+| `update_app` | Update application configuration | dev |
+| `delete_app` | Delete an application | admin |
+| `get_app_detail` | Get detailed application info | viewer |
 
-### Server Management
-- `list_servers` / `add_server` / `update_server` / `delete_server` / `test_server`
+### Server Management (5 tools)
+| Tool | Description | RBAC |
+|------|-------------|------|
+| `list_servers` | List all registered servers | viewer |
+| `add_server` | Register a new server | dev |
+| `update_server` | Update server configuration | dev |
+| `delete_server` | Delete a server | admin |
+| `test_server` | Test server SSH connectivity | dev |
 
-### DNS Management
-- `list_dns_records` / `add_dns_record` / `update_dns_record` / `delete_dns_record`
+### DNS Management (4 tools)
+| Tool | Description | RBAC |
+|------|-------------|------|
+| `list_dns_records` | List DNS records | viewer |
+| `add_dns_record` | Create a DNS record | dev |
+| `update_dns_record` | Update a DNS record | dev |
+| `delete_dns_record` | Delete a DNS record | admin |
+| `batch_dns` | Batch DNS operations | admin |
 
-### Monitoring
-- `heal_container` / `get_container_metrics` / `get_system_metrics` / `list_alerts`
+### Credential Management (4 tools)
+| Tool | Description | RBAC |
+|------|-------------|------|
+| `list_credentials` | List all credentials | viewer |
+| `add_credential` | Add a new credential | dev |
+| `update_credential` | Update a credential | dev |
+| `delete_credential` | Delete a credential | admin |
 
-### And more...
+### Logging (2 tools)
+| Tool | Description | RBAC |
+|------|-------------|------|
+| `get_app_logs` | Get application logs | viewer |
+| `search_app_logs` | Search application logs | viewer |
 
-See the full tool reference in the [repository docs](https://github.com/Yogdunana/deploypilot/blob/main/docs/mcp-tools.md).
+### Backup & Restore (3 tools)
+| Tool | Description | RBAC |
+|------|-------------|------|
+| `backup_database` | Create a database backup | dev |
+| `restore_database` | Restore from a backup | dev |
+| `batch_backup` | Batch backup operations | admin |
+
+### Task Management (2 tools)
+| Tool | Description | RBAC |
+|------|-------------|------|
+| `get_task_status` | Get task execution status | viewer |
+| `list_tasks` | List all tasks | viewer |
+
+### System & Monitoring (4 tools)
+| Tool | Description | RBAC |
+|------|-------------|------|
+| `check_system_update` | Check for system updates | viewer |
+| `detect_environment` | Detect server environment info | viewer |
+| `health_check` | HTTP/TCP health probe | viewer |
+| `send_notification` | Send deployment notifications | dev |
+
+### Templates (2 tools)
+| Tool | Description | RBAC |
+|------|-------------|------|
+| `list_templates` | List available app templates (9 stacks) | viewer |
+| `get_template` | Get template details | viewer |
+
+See the full tool specification in [docs/mcp-tools.md](https://github.com/Yogdunana/deploypilot/blob/main/docs/mcp-tools.md).

@@ -12,12 +12,18 @@
 git clone https://github.com/Yogdunana/deploypilot.git
 cd deploypilot
 
+# Set required environment variables
+export DEPLOYPILOT_AUTH_JWT_SECRET=$(openssl rand -hex 16)
+export DEPLOYPILOT_REDIS_PASSWORD=$(openssl rand -hex 16)
+
 # Start with Docker Compose
 docker compose up -d
 
 # View logs
 docker compose logs -f
 ```
+
+> **Important**: Set `DEPLOYPILOT_AUTH_JWT_SECRET` and `DEPLOYPILOT_REDIS_PASSWORD` before starting. If using Redis with a password, also set `DEPLOYPILOT_REDIS_PASSWORD` in the `docker-compose.yml` environment section.
 
 Access the web dashboard at `http://your-server-ip:8080`.
 
