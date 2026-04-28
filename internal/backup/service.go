@@ -254,6 +254,10 @@ func (s *Service) backupSQLite(ctx context.Context) (string, int64, error) {
 		}
 	}()
 
+	// Validate backupPath doesn't contain single quotes (SQL injection prevention)
+	if strings.Contains(backupPath, "'") {
+		return "", 0, fmt.Errorf("backup path contains invalid characters")
+	}
 	// Use BACKUP command for hot copy
 	_, err = sqlDB.Exec(fmt.Sprintf("VACUUM INTO '%s'", backupPath))
 	if err != nil {

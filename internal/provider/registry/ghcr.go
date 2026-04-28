@@ -56,7 +56,8 @@ func (g *GHCRProvider) Login(ctx context.Context) error {
 	registry := strings.TrimSuffix(g.baseURL, "/v2/")
 	registry = strings.TrimSuffix(registry, "/v2")
 
-	cmd := exec.CommandContext(ctx, "docker", "login", "-u", g.username, "-p", g.password, registry)
+	cmd := exec.CommandContext(ctx, "docker", "login", "-u", g.username, "--password-stdin", registry)
+	cmd.Stdin = strings.NewReader(g.password)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("docker login failed: %w: %s", err, string(output))

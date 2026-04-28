@@ -423,6 +423,33 @@ func Migrate(db *gorm.DB) error {
 				return nil
 			},
 		},
+		// 202604280001: Add OAuth fields to users table and record_hash to audit_logs
+		{
+			ID: "202604280001",
+			Migrate: func(tx *gorm.DB) error {
+				if err := ignoreDuplicateColumnError(tx, tx.Exec(`ALTER TABLE users ADD COLUMN auth_provider TEXT DEFAULT ''`).Error); err != nil {
+					return err
+				}
+				if err := ignoreDuplicateColumnError(tx, tx.Exec(`ALTER TABLE users ADD COLUMN auth_uid TEXT DEFAULT ''`).Error); err != nil {
+					return err
+				}
+				if err := ignoreDuplicateColumnError(tx, tx.Exec(`ALTER TABLE users ADD COLUMN avatar_url TEXT DEFAULT ''`).Error); err != nil {
+					return err
+				}
+				// Create indexes for OAuth lookups
+				tx.Exec(`CREATE INDEX IF NOT EXISTS idx_users_auth_provider ON users(auth_provider)`)
+				tx.Exec(`CREATE INDEX IF NOT EXISTS idx_users_auth_uid ON users(auth_uid)`)
+				// Also add record_hash to audit_logs
+				if err := ignoreDuplicateColumnError(tx, tx.Exec(`ALTER TABLE audit_logs ADD COLUMN record_hash TEXT DEFAULT ''`).Error); err != nil {
+					return err
+				}
+				return nil
+			},
+			Rollback: func(tx *gorm.DB) error {
+				// SQLite doesn't support DROP COLUMN easily
+				return nil
+			},
+		},
 	})
 
 	// Use InitSchema for initial creation (faster than Migrate)

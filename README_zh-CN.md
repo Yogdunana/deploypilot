@@ -274,36 +274,44 @@ graph LR
 server:
   host: "0.0.0.0"
   port: 8080
-  mode: "release"  # debug | release | test
+  cors_allowed_origins:
+    - "*"
 
 # 数据库配置
 database:
-  driver: "sqlite"  # sqlite | postgres
-  dsn: "data/deploypilot.db"
+  type: "sqlite"  # sqlite | postgres
+  dsn: "./data/deploypilot.db"
+
+# Redis 配置（可选）
+redis:
+  addr: "localhost:6379"
+  password: ""
+  db: 0
 
 # 认证配置
 auth:
   jwt_secret: "change-me-in-production"  # 生产环境请务必修改
-  token_expiry: "24h"
+  token_expire: "24h"
 
 # 部署配置
 deploy:
-  default_docker_socket: "/var/run/docker.sock"
-  max_concurrent_deploys: 5
-  health_check_timeout: "120s"
+  default_mode: "api"
+  build_timeout: "10m"
+  health_check_interval: "30s"
+  health_check_retries: 3
   rollback_on_failure: true
 
 # 日志配置
 log:
   level: "info"  # debug | info | warn | error
-  format: "json"  # json | console
-  output: "stdout"  # stdout | file
+  format: "json"  # json | text
+  file: "./logs/deploypilot.log"
+  enable_tracing: true
 
 # 监控配置
 monitor:
   enabled: true
-  metrics_path: "/metrics"
-  collect_interval: "15s"
+  metrics_port: 9091
 ```
 
 完整配置示例请参考 [`configs/config.yaml.example`](configs/config.yaml.example)。
