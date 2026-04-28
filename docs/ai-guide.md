@@ -108,3 +108,75 @@ builder_test.go 和 bridge_test.go 中的 mock 命令模式必须与 builder.go 
 - **patch 版本**: 直接合并（CI 通过后）
 - **minor 版本**: 审查 changelog 后合并
 - **major 版本**: 关闭并评论 "Major version update deferred to next release cycle"
+- **不要因为 CI 过期就关闭 PR**: Dependabot 会自动 rebase 并重新跑 CI，保持打开等它自动恢复
+
+## Git 工作流规范（Agent-Aware）
+
+> 参考：TRAE 技术专家小夏《新范式下 Agent 如何参与开发》
+
+### Commit 规范
+
+每个 commit 应当能独立描述「做了什么、为什么、上下文是什么」。使用 Git Trailer 记录 Agent 上下文：
+
+```
+<type>(<scope>): <summary>
+
+<正文：描述本次变更的背景与动机>
+
+Agent-Task: <原始任务描述或任务 ID>
+Agent-Model: <使用的模型>
+Agent-Decision: <关键设计决策及理由>
+Agent-Limitation: <已知局限或后续 TODO>
+```
+
+### Atomic Commit 原则
+
+一个 commit 只表达一个可解释、可回滚、可验证的语义变化：
+- 代码在该 commit 节点可编译、测试可通过
+- 不要把不相关的修改混入同一个 commit
+- 每个 commit 可独立回滚，降低引入问题时修复成本
+
+### Checkpoint Commit 策略
+
+长任务在关键节点做检查点提交，而非等全部完成：
+1. 完成数据模型/接口定义 → commit
+2. 完成核心逻辑实现 → commit
+3. 完成测试编写 → commit
+4. 完成文档更新 → commit
+
+Checkpoint commit 以 `[WIP]` 开头，最终完成后通过 rebase 整理历史。
+
+### PR 拆分原则
+
+不要把所有修改塞进一个 PR。按职责拆分：
+- **CI/CD 变更** → 独立 PR
+- **文档变更** → 独立 PR
+- **配置变更** → 独立 PR
+- **功能变更** → 独立 PR
+
+每个 PR 的 diff 应该足够小，让 reviewer 能在 10 分钟内审完。
+
+### 历史整理
+
+任务完成后、合并前，用 `git rebase -i` 整理提交历史：
+- squash WIP checkpoint commits 为有意义的语义 commit
+- 确保最终历史中每个 commit 可独立理解和回滚
+- 不要对已推送到远程的分支做 force push（除非团队有明确约定）
+
+### 多 Agent 协作注意
+
+- Agent 不理解「代码所有权」，修改公共模块前先确认没有其他 agent 在改同一文件
+- 不要把「分支能 merge」等同于「可以发布」，merge 只保证无文本冲突，不保证语义正确
+- 提交前检查 `git diff`，确认没有混入格式化、依赖锁文件等噪声
+
+## YAML 语法注意
+
+GitHub Actions 的 `permissions` 必须用多行格式，不能写成单行：
+```yaml
+# ❌ 错误 — YAML 解析失败
+permissions: contents: read
+
+# ✅ 正确
+permissions:
+  contents: read
+```
