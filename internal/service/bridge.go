@@ -9,9 +9,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
-	"sync"
 	"time"
 
 	"golang.org/x/crypto/ssh"
@@ -30,7 +28,6 @@ import (
 	"github.com/Yogdunana/deploypilot/internal/plugin"
 	"github.com/Yogdunana/deploypilot/internal/provider/cicd"
 	"github.com/Yogdunana/deploypilot/internal/provider/dns"
-	"github.com/Yogdunana/deploypilot/internal/provider/notify"
 	registry "github.com/Yogdunana/deploypilot/internal/provider/registry"
 	"github.com/Yogdunana/deploypilot/internal/provider/server"
 	"github.com/Yogdunana/deploypilot/internal/sandbox"
@@ -210,120 +207,6 @@ func (b *Bridge) getDNSProvider(ctx context.Context) (dns.DNSProvider, error) {
 	default:
 		return nil, fmt.Errorf("unsupported DNS provider type: %s", provider.Type)
 	}
-}
-
-// getNotifiers loads all enabled notification providers from DB.
-func (b *Bridge) getNotifiers(ctx context.Context) ([]notify.Notifier, error) {
-	if b.DB == nil {
-		return nil, nil // No DB = no notifiers, just log
-	}
-	var providers []model.Provider
-	err := b.DB.Where("type = ? AND enabled = ?", "notify", true).Find(&providers).Error
-	if err != nil {
-		return nil, err
-	}
-	var notifiers []notify.Notifier
-	for _, p := range providers {
-		var cfg struct {
-			Channel  string            `json:"channel"` // webhook, email, telegram, dingtalk, feishu
-			URL      string            `json:"url"`
-			Headers  map[string]string `json:"headers"`
-			SMTPHost string            `json:"smtp_host"`
-			SMTPPort int               `json:"smtp_port"`
-			Username string            `json:"username"`
-			Password string            `json:"password"`
-			From     string            `json:"from"`
-			BotToken string            `json:"bot_token"`
-			ChatID   string            `json:"chat_id"`
-			WebhookURL string          `json:"webhook_url"`
-			Secret   string            `json:"secret"`
-		}
-		if err := json.Unmarshal([]byte(p.Config), &cfg); err != nil {
-			slog.Error("failed to parse notify provider config", "provider", p.Name, "error", err)
-			continue
-		}
-		switch cfg.Channel {
-		case "webhook":
-			notifiers = append(notifiers, notify.NewWebhookNotifier(cfg.URL, cfg.Headers))
-		case "email":
-			notifiers = append(notifiers, notify.NewEmailNotifier(notify.EmailConfig{
-				SMTPHost: cfg.SMTPHost,
-				SMTPPort: cfg.SMTPPort,
-				Username: cfg.Username,
-				Password: cfg.Password,
-				From:     cfg.From,
-			}))
-		case "telegram":
-			notifiers = append(notifiers, notify.NewTelegramNotifier(cfg.BotToken, cfg.ChatID))
-		case "dingtalk":
-			notifiers = append(notifiers, notify.NewDingTalkNotifier(cfg.WebhookURL, cfg.Secret))
-		case "feishu":
-			notifiers = append(notifiers, notify.NewFeishuNotifier(cfg.WebhookURL))
-		case "wecom":
-			notifiers = append(notifiers, notify.NewWeComNotifier(cfg.WebhookURL))
-		}
-	}
-	return notifiers, nil
-}
-
-// Simple in-memory task tracker.
-type taskInfo struct {
-	ID        string      `json:"task_id"`
-	Type      string      `json:"type"`
-	Status    string      `json:"status"`   // pending, running, success, failed
-	Progress  int         `json:"progress"` // 0-100
-	Message   string      `json:"message"`
-	Result    interface{} `json:"result,omitempty"`
-	CreatedAt time.Time   `json:"created_at"`
-	UpdatedAt time.Time   `json:"updated_at"`
-}
-
-var (
-	taskMu      sync.RWMutex
-	tasks       = make(map[string]*taskInfo)
-	taskCounter int64
-
-	backupMu   sync.RWMutex
-	backupApps = make(map[string]string) // backupID -> appID
-)
-
-func createTask(taskType string) string {
-	taskMu.Lock()
-	defer taskMu.Unlock()
-	taskCounter++
-	id := fmt.Sprintf("task-%d", taskCounter)
-	tasks[id] = &taskInfo{
-		ID:        id,
-		Type:      taskType,
-		Status:    "pending",
-		Progress:  0,
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
-	}
-	return id
-}
-
-// updateTask updates the status of an existing task.
-func updateTask(id, status string, progress int, message string) {
-	taskMu.Lock()
-	defer taskMu.Unlock()
-	if t, ok := tasks[id]; ok {
-		t.Status = status
-		t.Progress = progress
-		t.Message = message
-		t.UpdatedAt = time.Now()
-	}
-}
-
-// getTask returns a copy of the task info for the given task ID.
-func getTask(id string) *taskInfo {
-	taskMu.RLock()
-	defer taskMu.RUnlock()
-	if t, ok := tasks[id]; ok {
-		cp := *t
-		return &cp
-	}
-	return nil
 }
 
 // getRemoteExecutor creates an SSH executor for the given server.
@@ -1501,92 +1384,6 @@ func (b *Bridge) DNSListRecords(ctx context.Context, domain string) (interface{}
 	}, nil
 }
 
-// ---------- 22. SendNotification ----------
-
-func (b *Bridge) SendNotification(ctx context.Context, nType, appName, server, status, message string) (interface{}, error) {
-	slog.Info("notification sent", "type", nType, "app", appName, "server", server, "status", status, "message", message)
-
-	notifiers, err := b.getNotifiers(ctx)
-	if err != nil {
-		slog.Error("failed to load notifiers", "error", err)
-	}
-
-	if len(notifiers) == 0 {
-		return map[string]interface{}{
-			"status":  "logged",
-			"type":    nType,
-			"app":     appName,
-			"message": "no notification providers configured",
-		}, nil
-	}
-
-	notification := notify.Notification{
-		Type:      nType,
-		AppName:   appName,
-		Server:    server,
-		Status:    status,
-		Message:   message,
-		Timestamp: time.Now(),
-	}
-
-	multi := notify.NewMultiNotifier(notifiers...)
-	results, err := multi.Send(ctx, notification)
-	if err != nil {
-		return map[string]interface{}{
-			"status":  "error",
-			"message": err.Error(),
-		}, nil
-	}
-
-	// Count successes
-	successCount := 0
-	for _, r := range results {
-		if r.Success {
-			successCount++
-		}
-	}
-
-	return map[string]interface{}{
-		"status":          "sent",
-		"type":            nType,
-		"app":             appName,
-		"total_notifiers": len(notifiers),
-		"success_count":   successCount,
-		"results":         results,
-	}, nil
-}
-
-// ---------- 23. ListTemplates ----------
-
-func (b *Bridge) ListTemplates(ctx context.Context) (interface{}, error) {
-	templates := []map[string]interface{}{
-		{"type": "node", "name": "Node.js", "description": "Express / Fastify / Next.js application", "build_cmd": "npm install && npm run build", "run_cmd": "node dist/main.js", "port": 3000},
-		{"type": "python", "name": "Python", "description": "Flask / FastAPI / Django application", "build_cmd": "pip install -r requirements.txt", "run_cmd": "gunicorn app:app", "port": 8000},
-		{"type": "go", "name": "Go", "description": "Go HTTP server or CLI tool", "build_cmd": "go build -o app .", "run_cmd": "./app", "port": 8080},
-		{"type": "java", "name": "Java", "description": "Spring Boot / Quarkus application", "build_cmd": "./mvnw package -DskipTests", "run_cmd": "java -jar target/app.jar", "port": 8080},
-		{"type": "php", "name": "PHP", "description": "Laravel / Symfony application", "build_cmd": "composer install", "run_cmd": "php artisan serve", "port": 8000},
-		{"type": "ruby", "name": "Ruby", "description": "Rails / Sinatra application", "build_cmd": "bundle install", "run_cmd": "bundle exec rails server", "port": 3000},
-		{"type": "rust", "name": "Rust", "description": "Actix / Axum / Warp application", "build_cmd": "cargo build --release", "run_cmd": "./target/release/app", "port": 8080},
-		{"type": "static", "name": "Static Site", "description": "Nginx-hosted static HTML/CSS/JS", "build_cmd": "", "run_cmd": "nginx -g 'daemon off;'", "port": 80},
-		{"type": "docker", "name": "Docker", "description": "Custom Docker image deployment", "build_cmd": "", "run_cmd": "", "port": 0},
-	}
-	return templates, nil
-}
-
-// ---------- 24. GetTemplate ----------
-
-func (b *Bridge) GetTemplate(ctx context.Context, tmplType string) (interface{}, error) {
-	all, _ := b.ListTemplates(ctx)
-	tmpls := all.([]map[string]interface{})
-
-	for _, t := range tmpls {
-		if t["type"] == tmplType {
-			return t, nil
-		}
-	}
-	return nil, fmt.Errorf("template type %q not found; available: node, python, go, java, php, ruby, rust, static, docker", tmplType)
-}
-
 // ---------- 25. GetAppDetail ----------
 
 func (b *Bridge) GetAppDetail(ctx context.Context, appID string) (interface{}, error) {
@@ -1609,58 +1406,6 @@ func (b *Bridge) UpdateApp(ctx context.Context, appID string, config map[string]
 		return map[string]interface{}{"status": "updated", "id": appID}, nil
 	}
 	return row, nil
-}
-
-// ---------- 27. GetTaskStatus ----------
-
-func (b *Bridge) GetTaskStatus(ctx context.Context, taskID string) (interface{}, error) {
-	taskMu.RLock()
-	defer taskMu.RUnlock()
-	t, ok := tasks[taskID]
-	if !ok {
-		return map[string]interface{}{
-			"task_id": taskID,
-			"status":  "not_found",
-			"message": "task not found",
-		}, nil
-	}
-	return t, nil
-}
-
-// ---------- 28. ListTasks ----------
-
-func (b *Bridge) ListTasks(ctx context.Context, limit int, statusFilter string) (interface{}, error) {
-	taskMu.RLock()
-	defer taskMu.RUnlock()
-
-	result := make([]*taskInfo, 0)
-	for _, t := range tasks {
-		if statusFilter != "" && t.Status != statusFilter {
-			continue
-		}
-		result = append(result, t)
-	}
-
-	// Sort by created_at descending
-	sort.Slice(result, func(i, j int) bool {
-		return result[i].CreatedAt.After(result[j].CreatedAt)
-	})
-
-	if limit > 0 && len(result) > limit {
-		result = result[:limit]
-	}
-
-	if result == nil {
-		result = []*taskInfo{}
-	}
-
-	return map[string]interface{}{
-		"status": "success",
-		"tasks":  result,
-		"total":  len(result),
-		"limit":  limit,
-		"filter": statusFilter,
-	}, nil
 }
 
 // ---------- 29. SearchAppLogs ----------
@@ -2852,78 +2597,6 @@ func (b *Bridge) GetServersByTags(ctx context.Context, tenantID string, tags []s
 	}
 
 	return matchedIDs, nil
-}
-
-// ---------- 47. ListSSLCertificates ----------
-
-func (b *Bridge) ListSSLCertificates(ctx context.Context) (interface{}, error) {
-	_ = ctx
-	if b.DB == nil {
-		return nil, fmt.Errorf("database not available")
-	}
-	var certs []model.SSLCertificate
-	if err := b.DB.Find(&certs).Error; err != nil {
-		return nil, fmt.Errorf("failed to list SSL certificates: %w", err)
-	}
-	return certs, nil
-}
-
-// ---------- 48. RequestSSLCertificate ----------
-
-func (b *Bridge) RequestSSLCertificate(ctx context.Context, domain, email string) (interface{}, error) {
-	if b.DB == nil {
-		return nil, fmt.Errorf("database not available")
-	}
-	cert := model.SSLCertificate{
-		Domain:    domain,
-		Email:     email,
-		Provider:  "cloudflare",
-		Status:    "pending",
-		AutoRenew: true,
-	}
-	if err := b.DB.Create(&cert).Error; err != nil {
-		return nil, fmt.Errorf("failed to create SSL certificate record: %w", err)
-	}
-	return cert, nil
-}
-
-// ---------- 49. RenewSSLCertificate ----------
-
-func (b *Bridge) RenewSSLCertificate(ctx context.Context, domain string) (interface{}, error) {
-	if b.DB == nil {
-		return nil, fmt.Errorf("database not available")
-	}
-	var cert model.SSLCertificate
-	if err := b.DB.Where("domain = ?", domain).First(&cert).Error; err != nil {
-		return nil, fmt.Errorf("SSL certificate not found for domain %s: %w", domain, err)
-	}
-	now := time.Now()
-	cert.Status = "renewing"
-	cert.RetryCount++
-	cert.LastRenewed = &now
-	if err := b.DB.Save(&cert).Error; err != nil {
-		return nil, fmt.Errorf("failed to update SSL certificate: %w", err)
-	}
-	return cert, nil
-}
-
-// ---------- 50. DeleteSSLCertificate ----------
-
-func (b *Bridge) DeleteSSLCertificate(ctx context.Context, domain string) (interface{}, error) {
-	if b.DB == nil {
-		return nil, fmt.Errorf("database not available")
-	}
-	result := b.DB.Where("domain = ?", domain).Delete(&model.SSLCertificate{})
-	if result.Error != nil {
-		return nil, fmt.Errorf("failed to delete SSL certificate: %w", result.Error)
-	}
-	if result.RowsAffected == 0 {
-		return nil, fmt.Errorf("SSL certificate not found for domain %s", domain)
-	}
-	return map[string]interface{}{
-		"message": "SSL certificate deleted",
-		"domain":  domain,
-	}, nil
 }
 
 // ---------- 46. GetCIBuildStatus ----------
