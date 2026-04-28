@@ -9,12 +9,16 @@ import (
 
 // mockHandler collects records for inspection.
 type mockHandler struct {
-	records []mockRecord
+	records *[]mockRecord
 }
 
 type mockRecord struct {
 	msg   string
 	attrs map[string]string
+}
+
+func newMockHandler() *mockHandler {
+	return &mockHandler{records: &[]mockRecord{}}
 }
 
 func (h *mockHandler) Enabled(_ context.Context, _ slog.Level) bool {
@@ -28,16 +32,12 @@ func (h *mockHandler) Handle(_ context.Context, r slog.Record) error {
 		rec.attrs[a.Key] = a.Value.String()
 		return true
 	})
-	h.records = append(h.records, rec)
+	*h.records = append(*h.records, rec)
 	return nil
 }
 
 func (h *mockHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
-	clone := &mockHandler{records: h.records}
-	for _, a := range attrs {
-		clone.records = append(clone.records, mockRecord{attrs: map[string]string{a.Key: a.Value.String()}})
-	}
-	return clone
+	return &mockHandler{records: h.records}
 }
 
 func (h *mockHandler) WithGroup(name string) slog.Handler {
@@ -45,7 +45,7 @@ func (h *mockHandler) WithGroup(name string) slog.Handler {
 }
 
 func TestTraceHandler_InjectsTraceID(t *testing.T) {
-	mock := &mockHandler{}
+	mock := newMockHandler()
 	handler := NewTraceHandler(mock)
 
 	traceID := "abc-123-def"
@@ -56,16 +56,17 @@ func TestTraceHandler_InjectsTraceID(t *testing.T) {
 		t.Fatalf("Handle() error: %v", err)
 	}
 
-	if len(mock.records) != 1 {
-		t.Fatalf("expected 1 record, got %d", len(mock.records))
+	recs := *mock.records
+	if len(recs) != 1 {
+		t.Fatalf("expected 1 record, got %d", len(recs))
 	}
-	if mock.records[0].attrs["trace_id"] != traceID {
-		t.Errorf("trace_id = %q, want %q", mock.records[0].attrs["trace_id"], traceID)
+	if recs[0].attrs["trace_id"] != traceID {
+		t.Errorf("trace_id = %q, want %q", recs[0].attrs["trace_id"], traceID)
 	}
 }
 
 func TestTraceHandler_NoTraceID(t *testing.T) {
-	mock := &mockHandler{}
+	mock := newMockHandler()
 	handler := NewTraceHandler(mock)
 
 	ctx := context.Background()
@@ -75,16 +76,17 @@ func TestTraceHandler_NoTraceID(t *testing.T) {
 		t.Fatalf("Handle() error: %v", err)
 	}
 
-	if len(mock.records) != 1 {
-		t.Fatalf("expected 1 record, got %d", len(mock.records))
+	recs := *mock.records
+	if len(recs) != 1 {
+		t.Fatalf("expected 1 record, got %d", len(recs))
 	}
-	if _, ok := mock.records[0].attrs["trace_id"]; ok {
+	if _, ok := recs[0].attrs["trace_id"]; ok {
 		t.Error("trace_id should not be present when context has no trace ID")
 	}
 }
 
 func TestTraceHandler_WithAttrs(t *testing.T) {
-	mock := &mockHandler{}
+	mock := newMockHandler()
 	handler := NewTraceHandler(mock)
 
 	attrs := []slog.Attr{slog.String("service", "deploypilot")}
@@ -98,13 +100,20 @@ func TestTraceHandler_WithAttrs(t *testing.T) {
 		t.Fatalf("Handle() error: %v", err)
 	}
 
-	if len(mock.records) != 2 {
-		t.Fatalf("expected 2 records (1 from WithAttrs, 1 from Handle), got %d", len(mock.records))
+	recs := *mock.records
+	if len(recs) != 1 {
+		t.Fatalf("expected 1 record from Handle, got %d", len(recs))
+	}
+	if recs[0].attrs["trace_id"] != traceID {
+		t.Errorf("trace_id = %q, want %q", recs[0].attrs["trace_id"], traceID)
+	}
+	if recs[0].attrs["service"] != "deploypilot" {
+		t.Errorf("service attr = %q, want %q", recs[0].attrs["service"], "deploypilot")
 	}
 }
 
 func TestTraceHandler_WithGroup(t *testing.T) {
-	mock := &mockHandler{}
+	mock := newMockHandler()
 	handler := NewTraceHandler(mock)
 
 	wrapped := handler.WithGroup("request")
@@ -117,16 +126,17 @@ func TestTraceHandler_WithGroup(t *testing.T) {
 		t.Fatalf("Handle() error: %v", err)
 	}
 
-	if len(mock.records) != 1 {
-		t.Fatalf("expected 1 record, got %d", len(mock.records))
+	recs := *mock.records
+	if len(recs) != 1 {
+		t.Fatalf("expected 1 record, got %d", len(recs))
 	}
-	if mock.records[0].attrs["trace_id"] != traceID {
-		t.Errorf("trace_id = %q, want %q", mock.records[0].attrs["trace_id"], traceID)
+	if recs[0].attrs["trace_id"] != traceID {
+		t.Errorf("trace_id = %q, want %q", recs[0].attrs["trace_id"], traceID)
 	}
 }
 
 func TestTraceHandler_Enabled(t *testing.T) {
-	mock := &mockHandler{}
+	mock := newMockHandler()
 	handler := NewTraceHandler(mock)
 
 	if !handler.Enabled(context.Background(), slog.LevelInfo) {
