@@ -8,7 +8,6 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -248,10 +247,6 @@ type InteractiveSession interface {
 	Close() error
 }
 
-// GetRemoteExecutorForTerminal creates an SSH executor for the given server (exported for WebSocket terminal).
-func (b *Bridge) GetRemoteExecutorForTerminal(ctx context.Context, serverID string) (RemoteExecutor, error) {
-	return b.getRemoteExecutor(ctx, serverID)
-}
 
 // sshClientExecutor wraps server.Client to implement deployer.CommandExecutor.
 type sshClientExecutor struct {
@@ -645,31 +640,6 @@ func (b *Bridge) GetContainerStatus(ctx context.Context, name string) (*mcp.Cont
 // ---------- 3. ListApps ----------
 
 
-// ---------- 4. ListServers ----------
-
-func (b *Bridge) ListServers(ctx context.Context) ([]mcp.ServerInfo, error) {
-	var rows []map[string]interface{}
-	if err := b.DB.Table("servers").Find(&rows).Error; err != nil {
-		return nil, fmt.Errorf("failed to query servers: %w", err)
-	}
-
-	result := make([]mcp.ServerInfo, 0, len(rows))
-	for _, r := range rows {
-		si := mcp.ServerInfo{
-			ID:     toString(r["id"]),
-			Name:   toString(r["name"]),
-			Host:   toString(r["host"]),
-			Status: toString(r["status"]),
-		}
-		if v, ok := r["port"]; ok {
-			si.Port = toInt(v)
-		}
-		result = append(result, si)
-	}
-	return result, nil
-}
-
-
 // ---------- 7. Stop ----------
 
 func (b *Bridge) Stop(ctx context.Context, name string) error {
@@ -1022,108 +992,9 @@ func (b *Bridge) HealthCheck(ctx context.Context, target, healthType string) (in
 	}, nil
 }
 
-// ---------- 13. AddServer ----------
-
-func (b *Bridge) AddServer(ctx context.Context, name, host string, port int, user string) (*mcp.ServerInfo, error) {
-	id := uuid.New().String()
-	status := "unknown"
-
-	// Test connectivity
-	if _, err := b.Executor.RunCommand(ctx, "echo ok"); err == nil {
-		status = "connected"
-	}
-
-	if err := b.DB.Table("servers").Create(map[string]interface{}{
-		"id":     id,
-		"name":   name,
-		"host":   host,
-		"port":   port,
-		"status": status,
-	}).Error; err != nil {
-		return nil, fmt.Errorf("failed to add server: %w", err)
-	}
-
-	return &mcp.ServerInfo{
-		ID:     id,
-		Name:   name,
-		Host:   host,
-		Port:   port,
-		Status: status,
-	}, nil
-}
-
-// ---------- 14. RemoveServer ----------
-
-func (b *Bridge) RemoveServer(ctx context.Context, serverID string) error {
-	result := b.DB.Table("servers").Where("id = ?", serverID).Delete(nil)
-	if result.Error != nil {
-		return fmt.Errorf("failed to remove server: %w", result.Error)
-	}
-	if result.RowsAffected == 0 {
-		return fmt.Errorf("server %s not found", serverID)
-	}
-	return nil
-}
-
-// ---------- 15. TestServer ----------
-
-func (b *Bridge) TestServer(ctx context.Context, serverID string) (interface{}, error) {
-	row := make(map[string]interface{})
-	if err := b.DB.Table("servers").Where("id = ?", serverID).Take(&row).Error; err != nil {
-		return nil, fmt.Errorf("server not found: %w", err)
-	}
-
-	host := toString(row["host"])
-	port := toInt(row["port"])
-
-	start := time.Now()
-	_, err := b.Executor.RunCommand(ctx, "echo ok")
-	elapsed := time.Since(start)
-
-	if err != nil {
-		suggestions := []string{
-			fmt.Sprintf("Check if the server %s:%d is running and accessible", host, port),
-			"Verify the SSH port is not blocked by a firewall or security group",
-			"Confirm the SSH service (sshd) is listening on the specified port",
-			"If using a cloud provider, ensure the security group allows inbound TCP on port " + fmt.Sprintf("%d", port),
-			"Try: ssh -p " + fmt.Sprintf("%d", port) + " root@" + host + " from your terminal",
-		}
-		return map[string]interface{}{
-			"server_id":   serverID,
-			"host":        host,
-			"port":        port,
-			"status":      "unreachable",
-			"error":       err.Error(),
-			"latency":     elapsed.String(),
-			"suggestions": suggestions,
-		}, nil
-	}
-
-	return map[string]interface{}{
-		"server_id": serverID,
-		"host":      host,
-		"port":      port,
-		"status":    "reachable",
-		"latency":   elapsed.String(),
-	}, nil
-}
 
 // ---------- 16. CreateCredential ----------
 
-
-// ---------- 32. UpdateServer ----------
-
-func (b *Bridge) UpdateServer(ctx context.Context, serverID string, config map[string]interface{}) (interface{}, error) {
-	if err := b.DB.Table("servers").Where("id = ?", serverID).Updates(config).Error; err != nil {
-		return nil, fmt.Errorf("failed to update server: %w", err)
-	}
-
-	row := make(map[string]interface{})
-	if err := b.DB.Table("servers").Where("id = ?", serverID).Take(&row).Error; err != nil {
-		return map[string]interface{}{"status": "updated", "id": serverID}, nil
-	}
-	return row, nil
-}
 
 // ---------- 33. CheckDeployReadiness ----------
 
@@ -1189,145 +1060,6 @@ func (b *Bridge) BatchDeployWithConfig(ctx context.Context, config mcp.BatchDepl
 	return result, nil
 }
 
-// ---------- 35. Backup ----------
-
-func (b *Bridge) Backup(ctx context.Context, appID string) (string, error) {
-	row := make(map[string]interface{})
-	if err := b.DB.Table("apps").Where("id = ?", appID).Take(&row).Error; err != nil {
-		return "", fmt.Errorf("app not found: %w", err)
-	}
-
-	containerName := toString(row["container_name"])
-	if containerName == "" {
-		containerName = toString(row["name"])
-	}
-
-	backupID := uuid.New().String()
-
-	// Attempt a docker-based backup: exec into the container and create a timestamped archive
-	timestamp := time.Now().Format("20060102-150405")
-	backupFile := fmt.Sprintf("/tmp/backup-%s-%s.tar.gz", containerName, timestamp)
-	cmd := fmt.Sprintf("docker exec %s sh -c 'tar czf - /app /data 2>/dev/null' > %s 2>/dev/null || echo 'no_backup_paths'", containerName, backupFile)
-	out, err := b.Executor.RunCommand(ctx, cmd)
-	if err != nil {
-		slog.Warn("backup: container exec failed (may be expected)", "error", err, "output", out)
-	}
-
-	slog.Info("backup completed", "app_id", appID, "container", containerName, "backup_id", backupID, "file", backupFile)
-
-	// Store backup-to-app mapping for Restore
-	backupMu.Lock()
-	backupApps[backupID] = appID
-	backupMu.Unlock()
-
-	return backupID, nil
-}
-
-// ---------- 36. Restore ----------
-
-// shellQuote safely escapes a string for use in a shell command.
-func shellQuote(s string) string {
-	return "'" + strings.ReplaceAll(s, "'", "'\"'\"'") + "'"
-}
-
-func (b *Bridge) Restore(ctx context.Context, backupID string) (*mcp.ContainerStatus, error) {
-	if b.DB == nil {
-		return nil, fmt.Errorf("database not available")
-	}
-
-	// Look up the appID from the backup mapping
-	backupMu.RLock()
-	appID, ok := backupApps[backupID]
-	backupMu.RUnlock()
-	if !ok {
-		return nil, fmt.Errorf("backup %s not found", backupID)
-	}
-
-	// Find the app
-	var app model.App
-	if err := b.DB.Where("id = ?", appID).First(&app).Error; err != nil {
-		return nil, fmt.Errorf("app not found for backup %s: %w", backupID, err)
-	}
-
-	containerName := app.ContainerName
-	if containerName == "" {
-		containerName = app.Name
-	}
-
-	// Stop and remove current container
-	exec := b.Executor
-	if _, err := exec.RunCommand(ctx, fmt.Sprintf("docker stop %s", shellQuote(containerName))); err != nil {
-		slog.WarnContext(ctx, "failed to stop container during restore", "container", containerName, "error", err)
-	}
-	if _, err := exec.RunCommand(ctx, fmt.Sprintf("docker rm -f %s", shellQuote(containerName))); err != nil {
-		slog.WarnContext(ctx, "failed to remove container during restore", "container", containerName, "error", err)
-	}
-
-	// Restore from backup
-	timestamp := time.Now().Format("20060102-150405")
-	backupFile := fmt.Sprintf("/tmp/backup-%s-%s.tar.gz", containerName, timestamp)
-	cmd := fmt.Sprintf("docker run --rm -v /tmp:/backup -v %s-data:/data alpine sh -c 'cd /data && tar xzf /backup/%s 2>/dev/null || true'",
-		shellQuote(containerName), shellQuote(filepath.Base(backupFile)))
-	output, err := exec.RunCommand(ctx, cmd)
-	if err != nil {
-		slog.Warn("restore extract warning", "error", err, "output", output)
-	}
-	slog.Info("restore attempted", "container", containerName, "backup_file", backupFile, "output", output)
-
-	// Re-deploy the app using its current version
-	image := app.CurrentVersion
-	if image == "" {
-		image = "nginx:alpine" // fallback image
-	}
-	d := deployer.New(exec)
-	dCfg := deployer.DeployConfig{
-		Image:         image,
-		ContainerName: containerName,
-	}
-	// Parse env vars if present
-	if app.EnvVars != "" {
-		var envMap map[string]string
-		if json.Unmarshal([]byte(app.EnvVars), &envMap) == nil {
-			dCfg.EnvVars = envMap
-		}
-	}
-	cs, err := d.Deploy(ctx, dCfg)
-	if err != nil {
-		return nil, fmt.Errorf("re-deploy after restore failed: %w", err)
-	}
-
-	return &mcp.ContainerStatus{
-		ID:        cs.ID,
-		Name:      cs.Name,
-		Image:     cs.Image,
-		Status:    cs.Status,
-		Ports:     cs.Ports,
-		CreatedAt: cs.CreatedAt.Format(time.RFC3339),
-		Labels:    cs.Labels,
-	}, nil
-}
-
-// ---------- 37. BatchBackup ----------
-
-func (b *Bridge) BatchBackup(ctx context.Context, appIDs []string) (interface{}, error) {
-	results := make([]map[string]interface{}, 0, len(appIDs))
-	for _, id := range appIDs {
-		backupID, err := b.Backup(ctx, id)
-		entry := map[string]interface{}{"app_id": id}
-		if err != nil {
-			entry["status"] = "failed"
-			entry["error"] = err.Error()
-		} else {
-			entry["status"] = "success"
-			entry["backup_id"] = backupID
-		}
-		results = append(results, entry)
-	}
-	return map[string]interface{}{
-		"total":   len(appIDs),
-		"results": results,
-	}, nil
-}
 
 // ---------- 38. BatchDNS ----------
 
@@ -1369,49 +1101,6 @@ func (b *Bridge) HealContainer(ctx context.Context, containerName string) (inter
 	return result, nil
 }
 
-// ---------- 41. GetContainerMetrics ----------
-
-func (b *Bridge) GetContainerMetrics(ctx context.Context, containerName string) (interface{}, error) {
-	m := b.getMonitor()
-	return m.GetContainerMetrics(ctx, containerName)
-}
-
-// ---------- 42. GetSystemMetrics ----------
-
-func (b *Bridge) GetSystemMetrics(ctx context.Context) (interface{}, error) {
-	m := b.getMonitor()
-	return m.GetSystemMetrics(ctx)
-}
-
-// ---------- 43. ListAlerts ----------
-
-func (b *Bridge) ListAlerts(ctx context.Context) (interface{}, error) {
-	m := b.getMonitor()
-	return m.GetAlerts(), nil
-}
-
-// ---------- 44. ListAlertRules ----------
-
-func (b *Bridge) ListAlertRules(ctx context.Context) (interface{}, error) {
-	m := b.getMonitor()
-	return m.GetAlertRules(), nil
-}
-
-// getMonitor lazily initializes and returns the monitor.
-func (b *Bridge) getMonitor() *monitor.Monitor {
-	if b.Monitor == nil {
-		b.Monitor = monitor.NewMonitor(b.Executor, b.getHealer())
-	}
-	return b.Monitor
-}
-
-// getHealer lazily initializes and returns the healer.
-func (b *Bridge) getHealer() *healer.Healer {
-	if b.healer == nil {
-		b.healer = healer.NewHealer(b.Executor, healer.DefaultHealingConfig())
-	}
-	return b.healer
-}
 
 // ---------- helpers ----------
 
@@ -1985,54 +1674,6 @@ func (b *Bridge) RegistryOps(registryID string, operation string, args map[strin
 
 // ---------- GetServersByTags ----------
 
-// GetServersByTags returns server IDs that match any of the given tags.
-// It queries all servers for the tenant, parses each server's Tags field
-// (JSON array or comma-separated), and returns IDs of servers that have
-// at least one matching tag.
-func (b *Bridge) GetServersByTags(ctx context.Context, tenantID string, tags []string) ([]string, error) {
-	if b.DB == nil {
-		return nil, fmt.Errorf("database not available")
-	}
-
-	var servers []model.Server
-	if err := b.DB.Where("tenant_id = ?", tenantID).Find(&servers).Error; err != nil {
-		return nil, fmt.Errorf("failed to query servers: %w", err)
-	}
-
-	// Build a set of target tags for fast lookup
-	tagSet := make(map[string]bool, len(tags))
-	for _, t := range tags {
-		tagSet[strings.ToLower(t)] = true
-	}
-
-	var matchedIDs []string
-	for _, srv := range servers {
-		if srv.Tags == "" {
-			continue
-		}
-
-		// Parse tags: try JSON array first, then fall back to comma-separated
-		var serverTags []string
-		if err := json.Unmarshal([]byte(srv.Tags), &serverTags); err != nil {
-			// Fall back to comma-separated
-			for _, t := range strings.Split(srv.Tags, ",") {
-				t = strings.TrimSpace(t)
-				if t != "" {
-					serverTags = append(serverTags, t)
-				}
-			}
-		}
-
-		for _, st := range serverTags {
-			if tagSet[strings.ToLower(strings.TrimSpace(st))] {
-				matchedIDs = append(matchedIDs, srv.ID)
-				break
-			}
-		}
-	}
-
-	return matchedIDs, nil
-}
 
 // ---------- 46. GetCIBuildStatus ----------
 
