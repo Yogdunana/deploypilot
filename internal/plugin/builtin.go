@@ -7,6 +7,7 @@ import (
 	"github.com/Yogdunana/deploypilot/internal/provider/dns"
 	"github.com/Yogdunana/deploypilot/internal/provider/notify"
 	"github.com/Yogdunana/deploypilot/internal/provider/registry"
+	"github.com/Yogdunana/deploypilot/internal/provider/server"
 )
 
 // RegisterBuiltinPlugins registers all existing providers as built-in plugins.
@@ -276,8 +277,46 @@ func RegisterBuiltinPlugins(r *Registry) error {
 		},
 	}
 
+	// Server (Panel) providers
+	serverPlugins := []*PluginDescriptor{
+		{
+			Name:        "1panel-server",
+			DisplayName: "1Panel",
+			Version:     "1.0.0",
+			Description: "1Panel hosting panel provider",
+			Author:      "DeployPilot",
+			Provider:    "server",
+			Type:        "1panel",
+			Factory: func(cfg map[string]interface{}) (interface{}, error) {
+				baseURL, _ := cfg["base_url"].(string)
+				apiKey, _ := cfg["api_key"].(string)
+				if baseURL == "" || apiKey == "" {
+					return nil, fmt.Errorf("1panel: base_url and api_key are required")
+				}
+				return server.NewPanel1Client(baseURL, apiKey), nil
+			},
+		},
+		{
+			Name:        "btpanel-server",
+			DisplayName: "BT-Panel (宝塔)",
+			Version:     "1.0.0",
+			Description: "BT Panel hosting panel provider",
+			Author:      "DeployPilot",
+			Provider:    "server",
+			Type:        "bt-panel",
+			Factory: func(cfg map[string]interface{}) (interface{}, error) {
+				baseURL, _ := cfg["base_url"].(string)
+				apiKey, _ := cfg["api_key"].(string)
+				if baseURL == "" || apiKey == "" {
+					return nil, fmt.Errorf("btpanel: base_url and api_key are required")
+				}
+				return server.NewBTPanelClient(baseURL, "admin", apiKey), nil
+			},
+		},
+	}
+
 	// Register all plugins
-	allPlugins := append(append(append(dnsPlugins, notifyPlugins...), registryPlugins...), cicdPlugins...)
+	allPlugins := append(append(append(append(dnsPlugins, notifyPlugins...), registryPlugins...), cicdPlugins...), serverPlugins...)
 	for _, desc := range allPlugins {
 		if err := r.Register(desc); err != nil {
 			return fmt.Errorf("failed to register built-in plugin %s: %w", desc.Name, err)
