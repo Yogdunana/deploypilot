@@ -30,6 +30,9 @@ jobs:
           npm ci
           npm run build
 
+      - name: Ensure go.sum is up to date
+        run: go mod tidy
+
       - name: Build binaries
         env:
           GOOS: ${{ matrix.goos }}
