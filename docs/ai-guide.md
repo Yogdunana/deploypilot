@@ -70,6 +70,22 @@ builder_test.go 和 bridge_test.go 中的 mock 命令模式必须与 builder.go 
 ### 7. Docker login 必须用 --password-stdin
 不要用 `docker login -u user -p pass`，密码会暴露在进程列表中。用 `--password-stdin` + `cmd.Stdin = strings.NewReader(password)`。
 
+### 8. 提取方法到新文件时必须检查 unused imports
+将方法从 bridge.go 提取到独立 service 文件后，原文件中某些 import 可能不再被使用（如 `uuid`、`dns`、`filepath`、`encoding/json` 等）。**必须**逐一检查每个 import 是否仍被使用，否则 CI Lint 会失败。
+- **排查方法**: `grep -c "pkg\." bridge.go` 检查每个包的引用次数
+- **常见遗漏**: 提取 Credential 方法后 `uuid` 不再需要；提取 DNS 方法后 `dns` 包不再需要
+
+### 9. 新文件必须包含完整的 import 声明
+创建新的 `*_service.go` 文件时，不能只复制方法代码，还必须添加方法中用到的所有 import。常见需要的标准库：`context`、`fmt`、`strings`、`time`、`encoding/json`、`log/slog`。
+- **排查方法**: 搜索文件中所有 `pkg.` 引用，确保对应的 import 都存在
+
+### 10. 仓库配置了 squash-only merge
+DeployPilot 仓库禁止 merge commit，PR 合并必须使用 `--squash`：
+```bash
+gh pr merge <number> --squash --admin
+```
+使用 `--merge` 会报错：`Merge commits are not allowed on this repository.`
+
 ## 项目结构关键路径
 
 | 路径 | 说明 |
@@ -79,12 +95,41 @@ builder_test.go 和 bridge_test.go 中的 mock 命令模式必须与 builder.go 
 | `internal/config/config.go` | 配置结构体定义 |
 | `configs/config.yaml.example` | 配置文件示例（权威来源） |
 | `internal/mcp/server.go` | MCP 工具注册（63 个） |
+| `internal/service/bridge.go` | Bridge 结构体定义 + 基础设施方法（448 行） |
+| `internal/service/*_service.go` | 17 个领域服务文件（Deployer 接口实现） |
 | `docs/mcp-tools.md` | MCP 工具规范表（权威来源） |
 | `docs/wiki/Roadmap.md` | 版本路线图 |
 | `.github/workflows/ci.yml` | CI 工作流 |
 | `.github/workflows/docker.yml` | Docker 构建推送 |
 | `.github/workflows/release.yml` | Release 发布 |
 | `internal/version/version.go` | 版本号（默认 "dev"） |
+
+## Service 层架构（v1.2 重构后）
+
+Bridge God Object 已拆分为 18 个文件，87 个方法按领域分布：
+
+| 文件 | 行数 | 方法数 | 领域 |
+|------|------|--------|------|
+| `bridge.go` | 448 | 5 | 结构体定义、工厂方法、SSH 执行器 |
+| `deploy_service.go` | ~600 | 17 | 部署核心（Deploy/Rollback/Build） |
+| `app_service.go` | ~173 | 7 | 应用 CRUD + 日志搜索 |
+| `server_service.go` | ~189 | 7 | 服务器管理 + 标签查询 |
+| `credential_service.go` | ~164 | 6 | 凭证 CRUD + 轮换 + 过期 |
+| `dns_service.go` | ~199 | 6 | DNS 记录管理 + 批量操作 |
+| `cluster_service.go` | ~90 | 6 | K8s 集群 CRUD + 连接测试 |
+| `backup_service.go` | ~156 | 3 | 备份/恢复/批量备份 |
+| `monitor_service.go` | ~52 | 6 | 容器指标 + 系统指标 + 告警 |
+| `system_service.go` | ~182 | 5 | 环境检测 + 健康检查 + 自愈 |
+| `ssl_service.go` | ~81 | 4 | SSL 证书管理 |
+| `notification_service.go` | ~120 | 2 | 通知发送（多渠道） |
+| `cicd_service.go` | ~130 | 2 | CI/CD 构建触发 + 状态查询 |
+| `k8s_service.go` | ~137 | 3 | K8s 部署 + Pod 列表 |
+| `plugin_service.go` | ~146 | 3 | 插件生命周期管理 |
+| `registry_service.go` | ~128 | 1 | 容器镜像仓库操作 |
+| `task_service.go` | ~121 | 2 | 异步任务状态管理 |
+| `template_service.go` | ~37 | 2 | 部署模板查询 |
+
+**重要**: 所有方法仍使用 `(b *Bridge)` receiver，满足 `mcp.Deployer` 接口（69 个方法签名）。
 
 ## 文档同步规则
 
