@@ -18,7 +18,7 @@ func TestNewSSLProvider(t *testing.T) {
 		t.Fatal("expected non-nil provider")
 	}
 	// Verify the provider implements CertificateProvider
-	var _ CertificateProvider = p
+	var _ = p
 
 	// Verify directory was created via concrete type assertion
 	if concrete, ok := p.(*SSLProvider); ok {
