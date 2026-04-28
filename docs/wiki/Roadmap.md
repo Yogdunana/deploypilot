@@ -39,8 +39,8 @@
 | 2.2 | DNS 适配器重构（4 provider → registry） | ✅ 已完成 (PR #93) |
 | 2.3 | Notify 适配器重构（6 channel → registry） | ✅ 已完成 (PR #93) |
 | 2.4 | CI/CD + Registry 适配器重构 | ✅ 已完成 (PR #93) |
-| 2.5 | Panel 适配器重构（定义接口 → registry） | 🔨 进行中 |
-| 2.6 | OAuth 适配器重构（定义接口 → registry） | 🔨 进行中 |
+| 2.5 | Panel 适配器重构（定义接口 → registry） | ✅ 已完成 (PR #96) |
+| 2.6 | OAuth 适配器重构（定义接口 → registry） | ✅ 已完成 (PR #96) |
 | 2.7 | SSL 适配器重构（定义接口 → ACME/Lego） | ⏳ 待开始 |
 | 2.8 | Database 适配器重构（registry + 可配置连接池） | ⏳ 待开始 |
 | 2.9 | 外部调用熔断器（Circuit Breaker + 降级策略） | ⏳ 待开始 |
