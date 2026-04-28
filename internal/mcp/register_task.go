@@ -13,7 +13,7 @@ func registerTaskTools(s *server.MCPServer, d Deployer) {
 		mcp.WithString("task_id", mcp.Required(), mcp.Description("Task ID")),
 	)
 	s.AddTool(getTaskStatusTool, withPermissionCheck("get_task_status", withValidation("get_task_status", getTaskStatusTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		return handleGetTaskStatus(ctx, deployer, request)
+		return handleGetTaskStatus(ctx, d, request)
 	})))
 	listTasksTool := mcp.NewTool("list_tasks",
 		mcp.WithDescription("List recent tasks"),
@@ -21,7 +21,7 @@ func registerTaskTools(s *server.MCPServer, d Deployer) {
 		mcp.WithString("status_filter", mcp.Description("Filter by status: running, completed, failed")),
 	)
 	s.AddTool(listTasksTool, withPermissionCheck("list_tasks", withValidation("list_tasks", listTasksTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		return handleListTasks(ctx, deployer, request)
+		return handleListTasks(ctx, d, request)
 	})))
 
 }

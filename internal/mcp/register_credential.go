@@ -16,21 +16,21 @@ func registerCredentialTools(s *server.MCPServer, d Deployer) {
 		mcp.WithString("value", mcp.Required(), mcp.Description("Plain credential value (will be encrypted)")),
 	)
 	s.AddTool(createCredTool, withPermissionCheck("add_credential", withValidation("add_credential", createCredTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		return handleCreateCredential(ctx, deployer, request)
+		return handleCreateCredential(ctx, d, request)
 	})))
 	listCredsTool := mcp.NewTool("list_credentials",
 		mcp.WithDescription("List all credentials for a tenant"),
 		mcp.WithString("tenant_id", mcp.Required(), mcp.Description("Tenant ID")),
 	)
 	s.AddTool(listCredsTool, withPermissionCheck("list_credentials", withValidation("list_credentials", listCredsTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		return handleListCredentials(ctx, deployer, request)
+		return handleListCredentials(ctx, d, request)
 	})))
 	deleteCredTool := mcp.NewTool("delete_credential",
 		mcp.WithDescription("Delete a credential"),
 		mcp.WithString("credential_id", mcp.Required(), mcp.Description("Credential ID to delete")),
 	)
 	s.AddTool(deleteCredTool, withPermissionCheck("delete_credential", withValidation("delete_credential", deleteCredTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		return handleDeleteCredential(ctx, deployer, request)
+		return handleDeleteCredential(ctx, d, request)
 	})))
 	updateCredTool := mcp.NewTool("update_credential",
 		mcp.WithDescription("Update a credential value"),
@@ -38,7 +38,7 @@ func registerCredentialTools(s *server.MCPServer, d Deployer) {
 		mcp.WithString("value", mcp.Required(), mcp.Description("New credential value")),
 	)
 	s.AddTool(updateCredTool, withPermissionCheck("update_credential", withValidation("update_credential", updateCredTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		return handleUpdateCredential(ctx, deployer, request)
+		return handleUpdateCredential(ctx, d, request)
 	})))
 
 }

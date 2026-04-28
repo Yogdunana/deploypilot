@@ -2,6 +2,7 @@ package mcp
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"

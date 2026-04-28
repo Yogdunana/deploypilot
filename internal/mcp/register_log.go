@@ -20,7 +20,7 @@ func registerLogTools(s *server.MCPServer, d Deployer) {
 	)
 
 	s.AddTool(getLogsTool, withPermissionCheck("get_app_logs", withValidation("get_app_logs", getLogsTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		return handleGetAppLogs(ctx, deployer, request)
+		return handleGetAppLogs(ctx, d, request)
 	})))
 	searchLogsTool := mcp.NewTool("search_app_logs",
 		mcp.WithDescription("Search container logs by keyword"),
@@ -29,7 +29,7 @@ func registerLogTools(s *server.MCPServer, d Deployer) {
 		mcp.WithString("limit", mcp.Description("Max results (default: 50)")),
 	)
 	s.AddTool(searchLogsTool, withPermissionCheck("search_app_logs", withValidation("search_app_logs", searchLogsTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		return handleSearchAppLogs(ctx, deployer, request)
+		return handleSearchAppLogs(ctx, d, request)
 	})))
 
 }

@@ -22,7 +22,7 @@ func registerMonitorTools(s *server.MCPServer, d Deployer) {
 	)
 
 	s.AddTool(detectEnvTool, withPermissionCheck("detect_environment", withValidation("detect_environment", detectEnvTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		return handleDetectEnv(ctx, deployer, request)
+		return handleDetectEnv(ctx, d, request)
 	})))
 	healthCheckTool := mcp.NewTool("health_check",
 		mcp.WithDescription("Check health of a deployed service"),
@@ -36,32 +36,32 @@ func registerMonitorTools(s *server.MCPServer, d Deployer) {
 	)
 
 	s.AddTool(healthCheckTool, withPermissionCheck("health_check", withValidation("health_check", healthCheckTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		return handleHealthCheck(ctx, deployer, request)
+		return handleHealthCheck(ctx, d, request)
 	})))
 	getContainerMetricsTool := mcp.NewTool("get_container_metrics",
 		mcp.WithDescription("Get resource usage metrics (CPU, memory) for a specific container."),
 		mcp.WithString("container_name", mcp.Required(), mcp.Description("Name of the container")),
 	)
 	s.AddTool(getContainerMetricsTool, withPermissionCheck("get_container_metrics", withValidation("get_container_metrics", getContainerMetricsTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		return handleGetContainerMetrics(ctx, deployer, request)
+		return handleGetContainerMetrics(ctx, d, request)
 	})))
 	getSystemMetricsTool := mcp.NewTool("get_system_metrics",
 		mcp.WithDescription("Get system-level metrics (CPU, memory, disk usage)."),
 	)
 	s.AddTool(getSystemMetricsTool, withPermissionCheck("get_system_metrics", withValidation("get_system_metrics", getSystemMetricsTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		return handleGetSystemMetrics(ctx, deployer, request)
+		return handleGetSystemMetrics(ctx, d, request)
 	})))
 	listAlertsTool := mcp.NewTool("list_alerts",
 		mcp.WithDescription("List all currently active (firing) alerts."),
 	)
 	s.AddTool(listAlertsTool, withPermissionCheck("list_alerts", withValidation("list_alerts", listAlertsTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		return handleListAlerts(ctx, deployer, request)
+		return handleListAlerts(ctx, d, request)
 	})))
 	listAlertRulesTool := mcp.NewTool("list_alert_rules",
 		mcp.WithDescription("List all configured alert rules."),
 	)
 	s.AddTool(listAlertRulesTool, withPermissionCheck("list_alert_rules", withValidation("list_alert_rules", listAlertRulesTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		return handleListAlertRules(ctx, deployer, request)
+		return handleListAlertRules(ctx, d, request)
 	})))
 
 }

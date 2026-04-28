@@ -13,7 +13,7 @@ func registerServerTools(s *server.MCPServer, d Deployer) {
 	)
 
 	s.AddTool(listServersTool, withPermissionCheck("list_servers", withValidation("list_servers", listServersTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		return handleListServers(ctx, deployer, request)
+		return handleListServers(ctx, d, request)
 	})))
 	addServerTool := mcp.NewTool("add_server",
 		mcp.WithDescription("Register a new server for remote deployment. Connectivity is tested automatically."),
@@ -23,21 +23,21 @@ func registerServerTools(s *server.MCPServer, d Deployer) {
 		mcp.WithString("user", mcp.Description("SSH username (default: root)")),
 	)
 	s.AddTool(addServerTool, withPermissionCheck("add_server", withValidation("add_server", addServerTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		return handleAddServer(ctx, deployer, request)
+		return handleAddServer(ctx, d, request)
 	})))
 	removeServerTool := mcp.NewTool("delete_server",
 		mcp.WithDescription("Remove a registered server"),
 		mcp.WithString("server_id", mcp.Required(), mcp.Description("Server ID to remove")),
 	)
 	s.AddTool(removeServerTool, withPermissionCheck("delete_server", withValidation("delete_server", removeServerTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		return handleRemoveServer(ctx, deployer, request)
+		return handleRemoveServer(ctx, d, request)
 	})))
 	testServerTool := mcp.NewTool("test_server",
 		mcp.WithDescription("Test SSH connectivity to a registered server. Returns latency and actionable suggestions if unreachable."),
 		mcp.WithString("server_id", mcp.Required(), mcp.Description("Server ID to test")),
 	)
 	s.AddTool(testServerTool, withPermissionCheck("test_server", withValidation("test_server", testServerTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		return handleTestServer(ctx, deployer, request)
+		return handleTestServer(ctx, d, request)
 	})))
 	updateSrvTool := mcp.NewTool("update_server",
 		mcp.WithDescription("Update server configuration"),
@@ -45,20 +45,20 @@ func registerServerTools(s *server.MCPServer, d Deployer) {
 		mcp.WithString("config", mcp.Required(), mcp.Description("JSON string of config to update")),
 	)
 	s.AddTool(updateSrvTool, withPermissionCheck("update_server", withValidation("update_server", updateSrvTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		return handleUpdateServer(ctx, deployer, request)
+		return handleUpdateServer(ctx, d, request)
 	})))
 	detectPanelTool := mcp.NewTool("detect_panel",
 		mcp.WithDescription("Detect which hosting panel (1Panel/BT-Panel) is installed on a server"),
 		mcp.WithString("server_id", mcp.Required(), mcp.Description("Server ID to detect panel on")),
 	)
 	s.AddTool(detectPanelTool, withPermissionCheck("detect_panel", withValidation("detect_panel", detectPanelTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		return handleDetectPanel(ctx, deployer, request)
+		return handleDetectPanel(ctx, d, request)
 	})))
 	doctorTool := mcp.NewTool("doctor",
 		mcp.WithDescription("Check DeployPilot prerequisites: Docker availability, database connectivity, and SSH configuration."),
 	)
 	s.AddTool(doctorTool, withPermissionCheck("doctor", withValidation("doctor", doctorTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		return handleDoctor(ctx, deployer, request)
+		return handleDoctor(ctx, d, request)
 	})))
 
 }

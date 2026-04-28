@@ -17,7 +17,7 @@ func registerNotificationTools(s *server.MCPServer, d Deployer) {
 		mcp.WithString("message", mcp.Description("Notification message")),
 	)
 	s.AddTool(sendNotifyTool, withPermissionCheck("send_notification", withValidation("send_notification", sendNotifyTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		return handleSendNotification(ctx, deployer, request)
+		return handleSendNotification(ctx, d, request)
 	})))
 
 }

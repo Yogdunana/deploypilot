@@ -12,7 +12,7 @@ func registerSystemTools(s *server.MCPServer, d Deployer) {
 		mcp.WithDescription("Check if a newer version of DeployPilot is available"),
 	)
 	s.AddTool(checkSysUpdateTool, withPermissionCheck("check_system_update", withValidation("check_system_update", checkSysUpdateTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		return handleCheckSystemUpdate(ctx, deployer, request)
+		return handleCheckSystemUpdate(ctx, d, request)
 	})))
 	getContextTool := mcp.NewTool("get_context",
 		mcp.WithDescription("Get current MCP session context and operation history"),
