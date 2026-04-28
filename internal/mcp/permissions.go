@@ -30,6 +30,15 @@ var ToolPermissions = map[string]int{
 	"delete_app": 3, "delete_server": 3, "delete_credential": 3,
 	"delete_dns_record": 3, "batch_deploy": 3, "batch_dns": 3,
 	"batch_backup": 3, "delete_ssl_certificate": 3,
+	"exec_command": 3,
+	// Dev-level (port forwarding)
+	"port_forward": 2,
+	// Viewer-level (read-only images)
+	"list_images": 1,
+	// Phase 3.1: Compose operations
+	"compose_deploy": 3, "compose_stop": 3,
+	"compose_ps": 1, "compose_logs": 1,
+	"compose_restart": 2,
 	// Owner-level (system)
 	"update_user_role": 4, "delete_user": 4,
 }

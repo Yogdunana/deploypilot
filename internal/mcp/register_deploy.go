@@ -179,5 +179,52 @@ func registerDeployTools(s *server.MCPServer, d Deployer) {
 	s.AddTool(healContainerTool, withPermissionCheck("heal_container", withValidation("heal_container", healContainerTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return handleHealContainer(ctx, d, request)
 	})))
+	listImagesTool := mcp.NewTool("list_images",
+		mcp.WithDescription("List Docker images on a server. Runs locally if server_id is omitted, or remotely via SSH if server_id is provided."),
+		mcp.WithString("server_id", mcp.Description("Target server ID (omit for local execution)")),
+		mcp.WithString("filter", mcp.Description("Grep filter to apply to the output")),
+	)
+	s.AddTool(listImagesTool, withPermissionCheck("list_images", withValidation("list_images", listImagesTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleListImages(ctx, d, request)
+	})))
+	// Phase 3.1: Compose tools
+	composeDeployTool := mcp.NewTool("compose_deploy",
+		mcp.WithDescription("Deploy an app using docker-compose. The app must have compose_content set."),
+		mcp.WithString("app_id", mcp.Required(), mcp.Description("Application ID to deploy with docker-compose")),
+	)
+	s.AddTool(composeDeployTool, withPermissionCheck("compose_deploy", withValidation("compose_deploy", composeDeployTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleComposeDeploy(ctx, d, request)
+	})))
+	composeStopTool := mcp.NewTool("compose_stop",
+		mcp.WithDescription("Stop a docker-compose deployment and remove containers."),
+		mcp.WithString("app_id", mcp.Required(), mcp.Description("Application ID to stop")),
+	)
+	s.AddTool(composeStopTool, withPermissionCheck("compose_stop", withValidation("compose_stop", composeStopTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleComposeStop(ctx, d, request)
+	})))
+	composePsTool := mcp.NewTool("compose_ps",
+		mcp.WithDescription("List containers managed by docker-compose for an app."),
+		mcp.WithString("app_id", mcp.Required(), mcp.Description("Application ID")),
+	)
+	s.AddTool(composePsTool, withPermissionCheck("compose_ps", withValidation("compose_ps", composePsTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleComposePs(ctx, d, request)
+	})))
+	composeLogsTool := mcp.NewTool("compose_logs",
+		mcp.WithDescription("View logs from docker-compose services for an app."),
+		mcp.WithString("app_id", mcp.Required(), mcp.Description("Application ID")),
+		mcp.WithString("service", mcp.Description("Service name to get logs from (omit for all services)")),
+		mcp.WithString("tail", mcp.Description("Number of lines to show from the end (e.g. '100')")),
+	)
+	s.AddTool(composeLogsTool, withPermissionCheck("compose_logs", withValidation("compose_logs", composeLogsTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleComposeLogs(ctx, d, request)
+	})))
+	composeRestartTool := mcp.NewTool("compose_restart",
+		mcp.WithDescription("Restart docker-compose services for an app."),
+		mcp.WithString("app_id", mcp.Required(), mcp.Description("Application ID")),
+		mcp.WithString("service", mcp.Description("Service name to restart (omit to restart all services)")),
+	)
+	s.AddTool(composeRestartTool, withPermissionCheck("compose_restart", withValidation("compose_restart", composeRestartTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleComposeRestart(ctx, d, request)
+	})))
 
 }

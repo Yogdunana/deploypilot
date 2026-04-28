@@ -56,6 +56,137 @@ func handleBuildAndDeploy(ctx context.Context, deployer Deployer, request mcp.Ca
 	data, _ := json.MarshalIndent(result, "", "  ")
 	return mcp.NewToolResultText(string(data)), nil
 }
+
+// ---------- Phase 3.1: Compose Handlers ----------
+
+func handleComposeDeploy(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	appID, err := request.RequireString("app_id")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	output, err := deployer.ComposeDeploy(ctx, appID)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("compose deploy failed: %v", err)), nil
+	}
+
+	result := map[string]interface{}{
+		"status":  "success",
+		"message": fmt.Sprintf("Compose deployment for app %s completed", appID),
+		"output":  output,
+	}
+	data, _ := json.MarshalIndent(result, "", "  ")
+	return mcp.NewToolResultText(string(data)), nil
+}
+
+func handleComposeStop(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	appID, err := request.RequireString("app_id")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	output, err := deployer.ComposeStop(ctx, appID)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("compose stop failed: %v", err)), nil
+	}
+
+	result := map[string]interface{}{
+		"status":  "success",
+		"message": fmt.Sprintf("Compose deployment for app %s stopped", appID),
+		"output":  output,
+	}
+	data, _ := json.MarshalIndent(result, "", "  ")
+	return mcp.NewToolResultText(string(data)), nil
+}
+
+func handleComposePs(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	appID, err := request.RequireString("app_id")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	output, err := deployer.ComposePs(ctx, appID)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("compose ps failed: %v", err)), nil
+	}
+
+	result := map[string]interface{}{
+		"status": "success",
+		"app_id": appID,
+		"output": output,
+	}
+	data, _ := json.MarshalIndent(result, "", "  ")
+	return mcp.NewToolResultText(string(data)), nil
+}
+
+func handleComposeLogs(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	appID, err := request.RequireString("app_id")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	service := request.GetString("service", "")
+	tail := request.GetString("tail", "")
+
+	output, err := deployer.ComposeLogs(ctx, appID, service, tail)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("compose logs failed: %v", err)), nil
+	}
+
+	result := map[string]interface{}{
+		"status":  "success",
+		"app_id":  appID,
+		"service": service,
+		"output":  output,
+	}
+	data, _ := json.MarshalIndent(result, "", "  ")
+	return mcp.NewToolResultText(string(data)), nil
+}
+
+func handleComposeRestart(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	appID, err := request.RequireString("app_id")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	service := request.GetString("service", "")
+
+	output, err := deployer.ComposeRestart(ctx, appID, service)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("compose restart failed: %v", err)), nil
+	}
+
+	result := map[string]interface{}{
+		"status":  "success",
+		"message": fmt.Sprintf("Compose services restarted for app %s", appID),
+		"service": service,
+		"output":  output,
+	}
+	data, _ := json.MarshalIndent(result, "", "  ")
+	return mcp.NewToolResultText(string(data)), nil
+}
+func handleListImages(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	serverID := request.GetString("server_id", "")
+	filter := request.GetString("filter", "")
+
+	output, err := deployer.ListImages(ctx, serverID, filter)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("failed to list images: %v", err)), nil
+	}
+
+	result := map[string]interface{}{
+		"status": "success",
+		"output": output,
+	}
+	if serverID != "" {
+		result["server_id"] = serverID
+	}
+	if filter != "" {
+		result["filter"] = filter
+	}
+	data, _ := json.MarshalIndent(result, "", "  ")
+	return mcp.NewToolResultText(string(data)), nil
+}
 func handleDeployApp(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	image, err := request.RequireString("image")
 	if err != nil {

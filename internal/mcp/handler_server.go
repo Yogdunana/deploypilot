@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strconv"
+
 	"github.com/mark3labs/mcp-go/mcp"
 )
 func handleListServers(ctx context.Context, deployer Deployer, _ mcp.CallToolRequest) (*mcp.CallToolResult, error) {
@@ -171,6 +173,36 @@ func handleDetectPanel(ctx context.Context, deployer Deployer, request mcp.CallT
 		"message":   "Panel detection initiated. Use detect_environment for full environment details.",
 	}
 
+	data, _ := json.MarshalIndent(result, "", "  ")
+	return mcp.NewToolResultText(string(data)), nil
+}
+func handleExecCommand(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	command, err := request.RequireString("command")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	serverID := request.GetString("server_id", "")
+	timeout := 30
+	if t := request.GetString("timeout", ""); t != "" {
+		if v, err := strconv.Atoi(t); err == nil && v > 0 {
+			timeout = v
+		}
+	}
+
+	output, err := deployer.ExecCommand(ctx, serverID, command, timeout)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("command execution failed: %v", err)), nil
+	}
+
+	result := map[string]interface{}{
+		"status":  "success",
+		"command": command,
+		"output":  output,
+	}
+	if serverID != "" {
+		result["server_id"] = serverID
+	}
 	data, _ := json.MarshalIndent(result, "", "  ")
 	return mcp.NewToolResultText(string(data)), nil
 }
