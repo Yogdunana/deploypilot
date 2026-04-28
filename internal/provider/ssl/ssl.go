@@ -17,6 +17,16 @@ import (
 	"time"
 )
 
+// CertificateProvider defines the unified interface for SSL certificate providers.
+type CertificateProvider interface {
+	RequestCertificate(ctx context.Context, domain, email string) (*Certificate, error)
+	RenewCertificate(ctx context.Context, domain string) (*Certificate, error)
+	GetCertificate(domain string) (*Certificate, error)
+	DeleteCertificate(domain string) error
+	CheckExpiry(domain string) (time.Duration, bool)
+	GetTLSConfig(domain string) (*tls.Config, error)
+}
+
 // SSLProvider manages SSL certificates using ACME protocol.
 type SSLProvider struct {
 	certDir    string
@@ -24,7 +34,7 @@ type SSLProvider struct {
 }
 
 // NewSSLProvider creates a new SSL provider.
-func NewSSLProvider(certDir string) (*SSLProvider, error) {
+func NewSSLProvider(certDir string) (CertificateProvider, error) {
 	if err := os.MkdirAll(certDir, 0700); err != nil {
 		return nil, fmt.Errorf("create cert directory: %w", err)
 	}
