@@ -27,6 +27,9 @@ COPY --from=frontend /app/web/dist ./web/dist
 # Generate swagger docs (excluded by .dockerignore)
 RUN swag init -g cmd/api-server/main.go -o docs/swagger
 
+# Ensure go.sum is up to date (handles manual go.mod edits)
+RUN go mod tidy
+
 ARG TARGETPLATFORM
 ENV CGO_ENABLED=1
 
