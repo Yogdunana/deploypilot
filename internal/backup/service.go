@@ -178,6 +178,14 @@ func (s *Service) CreateBackup(ctx context.Context, trigger string) (*Record, er
 		return record, err
 	}
 
+	// Ensure backup directory exists
+	if err := os.MkdirAll(s.config.BackupDir, 0750); err != nil {
+		record.Status = "failed"
+		record.Error = fmt.Errorf("failed to create backup directory: %w", err).Error()
+		s.saveRecord(record)
+		return record, fmt.Errorf("failed to create backup directory: %w", err)
+	}
+
 	var backupPath string
 	var fileSize int64
 	var backupErr error

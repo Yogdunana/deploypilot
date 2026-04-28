@@ -10,6 +10,7 @@ import (
 // mockHandler collects records for inspection.
 type mockHandler struct {
 	records *[]mockRecord
+	attrs   []slog.Attr
 }
 
 type mockRecord struct {
@@ -28,6 +29,10 @@ func (h *mockHandler) Enabled(_ context.Context, _ slog.Level) bool {
 func (h *mockHandler) Handle(_ context.Context, r slog.Record) error {
 	msg := r.Message
 	rec := mockRecord{msg: msg, attrs: make(map[string]string)}
+	// Add attrs from WithAttrs
+	for _, a := range h.attrs {
+		rec.attrs[a.Key] = a.Value.String()
+	}
 	r.Attrs(func(a slog.Attr) bool {
 		rec.attrs[a.Key] = a.Value.String()
 		return true
@@ -37,11 +42,11 @@ func (h *mockHandler) Handle(_ context.Context, r slog.Record) error {
 }
 
 func (h *mockHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
-	return &mockHandler{records: h.records}
+	return &mockHandler{records: h.records, attrs: append(h.attrs, attrs...)}
 }
 
 func (h *mockHandler) WithGroup(name string) slog.Handler {
-	return &mockHandler{records: h.records}
+	return &mockHandler{records: h.records, attrs: h.attrs}
 }
 
 func TestTraceHandler_InjectsTraceID(t *testing.T) {

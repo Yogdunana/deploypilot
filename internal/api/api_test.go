@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/Yogdunana/deploypilot/internal/auth"
+	"github.com/Yogdunana/deploypilot/internal/backup"
 	"github.com/Yogdunana/deploypilot/internal/crypto"
 	"github.com/Yogdunana/deploypilot/internal/mcp"
 	"github.com/Yogdunana/deploypilot/internal/model"
@@ -90,7 +91,9 @@ func setupTestDB(t *testing.T) *gorm.DB {
 	db.Exec(`CREATE TABLE IF NOT EXISTS audit_logs (
 		id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, username TEXT,
 		action TEXT, resource_type TEXT, resource_id TEXT, detail TEXT,
-		ip_address TEXT, user_agent TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+		ip_address TEXT, user_agent TEXT, record_hash TEXT,
+		trace_id TEXT,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 	)`)
 	db.Exec(`CREATE TABLE IF NOT EXISTS clusters (
 		id TEXT PRIMARY KEY, tenant_id TEXT, name TEXT NOT NULL,
@@ -168,7 +171,8 @@ func setupFullTestRouter(db *gorm.DB, bridge *service.Bridge) *gin.Engine {
 	wsHub := NewWSHub()
 	go wsHub.Run()
 	auditSvc := service.NewAuditService(db)
-	RegisterRoutes(r, db, bridge, wsHub, auditSvc, nil, nil, nil, nil)
+	backupSvc := backup.New(backup.Config{BackupDir: os.TempDir()}, db, "sqlite", "")
+	RegisterRoutes(r, db, bridge, wsHub, auditSvc, nil, nil, nil, backupSvc)
 	return r
 }
 
