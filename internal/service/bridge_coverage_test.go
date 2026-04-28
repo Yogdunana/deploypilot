@@ -61,9 +61,9 @@ func TestBuildAndDeploy_BuildSuccess_DeployFails(t *testing.T) {
 	exec.output["docker version --format '{{.Server.Version}}' 2>/dev/null"] = "24.0"
 	exec.output["docker info --format '{{.NCPU}}' 2>/dev/null"] = "4"
 	exec.output["docker info --format '{{.MemTotal}}' 2>/dev/null"] = "8192000000"
-	exec.output["docker pull 'build-ok-dep-fail:abc123de'"] = "Downloaded"
-	exec.output["docker rm -f 'build-ok-dep-fail' 2>/dev/null || true"] = ""
-	exec.err["docker run -d --name 'build-ok-dep-fail' --restart unless-stopped 'build-ok-dep-fail:abc123de'"] = fmt.Errorf("no space left")
+	exec.output["docker pull build-ok-dep-fail:abc123de"] = "Downloaded"
+	exec.output["docker rm -f build-ok-dep-fail 2>/dev/null || true"] = ""
+	exec.err["docker run -d --name build-ok-dep-fail --restart unless-stopped build-ok-dep-fail:abc123de"] = fmt.Errorf("no space left")
 
 	_, err := b.BuildAndDeploy(context.TODO(), mcp.BuildAndDeployConfig{
 		RepoURL: "https://github.com/test/test",
@@ -459,9 +459,9 @@ func TestUpdateServer_SuccessPath(t *testing.T) {
 func TestBatchDeploy_SingleApp_Cov(t *testing.T) {
 	b, exec := newTestBridge(t)
 	exec.output["docker version --format '{{.Server.Version}}'"] = "24.0"
-	exec.output["docker pull 'nginx:alpine'"] = "Downloaded"
-	exec.output["docker rm -f 'batch-ok-0-cov' 2>/dev/null || true"] = ""
-	exec.output["docker run -d --name 'batch-ok-0-cov' --restart unless-stopped 'nginx:alpine'"] = "container-id-0"
+	exec.output["docker pull nginx:alpine"] = "Downloaded"
+	exec.output["docker rm -f batch-ok-0-cov 2>/dev/null || true"] = ""
+	exec.output["docker run -d --name batch-ok-0-cov --restart unless-stopped nginx:alpine"] = "container-id-0"
 	exec.output["docker inspect --format '{{.Id}}|{{.Name}}|{{.Config.Image}}|{{.State.Status}}|{{.Created}}' batch-ok-0-cov 2>/dev/null"] = "id0|batch-ok-0-cov|nginx:alpine|running|2026-04-07T00:00:00Z"
 
 	res, err := b.BatchDeploy(context.TODO(), []map[string]interface{}{
@@ -484,9 +484,9 @@ func TestBatchDeploy_SingleApp_Cov(t *testing.T) {
 func TestBatchDeploy_SingleAppFailure(t *testing.T) {
 	b, exec := newTestBridge(t)
 	exec.output["docker version --format '{{.Server.Version}}'"] = "24.0"
-	exec.output["docker pull 'nginx:alpine'"] = "Downloaded"
-	exec.output["docker rm -f 'batch-fail-0-cov' 2>/dev/null || true"] = ""
-	exec.err["docker run -d --name 'batch-fail-0-cov' --restart unless-stopped 'nginx:alpine'"] = fmt.Errorf("no space")
+	exec.output["docker pull nginx:alpine"] = "Downloaded"
+	exec.output["docker rm -f batch-fail-0-cov 2>/dev/null || true"] = ""
+	exec.err["docker run -d --name batch-fail-0-cov --restart unless-stopped nginx:alpine"] = fmt.Errorf("no space")
 
 	res, err := b.BatchDeploy(context.TODO(), []map[string]interface{}{
 		{"image": "nginx:alpine", "container_name": "batch-fail-0-cov"},
@@ -508,9 +508,9 @@ func TestBatchDeploy_SingleAppFailure(t *testing.T) {
 func TestBatchDeploy_WithEnvVars_Cov(t *testing.T) {
 	b, exec := newTestBridge(t)
 	exec.output["docker version --format '{{.Server.Version}}'"] = "24.0"
-	exec.output["docker pull 'nginx:alpine'"] = "Downloaded"
-	exec.output["docker rm -f 'batch-env-0' 2>/dev/null || true"] = ""
-	exec.output["docker run -d --name 'batch-env-0' --restart unless-stopped -e FOO=bar 'nginx:alpine'"] = "container-id-env"
+	exec.output["docker pull nginx:alpine"] = "Downloaded"
+	exec.output["docker rm -f batch-env-0 2>/dev/null || true"] = ""
+	exec.output["docker run -d --name batch-env-0 --restart unless-stopped -e FOO=bar nginx:alpine"] = "container-id-env"
 	exec.output["docker inspect --format '{{.Id}}|{{.Name}}|{{.Config.Image}}|{{.State.Status}}|{{.Created}}' batch-env-0 2>/dev/null"] = "id-env|batch-env-0|nginx:alpine|running|2026-04-07T00:00:00Z"
 
 	envJSON, _ := json.Marshal(map[string]string{"FOO": "bar"})
@@ -1424,9 +1424,9 @@ func TestRemove_Error_Cov(t *testing.T) {
 func TestDeployAsync_Cov(t *testing.T) {
 	b, exec := newTestBridge(t)
 	exec.output["docker version --format '{{.Server.Version}}' 2>/dev/null"] = "24.0"
-	exec.output["docker pull 'nginx:alpine'"] = "Downloaded"
-	exec.output["docker rm -f 'async-deploy-cov' 2>/dev/null || true"] = ""
-	exec.output["docker run -d --name 'async-deploy-cov' --restart unless-stopped 'nginx:alpine'"] = "container-id"
+	exec.output["docker pull nginx:alpine"] = "Downloaded"
+	exec.output["docker rm -f async-deploy-cov 2>/dev/null || true"] = ""
+	exec.output["docker run -d --name async-deploy-cov --restart unless-stopped nginx:alpine"] = "container-id"
 	exec.output["docker inspect --format '{{.Id}}|{{.Name}}|{{.Config.Image}}|{{.State.Status}}|{{.Created}}' async-deploy-cov 2>/dev/null"] = "id|async-deploy-cov|nginx:alpine|running|2026-04-07T00:00:00Z"
 
 	id, _ := b.CreateApp(context.TODO(), mcp.CreateAppConfig{Name: "async-deploy-cov", RepoURL: "https://x.com/x"})
@@ -1493,7 +1493,7 @@ func TestDeploy_ServerNotFound_Cov(t *testing.T) {
 func TestDeploy_PullFailure_Cov(t *testing.T) {
 	b, exec := newTestBridge(t)
 	exec.output["docker version --format '{{.Server.Version}}' 2>/dev/null"] = "24.0"
-	exec.err["docker pull 'nginx:latest'"] = fmt.Errorf("pull failed")
+	exec.err["docker pull nginx:latest"] = fmt.Errorf("pull failed")
 
 	_, err := b.Deploy(context.TODO(), mcp.DeployConfig{
 		Image:          "nginx:latest",
