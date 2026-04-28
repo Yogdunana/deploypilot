@@ -76,7 +76,7 @@ func setupTestDB(t *testing.T) *gorm.DB {
 		name TEXT NOT NULL, repo_url TEXT NOT NULL, branch TEXT DEFAULT 'main',
 		domain TEXT, tech_stack TEXT DEFAULT 'docker', deploy_mode TEXT DEFAULT 'api',
 		status TEXT DEFAULT 'pending', current_version TEXT, container_name TEXT,
-		env_vars TEXT, resource_limits TEXT,
+		env_vars TEXT, resource_limits TEXT, compose_content TEXT, compose_project_name TEXT,
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 	)`)
 	db.Exec(`CREATE TABLE IF NOT EXISTS deployments (
