@@ -573,6 +573,38 @@ func (m *mockDeployer) GetPluginInfo(pluginID string) (interface{}, error) {
 	return map[string]interface{}{"plugin_id": pluginID, "name": "test-plugin"}, nil
 }
 
+func (m *mockDeployer) ExecCommand(_ context.Context, _ string, _ string, _ int) (string, error) {
+	return "mock response", nil
+}
+
+func (m *mockDeployer) ListImages(_ context.Context, _ string, _ string) (string, error) {
+	return "mock response", nil
+}
+
+func (m *mockDeployer) PortForward(_ context.Context, _ string, _ string, _ int, _ int, _ string) (string, error) {
+	return "mock response", nil
+}
+
+func (m *mockDeployer) ComposeDeploy(_ context.Context, _ string) (string, error) {
+	return "mock response", nil
+}
+
+func (m *mockDeployer) ComposeStop(_ context.Context, _ string) (string, error) {
+	return "mock response", nil
+}
+
+func (m *mockDeployer) ComposePs(_ context.Context, _ string) (string, error) {
+	return "mock response", nil
+}
+
+func (m *mockDeployer) ComposeLogs(_ context.Context, _ string, _ string, _ string) (string, error) {
+	return "mock response", nil
+}
+
+func (m *mockDeployer) ComposeRestart(_ context.Context, _ string, _ string) (string, error) {
+	return "mock response", nil
+}
+
 // extractText gets the text content from a CallToolResult.
 func extractText(result *mcp.CallToolResult) (string, error) {
 	if result.IsError {

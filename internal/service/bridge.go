@@ -443,7 +443,12 @@ func defaultVal(val, def string) string {
 // ---------- Phase 3.1: Compose Operations ----------
 
 // ComposeDeploy deploys an app using docker-compose.
-func (b *Bridge) ComposeDeploy(ctx context.Context, app *model.App) (string, error) {
+func (b *Bridge) ComposeDeploy(ctx context.Context, appID string) (string, error) {
+	var app model.App
+	if err := b.DB.First(&app, "id = ?", appID).Error; err != nil {
+		return "", fmt.Errorf("app not found: %w", err)
+	}
+
 	executor, err := b.getRemoteExecutor(ctx, app.ServerID)
 	if err != nil {
 		return "", err
@@ -507,7 +512,12 @@ func (b *Bridge) ComposeDeploy(ctx context.Context, app *model.App) (string, err
 }
 
 // ComposeStop stops a compose deployment.
-func (b *Bridge) ComposeStop(ctx context.Context, app *model.App) (string, error) {
+func (b *Bridge) ComposeStop(ctx context.Context, appID string) (string, error) {
+	var app model.App
+	if err := b.DB.First(&app, "id = ?", appID).Error; err != nil {
+		return "", fmt.Errorf("app not found: %w", err)
+	}
+
 	executor, err := b.getRemoteExecutor(ctx, app.ServerID)
 	if err != nil {
 		return "", err
@@ -524,7 +534,12 @@ func (b *Bridge) ComposeStop(ctx context.Context, app *model.App) (string, error
 }
 
 // ComposePs lists compose containers.
-func (b *Bridge) ComposePs(ctx context.Context, app *model.App) (string, error) {
+func (b *Bridge) ComposePs(ctx context.Context, appID string) (string, error) {
+	var app model.App
+	if err := b.DB.First(&app, "id = ?", appID).Error; err != nil {
+		return "", fmt.Errorf("app not found: %w", err)
+	}
+
 	executor, err := b.getRemoteExecutor(ctx, app.ServerID)
 	if err != nil {
 		return "", err
@@ -541,7 +556,12 @@ func (b *Bridge) ComposePs(ctx context.Context, app *model.App) (string, error) 
 }
 
 // ComposeLogs gets compose service logs.
-func (b *Bridge) ComposeLogs(ctx context.Context, app *model.App, service, tail string) (string, error) {
+func (b *Bridge) ComposeLogs(ctx context.Context, appID, service, tail string) (string, error) {
+	var app model.App
+	if err := b.DB.First(&app, "id = ?", appID).Error; err != nil {
+		return "", fmt.Errorf("app not found: %w", err)
+	}
+
 	executor, err := b.getRemoteExecutor(ctx, app.ServerID)
 	if err != nil {
 		return "", err
@@ -558,7 +578,12 @@ func (b *Bridge) ComposeLogs(ctx context.Context, app *model.App, service, tail 
 }
 
 // ComposeRestart restarts compose services.
-func (b *Bridge) ComposeRestart(ctx context.Context, app *model.App, service string) (string, error) {
+func (b *Bridge) ComposeRestart(ctx context.Context, appID, service string) (string, error) {
+	var app model.App
+	if err := b.DB.First(&app, "id = ?", appID).Error; err != nil {
+		return "", fmt.Errorf("app not found: %w", err)
+	}
+
 	executor, err := b.getRemoteExecutor(ctx, app.ServerID)
 	if err != nil {
 		return "", err
