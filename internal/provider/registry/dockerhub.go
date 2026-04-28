@@ -56,7 +56,8 @@ func (d *DockerHubProvider) Login(ctx context.Context) error {
 	registry := strings.TrimSuffix(d.baseURL, "/v2/")
 	registry = strings.TrimSuffix(registry, "/v2")
 
-	cmd := exec.CommandContext(ctx, "docker", "login", "-u", d.username, "-p", d.password, registry)
+	cmd := exec.CommandContext(ctx, "docker", "login", "-u", d.username, "--password-stdin", registry)
+	cmd.Stdin = strings.NewReader(d.password)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("docker login failed: %w: %s", err, string(output))

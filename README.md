@@ -244,31 +244,38 @@ DeployPilot is configured via `config.yaml`. All settings can also be overridden
 server:
   host: "0.0.0.0"
   port: 8080
-  mode: "release"          # debug | release | test
+  cors_allowed_origins:
+    - "*"
 
 database:
-  driver: "sqlite"          # sqlite | postgres
-  dsn: "data/deploypilot.db"
+  type: sqlite              # sqlite | postgres
+  dsn: ./data/deploypilot.db
+
+redis:
+  addr: localhost:6379
+  password: ""
+  db: 0
 
 auth:
   jwt_secret: "change-me-in-production"  # Required: set a strong random value
-  token_expiry: "24h"
+  token_expire: 24h
 
 deploy:
-  default_docker_socket: "/var/run/docker.sock"
-  max_concurrent_deploys: 5
-  health_check_timeout: "120s"
+  default_mode: api
+  build_timeout: 10m
+  health_check_interval: 30s
+  health_check_retries: 3
   rollback_on_failure: true
 
 log:
-  level: "info"             # debug | info | warn | error
-  format: "json"            # json | console
-  output: "stdout"
+  level: info               # debug | info | warn | error
+  format: json              # json | text
+  file: ./logs/deploypilot.log
+  enable_tracing: true
 
 monitor:
   enabled: true
-  metrics_path: "/metrics"
-  collect_interval: "15s"
+  metrics_port: 9091
 ```
 
 See [configs/config.yaml.example](configs/config.yaml.example) for the full example and [DEPLOY.md](DEPLOY.md) for all environment variables.
