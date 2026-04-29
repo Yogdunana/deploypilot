@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **WebSocket 多实例广播** (PR #107): WSHub 通过 Redis Pub/Sub 实现跨实例消息广播，SourceInstance 防止消息回环，Redis 不可用时自动降级为本地模式
+- **系统监控增强** (PR #107): 新增网络 I/O 指标（rx/tx bytes/packets/errors）、磁盘 I/O 指标（reads/writes/sectors）、远程服务器监控（server_id 参数）、修复 container_memory_used 类型 bug
+- **ai-guide 踩坑 #24-#28**: CREATE TABLE 同步、mockDeployer 同步、Go 变量作用域、import 清理、Redis Pub/Sub 回环防止
 - **多环境分离** (PR #105): App 模型新增 Environment 字段（production/staging/development/testing），API 支持 environment 过滤，MCP 工具接受 environment 参数
 - **Redis 缓存层** (PR #105): Cache 接口 + RedisCache/MemoryCache 实现，权限检查缓存（5min TTL），DNS 记录缓存（10min TTL），路由/WS 中间件切换到缓存版本
 - **环境变量模板** (PR #103): MySQL/Redis/PostgreSQL/MongoDB/Nginx 预置环境变量模板，2 个 MCP 工具（list_env_templates, get_env_template）
