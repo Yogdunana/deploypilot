@@ -17,7 +17,6 @@ import (
 	"github.com/Yogdunana/deploypilot/internal/service"
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
-	"gorm.io/gorm"
 )
 
 // allowedWSSOrigins contains origins permitted for WebSocket connections.
