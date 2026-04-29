@@ -238,6 +238,11 @@ dockerCmd += " | grep " + filter  // filter 未转义！
 `cmd/api-server/main.go:91-95` 中，如果 `config.yaml` 设置了 `auth.jwt_secret`，会直接注入环境变量。但 `getJWTSecret()` 的 16 字符长度校验只检查环境变量值，config 层的 `Load()` 没有前置校验。如果配置了短密钥，会在运行时才报错，错误信息不够明确。
 **修复**: 在 `main.go` 中注入前增加长度校验。
 
+### 35. Gitleaks Action 需要 GITHUB_TOKEN 环境变量
+`gitleaks/gitleaks-action@v2` 的最新版本要求配置 `GITHUB_TOKEN` 环境变量才能扫描 Pull Requests。如果缺少此配置，action 会报错 `GITHUB_TOKEN is now required to scan pull requests` 并失败。
+**修复**: 在 Gitleaks step 中添加 `env: GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}`。
+**相关 PR**: #119
+
 ## 项目结构关键路径
 
 | 路径 | 说明 |
@@ -439,14 +444,14 @@ permissions:
 
 | Issue | 问题 | 状态 |
 |-------|------|------|
-| #113 | ListImages filter 命令注入漏洞 | 🟡 Open |
-| #114 | Gitleaks 密钥扫描形同虚设 | 🟡 Open |
+| #113 | ListImages filter 命令注入漏洞 | ✅ 已修复 (PR #119) |
+| #114 | Gitleaks 密钥扫描形同虚设 | ✅ 已修复 (PR #119) |
 
 ### 🟠 High — 尽快修复
 
 | Issue | 问题 | 状态 |
 |-------|------|------|
-| #115 | SSH 静默回退 root 用户 | 🟡 Open |
+| #115 | SSH 静默回退 root 用户 | ✅ 已修复 (PR #119) |
 | #116 | Deployer God Interface（~70 方法） | 🟡 Open |
 | #117 | 全局可变状态导致内存泄漏和数据丢失 | 🟡 Open |
 
@@ -455,7 +460,7 @@ permissions:
 | 问题 | 说明 | 状态 |
 |------|------|------|
 | DNS 服务吞掉错误 | `dns_service.go` 返回 nil error + 错误 map | 待创建 Issue |
-| Backup/PortForward shellQuote 未一致使用 | 命令注入风险 | 待创建 Issue |
+| Backup/PortForward shellQuote 未一致使用 | 命令注入风险 | ✅ 已修复 (PR #119) |
 | JWT Secret 配置注入绕过长度校验 | `main.go` 缺少前置校验 | 待创建 Issue |
 | Deployer 接口 ~30 个方法返回 `interface{}` | 丧失类型安全 | 包含在 #116 |
 | 测试中硬编码 DDL | 新增字段需同步更新多个测试文件 | 待创建 Issue |
@@ -476,8 +481,9 @@ permissions:
 ### 📌 里程碑提醒
 
 - **v1.2 Unreleased**: 包含指标持久化 + 定时任务系统（PR #109 已合并），需要执行版本完成检查清单（见踩坑记录 #20）
-- **v1.3 规划中**: 建议将 #113（命令注入）和 #114（Gitleaks）作为 v1.3 的 P0 项
+- **v1.3 规划中**: #113（命令注入）和 #114（Gitleaks）已修复，建议将 #117（全局可变状态）作为 v1.3 的 P0 项
 - **Dependabot PR #111**: Go 依赖批量更新（11 个），需要审查后合并
+- **分支保护操作**: 使用 PAT token 通过 API 临时删除/恢复保护（见踩坑记录 #35），流程：备份配置 → DELETE → merge → PUT 恢复
 
 ## Agent 操作前必读清单
 
