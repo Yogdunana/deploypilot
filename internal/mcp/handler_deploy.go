@@ -23,6 +23,7 @@ func handleBuildAndDeploy(ctx context.Context, deployer Deployer, request mcp.Ca
 	techStack := request.GetString("tech_stack", "")
 	ports := request.GetString("ports", "")
 	serverID := request.GetString("server_id", "")
+	environment := request.GetString("environment", "production")
 	envVarsStr := request.GetString("env_vars", "")
 
 	var envVars map[string]string
@@ -336,13 +337,14 @@ func handleCreateApp(ctx context.Context, deployer Deployer, request mcp.CallToo
 	}
 
 	cfg := CreateAppConfig{
-		Name:    name,
-		RepoURL: repoURL,
-		Branch:  request.GetString("branch", "main"),
-		Domain:  request.GetString("domain", ""),
-		TechStack: request.GetString("tech_stack", "docker"),
-		DeployMode: request.GetString("deploy_mode", "api"),
-		ServerID: request.GetString("server_id", ""),
+		Name:        name,
+		RepoURL:     repoURL,
+		Branch:      request.GetString("branch", "main"),
+		Domain:      request.GetString("domain", ""),
+		TechStack:   request.GetString("tech_stack", "docker"),
+		DeployMode:  request.GetString("deploy_mode", "api"),
+		ServerID:    request.GetString("server_id", ""),
+		Environment: request.GetString("environment", "production"),
 	}
 
 	appID, err := deployer.CreateApp(ctx, cfg)

@@ -93,7 +93,6 @@ var serveCmd = &cobra.Command{
 			slog.Warn("DEPLOYPILOT_ENCRYPTION_KEY not set, generated a temporary key (credentials will be lost on restart)")
 		}
 		bridge := service.NewBridge(db, sandboxedExecutor, encKey, nil)
-
 		// Create MCP server
 		mcpServer := mcp.NewServer(bridge)
 

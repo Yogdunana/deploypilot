@@ -209,10 +209,20 @@ func authorizeAppAccess(db *gorm.DB, appID, role, userID string) bool {
 	return service.CheckResourceAccess(db, "app", appID, role, userID)
 }
 
+// authorizeAppAccessCached checks if the user has permission to access the given app using cache.
+func authorizeAppAccessCached(bridge *service.Bridge, ctx context.Context, appID, role, userID string) bool {
+	return bridge.CheckResourceAccessCached(ctx, "app", appID, role, userID)
+}
+
 // authorizeServerAccess checks if the user has permission to access the given server.
 // Delegates to the shared CheckResourceAccess in the service layer.
 func authorizeServerAccess(db *gorm.DB, serverID, role, userID string) bool {
 	return service.CheckResourceAccess(db, "server", serverID, role, userID)
+}
+
+// authorizeServerAccessCached checks if the user has permission to access the given server using cache.
+func authorizeServerAccessCached(bridge *service.Bridge, ctx context.Context, serverID, role, userID string) bool {
+	return bridge.CheckResourceAccessCached(ctx, "server", serverID, role, userID)
 }
 
 // LogStreamWS handles WebSocket connections for real-time container logs.
@@ -227,7 +237,7 @@ func LogStreamWS(bridge *service.Bridge, hub *WSHub, ticketStore *auth.WSTicketS
 		}
 		// 2. Check resource-level authorization
 		appID := c.Param("app_id")
-		if !authorizeAppAccess(bridge.DB, appID, role, userID) {
+		if !authorizeAppAccessCached(bridge, c.Request.Context(), appID, role, userID) {
 			c.JSON(http.StatusForbidden, gin.H{"error": "no permission to access this app"})
 			return
 		}
@@ -413,7 +423,7 @@ func TerminalWS(bridge *service.Bridge, hub *WSHub, ticketStore *auth.WSTicketSt
 		}
 		// 2. Check resource-level authorization
 		serverID := c.Param("server_id")
-		if !authorizeServerAccess(bridge.DB, serverID, role, userID) {
+		if !authorizeServerAccessCached(bridge, c.Request.Context(), serverID, role, userID) {
 			c.JSON(http.StatusForbidden, gin.H{"error": "no permission to access this server"})
 			return
 		}

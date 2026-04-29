@@ -36,3 +36,31 @@ func RequireResourceAccess(db *gorm.DB, resourceType string, idParam string) gin
 		c.Next()
 	}
 }
+
+// RequireResourceAccessCached returns middleware that checks resource access using cache.
+// It uses the Bridge's cache layer for better performance.
+func RequireResourceAccessCached(bridge *service.Bridge, resourceType string, idParam string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		resourceID := c.Param(idParam)
+		if resourceID == "" {
+			locale := i18n.GetLocaleFromContext(c)
+			c.JSON(http.StatusBadRequest, gin.H{"status": "error", "message": i18n.T(locale, "error.common.invalid_request")})
+			c.Abort()
+			return
+		}
+
+		userID, _ := c.Get(string(UserIDKey))
+		role, _ := c.Get(string(RoleKey))
+		userIDStr, _ := userID.(string)
+		roleStr, _ := role.(string)
+
+		if !bridge.CheckResourceAccessCached(c.Request.Context(), resourceType, resourceID, roleStr, userIDStr) {
+			locale := i18n.GetLocaleFromContext(c)
+			c.JSON(http.StatusForbidden, gin.H{"status": "error", "message": i18n.T(locale, "error.auth.insufficient_permissions")})
+			c.Abort()
+			return
+		}
+
+		c.Next()
+	}
+}
