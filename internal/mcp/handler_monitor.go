@@ -131,3 +131,30 @@ func handleListAlertRules(ctx context.Context, deployer Deployer, request mcp.Ca
 	data, _ := json.MarshalIndent(result, "", "  ")
 	return mcp.NewToolResultText(string(data)), nil
 }
+func handleQueryMetricHistory(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	metricType := request.GetString("metric_type", "")
+	duration := request.GetString("duration", "1h")
+
+	result, err := deployer.QueryMetricHistory(ctx, metricType, duration)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("failed to query metric history: %v", err)), nil
+	}
+
+	data, _ := json.MarshalIndent(result, "", "  ")
+	return mcp.NewToolResultText(string(data)), nil
+}
+func handleQueryAlertHistory(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	status := request.GetString("status", "")
+	limit := 50
+	if l := request.GetString("limit", ""); l != "" {
+		_, _ = fmt.Sscanf(l, "%d", &limit)
+	}
+
+	result, err := deployer.QueryAlertHistory(ctx, status, limit)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("failed to query alert history: %v", err)), nil
+	}
+
+	data, _ := json.MarshalIndent(result, "", "  ")
+	return mcp.NewToolResultText(string(data)), nil
+}

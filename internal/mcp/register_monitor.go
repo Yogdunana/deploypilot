@@ -64,5 +64,29 @@ func registerMonitorTools(s *server.MCPServer, d Deployer) {
 	s.AddTool(listAlertRulesTool, withPermissionCheck("list_alert_rules", withValidation("list_alert_rules", listAlertRulesTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return handleListAlertRules(ctx, d, request)
 	})))
+	queryMetricHistoryTool := mcp.NewTool("query_metric_history",
+		mcp.WithDescription("Query historical monitoring metrics within a time range."),
+		mcp.WithString("metric_type",
+			mcp.Description("Filter by metric type: cpu, memory, disk, network, disk_io, container (optional)"),
+		),
+		mcp.WithString("duration",
+			mcp.Description("Time range to query: 1h, 24h, 7d, 30d (default: 1h)"),
+		),
+	)
+	s.AddTool(queryMetricHistoryTool, withPermissionCheck("query_metric_history", withValidation("query_metric_history", queryMetricHistoryTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleQueryMetricHistory(ctx, d, request)
+	})))
+	queryAlertHistoryTool := mcp.NewTool("query_alert_history",
+		mcp.WithDescription("Query historical alert records with optional filters."),
+		mcp.WithString("status",
+			mcp.Description("Filter by alert status: firing, resolved (optional)"),
+		),
+		mcp.WithString("limit",
+			mcp.Description("Maximum number of records to return (default: 50)"),
+		),
+	)
+	s.AddTool(queryAlertHistoryTool, withPermissionCheck("query_alert_history", withValidation("query_alert_history", queryAlertHistoryTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleQueryAlertHistory(ctx, d, request)
+	})))
 
 }

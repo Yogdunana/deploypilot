@@ -67,6 +67,7 @@ func NewServer(deployer Deployer) *server.MCPServer {
 	registerK8sTools(s, deployer)
 	registerSystemTools(s, deployer)
 	registerPortForwardTools(s, deployer)
+	registerSchedulerTools(s, deployer)
 
 	return s
 }

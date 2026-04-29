@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/go-gormigrate/gormigrate/v2"
+	"github.com/Yogdunana/deploypilot/internal/model"
 	"gorm.io/driver/postgres"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
@@ -476,6 +477,30 @@ func Migrate(db *gorm.DB) error {
 			},
 			Rollback: func(tx *gorm.DB) error {
 				// SQLite doesn't support DROP COLUMN easily
+				return nil
+			},
+		},
+		// 202604300001: Create metric_records and alert_histories tables
+		{
+			ID: "202604300001",
+			Migrate: func(tx *gorm.DB) error {
+				tx.AutoMigrate(&model.MetricRecord{}, &model.AlertHistory{})
+				return nil
+			},
+			Rollback: func(tx *gorm.DB) error {
+				tx.Migrator().DropTable("metric_records", "alert_histories")
+				return nil
+			},
+		},
+		// 202604300002: Create scheduled_tasks and task_executions tables
+		{
+			ID: "202604300002",
+			Migrate: func(tx *gorm.DB) error {
+				tx.AutoMigrate(&model.ScheduledTask{}, &model.TaskExecution{})
+				return nil
+			},
+			Rollback: func(tx *gorm.DB) error {
+				tx.Migrator().DropTable("task_executions", "scheduled_tasks")
 				return nil
 			},
 		},

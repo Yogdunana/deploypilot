@@ -100,6 +100,15 @@ type Deployer interface {
 	ComposeRestart(ctx context.Context, appID, service string) (string, error)
 	// Phase 3.5: Preflight visualization
 	RunPreflightFull(ctx context.Context, serverID string, portMappings string) (interface{}, error)
+	// Phase 3.9: Monitoring data persistence
+	QueryMetricHistory(ctx context.Context, metricType string, duration string) (interface{}, error)
+	QueryAlertHistory(ctx context.Context, status string, limit int) (interface{}, error)
+	// Phase 3.10: Scheduled task system
+	CreateScheduledTask(ctx context.Context, name, cronExpr, taskType, command string, serverID string) (interface{}, error)
+	ListScheduledTasks(ctx context.Context) (interface{}, error)
+	GetTaskExecutions(ctx context.Context, taskID string, limit int) (interface{}, error)
+	ToggleScheduledTask(ctx context.Context, taskID string, enabled bool) (interface{}, error)
+	DeleteScheduledTask(ctx context.Context, taskID string) (interface{}, error)
 }
 
 // DeployConfig mirrors deployer.DeployConfig to avoid circular imports.

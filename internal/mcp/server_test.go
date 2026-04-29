@@ -621,6 +621,46 @@ func (m *mockDeployer) RunPreflightFull(_ context.Context, _ string, _ string) (
 	return map[string]interface{}{"passed": true, "checks": []interface{}{}}, nil
 }
 
+func (m *mockDeployer) QueryMetricHistory(_ context.Context, _ string, _ string) (interface{}, error) {
+	return []interface{}{}, nil
+}
+
+func (m *mockDeployer) QueryAlertHistory(_ context.Context, _ string, _ int) (interface{}, error) {
+	return []interface{}{}, nil
+}
+
+func (m *mockDeployer) CreateScheduledTask(_ context.Context, name, cronExpr, taskType, command string, serverID string) (interface{}, error) {
+	return map[string]interface{}{
+		"id":        "stask-mock-001",
+		"name":      name,
+		"cron_expr": cronExpr,
+		"task_type": taskType,
+		"command":   command,
+		"server_id": serverID,
+		"enabled":   true,
+	}, nil
+}
+
+func (m *mockDeployer) ListScheduledTasks(_ context.Context) (interface{}, error) {
+	return []map[string]interface{}{
+		{"id": "stask-001", "name": "daily-backup", "cron_expr": "0 0 2 * * *", "task_type": "shell", "enabled": true},
+	}, nil
+}
+
+func (m *mockDeployer) GetTaskExecutions(_ context.Context, taskID string, limit int) (interface{}, error) {
+	return []map[string]interface{}{
+		{"id": "exec-001", "task_id": taskID, "status": "success", "duration": 1234},
+	}, nil
+}
+
+func (m *mockDeployer) ToggleScheduledTask(_ context.Context, taskID string, enabled bool) (interface{}, error) {
+	return map[string]interface{}{"task_id": taskID, "enabled": enabled}, nil
+}
+
+func (m *mockDeployer) DeleteScheduledTask(_ context.Context, taskID string) (interface{}, error) {
+	return map[string]interface{}{"task_id": taskID, "deleted": true}, nil
+}
+
 // extractText gets the text content from a CallToolResult.
 func extractText(result *mcp.CallToolResult) (string, error) {
 	if result.IsError {
