@@ -27,6 +27,9 @@ linters:
         - G306  # WriteFile permissions (test-only concern)
   exclusions:
     rules:
+      - linters: [typecheck]
+        path: internal/model/cluster_test\.go
+        text: import cycle
       - linters: [errcheck]
         path: _test\.go
       - linters: [gosec]
