@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **环境变量模板** (PR #103): MySQL/Redis/PostgreSQL/MongoDB/Nginx 预置环境变量模板，2 个 MCP 工具（list_env_templates, get_env_template）
+- **部署前预检增强** (PR #103): 新增磁盘空间检查（< 1GB error, < 5GB warning）+ 内存检查（< 128MB error, < 512MB warning），RunPreflightFull 全量非短路模式，run_preflight MCP 工具
 - **Docker Compose 部署支持** (PR #101): ComposeDeployer 引擎（up/down/ps/logs/restart），App 模型新增 ComposeContent/ComposeProjectName 字段，5 个 compose MCP 工具
 - **exec_command MCP 工具** (PR #101): 在本地/远程服务器执行任意命令（admin 级别）
 - **list_images MCP 工具** (PR #101): 列出 Docker 镜像，支持 grep 过滤（viewer 级别）
