@@ -82,7 +82,7 @@ builder_test.go 和 bridge_test.go 中的 mock 命令模式必须与 builder.go 
 ### 10. 仓库配置了 squash-only merge
 DeployPilot 仓库禁止 merge commit，PR 合并必须使用 `--squash`：
 ```bash
-gh pr merge <number> --squash --admin
+gh pr merge &lt;number&gt; --squash --admin
 ```
 使用 `--merge` 会报错：`Merge commits are not allowed on this repository.`
 
@@ -106,7 +106,7 @@ import (
 从大函数中提取闭包到独立函数时，闭包中引用的外层变量名需要更新为函数参数名。例如 `NewServer(deployer Deployer)` 中的闭包引用 `deployer`，提取为 `registerXxxTools(s, d Deployer)` 后，闭包中的 `deployer` 需要改为 `d`。
 
 ### 13. @pinia/testing 需要 Pinia v3
-`@pinia/testing@1.x` 要求 `pinia >= 3.0.4`，与项目使用的 Pinia 2.x 不兼容。测试 Pinia store 时使用原生 `createPinia()` + `setActivePinia()` 即可。
+`@pinia/testing@1.x` 要求 `pinia &gt;= 3.0.4`，与项目使用的 Pinia 2.x 不兼容。测试 Pinia store 时使用原生 `createPinia()` + `setActivePinia()` 即可。
 
 ### 14. 合并 PR 后必须确认 main CI 通过
 不能仅凭 PR branch CI 通过就标记完成。合并后 main 分支会触发新的 CI run，**必须等待该 run 全部通过**后再确认任务完成。main CI 可能因 squash merge 的 commit hash 不同而暴露新问题。
@@ -144,7 +144,7 @@ import (
 
 ### 21. 数据库安装前必须预检测已有实例
 AI 工作流中安装 MySQL/PostgreSQL/Redis/MongoDB 前，必须先检测目标服务器是否已存在该数据库服务。
-检测方式: `systemctl status <service>` 或 `docker ps | grep <name>` 或 `ss -tlnp | grep <port>`。
+检测方式: `systemctl status &lt;service&gt;` 或 `docker ps | grep &lt;name&gt;` 或 `ss -tlnp | grep &lt;port&gt;`。
 如果已存在，必须让用户选择:
 - **复用已有实例**: 跳过安装，直接配置连接信息
 - **全新安装**: 继续安装流程（需警告端口冲突风险）
@@ -167,7 +167,7 @@ DeployPilot 的 Web Dashboard **不依赖** Apache、Nginx 或 OpenResty 来提�
 - 前端通过 Go `embed` 嵌入到二进制中（`web/embed.go` → `webfs.DistFS`）
 - 静态文件由 `internal/server/server.go` 的 `serveStaticFiles()` 提供
 - 默认端口 8080，但完全通过 `server.port` 配置项可调
-- 用户可通过 `deploypilot reset port --port <新端口>` 修改端口
+- 用户可通过 `deploypilot reset port --port &lt;新端口&gt;` 修改端口
 
 **不要**: 假设面板前端由 Nginx 代理或固定在 8080 端口。
 **不要**: 在部署用户项目时将面板自身的端口配置与项目的 Web 服务器混淆。
@@ -205,6 +205,38 @@ stub 模式: `func (m *mockDeployer) MethodName(_ context.Context, ...) (type, e
 当通过 Redis Pub/Sub 广播消息时，每个实例都会收到自己发出的消息。必须使用 `SourceInstance` 或类似机制标识消息来源，接收时跳过自己发出的消息，否则消息会在实例间无限循环。
 
 **实现**: WSHub 使用 UUID 前 8 位作为 instanceID，WSMessage 新增 `SourceInstance` 字段，Redis 订阅者收到消息后检查 `msg.SourceInstance != h.instanceID`。
+
+### 29. ListImages 的 filter 参数存在命令注入漏洞（Critical）
+`internal/service/bridge.go` 中 `ListImages` 函数将 `filter` 参数直接拼接到 shell 命令：
+```go
+dockerCmd += " | grep " + filter  // filter 未转义！
+```
+攻击者可传入 `; rm -rf /` 或 `$(malicious)` 执行任意命令。**修复**: 对 filter 做白名单校验或使用 `shellQuote()`。
+**相关 Issue**: #113
+
+### 30. CI 中安全扫描设置了 continue-on-error
+`.github/workflows/ci.yml` 中 `gitleaks`、`govulncheck`、`npm audit` 均设置了 `continue-on-error: true`，意味着即使发现密钥泄露或严重漏洞，CI 也不会阻断。其中 gitleaks 最严重——密钥扫描形同虚设。
+- **gitleaks**: 无理由设为 non-blocking，应立即移除 `continue-on-error`
+- **govulncheck**: 注释说明需 Go 1.24 修复 stdlib 漏洞，但第三方依赖漏洞也被忽略了
+- **npm audit**: 应至少对 critical 级别阻断
+**相关 Issue**: #114
+
+### 31. SSH 连接静默回退到 root 用户
+`internal/service/bridge.go` 的 `getRemoteExecutor` 和 `PortForward` 中，当服务器记录的 `username` 为空时，静默回退到 `"root"`，无任何日志警告。违反最小权限原则。
+**修复**: 移除 root 回退改为返回错误，或至少添加 `slog.Warn` 日志。
+**相关 Issue**: #115
+
+### 32. DNS 服务吞掉错误（返回 nil error + 错误 map）
+`internal/service/dns_service.go` 中 `DNSCreateRecord`、`DNSListRecords` 等方法在出错时返回 `nil` error，将错误信息包装到 `map[string]interface{}` 中。这导致调用方无法使用标准 `if err != nil` 模式，`BatchDNS` 中出现混乱的双重判断逻辑。
+**修复**: 让错误正常返回，不要吞掉。
+
+### 33. Backup 和 PortForward 中 shellQuote 未一致使用
+`internal/service/backup_service.go:41` 中 `containerName` 和 `backupFile` 未使用 `shellQuote()`。`internal/service/bridge.go:824` 中 `PortForward` 的 `pkill` 命令中 `RemoteHost` 也未转义。虽然这些参数来自数据库，但如果应用名被污染可能导致命令注入。
+**修复**: 所有 shell 命令拼接处统一使用 `shellQuote()`。
+
+### 34. JWT Secret 配置注入绕过长度校验
+`cmd/api-server/main.go:91-95` 中，如果 `config.yaml` 设置了 `auth.jwt_secret`，会直接注入环境变量。但 `getJWTSecret()` 的 16 字符长度校验只检查环境变量值，config 层的 `Load()` 没有前置校验。如果配置了短密钥，会在运行时才报错，错误信息不够明确。
+**修复**: 在 `main.go` 中注入前增加长度校验。
 
 ## 项目结构关键路径
 
@@ -284,7 +316,7 @@ Bridge God Object 已拆分为 18 个文件，87 个方法按领域分布：
 
 | 项目 | 详情 |
 |------|------|
-| 框架 | Vue 3.5 + Composition API (`<script setup lang="ts">`) |
+| 框架 | Vue 3.5 + Composition API (`&lt;script setup lang="ts"&gt;`) |
 | 语言 | TypeScript (strict 模式) |
 | 构建工具 | Vite 6 |
 | CSS | Tailwind CSS 4 + Radix Vue |
@@ -329,21 +361,21 @@ Bridge God Object 已拆分为 18 个文件，87 个方法按领域分布：
 
 ## Git 工作流规范（Agent-Aware）
 
-> 参考：TRAE 技术专家小夏《新范式下 Agent 如何参与开发》
+&gt; 参考：TRAE 技术专家小夏《新范式下 Agent 如何参与开发》
 
 ### Commit 规范
 
 每个 commit 应当能独立描述「做了什么、为什么、上下文是什么」。使用 Git Trailer 记录 Agent 上下文：
 
 ```
-<type>(<scope>): <summary>
+&lt;type&gt;(&lt;scope&gt;): &lt;summary&gt;
 
-<正文：描述本次变更的背景与动机>
+&lt;正文：描述本次变更的背景与动机&gt;
 
-Agent-Task: <原始任务描述或任务 ID>
-Agent-Model: <使用的模型>
-Agent-Decision: <关键设计决策及理由>
-Agent-Limitation: <已知局限或后续 TODO>
+Agent-Task: &lt;原始任务描述或任务 ID&gt;
+Agent-Model: &lt;使用的模型&gt;
+Agent-Decision: &lt;关键设计决策及理由&gt;
+Agent-Limitation: &lt;已知局限或后续 TODO&gt;
 ```
 
 ### Atomic Commit 原则
@@ -397,3 +429,65 @@ permissions: contents: read
 permissions:
   contents: read
 ```
+
+## 待办事项与已知问题
+
+&gt; **每个 Agent 接手任务前，必须先阅读此章节，了解当前待办事项和已知问题。**
+&gt; 完成任务后，如果发现新问题或完成了待办事项，请及时更新此章节。
+
+### 🔴 Critical — 必须立即修复
+
+| Issue | 问题 | 状态 |
+|-------|------|------|
+| #113 | ListImages filter 命令注入漏洞 | 🟡 Open |
+| #114 | Gitleaks 密钥扫描形同虚设 | 🟡 Open |
+
+### 🟠 High — 尽快修复
+
+| Issue | 问题 | 状态 |
+|-------|------|------|
+| #115 | SSH 静默回退 root 用户 | 🟡 Open |
+| #116 | Deployer God Interface（~70 方法） | 🟡 Open |
+| #117 | 全局可变状态导致内存泄漏和数据丢失 | 🟡 Open |
+
+### 🟡 Medium — 计划修复
+
+| 问题 | 说明 | 状态 |
+|------|------|------|
+| DNS 服务吞掉错误 | `dns_service.go` 返回 nil error + 错误 map | 待创建 Issue |
+| Backup/PortForward shellQuote 未一致使用 | 命令注入风险 | 待创建 Issue |
+| JWT Secret 配置注入绕过长度校验 | `main.go` 缺少前置校验 | 待创建 Issue |
+| Deployer 接口 ~30 个方法返回 `interface{}` | 丧失类型安全 | 包含在 #116 |
+| 测试中硬编码 DDL | 新增字段需同步更新多个测试文件 | 待创建 Issue |
+| E2E 测试未集成到 CI | `tests/e2e/` 存在但 CI 未运行 | 待创建 Issue |
+| Viper 使用 alpha 版本 | `viper v1.20.0-alpha.6` | 待评估 |
+
+### 📋 架构改进路线图（长期）
+
+| 优先级 | 改进项 | 复杂度 | 说明 |
+|--------|--------|--------|------|
+| P1 | Deployer 接口拆分为聚焦接口 | 高 | 拆为 ContainerDeployer/DNSManager/SSLManager 等 |
+| P1 | 消除 `interface{}` 返回值 | 高 | 为每个方法定义具体 struct |
+| P2 | 全局状态迁移到 DB/Redis | 中 | tasks/backupApps/portForwards |
+| P2 | 统一错误码体系 | 中 | sentinel errors + 错误码 |
+| P3 | Bridge 逐步解耦为独立 Service | 高 | 从 (b *Bridge) 改为独立 struct |
+| P3 | README 数据同步更新 | 低 | MCP 工具数、REST 端点数等 |
+
+### 📌 里程碑提醒
+
+- **v1.2 Unreleased**: 包含指标持久化 + 定时任务系统（PR #109 已合并），需要执行版本完成检查清单（见踩坑记录 #20）
+- **v1.3 规划中**: 建议将 #113（命令注入）和 #114（Gitleaks）作为 v1.3 的 P0 项
+- **Dependabot PR #111**: Go 依赖批量更新（11 个），需要审查后合并
+
+## Agent 操作前必读清单
+
+&gt; **每次 Agent 接手任务时，按以下顺序执行：**
+
+1. **读取本文件** — 完整阅读 `.github/ai-guide.md`，了解项目规范和踩坑记录
+2. **检查里程碑** — 通过 GitHub API 查看当前 milestone 的 open issues，了解版本进度
+3. **检查 open issues** — 查看是否有与自己任务相关的 open issues，避免重复工作
+4. **检查 Dependabot PRs** — 如果有积压的 Dependabot PR，评估是否需要先处理
+5. **遵循 Git 工作流** — 使用 Conventional Commits + Agent Trailer，创建 feature 分支
+6. **修改代码后同步文档** — 按照文档同步规则更新相关文档
+7. **发现新问题及时记录** — 在本文件的「待办事项与已知问题」章节添加，并创建 GitHub Issue
+8. **完成任务后更新本文件** — 如果修复了踩坑记录中的问题，标注状态；如果发现新坑，添加新记录
