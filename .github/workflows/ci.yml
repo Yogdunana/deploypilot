@@ -165,7 +165,6 @@ jobs:
           fetch-depth: 0
 
       - name: Gitleaks scan
-        continue-on-error: true
         uses: gitleaks/gitleaks-action@v2
 
   build:

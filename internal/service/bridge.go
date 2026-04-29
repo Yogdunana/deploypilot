@@ -205,6 +205,7 @@ func (b *Bridge) getRemoteExecutor(ctx context.Context, serverID string) (*sshCl
 		username = os.Getenv("DEPLOYPILOT_SSH_DEFAULT_USER")
 	}
 	if username == "" {
+		slog.Warn("SSH username not configured, falling back to root (configure DEPLOYPILOT_SSH_DEFAULT_USER or set server username)", "serverID", serverID)
 		username = "root"
 	}
 	cfg := server.Config{
@@ -677,7 +678,7 @@ func (b *Bridge) ExecCommand(ctx context.Context, serverID, command string, time
 func (b *Bridge) ListImages(ctx context.Context, serverID, filter string) (string, error) {
 	dockerCmd := `docker images --format "{{.Repository}}:{{.Tag}}\t{{.Size}}\t{{.CreatedSince}}"`
 	if filter != "" {
-		dockerCmd += " | grep " + filter
+		dockerCmd += " | grep " + shellQuote(filter)
 	}
 
 	execCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
@@ -763,6 +764,7 @@ func (b *Bridge) PortForward(ctx context.Context, action, serverID string, local
 			username = os.Getenv("DEPLOYPILOT_SSH_DEFAULT_USER")
 		}
 		if username == "" {
+			slog.Warn("SSH username not configured for port forward, falling back to root", "serverID", serverID)
 			username = "root"
 		}
 
@@ -821,7 +823,7 @@ func (b *Bridge) PortForward(ctx context.Context, action, serverID string, local
 		}
 
 		// Kill the SSH tunnel process
-		killCmd := fmt.Sprintf("pkill -f 'ssh.*-L %d:%s:%d'", localPort, entry.RemoteHost, entry.RemotePort)
+		killCmd := fmt.Sprintf("pkill -f 'ssh.*-L %d:%s:%d'", localPort, shellQuote(entry.RemoteHost), entry.RemotePort)
 		if _, err := b.Executor.RunCommand(ctx, killCmd); err != nil {
 			slog.Warn("failed to kill SSH tunnel process", "error", err)
 		}
