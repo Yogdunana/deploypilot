@@ -75,22 +75,6 @@ func (b *Bridge) getHealer() *healer.Healer {
 	return b.healer
 }
 
-// parseDuration parses a human-readable duration string (e.g., "1h", "24h", "7d", "30d").
-func parseDuration(d string) time.Duration {
-	switch d {
-	case "1h":
-		return 1 * time.Hour
-	case "24h":
-		return 24 * time.Hour
-	case "7d":
-		return 7 * 24 * time.Hour
-	case "30d":
-		return 30 * 24 * time.Hour
-	default:
-		return 1 * time.Hour
-	}
-}
-
 // ---------- 45. QueryMetricHistory ----------
 
 func (b *Bridge) QueryMetricHistory(ctx context.Context, metricType string, duration string) (interface{}, error) {
@@ -100,7 +84,7 @@ func (b *Bridge) QueryMetricHistory(ctx context.Context, metricType string, dura
 		return nil, fmt.Errorf("metric store not available (database not configured)")
 	}
 
-	dur := parseDuration(duration)
+	dur := parseDuration(duration, 1*time.Hour)
 	opts := monitor.QueryOptions{
 		StartTime:  time.Now().Add(-dur),
 		EndTime:    time.Now(),
