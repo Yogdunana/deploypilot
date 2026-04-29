@@ -38,7 +38,7 @@ func (b *Bridge) Backup(ctx context.Context, appID string) (string, error) {
 	// Attempt a docker-based backup: exec into the container and create a timestamped archive
 	timestamp := time.Now().Format("20060102-150405")
 	backupFile := fmt.Sprintf("/tmp/backup-%s-%s.tar.gz", containerName, timestamp)
-	cmd := fmt.Sprintf("docker exec %s sh -c 'tar czf - /app /data 2>/dev/null' > %s 2>/dev/null || echo 'no_backup_paths'", containerName, backupFile)
+	cmd := fmt.Sprintf("docker exec %s sh -c 'tar czf - /app /data 2>/dev/null' > %s 2>/dev/null || echo 'no_backup_paths'", shellQuote(containerName), shellQuote(backupFile))
 	out, err := b.Executor.RunCommand(ctx, cmd)
 	if err != nil {
 		slog.Warn("backup: container exec failed (may be expected)", "error", err, "output", out)
