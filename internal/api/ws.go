@@ -203,21 +203,9 @@ func (h *WSHub) ClientCount(appID string) int {
 	return len(h.clients[appID])
 }
 
-// authorizeAppAccess checks if the user has permission to access the given app.
-// Delegates to the shared CheckResourceAccess in the service layer.
-func authorizeAppAccess(db *gorm.DB, appID, role, userID string) bool {
-	return service.CheckResourceAccess(db, "app", appID, role, userID)
-}
-
 // authorizeAppAccessCached checks if the user has permission to access the given app using cache.
 func authorizeAppAccessCached(bridge *service.Bridge, ctx context.Context, appID, role, userID string) bool {
 	return bridge.CheckResourceAccessCached(ctx, "app", appID, role, userID)
-}
-
-// authorizeServerAccess checks if the user has permission to access the given server.
-// Delegates to the shared CheckResourceAccess in the service layer.
-func authorizeServerAccess(db *gorm.DB, serverID, role, userID string) bool {
-	return service.CheckResourceAccess(db, "server", serverID, role, userID)
 }
 
 // authorizeServerAccessCached checks if the user has permission to access the given server using cache.
