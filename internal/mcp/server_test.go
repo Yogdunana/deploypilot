@@ -416,6 +416,10 @@ func (m *mockDeployer) GetSystemMetrics(ctx context.Context) (interface{}, error
 	}, nil
 }
 
+func (m *mockDeployer) GetRemoteSystemMetrics(_ context.Context, _ string) (interface{}, error) {
+	return []interface{}{}, nil
+}
+
 func (m *mockDeployer) ListAlerts(ctx context.Context) (interface{}, error) {
 	if m.listAlertsFn != nil {
 		return m.listAlertsFn(ctx)

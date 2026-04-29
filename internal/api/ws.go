@@ -16,7 +16,9 @@ import (
 	"github.com/Yogdunana/deploypilot/internal/metrics"
 	"github.com/Yogdunana/deploypilot/internal/service"
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
+	"github.com/redis/go-redis/v9"
 )
 
 // allowedWSSOrigins contains origins permitted for WebSocket connections.
@@ -61,10 +63,11 @@ var upgrader = websocket.Upgrader{
 
 // WSMessage is the standard WebSocket message format.
 type WSMessage struct {
-	Type      string      `json:"type"`
-	Timestamp string      `json:"timestamp"`
-	Data      interface{} `json:"data"`
-	AppID     string      `json:"app_id,omitempty"`
+	Type           string      `json:"type"`
+	Timestamp      string      `json:"timestamp"`
+	Data           interface{} `json:"data"`
+	AppID          string      `json:"app_id,omitempty"`
+	SourceInstance string      `json:"source_instance,omitempty"`
 }
 
 // wsClient represents a single WebSocket connection tied to an app.
@@ -75,29 +78,49 @@ type wsClient struct {
 
 // WSHub manages WebSocket connections for broadcasting log/deployment events.
 type WSHub struct {
-	clients    map[string]map[*websocket.Conn]bool
-	mu         sync.RWMutex
-	register   chan *wsClient
-	unregister chan *wsClient
-	done       chan struct{} // signals the Run loop to stop
-	closeOnce  sync.Once     // ensures Close() is safe to call multiple times
-	runDone    chan struct{} // closed when Run() goroutine exits
+	clients        map[string]map[*websocket.Conn]bool
+	mu             sync.RWMutex
+	register       chan *wsClient
+	unregister     chan *wsClient
+	done           chan struct{} // signals the Run loop to stop
+	closeOnce      sync.Once     // ensures Close() is safe to call multiple times
+	runDone        chan struct{} // closed when Run() goroutine exits
+	rdb            *redis.Client
+	instanceID     string
+	redisSub       *redis.PubSub
+	redisDone      chan struct{}
 }
 
-// NewWSHub creates a new WSHub.
-func NewWSHub() *WSHub {
-	return &WSHub{
+// NewWSHub creates a new WSHub. If rdb is non-nil, Redis Pub/Sub is enabled
+// for multi-instance broadcast.
+func NewWSHub(rdb *redis.Client) *WSHub {
+	instanceID := uuid.New().String()[:8]
+	hub := &WSHub{
 		clients:    make(map[string]map[*websocket.Conn]bool),
 		register:   make(chan *wsClient),
 		unregister: make(chan *wsClient),
 		done:       make(chan struct{}),
 		runDone:    make(chan struct{}),
+		rdb:        rdb,
+		instanceID: instanceID,
 	}
+	if rdb != nil {
+		hub.redisDone = make(chan struct{})
+	}
+	return hub
 }
 
 // Run starts the background goroutine that handles register/unregister events.
+// If Redis is configured, it also starts a Redis Pub/Sub subscriber for
+// cross-instance message relay.
 func (h *WSHub) Run() {
 	defer close(h.runDone)
+
+	// Start Redis subscriber if Redis is available
+	if h.rdb != nil {
+		go h.runRedisSubscriber()
+	}
+
 	for {
 		select {
 		case <-h.done:
@@ -125,14 +148,23 @@ func (h *WSHub) Run() {
 }
 
 // Close gracefully shuts down the WebSocket hub.
-// It stops the Run loop and closes all active WebSocket connections.
+// It stops the Run loop, closes the Redis subscription, and closes all active WebSocket connections.
 // Safe to call multiple times.
 func (h *WSHub) Close() {
 	h.closeOnce.Do(func() {
 		close(h.done) // signal Run() to exit
+		// Signal Redis subscriber to stop
+		if h.redisDone != nil {
+			close(h.redisDone)
+		}
 	})
 
 	<-h.runDone // wait for Run() goroutine to exit
+
+	// Close Redis Pub/Sub subscription
+	if h.redisSub != nil {
+		_ = h.redisSub.Close()
+	}
 
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -162,6 +194,8 @@ func (h *WSHub) Unregister(conn *websocket.Conn, appID string) {
 }
 
 // Broadcast sends a message to all connections subscribed to the given appID.
+// If Redis is configured, the message is also published to the Redis Pub/Sub
+// channel so other instances can relay it to their local clients.
 func (h *WSHub) Broadcast(appID string, msg WSMessage) {
 	data, err := json.Marshal(msg)
 	if err != nil {
@@ -181,6 +215,74 @@ func (h *WSHub) Broadcast(appID string, msg WSMessage) {
 	for _, c := range keys {
 		if err := c.WriteMessage(websocket.TextMessage, data); err != nil {
 			slog.Warn("broadcast write error", "error", err)
+		}
+	}
+
+	// Redis broadcast for cross-instance delivery
+	if h.rdb != nil {
+		msg.SourceInstance = h.instanceID
+		redisData, err := json.Marshal(msg)
+		if err != nil {
+			slog.Error("failed to marshal redis broadcast message", "error", err)
+			return
+		}
+		h.rdb.Publish(context.Background(), "deploypilot:ws:broadcast", redisData)
+	}
+}
+
+// runRedisSubscriber subscribes to the Redis Pub/Sub channel and relays
+// messages from other instances to local WebSocket clients.
+// Messages originating from this instance (same SourceInstance) are skipped
+// to prevent echo.
+func (h *WSHub) runRedisSubscriber() {
+	const channel = "deploypilot:ws:broadcast"
+	ctx := context.Background()
+	sub := h.rdb.Subscribe(ctx, channel)
+	h.redisSub = sub
+
+	slog.Info("WebSocket Redis subscriber started", "channel", channel, "instance", h.instanceID)
+
+	defer func() {
+		_ = sub.Close()
+		slog.Info("WebSocket Redis subscriber stopped", "instance", h.instanceID)
+	}()
+
+	for {
+		select {
+		case <-h.redisDone:
+			return
+		case msg, ok := <-sub.Channel():
+			if !ok {
+				return
+			}
+			var wsMsg WSMessage
+			if err := json.Unmarshal([]byte(msg.Payload), &wsMsg); err != nil {
+				slog.Warn("failed to unmarshal redis ws message", "error", err)
+				continue
+			}
+			// Skip messages from this instance to avoid echo
+			if wsMsg.SourceInstance == h.instanceID {
+				continue
+			}
+			// Relay to local clients
+			appID := wsMsg.AppID
+			data, err := json.Marshal(wsMsg)
+			if err != nil {
+				slog.Warn("failed to marshal relay ws message", "error", err)
+				continue
+			}
+			h.mu.RLock()
+			conns := h.clients[appID]
+			keys := make([]*websocket.Conn, 0, len(conns))
+			for c := range conns {
+				keys = append(keys, c)
+			}
+			h.mu.RUnlock()
+			for _, c := range keys {
+				if err := c.WriteMessage(websocket.TextMessage, data); err != nil {
+					slog.Warn("redis relay write error", "error", err)
+				}
+			}
 		}
 	}
 }

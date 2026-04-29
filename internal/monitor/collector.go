@@ -3,6 +3,7 @@ package monitor
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -18,6 +19,8 @@ const (
 	MetricMemory    MetricType = "memory"
 	MetricDisk      MetricType = "disk"
 	MetricContainer MetricType = "container"
+	MetricNetwork   MetricType = "network"
+	MetricDiskIO    MetricType = "disk_io"
 )
 
 // Metric represents a single metric data point.
@@ -112,6 +115,14 @@ func (c *Collector) CollectSystemMetrics(ctx context.Context) ([]Metric, error) 
 		})
 	}
 
+	// Network I/O metrics
+	networkMetrics := collectNetworkMetrics(ctx, c.executor)
+	metrics = append(metrics, networkMetrics...)
+
+	// Disk I/O metrics
+	diskIOMetrics := collectDiskIOMetrics(ctx, c.executor)
+	metrics = append(metrics, diskIOMetrics...)
+
 	if len(metrics) == 0 {
 		return nil, fmt.Errorf("failed to collect any system metrics")
 	}
@@ -154,7 +165,7 @@ func (c *Collector) CollectContainerMetrics(ctx context.Context, containerName s
 	memStr := strings.TrimSpace(parts[1])
 	memUsed, memUnit := parseMemoryValue(memStr)
 	metrics = append(metrics, Metric{
-		Type:      MetricCPU,
+		Type:      MetricMemory,
 		Name:      "container_memory_used",
 		Value:     memUsed,
 		Unit:      memUnit,
@@ -360,4 +371,167 @@ func parseMemoryValue(s string) (float64, string) {
 	default:
 		return num, "mib"
 	}
+}
+
+// collectNetworkMetrics reads /proc/net/dev and returns per-interface network I/O metrics.
+// Skips the loopback interface ("lo").
+func collectNetworkMetrics(ctx context.Context, executor deployer.CommandExecutor) []Metric {
+	var metrics []Metric
+	now := time.Now()
+
+	out, err := executor.RunCommand(ctx, "cat /proc/net/dev 2>/dev/null")
+	if err != nil || out == "" {
+		return metrics
+	}
+
+	lines := strings.Split(out, "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" || !strings.Contains(line, ":") {
+			continue
+		}
+
+		// Split interface name and data
+		parts := strings.SplitN(line, ":", 2)
+		if len(parts) != 2 {
+			continue
+		}
+
+		iface := strings.TrimSpace(parts[0])
+		if iface == "lo" {
+			continue
+		}
+
+		fields := strings.Fields(parts[1])
+		// Expected fields (at least 16):
+		// receive: bytes, packets, errs, drop, fifo, frame, compressed, multicast
+		// transmit: bytes, packets, errs, drop, fifo, colls, carrier, compressed
+		if len(fields) < 10 {
+			continue
+		}
+
+		recvBytes, _ := strconv.ParseFloat(fields[0], 64)
+		recvPackets, _ := strconv.ParseFloat(fields[1], 64)
+		recvErrors, _ := strconv.ParseFloat(fields[2], 64)
+		txBytes, _ := strconv.ParseFloat(fields[8], 64)
+		txPackets, _ := strconv.ParseFloat(fields[9], 64)
+		txErrors, _ := strconv.ParseFloat(fields[10], 64)
+
+		metrics = append(metrics, Metric{
+			Type:      MetricNetwork,
+			Name:      fmt.Sprintf("%s_rx_bytes", iface),
+			Value:     recvBytes,
+			Unit:      "bytes",
+			Timestamp: now,
+		})
+		metrics = append(metrics, Metric{
+			Type:      MetricNetwork,
+			Name:      fmt.Sprintf("%s_rx_packets", iface),
+			Value:     recvPackets,
+			Unit:      "count",
+			Timestamp: now,
+		})
+		metrics = append(metrics, Metric{
+			Type:      MetricNetwork,
+			Name:      fmt.Sprintf("%s_rx_errors", iface),
+			Value:     recvErrors,
+			Unit:      "count",
+			Timestamp: now,
+		})
+		metrics = append(metrics, Metric{
+			Type:      MetricNetwork,
+			Name:      fmt.Sprintf("%s_tx_bytes", iface),
+			Value:     txBytes,
+			Unit:      "bytes",
+			Timestamp: now,
+		})
+		metrics = append(metrics, Metric{
+			Type:      MetricNetwork,
+			Name:      fmt.Sprintf("%s_tx_packets", iface),
+			Value:     txPackets,
+			Unit:      "count",
+			Timestamp: now,
+		})
+		metrics = append(metrics, Metric{
+			Type:      MetricNetwork,
+			Name:      fmt.Sprintf("%s_tx_errors", iface),
+			Value:     txErrors,
+			Unit:      "count",
+			Timestamp: now,
+		})
+	}
+
+	return metrics
+}
+
+// collectDiskIOMetrics reads /proc/diskstats and returns per-device disk I/O metrics.
+// Focuses on main disks (sd[a-z], vd[a-z], nvme[0-9]+) and skips partitions.
+func collectDiskIOMetrics(ctx context.Context, executor deployer.CommandExecutor) []Metric {
+	var metrics []Metric
+	now := time.Now()
+
+	out, err := executor.RunCommand(ctx, "cat /proc/diskstats 2>/dev/null")
+	if err != nil || out == "" {
+		return metrics
+	}
+
+	// Pattern to match main disk devices, not partitions
+	// Matches: sda, vda, xvda, nvme0n1, etc. Skips: sda1, vda2, etc.
+	mainDiskRe := regexp.MustCompile(`^(sd[a-z]|vd[a-z]|xvd[a-z]|nvme\d+n\d+|mmcblk\d+)$`)
+
+	lines := strings.Split(out, "\n")
+	for _, line := range lines {
+		fields := strings.Fields(line)
+		// /proc/diskstats format: major minor name reads_completed reads_merged sectors_read ...
+		// At minimum: major, minor, name, and a few stat fields
+		if len(fields) < 7 {
+			continue
+		}
+
+		devName := fields[2]
+		if !mainDiskRe.MatchString(devName) {
+			continue
+		}
+
+		// Field indices (0-based): 0=major, 1=minor, 2=name
+		// Stats start at index 3:
+		// 3=reads completed, 4=reads merged, 5=sectors read,
+		// 6=ms reading, 7=writes completed, 8=writes merged,
+		// 9=sectors written, 10=ms writing
+		readsCompleted, _ := strconv.ParseFloat(fields[3], 64)
+		sectorsRead, _ := strconv.ParseFloat(fields[5], 64)
+		writesCompleted, _ := strconv.ParseFloat(fields[7], 64)
+		sectorsWritten, _ := strconv.ParseFloat(fields[9], 64)
+
+		metrics = append(metrics, Metric{
+			Type:      MetricDiskIO,
+			Name:      fmt.Sprintf("%s_reads_completed", devName),
+			Value:     readsCompleted,
+			Unit:      "count",
+			Timestamp: now,
+		})
+		metrics = append(metrics, Metric{
+			Type:      MetricDiskIO,
+			Name:      fmt.Sprintf("%s_sectors_read", devName),
+			Value:     sectorsRead,
+			Unit:      "sectors",
+			Timestamp: now,
+		})
+		metrics = append(metrics, Metric{
+			Type:      MetricDiskIO,
+			Name:      fmt.Sprintf("%s_writes_completed", devName),
+			Value:     writesCompleted,
+			Unit:      "count",
+			Timestamp: now,
+		})
+		metrics = append(metrics, Metric{
+			Type:      MetricDiskIO,
+			Name:      fmt.Sprintf("%s_sectors_written", devName),
+			Value:     sectorsWritten,
+			Unit:      "sectors",
+			Timestamp: now,
+		})
+	}
+
+	return metrics
 }

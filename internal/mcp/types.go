@@ -64,6 +64,7 @@ type Deployer interface {
 	HealContainer(ctx context.Context, containerName string) (interface{}, error)
 	GetContainerMetrics(ctx context.Context, containerName string) (interface{}, error)
 	GetSystemMetrics(ctx context.Context) (interface{}, error)
+	GetRemoteSystemMetrics(ctx context.Context, serverID string) (interface{}, error)
 	ListAlerts(ctx context.Context) (interface{}, error)
 	ListAlertRules(ctx context.Context) (interface{}, error)
 	TriggerCIBuild(ctx context.Context, provider, repo, branch string) (interface{}, error)

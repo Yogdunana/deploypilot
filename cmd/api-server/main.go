@@ -203,7 +203,7 @@ func run(configFilePath, cliDriver, cliDSN, cliAddr string) error {
 		slog.Info("OAuth service initialized", "providers", len(cfg.Auth.OAuthProviders))
 	}
 
-	srv := server.New(listenAddr, db, bridge, cfg, tokenBlacklist, oauthSvc)
+	srv := server.New(listenAddr, db, bridge, cfg, tokenBlacklist, oauthSvc, rdb)
 
 	// Initialize and start Prometheus metrics server
 	metrics.Init()

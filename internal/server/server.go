@@ -17,6 +17,7 @@ import (
 	"github.com/Yogdunana/deploypilot/internal/service"
 	webfs "github.com/Yogdunana/deploypilot/web"
 	"github.com/gin-gonic/gin"
+	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
 )
 
@@ -31,7 +32,7 @@ type Server struct {
 }
 
 // New creates a new API server with the given address, database, bridge, and config.
-func New(addr string, db *gorm.DB, bridge *service.Bridge, cfg *config.Config, blacklist auth.TokenBlacklist, oauthSvc *service.OAuthService) *Server {
+func New(addr string, db *gorm.DB, bridge *service.Bridge, cfg *config.Config, blacklist auth.TokenBlacklist, oauthSvc *service.OAuthService, rdb *redis.Client) *Server {
 	r := gin.Default()
 
 	// Request tracing — must be first middleware
@@ -71,7 +72,7 @@ func New(addr string, db *gorm.DB, bridge *service.Bridge, cfg *config.Config, b
 	r.Use(middleware.AuditMiddleware(auditSvc))
 
 	// WebSocket hub
-	wsHub := api.NewWSHub()
+	wsHub := api.NewWSHub(rdb)
 	go wsHub.Run()
 
 	api.RegisterRoutes(r, db, bridge, wsHub, auditSvc, nil, blacklist, oauthSvc, nil)

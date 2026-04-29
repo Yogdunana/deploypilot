@@ -172,6 +172,40 @@ DeployPilot 的 Web Dashboard **不依赖** Apache、Nginx 或 OpenResty 来提�
 **不要**: 假设面板前端由 Nginx 代理或固定在 8080 端口。
 **不要**: 在部署用户项目时将面板自身的端口配置与项目的 Web 服务器混淆。
 
+### 24. 新增 App 模型字段必须同步更新所有测试的 CREATE TABLE
+当在 `internal/model/model.go` 的 `App` 结构体中新增字段时，不能只改模型。必须同步更新所有测试文件中硬编码的 `CREATE TABLE IF NOT EXISTS apps` 语句。
+涉及文件（每次新增字段都需检查）:
+- `internal/api/api_test.go`
+- `internal/api/sse_test.go`
+- `internal/api/ws_test.go`
+- `internal/service/rollback_test.go`
+
+**反例**: 新增 `ComposeContent` 字段后 CI 报 `table apps has no column named compose_content`。
+**最佳实践**: 使用 GORM AutoMigrate 而非硬编码 DDL，或在 PR checklist 中加入"检查所有 CREATE TABLE"。
+
+### 25. 新增 Deployer 接口方法必须同步更新 mockDeployer
+`internal/mcp/server_test.go` 中的 `mockDeployer` 实现了 `Deployer` 接口。每次在 `internal/mcp/types.go` 的 `Deployer` 接口中新增方法，都必须在 `mockDeployer` 中添加对应的 stub 方法，否则编译失败。
+stub 模式: `func (m *mockDeployer) MethodName(_ context.Context, ...) (type, error) { return zeroValue, nil }`
+
+**反例**: 新增 `ListEnvTemplates` 后 Lint 报 `mockDeployer does not implement Deployer`。
+
+### 26. Go 变量作用域陷阱：if 内 := 声明在外层不可见
+在 `if err := doSomething(); err == nil { ... }` 中声明的 `err` 只在 if 块内可见。如果后续需要在外层使用该变量，必须在外层先声明 `var err error`，然后在 if 中用 `err = doSomething()`（赋值而非声明）。
+
+**反例**: `if err := cache.Get(...); err == nil { return }` 后又写 `if err != nil { ... }` 导致 `err` 未定义编译错误。
+**正确写法**: `var cacheErr error; if cacheErr = cache.Get(...); cacheErr == nil { return }; if cacheErr != nil { ... }`
+
+### 27. 删除函数后必须检查 import 是否仍被使用
+当删除一个使用特定包的函数后，该包的 import 可能变成未使用的。golangci-lint 的 `unused` 检查会报错。
+常见场景: 删除了使用 `gorm.io/gorm` 的函数后，`import "gorm.io/gorm"` 变成多余的。
+
+**反例**: 删除 `authorizeAppAccess(db *gorm.DB, ...)` 后 Lint 报 `imported and not used: "gorm.io/gorm"`。
+
+### 28. Redis Pub/Sub 多实例广播必须防止消息回环
+当通过 Redis Pub/Sub 广播消息时，每个实例都会收到自己发出的消息。必须使用 `SourceInstance` 或类似机制标识消息来源，接收时跳过自己发出的消息，否则消息会在实例间无限循环。
+
+**实现**: WSHub 使用 UUID 前 8 位作为 instanceID，WSMessage 新增 `SourceInstance` 字段，Redis 订阅者收到消息后检查 `msg.SourceInstance != h.instanceID`。
+
 ## 项目结构关键路径
 
 | 路径 | 说明 |

@@ -21,7 +21,7 @@ func TestServerShutdown(t *testing.T) {
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
 	})
 
-	wsHub := api.NewWSHub()
+	wsHub := api.NewWSHub(nil)
 	go wsHub.Run()
 
 	srv := &Server{
@@ -63,7 +63,7 @@ func TestServerShutdown(t *testing.T) {
 }
 
 func TestWSHubClose(t *testing.T) {
-	hub := api.NewWSHub()
+	hub := api.NewWSHub(nil)
 	go hub.Run()
 
 	// Give hub time to start
@@ -85,7 +85,7 @@ func TestWSHubClose(t *testing.T) {
 }
 
 func TestWSHubCloseConcurrency(t *testing.T) {
-	hub := api.NewWSHub()
+	hub := api.NewWSHub(nil)
 	go hub.Run()
 	time.Sleep(50 * time.Millisecond)
 
@@ -105,7 +105,7 @@ func TestServerShutdownContext(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	r := gin.New()
-	wsHub := api.NewWSHub()
+	wsHub := api.NewWSHub(nil)
 	go wsHub.Run()
 
 	srv := &Server{

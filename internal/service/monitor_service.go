@@ -2,6 +2,8 @@ package service
 
 import (
 	"context"
+	"fmt"
+	"log/slog"
 
 	"github.com/Yogdunana/deploypilot/internal/engine/healer"
 	"github.com/Yogdunana/deploypilot/internal/monitor"
@@ -19,6 +21,23 @@ func (b *Bridge) GetContainerMetrics(ctx context.Context, containerName string) 
 func (b *Bridge) GetSystemMetrics(ctx context.Context) (interface{}, error) {
 	m := b.getMonitor()
 	return m.GetSystemMetrics(ctx)
+}
+
+// ---------- 42b. GetRemoteSystemMetrics ----------
+
+func (b *Bridge) GetRemoteSystemMetrics(ctx context.Context, serverID string) (interface{}, error) {
+	remoteExec, err := b.getRemoteExecutor(ctx, serverID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get remote executor for server %s: %w", serverID, err)
+	}
+	defer func() {
+		if cerr := remoteExec.Close(); cerr != nil {
+			slog.Warn("failed to close remote executor", "error", cerr)
+		}
+	}()
+
+	collector := monitor.NewCollector(remoteExec)
+	return collector.CollectSystemMetrics(ctx)
 }
 
 // ---------- 43. ListAlerts ----------

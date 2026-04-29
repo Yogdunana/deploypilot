@@ -46,7 +46,8 @@ func registerMonitorTools(s *server.MCPServer, d Deployer) {
 		return handleGetContainerMetrics(ctx, d, request)
 	})))
 	getSystemMetricsTool := mcp.NewTool("get_system_metrics",
-		mcp.WithDescription("Get system-level metrics (CPU, memory, disk usage)."),
+		mcp.WithDescription("Get system-level metrics (CPU, memory, disk usage, network I/O, disk I/O). Supports remote monitoring via server_id."),
+		mcp.WithString("server_id", mcp.Description("Server ID for remote monitoring (omit for local)")),
 	)
 	s.AddTool(getSystemMetricsTool, withPermissionCheck("get_system_metrics", withValidation("get_system_metrics", getSystemMetricsTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return handleGetSystemMetrics(ctx, d, request)
