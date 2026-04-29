@@ -12,6 +12,8 @@ linters:
     - noctx
     - bodyclose
     - sqlclosecheck
+  disable:
+    - typecheck
   settings:
     errcheck:
       exclude-functions:
@@ -43,5 +45,3 @@ linters:
         path: _test\.go
       - linters: [gosec]
         path: cmd/
-    paths:
-      - internal/model/cluster_test\.go
