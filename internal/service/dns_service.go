@@ -117,7 +117,8 @@ func (b *Bridge) DNSListRecords(ctx context.Context, domain string) (interface{}
 	if b.Cache != nil {
 		cacheKey := fmt.Sprintf("dns:%s:records", domain)
 		var cached interface{}
-		if cacheErr := b.Cache.GetJSON(ctx, cacheKey, &cached); cacheErr == nil {
+		var cacheErr error
+		if cacheErr = b.Cache.GetJSON(ctx, cacheKey, &cached); cacheErr == nil {
 			return cached, nil
 		}
 		if cacheErr != nil && cacheErr != ErrCacheMiss {
