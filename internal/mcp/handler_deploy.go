@@ -187,6 +187,21 @@ func handleListImages(ctx context.Context, deployer Deployer, request mcp.CallTo
 	data, _ := json.MarshalIndent(result, "", "  ")
 	return mcp.NewToolResultText(string(data)), nil
 }
+
+// ---------- Phase 3.5: Preflight Visualization ----------
+
+func handleRunPreflight(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	serverID := request.GetString("server_id", "")
+	portMappings := request.GetString("port_mappings", "")
+
+	result, err := deployer.RunPreflightFull(ctx, serverID, portMappings)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("preflight check failed: %v", err)), nil
+	}
+
+	data, _ := json.MarshalIndent(result, "", "  ")
+	return mcp.NewToolResultText(string(data)), nil
+}
 func handleDeployApp(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	image, err := request.RequireString("image")
 	if err != nil {

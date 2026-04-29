@@ -34,6 +34,8 @@ type PreflightCheck struct {
 	Passed     bool   `json:"passed"`
 	Message    string `json:"message,omitempty"`
 	Suggestion string `json:"suggestion,omitempty"`
+	Category   string `json:"category,omitempty"`  // "network", "docker", "resource", "disk", "memory"
+	Severity   string `json:"severity,omitempty"`  // "error", "warning", "info"
 }
 
 // PreflightConfig holds the configuration for preflight checks.
@@ -239,4 +241,216 @@ func parseHostPorts(portMappings string) []string {
 		}
 	}
 	return ports
+}
+
+// parseDiskSize parses a human-readable disk size string (e.g. "50G", "200M", "1024K") into float64 GB.
+func parseDiskSize(s string) (float64, error) {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return 0, fmt.Errorf("empty size string")
+	}
+	// Remove trailing non-numeric characters (unit suffix)
+	suffix := ""
+	for i := len(s) - 1; i >= 0; i-- {
+		if s[i] < '0' || s[i] > '9' {
+			suffix = string(s[i]) + suffix
+			s = s[:i]
+		} else {
+			break
+		}
+	}
+	s = strings.TrimSpace(s)
+	val, err := strconv.ParseFloat(s, 64)
+	if err != nil {
+		return 0, fmt.Errorf("cannot parse size %q: %w", s, err)
+	}
+	switch strings.ToUpper(suffix) {
+	case "T", "TB":
+		return val * 1024, nil
+	case "G", "GB":
+		return val, nil
+	case "M", "MB":
+		return val / 1024, nil
+	case "K", "KB":
+		return val / (1024 * 1024), nil
+	default:
+		// Assume bytes
+		return val / (1024 * 1024 * 1024), nil
+	}
+}
+
+// checkDiskSpace verifies available disk space on the target.
+func checkDiskSpace(ctx context.Context, cfg PreflightConfig) PreflightCheck {
+	if cfg.Executor == nil {
+		return PreflightCheck{
+			Name:     "Disk Space",
+			Category: "disk",
+			Passed:   false,
+			Message:  "No executor available to check disk space",
+			Severity: "warning",
+		}
+	}
+
+	out, err := cfg.Executor.RunCommand(ctx, "df -h / --output=avail | tail -1")
+	if err != nil {
+		return PreflightCheck{
+			Name:       "Disk Space",
+			Category:   "disk",
+			Passed:     false,
+			Message:    fmt.Sprintf("Failed to check disk space: %v", err),
+			Severity:   "warning",
+			Suggestion: "Ensure the 'df' command is available on the target system",
+		}
+	}
+
+	availGB, err := parseDiskSize(strings.TrimSpace(out))
+	if err != nil {
+		return PreflightCheck{
+			Name:       "Disk Space",
+			Category:   "disk",
+			Passed:     false,
+			Message:    fmt.Sprintf("Failed to parse disk space output %q: %v", strings.TrimSpace(out), err),
+			Severity:   "warning",
+			Suggestion: "Ensure the 'df' command supports --output flag (coreutils >= 8.21)",
+		}
+	}
+
+	if availGB < 1.0 {
+		return PreflightCheck{
+			Name:       "Disk Space",
+			Category:   "disk",
+			Passed:     false,
+			Message:    fmt.Sprintf("Critical: only %.1fGB available disk space", availGB),
+			Severity:   "error",
+			Suggestion: "Clean up disk space or expand storage",
+		}
+	}
+	if availGB < 5.0 {
+		return PreflightCheck{
+			Name:       "Disk Space",
+			Category:   "disk",
+			Passed:     true,
+			Message:    fmt.Sprintf("Warning: %.1fGB available disk space (low)", availGB),
+			Severity:   "warning",
+			Suggestion: "Clean up disk space or expand storage",
+		}
+	}
+
+	return PreflightCheck{
+		Name:     "Disk Space",
+		Category: "disk",
+		Passed:   true,
+		Message:  fmt.Sprintf("%.1fGB available disk space", availGB),
+		Severity: "info",
+	}
+}
+
+// checkMemory verifies available memory on the target.
+func checkMemory(ctx context.Context, cfg PreflightConfig) PreflightCheck {
+	if cfg.Executor == nil {
+		return PreflightCheck{
+			Name:     "Memory",
+			Category: "memory",
+			Passed:   false,
+			Message:  "No executor available to check memory",
+			Severity: "warning",
+		}
+	}
+
+	out, err := cfg.Executor.RunCommand(ctx, "free -m | awk '/Mem:/{print $7}'")
+	if err != nil {
+		return PreflightCheck{
+			Name:       "Memory",
+			Category:   "memory",
+			Passed:     false,
+			Message:    fmt.Sprintf("Failed to check memory: %v", err),
+			Severity:   "warning",
+			Suggestion: "Ensure the 'free' command is available on the target system",
+		}
+	}
+
+	availMB, err := strconv.Atoi(strings.TrimSpace(out))
+	if err != nil {
+		return PreflightCheck{
+			Name:       "Memory",
+			Category:   "memory",
+			Passed:     false,
+			Message:    fmt.Sprintf("Failed to parse memory output %q: %v", strings.TrimSpace(out), err),
+			Severity:   "warning",
+			Suggestion: "Ensure the 'free' command is available on the target system",
+		}
+	}
+
+	if availMB < 128 {
+		return PreflightCheck{
+			Name:       "Memory",
+			Category:   "memory",
+			Passed:     false,
+			Message:    fmt.Sprintf("Critical: only %dMB available memory", availMB),
+			Severity:   "error",
+			Suggestion: "Close unused processes or add more RAM",
+		}
+	}
+	if availMB < 512 {
+		return PreflightCheck{
+			Name:       "Memory",
+			Category:   "memory",
+			Passed:     true,
+			Message:    fmt.Sprintf("Warning: %dMB available memory (low)", availMB),
+			Severity:   "warning",
+			Suggestion: "Close unused processes or add more RAM",
+		}
+	}
+
+	return PreflightCheck{
+		Name:     "Memory",
+		Category: "memory",
+		Passed:   true,
+		Message:  fmt.Sprintf("%dMB available memory", availMB),
+		Severity: "info",
+	}
+}
+
+// RunPreflightFull runs ALL preflight checks without short-circuiting on failure.
+// It collects results from every check and returns a comprehensive report.
+func RunPreflightFull(ctx context.Context, cfg PreflightConfig) PreflightResult {
+	var checks []PreflightCheck
+
+	// Check 1: TCP connectivity (only for remote deployments)
+	if cfg.Host != "" && cfg.Port != 0 {
+		checks = append(checks, checkTCP(ctx, cfg.Host, cfg.Port))
+	}
+
+	// Check 2: SSH authentication (only for remote deployments with executor)
+	if cfg.Executor != nil && cfg.Host != "" {
+		checks = append(checks, checkSSHAuth(ctx, cfg.Executor))
+	}
+
+	// Check 3: Docker availability
+	checks = append(checks, checkDocker(ctx, cfg.Executor))
+
+	// Check 4: Port conflict (only if port mappings specified)
+	if cfg.PortMappings != "" {
+		checks = append(checks, checkPortConflict(ctx, cfg.Executor, cfg.PortMappings))
+	}
+
+	// Check 5: Disk space
+	checks = append(checks, checkDiskSpace(ctx, cfg))
+
+	// Check 6: Memory
+	checks = append(checks, checkMemory(ctx, cfg))
+
+	// Overall result: failed if any check has severity "error" or Passed == false
+	passed := true
+	for _, c := range checks {
+		if !c.Passed {
+			passed = false
+			break
+		}
+	}
+
+	return PreflightResult{
+		Passed: passed,
+		Checks: checks,
+	}
 }

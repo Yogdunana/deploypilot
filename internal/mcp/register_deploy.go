@@ -226,5 +226,14 @@ func registerDeployTools(s *server.MCPServer, d Deployer) {
 	s.AddTool(composeRestartTool, withPermissionCheck("compose_restart", withValidation("compose_restart", composeRestartTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return handleComposeRestart(ctx, d, request)
 	})))
+	// Phase 3.5: Preflight visualization
+	runPreflightTool := mcp.NewTool("run_preflight",
+		mcp.WithDescription("Run full preflight checks (TCP, SSH, Docker, port conflict, disk space, memory) without triggering deployment"),
+		mcp.WithString("server_id", mcp.Description("Target server ID to run preflight checks on (omit for local)")),
+		mcp.WithString("port_mappings", mcp.Description("Port mappings to check for conflicts (e.g. '8080:80,3000:3000')")),
+	)
+	s.AddTool(runPreflightTool, withPermissionCheck("run_preflight", withValidation("run_preflight", runPreflightTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleRunPreflight(ctx, d, request)
+	})))
 
 }
