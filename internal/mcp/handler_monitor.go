@@ -131,22 +131,3 @@ func handleListAlertRules(ctx context.Context, deployer Deployer, request mcp.Ca
 	data, _ := json.MarshalIndent(result, "", "  ")
 	return mcp.NewToolResultText(string(data)), nil
 }
-func handleGetRemoteSystemMetrics(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	serverID := request.GetString("server_id", "")
-
-	var result interface{}
-	var err error
-
-	if serverID != "" {
-		result, err = deployer.GetRemoteSystemMetrics(ctx, serverID)
-	} else {
-		result, err = deployer.GetSystemMetrics(ctx)
-	}
-
-	if err != nil {
-		return mcp.NewToolResultError(fmt.Sprintf("failed to get remote system metrics: %v", err)), nil
-	}
-
-	data, _ := json.MarshalIndent(result, "", "  ")
-	return mcp.NewToolResultText(string(data)), nil
-}
