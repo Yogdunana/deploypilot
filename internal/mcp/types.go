@@ -174,13 +174,14 @@ type ServerInfo struct {
 
 // CreateAppConfig holds parameters for creating a new application.
 type CreateAppConfig struct {
-	Name       string `json:"name"`
-	RepoURL    string `json:"repo_url"`
-	Branch     string `json:"branch,omitempty"`
-	Domain     string `json:"domain,omitempty"`
-	TechStack  string `json:"tech_stack,omitempty"`
-	DeployMode string `json:"deploy_mode,omitempty"`
-	ServerID   string `json:"server_id,omitempty"`
+	Name        string `json:"name"`
+	RepoURL     string `json:"repo_url"`
+	Branch      string `json:"branch,omitempty"`
+	Domain      string `json:"domain,omitempty"`
+	TechStack   string `json:"tech_stack,omitempty"`
+	DeployMode  string `json:"deploy_mode,omitempty"`
+	ServerID    string `json:"server_id,omitempty"`
+	Environment string `json:"environment,omitempty"`
 }
 
 // BuildAndDeployConfig holds parameters for a build-and-deploy operation.

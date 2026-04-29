@@ -464,6 +464,21 @@ func Migrate(db *gorm.DB) error {
 				return nil
 			},
 		},
+		// 202604290001: Add environment column to apps table
+		{
+			ID: "202604290001",
+			Migrate: func(tx *gorm.DB) error {
+				if err := ignoreDuplicateColumnError(tx, tx.Exec(`ALTER TABLE apps ADD COLUMN environment TEXT DEFAULT 'production'`).Error); err != nil {
+					return err
+				}
+				tx.Exec(`CREATE INDEX IF NOT EXISTS idx_apps_environment ON apps(environment)`)
+				return nil
+			},
+			Rollback: func(tx *gorm.DB) error {
+				// SQLite doesn't support DROP COLUMN easily
+				return nil
+			},
+		},
 	})
 
 	// Use InitSchema for initial creation (faster than Migrate)

@@ -86,6 +86,7 @@ type App struct {
 	ResourceLimits    string    `gorm:"type:text" json:"resource_limits"`
 	ComposeContent    string    `gorm:"type:text" json:"compose_content,omitempty"`
 	ComposeProjectName string   `json:"compose_project_name,omitempty"`
+	Environment       string   `gorm:"size:20;default:production;index" json:"environment"` // production, staging, development, testing
 	CreatedAt      time.Time `gorm:"autoCreateTime" json:"created_at"`
 	UpdatedAt      time.Time `gorm:"autoUpdateTime" json:"updated_at"`
 

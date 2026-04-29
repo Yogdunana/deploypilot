@@ -46,16 +46,17 @@ func CreateApp(db *gorm.DB) gin.HandlerFunc {
 		}
 
 		app := model.App{
-			ID:        id,
-			TenantID:  tenantID,
-			Name:      input.Name,
-			RepoURL:   input.RepoURL,
-			Branch:    input.Branch,
-			Domain:    input.Domain,
-			TechStack: input.TechStack,
-			DeployMode: input.DeployMode,
-			ServerID:  input.ServerID,
-			Status:    "created",
+			ID:          id,
+			TenantID:    tenantID,
+			Name:        input.Name,
+			RepoURL:     input.RepoURL,
+			Branch:      input.Branch,
+			Domain:      input.Domain,
+			TechStack:   input.TechStack,
+			DeployMode:  input.DeployMode,
+			ServerID:    input.ServerID,
+			Environment: input.Environment,
+			Status:      "created",
 		}
 		if app.Branch == "" {
 			app.Branch = "main"
@@ -65,6 +66,9 @@ func CreateApp(db *gorm.DB) gin.HandlerFunc {
 		}
 		if app.DeployMode == "" {
 			app.DeployMode = "api"
+		}
+		if app.Environment == "" {
+			app.Environment = "production"
 		}
 
 		if err := db.Create(&app).Error; err != nil {
@@ -88,7 +92,11 @@ func CreateApp(db *gorm.DB) gin.HandlerFunc {
 func ListApps(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var apps []model.App
-		if err := db.Find(&apps).Error; err != nil {
+		query := db.Model(&model.App{})
+		if env := c.Query("environment"); env != "" {
+			query = query.Where("environment = ?", env)
+		}
+		if err := query.Find(&apps).Error; err != nil {
 			respondErrori18n(c, http.StatusInternalServerError, "error.common.internal_error")
 			return
 		}

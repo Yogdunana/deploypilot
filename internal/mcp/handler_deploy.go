@@ -336,13 +336,14 @@ func handleCreateApp(ctx context.Context, deployer Deployer, request mcp.CallToo
 	}
 
 	cfg := CreateAppConfig{
-		Name:    name,
-		RepoURL: repoURL,
-		Branch:  request.GetString("branch", "main"),
-		Domain:  request.GetString("domain", ""),
-		TechStack: request.GetString("tech_stack", "docker"),
-		DeployMode: request.GetString("deploy_mode", "api"),
-		ServerID: request.GetString("server_id", ""),
+		Name:        name,
+		RepoURL:     repoURL,
+		Branch:      request.GetString("branch", "main"),
+		Domain:      request.GetString("domain", ""),
+		TechStack:   request.GetString("tech_stack", "docker"),
+		DeployMode:  request.GetString("deploy_mode", "api"),
+		ServerID:    request.GetString("server_id", ""),
+		Environment: request.GetString("environment", "production"),
 	}
 
 	appID, err := deployer.CreateApp(ctx, cfg)

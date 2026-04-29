@@ -1,6 +1,12 @@
 package service
 
 import (
+	"context"
+	"fmt"
+	"log/slog"
+	"strconv"
+	"time"
+
 	"gorm.io/gorm"
 )
 
@@ -35,4 +41,42 @@ func CheckResourceAccess(db *gorm.DB, resourceType, resourceID, role, userID str
 		return false
 	}
 	return count > 0
+}
+
+// CheckResourceAccessCached checks resource access with caching.
+// It uses the Bridge's Cache if available, falling back to direct DB query.
+// Cache key format: perm:{userID}:{resourceType}:{resourceID}, TTL: 5 minutes.
+func (b *Bridge) CheckResourceAccessCached(ctx context.Context, resourceType, resourceID, role, userID string) bool {
+	// owner and admin can access all resources (no need to cache)
+	if role == "owner" || role == "admin" {
+		return true
+	}
+
+	// Try cache first
+	if b.Cache != nil {
+		cacheKey := fmt.Sprintf("perm:%s:%s:%s", userID, resourceType, resourceID)
+		cached, err := b.Cache.Get(ctx, cacheKey)
+		if err == nil {
+			result, parseErr := strconv.ParseBool(cached)
+			if parseErr == nil {
+				return result
+			}
+		}
+		if err != nil && err != ErrCacheMiss {
+			slog.Warn("cache get error, falling back to DB", "error", err)
+		}
+
+		// Cache miss: query DB
+		result := CheckResourceAccess(b.DB, resourceType, resourceID, role, userID)
+
+		// Store result in cache (fire-and-forget)
+		if cacheErr := b.Cache.Set(ctx, cacheKey, strconv.FormatBool(result), 5*time.Minute); cacheErr != nil {
+			slog.Warn("cache set error", "error", cacheErr)
+		}
+
+		return result
+	}
+
+	// No cache available, query directly
+	return CheckResourceAccess(b.DB, resourceType, resourceID, role, userID)
 }

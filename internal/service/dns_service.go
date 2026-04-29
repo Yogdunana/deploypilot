@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"strings"
+	"time"
 
 	"github.com/Yogdunana/deploypilot/internal/model"
 	"github.com/Yogdunana/deploypilot/internal/plugin"
@@ -112,6 +113,19 @@ func (b *Bridge) DNSDeleteRecord(ctx context.Context, recordID string) error {
 // ---------- 21. DNSListRecords ----------
 
 func (b *Bridge) DNSListRecords(ctx context.Context, domain string) (interface{}, error) {
+	// Try cache first
+	if b.Cache != nil {
+		cacheKey := fmt.Sprintf("dns:%s:records", domain)
+		var cached interface{}
+		var cacheErr error
+		if cacheErr = b.Cache.GetJSON(ctx, cacheKey, &cached); cacheErr == nil {
+			return cached, nil
+		}
+		if cacheErr != nil && cacheErr != ErrCacheMiss {
+			slog.Warn("DNS cache get error, falling back to provider", "error", cacheErr)
+		}
+	}
+
 	provider, err := b.getDNSProvider(ctx)
 	if err != nil {
 		return map[string]interface{}{
@@ -139,11 +153,21 @@ func (b *Bridge) DNSListRecords(ctx context.Context, domain string) (interface{}
 			"proxied": r.Proxied,
 		})
 	}
-	return map[string]interface{}{
+	response := map[string]interface{}{
 		"status":  "success",
 		"domain":  domain,
 		"records": result,
-	}, nil
+	}
+
+	// Cache the result (fire-and-forget)
+	if b.Cache != nil {
+		cacheKey := fmt.Sprintf("dns:%s:records", domain)
+		if cacheErr := b.Cache.SetJSON(ctx, cacheKey, response, 10*time.Minute); cacheErr != nil {
+			slog.Warn("DNS cache set error", "error", cacheErr)
+		}
+	}
+
+	return response, nil
 }
 
 // ---------- 30. UpdateDNSRecord ----------

@@ -45,6 +45,7 @@ func registerDeployTools(s *server.MCPServer, d Deployer) {
 		mcp.WithString("server_id",
 			mcp.Description("Target server ID for remote deployment via SSH. Omit to deploy locally. The server must be registered via add_server first."),
 		),
+		mcp.WithString("environment", mcp.Description("Deployment environment: production, staging, development, testing"), mcp.Enum("production", "staging", "development", "testing")),
 	)
 
 	s.AddTool(deployTool, withPermissionCheck("deploy_app", withValidation("deploy_app", deployTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
@@ -93,6 +94,7 @@ func registerDeployTools(s *server.MCPServer, d Deployer) {
 		mcp.WithString("server_id",
 			mcp.Description("Target server ID"),
 		),
+		mcp.WithString("environment", mcp.Description("Deployment environment: production, staging, development, testing"), mcp.Enum("production", "staging", "development", "testing")),
 	)
 
 	s.AddTool(createAppTool, withPermissionCheck("create_app", withValidation("create_app", createAppTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
@@ -135,6 +137,7 @@ func registerDeployTools(s *server.MCPServer, d Deployer) {
 		mcp.WithString("registry_id", mcp.Description("Registry ID to push the built image to")),
 		mcp.WithBoolean("push_image", mcp.Description("Whether to push the built image to the registry after build")),
 		mcp.WithString("image_tag", mcp.Description("Custom image tag (default: appname:latest)")),
+		mcp.WithString("environment", mcp.Description("Deployment environment: production, staging, development, testing"), mcp.Enum("production", "staging", "development", "testing")),
 	)
 	s.AddTool(buildAndDeployTool, withPermissionCheck("build_and_deploy", withValidation("build_and_deploy", buildAndDeployTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return handleBuildAndDeploy(ctx, d, request)

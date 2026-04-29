@@ -60,6 +60,7 @@ func setupRollbackTestDB(t *testing.T) *gorm.DB {
 		resource_limits TEXT,
 		compose_content TEXT,
 		compose_project_name TEXT,
+		environment TEXT DEFAULT 'production',
 		created_at DATETIME,
 		updated_at DATETIME
 	)`)

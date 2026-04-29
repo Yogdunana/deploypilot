@@ -144,11 +144,13 @@ func run(configFilePath, cliDriver, cliDSN, cliAddr string) error {
 		slog.Warn("DEPLOYPILOT_ENCRYPTION_KEY not set, generated a temporary key (credentials will be lost on restart)")
 	}
 
-	// Initialize event bus and token blacklist (Redis if available, otherwise in-memory)
+	// Initialize event bus, token blacklist, and cache (Redis if available, otherwise in-memory)
 	var eventBus service.EventBus
 	var tokenBlacklist auth.TokenBlacklist
+	var cache service.Cache
+	var rdb *redis.Client
 	if cfg.Redis.Addr != "" {
-		rdb := redis.NewClient(&redis.Options{
+		rdb = redis.NewClient(&redis.Options{
 			Addr:     cfg.Redis.Addr,
 			Password: cfg.Redis.Password,
 			DB:       cfg.Redis.DB,
@@ -157,14 +159,17 @@ func run(configFilePath, cliDriver, cliDSN, cliAddr string) error {
 			slog.Warn("Redis unavailable, falling back to in-memory implementations", "error", err)
 			eventBus = service.NewInMemoryEventBus()
 			tokenBlacklist = auth.NewMemoryTokenBlacklist()
+			cache = service.NewMemoryCache("dp:")
 		} else {
 			eventBus = service.NewRedisEventBus(rdb)
 			tokenBlacklist = auth.NewRedisTokenBlacklist(rdb)
-			slog.Info("using Redis for event bus and token blacklist")
+			cache = service.NewRedisCache(rdb, "dp:")
+			slog.Info("using Redis for event bus, token blacklist, and cache")
 		}
 	} else {
 		eventBus = service.NewInMemoryEventBus()
 		tokenBlacklist = auth.NewMemoryTokenBlacklist()
+		cache = service.NewMemoryCache("dp:")
 	}
 
 	// Initialize agent tunnel manager
@@ -172,6 +177,7 @@ func run(configFilePath, cliDriver, cliDSN, cliAddr string) error {
 	tunnelManager.StartCleanup(5 * time.Minute)
 
 	bridge := service.NewBridge(db, executor, encKey, eventBus)
+	bridge.SetCache(cache)
 	bridge.TunnelManager = tunnelManager
 	bridge.UpgradeSvc = service.NewUpgradeService("")
 
@@ -262,7 +268,14 @@ func run(configFilePath, cliDriver, cliDSN, cliAddr string) error {
 		}
 	}
 
-	// 5. Close database connection
+	// 5. Close cache (in-memory cache only; Redis cache is closed via rdb)
+	if cache != nil && rdb == nil {
+		if err := cache.Close(); err != nil {
+			slog.Warn("cache close error", "error", err)
+		}
+	}
+
+	// 6. Close database connection
 	if sqlDB, err := db.DB(); err == nil {
 		if err := sqlDB.Close(); err != nil {
 			slog.Warn("database close error", "error", err)

@@ -79,6 +79,7 @@ type Bridge struct {
 	UpgradeSvc    *UpgradeService          // system upgrade service
 	ConfirmStore  *confirm.Store
 	BFProtector   *bruteforce.Protector
+	Cache         Cache                    // general-purpose cache (Redis or in-memory)
 }
 
 // TunnelManager defines the interface for agent reverse tunnel management.
@@ -105,6 +106,11 @@ func NewBridge(db *gorm.DB, executor deployer.CommandExecutor, encryptionKey []b
 		ConfirmStore:  confirm.NewStore(),
 		BFProtector:   bruteforce.New(bruteforce.DefaultConfig()),
 	}
+}
+
+// SetCache sets the cache on the Bridge.
+func (b *Bridge) SetCache(cache Cache) {
+	b.Cache = cache
 }
 
 // SetBruteForceConfig replaces the brute-force protector with one using the given config.
