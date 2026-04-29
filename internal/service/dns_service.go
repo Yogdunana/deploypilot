@@ -117,11 +117,11 @@ func (b *Bridge) DNSListRecords(ctx context.Context, domain string) (interface{}
 	if b.Cache != nil {
 		cacheKey := fmt.Sprintf("dns:%s:records", domain)
 		var cached interface{}
-		if err := b.Cache.GetJSON(ctx, cacheKey, &cached); err == nil {
+		if cacheErr := b.Cache.GetJSON(ctx, cacheKey, &cached); cacheErr == nil {
 			return cached, nil
 		}
-		if err != nil && err != ErrCacheMiss {
-			slog.Warn("DNS cache get error, falling back to provider", "error", err)
+		if cacheErr != nil && cacheErr != ErrCacheMiss {
+			slog.Warn("DNS cache get error, falling back to provider", "error", cacheErr)
 		}
 	}
 

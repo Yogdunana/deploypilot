@@ -23,7 +23,6 @@ func handleBuildAndDeploy(ctx context.Context, deployer Deployer, request mcp.Ca
 	techStack := request.GetString("tech_stack", "")
 	ports := request.GetString("ports", "")
 	serverID := request.GetString("server_id", "")
-	environment := request.GetString("environment", "production")
 	envVarsStr := request.GetString("env_vars", "")
 
 	var envVars map[string]string
