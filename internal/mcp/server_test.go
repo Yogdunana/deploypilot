@@ -605,6 +605,18 @@ func (m *mockDeployer) ComposeRestart(_ context.Context, _ string, _ string) (st
 	return "mock response", nil
 }
 
+func (m *mockDeployer) ListEnvTemplates(_ context.Context) (interface{}, error) {
+	return []map[string]interface{}{}, nil
+}
+
+func (m *mockDeployer) GetEnvTemplate(_ context.Context, _ string) (interface{}, error) {
+	return map[string]interface{}{}, nil
+}
+
+func (m *mockDeployer) RunPreflightFull(_ context.Context, _ string, _ string) (interface{}, error) {
+	return map[string]interface{}{"passed": true, "checks": []interface{}{}}, nil
+}
+
 // extractText gets the text content from a CallToolResult.
 func extractText(result *mcp.CallToolResult) (string, error) {
 	if result.IsError {
