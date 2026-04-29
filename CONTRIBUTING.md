@@ -22,7 +22,7 @@ cd deploypilot
 go mod download
 
 # Install frontend dependencies
-cd web && npm ci && cd ..
+cd web &amp;&amp; npm ci &amp;&amp; cd ..
 
 # Build all binaries
 make build-all
@@ -56,11 +56,11 @@ npm run dev  # Start Vite dev server with HMR
 - Follow [Effective Go](https://go.dev/doc/effective_go) guidelines
 - Run `make lint` before committing (golangci-lint with gosec, staticcheck, etc.)
 - All public functions must have doc comments
-- Write tests for new code — aim for >85% coverage
+- Write tests for new code — aim for &gt;85% coverage
 - Use `t.Helper()` in test helper functions
 
 ### Frontend (Vue 3 + TypeScript)
-- Use Composition API with `<script setup>`
+- Use Composition API with `&lt;script setup&gt;`
 - Follow existing component patterns (see `web/src/components/`)
 - Use the shared UI components in `web/src/components/ui/`
 - Support i18n — add keys to both `en.ts` and `zh.ts`
@@ -91,4 +91,4 @@ Please use [GitHub Issues](https://github.com/Yogdunana/deploypilot/issues) to r
 
 ## License
 
-By contributing, you agree that your contributions will be licensed under the MIT License.
+By contributing, you agree that your contributions will be licensed under the [Business Source License 1.1 (BSL 1.1)](LICENSE). Non-commercial use (personal, internal organizational, testing, and non-commercial educational) is permitted. On **2029-04-28**, the license automatically converts to MIT.

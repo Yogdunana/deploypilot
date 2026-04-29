@@ -22,11 +22,11 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/github/actions/workflow/status/Yogdunana/deploypilot/ci.yml?branch=main&style=flat-square" alt="CI">
+  <img src="https://img.shields.io/github/actions/workflow/status/Yogdunana/deploypilot/ci.yml?branch=main&amp;style=flat-square" alt="CI">
   <img src="https://img.shields.io/github/v/release/Yogdunana/deploypilot?style=flat-square" alt="Release">
   <img src="https://img.shields.io/github/license/Yogdunana/deploypilot?style=flat-square" alt="License">
-  <img src="https://img.shields.io/badge/Go-1.23-00ADD8?style=flat-square&logo=go&logoColor=white" alt="Go">
-  <img src="https://img.shields.io/badge/Vue-3.5-4FC08D?style=flat-square&logo=vue.js&logoColor=white" alt="Vue">
+  <img src="https://img.shields.io/badge/Go-1.23-00ADD8?style=flat-square&amp;logo=go&amp;logoColor=white" alt="Go">
+  <img src="https://img.shields.io/badge/Vue-3.5-4FC08D?style=flat-square&amp;logo=vue.js&amp;logoColor=white" alt="Vue">
   <img src="https://img.shields.io/docker/pulls/ghcr.io/yogdunana/deploypilot?style=flat-square" alt="Docker Pulls">
 </p>
 
@@ -99,7 +99,7 @@ The install script automatically downloads the latest binary, generates admin cr
 
 ```bash
 git clone https://github.com/Yogdunana/deploypilot.git
-cd deploypilot && make build-all
+cd deploypilot &amp;&amp; make build-all
 ```
 
 See [DEPLOY.md](DEPLOY.md) for the full deployment guide, including PostgreSQL setup, reverse proxy configuration, and production hardening.
@@ -117,8 +117,8 @@ graph LR
     end
 
     subgraph "DeployPilot Gateway (Your Server)"
-        B[MCP Server<br>52+ tools]
-        C[REST API<br>JWT + RBAC]
+        B[MCP Server&lt;br&gt;52+ tools]
+        C[REST API&lt;br&gt;JWT + RBAC]
         D[WebSocket / SSE]
         E[Deploy Engine]
         F[Provider Plugins]
@@ -131,19 +131,19 @@ graph LR
         J[GitHub Actions / Gitea]
     end
 
-    A -- "MCP (stdio)" --> B
-    A -- "REST + JWT" --> C
-    C --> E
-    B --> E
-    E --> F
-    F --> G
-    F --> H
-    F --> I
-    F --> J
+    A -- "MCP (stdio)" --&gt; B
+    A -- "REST + JWT" --&gt; C
+    C --&gt; E
+    B --&gt; E
+    E --&gt; F
+    F --&gt; G
+    F --&gt; H
+    F --&gt; I
+    F --&gt; J
 ```
 
 | Layer | Protocol | Purpose |
-|-------|----------|---------|
+|-------|----------|----------|
 | **MCP Server** | stdio | Native AI IDE integration — 52+ tools for deployment, DNS, SSL, monitoring |
 | **REST API** | HTTP + JWT | Programmatic access with full RBAC — 68+ endpoints, Swagger docs at `/swagger/` |
 | **WebSocket / SSE** | ws://, text/event-stream | Real-time log streaming, SSH terminal, deployment progress |
@@ -185,7 +185,7 @@ Request, list, renew, and delete SSL certificates directly from the MCP interfac
 
 Trigger and monitor CI/CD builds without leaving your AI IDE. Supports GitHub Actions and Gitea.
 
-### Monitoring & Self-Healing
+### Monitoring &amp; Self-Healing
 
 Real-time container and system metrics, configurable alert rules, and automatic container healing when failures are detected.
 
@@ -195,7 +195,7 @@ Sign in with your GitHub or Gitee account — no separate password needed.
 
 ### RBAC Authorization
 
-Four-tier role-based access control: **owner > admin > dev > viewer**. Fine-grained permissions on every resource.
+Four-tier role-based access control: **owner &gt; admin &gt; dev &gt; viewer**. Fine-grained permissions on every resource.
 
 ### Audit Logging
 
@@ -214,7 +214,7 @@ DeployPilot integrates with any IDE that supports the MCP protocol. Configuratio
 | IDE | Transport | Setup |
 |-----|-----------|-------|
 | **Claude Desktop** | MCP stdio | Add to `claude_desktop_config.json` |
-| **Cursor** | MCP stdio | Add in Settings > MCP |
+| **Cursor** | MCP stdio | Add in Settings &gt; MCP |
 | **TRAE** | MCP stdio | Add in IDE MCP settings |
 | **Coze / 扣子** | MCP stdio | Configure as MCP plugin |
 | **SOLO** | MCP stdio | Add to MCP server config |
@@ -302,4 +302,10 @@ Contributions are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) for de
 
 ## License
 
-[MIT](LICENSE) &copy; 2026 Yogdunana
+This project is licensed under the **Business Source License 1.1 (BSL 1.1)**.
+
+&gt; **Non-commercial use is permitted** — including personal use, internal use within organizations, testing/evaluation, and non-commercial educational use. See [LICENSE](LICENSE) for full terms.
+&gt;
+&gt; On **2029-04-28**, this license automatically converts to [MIT](https://opensource.org/licenses/MIT).
+
+&amp;copy; 2026 Yogdunana
