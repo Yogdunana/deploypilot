@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **监控数据持久化** (PR #109): MetricRecord + AlertHistory GORM 模型，MetricStore（SaveMetrics/QueryMetrics/CleanupOldMetrics），Monitor 自动持久化，query_metric_history/query_alert_history MCP 工具
+- **计划任务系统** (PR #109): robfig/cron/v3 调度器（秒级精度），ScheduledTask + TaskExecution 模型，3 种任务类型（shell/health_check/log_cleanup），5 个 MCP 工具（create/list/get_executions/toggle/delete）
+- **Import cycle 修复** (PR #109): 修复 model 测试文件中的 import cycle（model test → database → model），改用直接 GORM SQLite
 - **WebSocket 多实例广播** (PR #107): WSHub 通过 Redis Pub/Sub 实现跨实例消息广播，SourceInstance 防止消息回环，Redis 不可用时自动降级为本地模式
 - **系统监控增强** (PR #107): 新增网络 I/O 指标（rx/tx bytes/packets/errors）、磁盘 I/O 指标（reads/writes/sectors）、远程服务器监控（server_id 参数）、修复 container_memory_used 类型 bug
 - **ai-guide 踩坑 #24-#28**: CREATE TABLE 同步、mockDeployer 同步、Go 变量作用域、import 清理、Redis Pub/Sub 回环防止
