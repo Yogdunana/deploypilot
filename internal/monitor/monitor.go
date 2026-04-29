@@ -26,6 +26,7 @@ type Monitor struct {
 	alertManager *AlertManager
 	healer       *healer.Healer
 	executor     deployer.CommandExecutor
+	store        *MetricStore
 	cancel       context.CancelFunc
 	mu           sync.Mutex
 	running      bool
@@ -39,6 +40,16 @@ func NewMonitor(executor deployer.CommandExecutor, h *healer.Healer) *Monitor {
 		healer:       h,
 		executor:     executor,
 	}
+}
+
+// SetStore sets the metric store for persistence.
+func (m *Monitor) SetStore(store *MetricStore) {
+	m.store = store
+}
+
+// GetStore returns the current metric store (may be nil).
+func (m *Monitor) GetStore() *MetricStore {
+	return m.store
 }
 
 // Start begins periodic monitoring in a background goroutine.
@@ -167,6 +178,13 @@ func (m *Monitor) collectAndEvaluate(ctx context.Context) {
 	if err != nil {
 		slog.Error("system metric collection failed", "error", err)
 		return
+	}
+
+	// Persist metrics if store is configured
+	if m.store != nil {
+		if err := m.store.SaveMetrics(ctx, metrics); err != nil {
+			slog.Warn("failed to persist metrics", "error", err)
+		}
 	}
 
 	newAlerts := m.alertManager.Evaluate(metrics)

@@ -4,22 +4,17 @@ import (
 	"testing"
 
 	"github.com/Yogdunana/deploypilot/internal/crypto"
-	"github.com/Yogdunana/deploypilot/internal/database"
+	"gorm.io/driver/sqlite"
+	"gorm.io/gorm"
 )
 
 func setupPluginDB(t *testing.T) func() {
 	t.Helper()
-	tmpDir := t.TempDir()
-	db, err := database.Connect("sqlite", tmpDir+"/test.db")
+	db, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{})
 	if err != nil {
-		t.Fatalf("Connect() error = %v", err)
+		t.Fatalf("open sqlite: %v", err)
 	}
-	if err := database.Migrate(db); err != nil {
-		t.Fatalf("Migrate() error = %v", err)
-	}
-	if err := database.Seed(db); err != nil {
-		t.Fatalf("Seed() error = %v", err)
-	}
+	db.AutoMigrate(&Tenant{}, &User{}, &Role{}, &Server{}, &App{}, &Credential{}, &Cluster{}, &DeploymentRecord{}, &AuditLog{}, &SSLCertificate{}, &Provider{}, &Plugin{})
 	encKey := crypto.NewEncryptionKey()
 	InitDB(db, encKey)
 	return func() {

@@ -190,3 +190,76 @@ type SSLCertificate struct {
 }
 
 func (SSLCertificate) TableName() string { return "ssl_certificates" }
+
+// MetricRecord stores historical monitoring metrics.
+type MetricRecord struct {
+	ID            string    `gorm:"primaryKey" json:"id"`
+	TenantID      string    `gorm:"index" json:"tenant_id,omitempty"`
+	ServerID      string    `gorm:"index" json:"server_id,omitempty"`
+	ContainerName string    `gorm:"index" json:"container_name,omitempty"`
+	MetricType    string    `gorm:"index;size:20" json:"metric_type"` // cpu, memory, disk, network, disk_io, container
+	Name          string    `gorm:"size:50" json:"name"`               // cpu_usage, memory_used_mb, etc.
+	Value         float64   `json:"value"`
+	Unit          string    `gorm:"size:20" json:"unit"`               // percent, bytes, megabytes, etc.
+	Labels        string    `gorm:"type:text" json:"labels,omitempty"` // JSON string
+	Timestamp     time.Time `gorm:"index" json:"timestamp"`
+	CreatedAt     time.Time `gorm:"autoCreateTime" json:"created_at"`
+}
+
+func (MetricRecord) TableName() string { return "metric_records" }
+
+// AlertHistory stores resolved alert records for historical analysis.
+type AlertHistory struct {
+	ID         string     `gorm:"primaryKey" json:"id"`
+	TenantID   string     `gorm:"index" json:"tenant_id,omitempty"`
+	RuleID     string     `gorm:"index" json:"rule_id"`
+	RuleName   string     `json:"rule_name"`
+	Severity   string     `gorm:"size:20" json:"severity"`   // critical, warning, info
+	Message    string     `json:"message"`
+	Value      float64    `json:"value"`
+	Threshold  float64    `json:"threshold"`
+	Status     string     `gorm:"size:20;index" json:"status"` // firing, resolved
+	FiredAt    time.Time  `gorm:"index" json:"fired_at"`
+	ResolvedAt *time.Time `json:"resolved_at,omitempty"`
+	CreatedAt  time.Time  `gorm:"autoCreateTime" json:"created_at"`
+}
+
+func (AlertHistory) TableName() string { return "alert_histories" }
+
+// ScheduledTask represents a cron-based scheduled task.
+type ScheduledTask struct {
+	ID          string     `gorm:"primaryKey" json:"id"`
+	TenantID    string     `gorm:"index" json:"tenant_id"`
+	Name        string     `gorm:"not null;size:100" json:"name"`
+	Description string     `json:"description"`
+	CronExpr    string     `gorm:"not null;size:50" json:"cron_expr"` // e.g., "0 */6 * * *"
+	TaskType    string     `gorm:"size:30;index" json:"task_type"`    // shell, backup, health_check, log_cleanup
+	Command     string     `gorm:"type:text" json:"command"`          // shell command or task-specific config
+	ServerID    string     `gorm:"index" json:"server_id,omitempty"`
+	Enabled     bool       `gorm:"default:true" json:"enabled"`
+	Timeout     int        `gorm:"default:300" json:"timeout"`        // seconds
+	LastRunAt   *time.Time `json:"last_run_at,omitempty"`
+	LastStatus  string     `gorm:"size:20" json:"last_status,omitempty"` // success, failed, running
+	LastError   string     `gorm:"type:text" json:"last_error,omitempty"`
+	RunCount    int        `gorm:"default:0" json:"run_count"`
+	CreatedAt   time.Time  `gorm:"autoCreateTime" json:"created_at"`
+	UpdatedAt   time.Time  `gorm:"autoUpdateTime" json:"updated_at"`
+}
+
+func (ScheduledTask) TableName() string { return "scheduled_tasks" }
+
+// TaskExecution stores execution reports for scheduled tasks.
+type TaskExecution struct {
+	ID        string    `gorm:"primaryKey" json:"id"`
+	TaskID    string    `gorm:"index" json:"task_id"`
+	TenantID  string    `gorm:"index" json:"tenant_id"`
+	Status    string    `gorm:"size:20;index" json:"status"` // success, failed, timeout
+	Output    string    `gorm:"type:text" json:"output,omitempty"`
+	Error     string    `gorm:"type:text" json:"error,omitempty"`
+	StartedAt time.Time `json:"started_at"`
+	EndedAt   time.Time `json:"ended_at"`
+	Duration  int64     `json:"duration"` // milliseconds
+	CreatedAt time.Time `gorm:"autoCreateTime" json:"created_at"`
+}
+
+func (TaskExecution) TableName() string { return "task_executions" }

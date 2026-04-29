@@ -10,6 +10,7 @@ var ToolPermissions = map[string]int{
 	"list_tasks": 1, "list_deployments": 1, "detect_environment": 1,
 	"health_check": 1, "doctor": 1, "get_container_metrics": 1,
 	"get_system_metrics": 1, "list_alerts": 1, "list_alert_rules": 1,
+	"query_metric_history": 1, "query_alert_history": 1,
 	"get_ci_build_status": 1, "list_ssl_certificates": 1,
 	"get_context": 1, "detect_panel": 1,
 	"list_clusters": 1, "k8s_list_deployments": 1, "k8s_get_pods": 1,
@@ -41,6 +42,12 @@ var ToolPermissions = map[string]int{
 	"compose_restart": 2,
 	// Phase 3.5: Preflight visualization
 	"run_preflight": 1,
+	// Phase 3.10: Scheduled task system
+	"create_scheduled_task": 3,
+	"list_scheduled_tasks": 1,
+	"get_task_executions": 1,
+	"toggle_scheduled_task": 3,
+	"delete_scheduled_task": 3,
 	// Owner-level (system)
 	"update_user_role": 4, "delete_user": 4,
 }

@@ -80,6 +80,7 @@ type Bridge struct {
 	ConfirmStore  *confirm.Store
 	BFProtector   *bruteforce.Protector
 	Cache         Cache                    // general-purpose cache (Redis or in-memory)
+	Scheduler     *Scheduler               // scheduled task system
 }
 
 // TunnelManager defines the interface for agent reverse tunnel management.

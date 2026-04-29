@@ -181,6 +181,11 @@ func run(configFilePath, cliDriver, cliDSN, cliAddr string) error {
 	bridge.TunnelManager = tunnelManager
 	bridge.UpgradeSvc = service.NewUpgradeService("")
 
+	// Initialize scheduler
+	scheduler := service.NewScheduler(db, bridge)
+	bridge.Scheduler = scheduler
+	scheduler.Start(context.Background())
+
 	// Apply brute-force config from configuration file
 	bf := cfg.BruteForce
 	bridge.SetBruteForceConfig(service.BruteForceConfigFromMap(
@@ -256,26 +261,31 @@ func run(configFilePath, cliDriver, cliDSN, cliAddr string) error {
 		slog.Warn("API server shutdown error", "error", err)
 	}
 
-	// 3. Stop monitor if running
+	// 3. Stop scheduler
+	if bridge.Scheduler != nil {
+		bridge.Scheduler.Stop()
+	}
+
+	// 4. Stop monitor if running
 	if bridge.Monitor != nil {
 		bridge.Monitor.Stop()
 	}
 
-	// 4. Close event bus
+	// 5. Close event bus
 	if eventBus != nil {
 		if err := eventBus.Close(); err != nil {
 			slog.Warn("event bus close error", "error", err)
 		}
 	}
 
-	// 5. Close cache (in-memory cache only; Redis cache is closed via rdb)
+	// 6. Close cache (in-memory cache only; Redis cache is closed via rdb)
 	if cache != nil && rdb == nil {
 		if err := cache.Close(); err != nil {
 			slog.Warn("cache close error", "error", err)
 		}
 	}
 
-	// 6. Close database connection
+	// 7. Close database connection
 	if sqlDB, err := db.DB(); err == nil {
 		if err := sqlDB.Close(); err != nil {
 			slog.Warn("database close error", "error", err)
