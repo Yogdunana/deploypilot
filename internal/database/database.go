@@ -484,24 +484,20 @@ func Migrate(db *gorm.DB) error {
 		{
 			ID: "202604300001",
 			Migrate: func(tx *gorm.DB) error {
-				tx.AutoMigrate(&model.MetricRecord{}, &model.AlertHistory{})
-				return nil
+				return tx.AutoMigrate(&model.MetricRecord{}, &model.AlertHistory{})
 			},
 			Rollback: func(tx *gorm.DB) error {
-				tx.Migrator().DropTable("metric_records", "alert_histories")
-				return nil
+				return tx.Migrator().DropTable("metric_records", "alert_histories")
 			},
 		},
 		// 202604300002: Create scheduled_tasks and task_executions tables
 		{
 			ID: "202604300002",
 			Migrate: func(tx *gorm.DB) error {
-				tx.AutoMigrate(&model.ScheduledTask{}, &model.TaskExecution{})
-				return nil
+				return tx.AutoMigrate(&model.ScheduledTask{}, &model.TaskExecution{})
 			},
 			Rollback: func(tx *gorm.DB) error {
-				tx.Migrator().DropTable("task_executions", "scheduled_tasks")
-				return nil
+				return tx.Migrator().DropTable("task_executions", "scheduled_tasks")
 			},
 		},
 	})
