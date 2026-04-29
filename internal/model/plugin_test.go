@@ -14,7 +14,7 @@ func setupPluginDB(t *testing.T) func() {
 	if err != nil {
 		t.Fatalf("open sqlite: %v", err)
 	}
-	db.AutoMigrate(&Tenant{}, &User{}, &Role{}, &Server{}, &App{}, &Credential{}, &Cluster{}, &DeploymentRecord{}, &AuditLog{}, &SSLCertificate{}, &Provider{})
+	db.AutoMigrate(&Tenant{}, &User{}, &Role{}, &Server{}, &App{}, &Credential{}, &Cluster{}, &DeploymentRecord{}, &AuditLog{}, &SSLCertificate{}, &Provider{}, &Plugin{})
 	encKey := crypto.NewEncryptionKey()
 	InitDB(db, encKey)
 	return func() {
