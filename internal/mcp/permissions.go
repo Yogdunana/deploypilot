@@ -6,7 +6,7 @@ var ToolPermissions = map[string]int{
 	// Viewer-level (read-only)
 	"list_apps": 1, "get_app_detail": 1, "list_servers": 1,
 	"list_credentials": 1, "list_dns_records": 1, "list_templates": 1,
-	"get_template": 1, "get_deploy_status": 1, "get_task_status": 1,
+	"get_template": 1, "list_env_templates": 1, "get_env_template": 1, "get_deploy_status": 1, "get_task_status": 1,
 	"list_tasks": 1, "list_deployments": 1, "detect_environment": 1,
 	"health_check": 1, "doctor": 1, "get_container_metrics": 1,
 	"get_system_metrics": 1, "list_alerts": 1, "list_alert_rules": 1,
@@ -39,6 +39,8 @@ var ToolPermissions = map[string]int{
 	"compose_deploy": 3, "compose_stop": 3,
 	"compose_ps": 1, "compose_logs": 1,
 	"compose_restart": 2,
+	// Phase 3.5: Preflight visualization
+	"run_preflight": 1,
 	// Owner-level (system)
 	"update_user_role": 4, "delete_user": 4,
 }

@@ -43,6 +43,8 @@ type Deployer interface {
 	SendNotification(ctx context.Context, nType, appName, server, status, message string) (interface{}, error)
 	ListTemplates(ctx context.Context) (interface{}, error)
 	GetTemplate(ctx context.Context, tmplType string) (interface{}, error)
+	ListEnvTemplates(ctx context.Context) (interface{}, error)
+	GetEnvTemplate(ctx context.Context, serviceType string) (interface{}, error)
 	GetAppDetail(ctx context.Context, appID string) (interface{}, error)
 	UpdateApp(ctx context.Context, appID string, config map[string]interface{}) (interface{}, error)
 	GetTaskStatus(ctx context.Context, taskID string) (interface{}, error)
@@ -95,6 +97,8 @@ type Deployer interface {
 	ComposePs(ctx context.Context, appID string) (string, error)
 	ComposeLogs(ctx context.Context, appID, service, tail string) (string, error)
 	ComposeRestart(ctx context.Context, appID, service string) (string, error)
+	// Phase 3.5: Preflight visualization
+	RunPreflightFull(ctx context.Context, serverID string, portMappings string) (interface{}, error)
 }
 
 // DeployConfig mirrors deployer.DeployConfig to avoid circular imports.

@@ -31,3 +31,28 @@ func handleGetTemplate(ctx context.Context, deployer Deployer, request mcp.CallT
 	data, _ := json.MarshalIndent(result, "", "  ")
 	return mcp.NewToolResultText(string(data)), nil
 }
+func handleListEnvTemplates(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	templates, err := deployer.ListEnvTemplates(ctx)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("list env templates failed: %v", err)), nil
+	}
+
+	result := map[string]interface{}{"status": "success", "env_templates": templates}
+	data, _ := json.MarshalIndent(result, "", "  ")
+	return mcp.NewToolResultText(string(data)), nil
+}
+func handleGetEnvTemplate(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	serviceType, err := request.RequireString("service_type")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	tmpl, err := deployer.GetEnvTemplate(ctx, serviceType)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("get env template failed: %v", err)), nil
+	}
+
+	result := map[string]interface{}{"status": "success", "env_template": tmpl}
+	data, _ := json.MarshalIndent(result, "", "  ")
+	return mcp.NewToolResultText(string(data)), nil
+}
