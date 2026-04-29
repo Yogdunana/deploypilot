@@ -174,7 +174,7 @@ func setupTestRouter(db *gorm.DB) *gin.Engine {
 func setupFullTestRouter(db *gorm.DB, bridge *service.Bridge) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
-	wsHub := NewWSHub()
+	wsHub := NewWSHub(nil)
 	go wsHub.Run()
 	auditSvc := service.NewAuditService(db)
 	backupSvc := backup.New(backup.Config{BackupDir: os.TempDir()}, db, "sqlite", "")

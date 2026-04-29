@@ -93,9 +93,9 @@ func dialWS(t *testing.T, server *httptest.Server, path string) *websocket.Conn 
 // --- WSHub Tests ---
 
 func TestNewWSHub(t *testing.T) {
-	hub := NewWSHub()
+	hub := NewWSHub(nil)
 	if hub == nil {
-		t.Fatal("NewWSHub() returned nil")
+		t.Fatal("NewWSHub(nil) returned nil")
 	}
 	if hub.clients == nil {
 		t.Fatal("expected non-nil clients map")
@@ -109,7 +109,7 @@ func TestNewWSHub(t *testing.T) {
 }
 
 func TestWSHubRegisterUnregister(t *testing.T) {
-	hub := NewWSHub()
+	hub := NewWSHub(nil)
 	go hub.Run()
 
 	registered := make(chan struct{})
@@ -171,7 +171,7 @@ func TestWSHubRegisterUnregister(t *testing.T) {
 }
 
 func TestWSHubBroadcast(t *testing.T) {
-	hub := NewWSHub()
+	hub := NewWSHub(nil)
 	go hub.Run()
 
 	// Create a server that registers the server-side conn with the hub
@@ -232,7 +232,7 @@ func TestWSHubBroadcast(t *testing.T) {
 }
 
 func TestWSHubClientCount(t *testing.T) {
-	hub := NewWSHub()
+	hub := NewWSHub(nil)
 	go hub.Run()
 
 	// No clients for unknown app
@@ -360,7 +360,7 @@ func TestWSMessageJSON(t *testing.T) {
 func TestLogStreamWS_NoToken(t *testing.T) {
 	db := setupWSTestDB(t)
 	bridge := service.NewBridge(db, &localExecutor{}, []byte("test-key-1234567890abcdef"), nil)
-	hub := NewWSHub()
+	hub := NewWSHub(nil)
 	go hub.Run()
 
 	router := setupWSRouter(db, bridge, hub)
@@ -382,7 +382,7 @@ func TestLogStreamWS_NoToken(t *testing.T) {
 func TestLogStreamWS_InvalidToken(t *testing.T) {
 	db := setupWSTestDB(t)
 	bridge := service.NewBridge(db, &localExecutor{}, []byte("test-key-1234567890abcdef"), nil)
-	hub := NewWSHub()
+	hub := NewWSHub(nil)
 	go hub.Run()
 
 	router := setupWSRouter(db, bridge, hub)
@@ -405,7 +405,7 @@ func TestLogStreamWS_InvalidToken(t *testing.T) {
 func TestTerminalWS_NoToken(t *testing.T) {
 	db := setupWSTestDB(t)
 	bridge := service.NewBridge(db, &localExecutor{}, []byte("test-key-1234567890abcdef"), nil)
-	hub := NewWSHub()
+	hub := NewWSHub(nil)
 	go hub.Run()
 
 	router := setupWSRouter(db, bridge, hub)
@@ -426,7 +426,7 @@ func TestTerminalWS_NoToken(t *testing.T) {
 func TestTerminalWS_InvalidToken(t *testing.T) {
 	db := setupWSTestDB(t)
 	bridge := service.NewBridge(db, &localExecutor{}, []byte("test-key-1234567890abcdef"), nil)
-	hub := NewWSHub()
+	hub := NewWSHub(nil)
 	go hub.Run()
 
 	router := setupWSRouter(db, bridge, hub)
@@ -446,7 +446,7 @@ func TestTerminalWS_InvalidToken(t *testing.T) {
 func TestTerminalWS_ServerNotFound(t *testing.T) {
 	db := setupWSTestDB(t)
 	bridge := service.NewBridge(db, &localExecutor{}, []byte("test-key-1234567890abcdef"), nil)
-	hub := NewWSHub()
+	hub := NewWSHub(nil)
 	go hub.Run()
 
 	router := setupWSRouter(db, bridge, hub)
@@ -477,7 +477,7 @@ func TestTerminalWS_ServerNotFound(t *testing.T) {
 func TestLogStreamWS_AppNotFound(t *testing.T) {
 	db := setupWSTestDB(t)
 	bridge := service.NewBridge(db, &localExecutor{}, []byte("test-key-1234567890abcdef"), nil)
-	hub := NewWSHub()
+	hub := NewWSHub(nil)
 	go hub.Run()
 
 	router := setupWSRouter(db, bridge, hub)
@@ -506,7 +506,7 @@ func TestLogStreamWS_AppNotFound(t *testing.T) {
 }
 
 func TestWSHub_Send(t *testing.T) {
-	hub := NewWSHub()
+	hub := NewWSHub(nil)
 	go hub.Run()
 
 	done := make(chan struct{})
@@ -549,7 +549,7 @@ func TestWSHub_Send(t *testing.T) {
 }
 
 func TestWSHub_BroadcastNoClients(t *testing.T) {
-	hub := NewWSHub()
+	hub := NewWSHub(nil)
 	go hub.Run()
 
 	// Broadcasting to an app with no clients should not panic
@@ -559,7 +559,7 @@ func TestWSHub_BroadcastNoClients(t *testing.T) {
 }
 
 func TestWSHub_BroadcastMarshalError(t *testing.T) {
-	hub := NewWSHub()
+	hub := NewWSHub(nil)
 	go hub.Run()
 
 	// Broadcasting a message with unmarshalable data should not panic
@@ -569,7 +569,7 @@ func TestWSHub_BroadcastMarshalError(t *testing.T) {
 }
 
 func TestWSHub_SendMarshalError(t *testing.T) {
-	hub := NewWSHub()
+	hub := NewWSHub(nil)
 
 	// Create a server that upgrades and immediately closes
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -699,7 +699,7 @@ func TestLogStreamWS_ValidApp(t *testing.T) {
 	db.Exec(`INSERT INTO apps (id, tenant_id, name, repo_url, container_name) VALUES ('app-ws-1', 'tenant-default', 'ws-app', 'https://github.com/test/test', 'ws-app-container')`)
 
 	bridge := service.NewBridge(db, &localExecutor{}, []byte("test-key-1234567890abcdef"), nil)
-	hub := NewWSHub()
+	hub := NewWSHub(nil)
 	go hub.Run()
 
 	router := setupWSRouter(db, bridge, hub)
@@ -735,7 +735,7 @@ func TestLogStreamWS_AppWithFallbackName(t *testing.T) {
 	db.Exec(`INSERT INTO apps (id, tenant_id, name, repo_url, container_name) VALUES ('app-ws-2', 'tenant-default', 'fallback-app', 'https://github.com/test/test', '')`)
 
 	bridge := service.NewBridge(db, &localExecutor{}, []byte("test-key-1234567890abcdef"), nil)
-	hub := NewWSHub()
+	hub := NewWSHub(nil)
 	go hub.Run()
 
 	router := setupWSRouter(db, bridge, hub)
@@ -766,7 +766,7 @@ func TestTerminalWS_ValidServer(t *testing.T) {
 	db.Exec(`INSERT INTO credentials (id, tenant_id, name, type, encrypted_value) VALUES ('cred-ws-1', 'tenant-default', 'ssh-key', 'ssh', 'encrypted-value')`)
 
 	bridge := service.NewBridge(db, &localExecutor{}, []byte("test-key-1234567890abcdef"), nil)
-	hub := NewWSHub()
+	hub := NewWSHub(nil)
 	go hub.Run()
 
 	router := setupWSRouter(db, bridge, hub)
@@ -810,7 +810,7 @@ func TestTerminalWS_InvalidCommand(t *testing.T) {
 	db.Exec(`INSERT INTO credentials (id, tenant_id, name, type, encrypted_value) VALUES ('cred-ws-3', 'tenant-default', 'ssh-key-3', 'ssh', 'encrypted-value')`)
 
 	bridge := service.NewBridge(db, &localExecutor{}, []byte("test-key-1234567890abcdef"), nil)
-	hub := NewWSHub()
+	hub := NewWSHub(nil)
 	go hub.Run()
 
 	router := setupWSRouter(db, bridge, hub)
