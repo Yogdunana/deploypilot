@@ -206,6 +206,34 @@ stub 模式: `func (m *mockDeployer) MethodName(_ context.Context, ...) (type, e
 
 **实现**: WSHub 使用 UUID 前 8 位作为 instanceID，WSMessage 新增 `SourceInstance` 字段，Redis 订阅者收到消息后检查 `msg.SourceInstance != h.instanceID`。
 
+### 29. 前端新文件推送后远程可能缺失
+
+通过 GitHub MCP `create_or_update_file` 推送新文件时，如果文件内容过大或网络问题，文件可能未成功写入远程分支但本地认为已推送。**必须**在推送后通过 `get_file_contents` 验证文件确实存在于远程。
+
+- **排查方法**: 推送后立即 `get_file_contents(path, branch)` 确认返回 200 而非 404
+- **反例**: PR #173 中 `api/modules/apikeys.ts` 本地存在但远程 404，导致 CI Build Frontend 失败
+
+### 30. vue-tsc -b 的 tsbuildinfo 缓存可能导致类型检查跳过新文件
+
+`vue-tsc -b`（build mode）使用 `tsconfig.tsbuildinfo` 增量编译缓存。如果该文件提交在仓库中且记录的文件列表不包含新增文件，`vue-tsc -b` 可能跳过对新文件的类型检查，导致 `Cannot find module` 错误在 CI 中出现但本地不出现。
+
+- **修复**: 清空或删除 `tsconfig.tsbuildinfo` 文件，强制 `vue-tsc -b` 全量重建
+- **最佳实践**: 将 `tsconfig.tsbuildinfo` 加入 `.gitignore`，不要提交到仓库
+
+### 31. 前端组件导入路径必须与文件实际位置完全匹配
+
+Vue 组件中的 `import` 路径必须与 `web/src/` 下的文件结构完全一致。常见错误：
+
+- `import { twofaApi } from '@/api/twofa'` — 错误（缺少 `modules/`）
+- `import * as twofaApi from '@/api/modules/twofa'` — 正确
+
+同时注意导入方式必须与模块的导出方式匹配：
+
+- 模块使用命名导出（`export function setup()`）→ 用 `import * as twofaApi from '...'` 或 `import { setup, confirm } from '...'`
+- 不要假设模块有默认导出或命名空间导出
+
+- **反例**: PR #173 中 `SecuritySettings.vue` 使用 `import { twofaApi } from '@/api/twofa'`，路径错误且导入方式不匹配，导致 CI 报 `Cannot find module '@/api/twofa'`
+
 ## 项目结构关键路径
 
 | 路径 | 说明 |
@@ -292,6 +320,7 @@ Bridge God Object 已拆分为 18 个文件，87 个方法按领域分布：
 | 路由 | Vue Router 4 (History 模式) |
 | HTTP | Axios |
 | 包管理器 | npm |
+| 组件库 | 自定义 shadcn/ui 风格组件（Button, Dialog, AlertDialog, Tabs, Badge, Input 等），CVA + lucide-vue-next 图标 |
 | 测试 | Vitest 4 + @vue/test-utils + jsdom |
 | 嵌入方式 | Go `embed` 嵌入到后端二进制（`web/embed.go`） |
 
@@ -397,3 +426,4 @@ permissions: contents: read
 permissions:
   contents: read
 ```
+
