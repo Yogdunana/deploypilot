@@ -5,84 +5,77 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
 func setup1PanelTestServer() *httptest.Server {
-	mux := http.NewServeMux()
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
 
-	mux.HandleFunc("/api/v1/firewall/rules", func(w http.ResponseWriter, r *http.Request) {
-		switch r.Method {
-		case http.MethodPost:
-			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(map[string]interface{}{
-				"code": 200, "message": "ok", "data": map[string]interface{}{"id": 1},
-			})
-		case http.MethodGet:
-			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(map[string]interface{}{
-				"code": 200, "message": "ok",
-				"data": map[string]interface{}{
-					"items": []map[string]interface{}{
-						{"id": 1, "protocol": "tcp", "port": "8080", "address": "", "comment": "deploypilot", "action": "accept"},
-						{"id": 2, "protocol": "tcp", "port": "9090", "address": "", "comment": "other", "action": "accept"},
+		switch {
+		// Firewall rules
+		case r.URL.Path == "/api/v1/firewall/rules":
+			switch r.Method {
+			case http.MethodPost:
+				json.NewEncoder(w).Encode(map[string]interface{}{
+					"code": 200, "message": "ok", "data": map[string]interface{}{"id": 1},
+				})
+			case http.MethodGet:
+				json.NewEncoder(w).Encode(map[string]interface{}{
+					"code": 200, "message": "ok",
+					"data": map[string]interface{}{
+						"items": []map[string]interface{}{
+							{"id": 1, "protocol": "tcp", "port": "8080", "address": "", "comment": "deploypilot", "action": "accept"},
+							{"id": 2, "protocol": "tcp", "port": "9090", "address": "", "comment": "other", "action": "accept"},
+						},
+						"total": 2,
 					},
-					"total": 2,
-				},
-			})
-		case http.MethodDelete:
-			w.Header().Set("Content-Type", "application/json")
+				})
+			case http.MethodDelete:
+				json.NewEncoder(w).Encode(map[string]interface{}{"code": 200, "message": "ok"})
+			}
+
+		// Delete website by ID (e.g., /api/v1/websites/10)
+		case r.Method == http.MethodDelete && strings.HasPrefix(r.URL.Path, "/api/v1/websites/") && r.URL.Path != "/api/v1/websites/reverse_proxy":
 			json.NewEncoder(w).Encode(map[string]interface{}{"code": 200, "message": "ok"})
-		}
-	})
 
-	mux.HandleFunc("/api/v1/websites", func(w http.ResponseWriter, r *http.Request) {
-		switch r.Method {
-		case http.MethodGet:
-			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(map[string]interface{}{
-				"code": 200, "message": "ok",
-				"data": map[string]interface{}{
-					"items": []map[string]interface{}{
-						{"id": 10, "primaryDomain": "app.example.com", "type": "reverse_proxy", "status": true, "remark": "my app", "ssl": false, "createdAt": "2026-04-28"},
-						{"id": 11, "primaryDomain": "blog.example.com", "type": "static", "status": true, "remark": "blog", "ssl": true, "createdAt": "2026-04-27"},
-					},
-					"total": 2,
-				},
-			})
-		case http.MethodPost:
-			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(map[string]interface{}{
-				"code": 200, "message": "ok",
-				"data":  map[string]interface{}{"id": 12, "primaryDomain": "new.example.com", "type": "static", "status": true},
-			})
-		}
-	})
-
-	mux.HandleFunc("/api/v1/websites/", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodDelete {
-			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(map[string]interface{}{"code": 200, "message": "ok"})
-		}
-	})
-
-	mux.HandleFunc("/api/v1/websites/reverse_proxy", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodPost {
-			w.Header().Set("Content-Type", "application/json")
+		// Create reverse proxy
+		case r.URL.Path == "/api/v1/websites/reverse_proxy" && r.Method == http.MethodPost:
 			json.NewEncoder(w).Encode(map[string]interface{}{"code": 200, "message": "ok", "data": map[string]interface{}{"id": 5}})
-		}
-	})
 
-	return httptest.NewServer(mux)
+		// Website list (GET) or create (POST)
+		case r.URL.Path == "/api/v1/websites":
+			switch r.Method {
+			case http.MethodGet:
+				json.NewEncoder(w).Encode(map[string]interface{}{
+					"code": 200, "message": "ok",
+					"data": map[string]interface{}{
+						"items": []map[string]interface{}{
+							{"id": 10, "primaryDomain": "app.example.com", "type": "reverse_proxy", "status": true, "remark": "my app", "ssl": false, "createdAt": "2026-04-28"},
+							{"id": 11, "primaryDomain": "blog.example.com", "type": "static", "status": true, "remark": "blog", "ssl": true, "createdAt": "2026-04-27"},
+						},
+						"total": 2,
+					},
+				})
+			case http.MethodPost:
+				json.NewEncoder(w).Encode(map[string]interface{}{
+					"code": 200, "message": "ok",
+					"data": map[string]interface{}{"id": 12, "primaryDomain": "new.example.com", "type": "static", "status": true},
+				})
+			}
+
+		default:
+			http.NotFound(w, r)
+		}
+	}))
 }
 
 func setup1PanelErrorServer() *httptest.Server {
-	mux := http.NewServeMux()
-	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{"code": 500, "message": "internal error"})
-	})
-	return httptest.NewServer(mux)
+	}))
 }
 
 func TestNewPanel1Client(t *testing.T) {

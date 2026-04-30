@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -49,84 +50,86 @@ func (m *mockPanelClient) GetInfo() map[string]interface{} {
 
 // setupPanelProviderTestServer creates a mock HTTP server that handles both 1Panel and BT-Panel API calls.
 func setupPanelProviderTestServer() *httptest.Server {
-	mux := http.NewServeMux()
-
-	// 1Panel endpoints
-	mux.HandleFunc("/api/v1/firewall/rules", func(w http.ResponseWriter, r *http.Request) {
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		switch r.Method {
-		case http.MethodGet:
-			json.NewEncoder(w).Encode(map[string]interface{}{
-				"code": 200, "message": "ok",
-				"data": map[string]interface{}{
-					"items": []map[string]interface{}{
-						{"id": 1, "protocol": "tcp", "port": "8080", "address": "", "comment": "deploypilot", "action": "accept"},
+		path := r.URL.Path
+
+		switch {
+		// 1Panel endpoints
+		case path == "/api/v1/firewall/rules":
+			switch r.Method {
+			case http.MethodGet:
+				json.NewEncoder(w).Encode(map[string]interface{}{
+					"code": 200, "message": "ok",
+					"data": map[string]interface{}{
+						"items": []map[string]interface{}{
+							{"id": 1, "protocol": "tcp", "port": "8080", "address": "", "comment": "deploypilot", "action": "accept"},
+						},
+						"total": 1,
 					},
-					"total": 1,
-				},
-			})
-		default:
-			json.NewEncoder(w).Encode(map[string]interface{}{"code": 200, "message": "ok", "data": map[string]interface{}{"id": 1}})
-		}
-	})
-	mux.HandleFunc("/api/v1/websites/reverse_proxy", func(w http.ResponseWriter, r *http.Request) {
-		resp := panel1Response{Code: 200, Message: "success", Data: json.RawMessage(`{"id": 1}`)}
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(resp)
-	})
-	mux.HandleFunc("/api/v1/websites", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodGet {
-			resp := panel1Response{Code: 200, Message: "success", Data: json.RawMessage(`{"items":[],"total":0}`)}
-			w.Header().Set("Content-Type", "application/json")
+				})
+			default:
+				json.NewEncoder(w).Encode(map[string]interface{}{"code": 200, "message": "ok", "data": map[string]interface{}{"id": 1}})
+			}
+
+		case path == "/api/v1/websites/reverse_proxy":
+			resp := panel1Response{Code: 200, Message: "success", Data: json.RawMessage(`{"id": 1}`)}
 			json.NewEncoder(w).Encode(resp)
-		}
-	})
 
-	// BT-Panel endpoints
-	mux.HandleFunc("/login", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Set-Cookie", "bt_user_token=test-token; Path=/")
-		resp := btPanelResponse{Status: true, Msg: "Login successful"}
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(resp)
-	})
-	mux.HandleFunc("/firewall", func(w http.ResponseWriter, r *http.Request) {
-		resp := btPanelResponse{Status: true, Msg: "ok", Data: map[string]interface{}{
-			"list": []map[string]interface{}{
-				{
-					"id":       "1",
-					"port":     "8080",
-					"protocol": "tcp",
-					"ps":       "deploypilot",
+		case path == "/api/v1/websites":
+			if r.Method == http.MethodGet {
+				resp := panel1Response{Code: 200, Message: "success", Data: json.RawMessage(`{"items":[],"total":0}`)}
+				json.NewEncoder(w).Encode(resp)
+			}
+
+		// BT-Panel endpoints
+		case path == "/login":
+			w.Header().Set("Set-Cookie", "bt_user_token=test-token; Path=/")
+			resp := btPanelResponse{Status: true, Msg: "Login successful"}
+			json.NewEncoder(w).Encode(resp)
+
+		case path == "/firewall":
+			resp := btPanelResponse{Status: true, Msg: "ok", Data: map[string]interface{}{
+				"list": []map[string]interface{}{
+					{
+						"id":       "1",
+						"port":     "8080",
+						"protocol": "tcp",
+						"ps":       "deploypilot",
+					},
 				},
-			},
-		}}
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(resp)
-	})
-	mux.HandleFunc("/firewall/add", func(w http.ResponseWriter, r *http.Request) {
-		resp := btPanelResponse{Status: true, Msg: "Firewall rule added"}
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(resp)
-	})
-	mux.HandleFunc("/firewall/del", func(w http.ResponseWriter, r *http.Request) {
-		resp := btPanelResponse{Status: true, Msg: "Firewall rule deleted"}
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(resp)
-	})
-	mux.HandleFunc("/site/add", func(w http.ResponseWriter, r *http.Request) {
-		resp := btPanelResponse{Status: true, Msg: "Site added"}
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(resp)
-	})
-	mux.HandleFunc("/site/list", func(w http.ResponseWriter, r *http.Request) {
-		resp := btPanelResponse{Status: true, Msg: "ok", Data: map[string]interface{}{
-			"list": []interface{}{},
-		}}
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(resp)
-	})
+			}}
+			json.NewEncoder(w).Encode(resp)
 
-	return httptest.NewServer(mux)
+		case path == "/firewall/add":
+			resp := btPanelResponse{Status: true, Msg: "Firewall rule added"}
+			json.NewEncoder(w).Encode(resp)
+
+		case path == "/firewall/del":
+			resp := btPanelResponse{Status: true, Msg: "Firewall rule deleted"}
+			json.NewEncoder(w).Encode(resp)
+
+		case path == "/site/add":
+			resp := btPanelResponse{Status: true, Msg: "Site added"}
+			json.NewEncoder(w).Encode(resp)
+
+		case path == "/site/list":
+			resp := btPanelResponse{Status: true, Msg: "ok", Data: map[string]interface{}{
+				"list": []interface{}{},
+			}}
+			json.NewEncoder(w).Encode(resp)
+
+		case path == "/site/delete":
+			resp := btPanelResponse{Status: true, Msg: "Site deleted"}
+			json.NewEncoder(w).Encode(resp)
+
+		case strings.HasPrefix(path, "/api/v1/websites/") && r.Method == http.MethodDelete:
+			json.NewEncoder(w).Encode(map[string]interface{}{"code": 200, "message": "ok"})
+
+		default:
+			http.NotFound(w, r)
+		}
+	}))
 }
 
 func TestDetectPanel_None(t *testing.T) {
