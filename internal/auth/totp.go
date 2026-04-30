@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/pquerna/otp"
 	"github.com/pquerna/otp/totp"
 )
 

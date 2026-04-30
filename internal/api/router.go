@@ -72,14 +72,6 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 			authGroup.GET("/oauth/:provider/callback", OAuthCallback(oauthSvc, stateStore))
 			authGroup.POST("/2fa/verify", Verify2FA(db, auditSvc))
 		}
-
-		// 2FA management (requires authentication)
-		twofa := protected.Group("/2fa")
-		{
-			twofa.POST("/setup", Setup2FA(db, auditSvc))
-			twofa.POST("/confirm", Confirm2FA(db, auditSvc))
-			twofa.POST("/disable", Disable2FA(db, auditSvc))
-		}
 	}
 
 	// Protected routes (JWT or API Key)
@@ -279,6 +271,14 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 			plugins.POST("/:id/enable", pluginHandler.EnablePlugin())
 			plugins.POST("/:id/disable", pluginHandler.DisablePlugin())
 			plugins.POST("/:id/reload", pluginHandler.ReloadPlugin())
+		}
+
+		// 2FA management (requires authentication)
+		twofa := protected.Group("/2fa")
+		{
+			twofa.POST("/setup", Setup2FA(db, auditSvc))
+			twofa.POST("/confirm", Confirm2FA(db, auditSvc))
+			twofa.POST("/disable", Disable2FA(db, auditSvc))
 		}
 
 		// API Keys (3 endpoints)
