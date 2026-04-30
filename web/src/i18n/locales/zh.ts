@@ -864,8 +864,6 @@ export default {
     search: '搜索',
     startDate: '开始日期',
     endDate: '结束日期',
-    startDate: '开始日期',
-    endDate: '结束日期',
     create: '创建',
     update: '更新',
     delete: '删除',
