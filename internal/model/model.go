@@ -37,6 +37,9 @@ type User struct {
 	AuthProvider string `gorm:"size:20;index" json:"auth_provider,omitempty"`
 	AuthUID      string `gorm:"size:100;index" json:"auth_uid,omitempty"`
 	AvatarURL    string `gorm:"size:500" json:"avatar_url,omitempty"`
+	TOTPSecret   string    `gorm:"size:256" json:"-"`
+	TOTPEnabled  bool      `gorm:"default:false" json:"totp_enabled"`
+	BackupCodes  string    `gorm:"type:text" json:"-"`
 	CreatedAt    time.Time `gorm:"autoCreateTime" json:"created_at"`
 	UpdatedAt    time.Time `gorm:"autoUpdateTime" json:"updated_at"`
 

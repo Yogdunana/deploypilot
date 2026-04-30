@@ -50,6 +50,25 @@ func GenerateToken(userID, role string) (string, error) {
 	return token.SignedString(secret)
 }
 
+// Generate2FAPendingToken creates a short-lived JWT (5 minutes) for 2FA verification.
+func Generate2FAPendingToken(userID, role string) (string, error) {
+	claims := &Claims{
+		UserID: userID,
+		Role:   role,
+		RegisteredClaims: jwt.RegisteredClaims{
+			ID:        uuid.New().String(),
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(5 * time.Minute)),
+		},
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	secret, err := getJWTSecret()
+	if err != nil {
+		return "", fmt.Errorf("failed to get JWT secret: %w", err)
+	}
+	return token.SignedString(secret)
+}
+
 // ParseToken validates and parses a JWT string, returning the claims.
 func ParseToken(tokenString string) (*Claims, error) {
 	secret, err := getJWTSecret()
