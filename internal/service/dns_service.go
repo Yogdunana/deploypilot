@@ -63,15 +63,7 @@ func (b *Bridge) getDNSProvider(ctx context.Context) (dns.DNSProvider, error) {
 func (b *Bridge) DNSCreateRecord(ctx context.Context, domain, recordType, name, value string) (interface{}, error) {
 	provider, err := b.getDNSProvider(ctx)
 	if err != nil {
-		slog.Error("DNS provider error", "error", err)
-		return map[string]interface{}{
-			"status":  "error",
-			"domain":  domain,
-			"type":    recordType,
-			"name":    name,
-			"value":   value,
-			"message": err.Error(),
-		}, nil
+		return nil, fmt.Errorf("DNS provider error: %w", err)
 	}
 	record := &dns.DNSRecord{
 		Domain: domain,
@@ -81,10 +73,7 @@ func (b *Bridge) DNSCreateRecord(ctx context.Context, domain, recordType, name, 
 		TTL:    1,
 	}
 	if err := provider.CreateRecord(ctx, record); err != nil {
-		return map[string]interface{}{
-			"status":  "error",
-			"message": err.Error(),
-		}, nil
+		return nil, fmt.Errorf("DNS create record failed: %w", err)
 	}
 	return map[string]interface{}{
 		"status": "success",
@@ -128,18 +117,11 @@ func (b *Bridge) DNSListRecords(ctx context.Context, domain string) (interface{}
 
 	provider, err := b.getDNSProvider(ctx)
 	if err != nil {
-		return map[string]interface{}{
-			"status":  "error",
-			"domain":  domain,
-			"message": err.Error(),
-		}, nil
+		return nil, fmt.Errorf("DNS provider error: %w", err)
 	}
 	records, err := provider.ListRecords(ctx, domain)
 	if err != nil {
-		return map[string]interface{}{
-			"status":  "error",
-			"message": err.Error(),
-		}, nil
+		return nil, fmt.Errorf("DNS list records failed: %w", err)
 	}
 	// Convert to response format
 	result := make([]map[string]interface{}, 0, len(records))
@@ -175,10 +157,7 @@ func (b *Bridge) DNSListRecords(ctx context.Context, domain string) (interface{}
 func (b *Bridge) UpdateDNSRecord(ctx context.Context, domain, subdomain, recordType, newValue string) (interface{}, error) {
 	provider, err := b.getDNSProvider(ctx)
 	if err != nil {
-		return map[string]interface{}{
-			"status":  "error",
-			"message": err.Error(),
-		}, nil
+		return nil, fmt.Errorf("DNS provider error: %w", err)
 	}
 	record := &dns.DNSRecord{
 		Domain: domain,
@@ -188,10 +167,7 @@ func (b *Bridge) UpdateDNSRecord(ctx context.Context, domain, subdomain, recordT
 		TTL:    1,
 	}
 	if err := provider.UpdateRecord(ctx, record); err != nil {
-		return map[string]interface{}{
-			"status":  "error",
-			"message": err.Error(),
-		}, nil
+		return nil, fmt.Errorf("DNS update record failed: %w", err)
 	}
 	return map[string]interface{}{
 		"status":    "success",
@@ -216,8 +192,7 @@ func (b *Bridge) BatchDNS(ctx context.Context, records []map[string]interface{})
 		status := "success"
 		if err != nil {
 			status = "error"
-		} else if m, ok := res.(map[string]interface{}); ok && m["status"] == "error" {
-			status = "error"
+			res = map[string]interface{}{"message": err.Error()}
 		}
 		results = append(results, map[string]interface{}{
 			"index":  i,

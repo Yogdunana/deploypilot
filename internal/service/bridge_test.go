@@ -482,14 +482,10 @@ func TestDNSStubs(t *testing.T) {
 	b, _ := newTestBridge(t)
 	ctx := context.Background()
 
-	// DNSCreateRecord - no DNS provider configured, returns error status
-	res, err := b.DNSCreateRecord(ctx, "example.com", "A", "www", "1.2.3.4")
-	if err != nil {
-		t.Fatalf("DNSCreateRecord failed: %v", err)
-	}
-	m, ok := res.(map[string]interface{})
-	if !ok || m["status"] != "error" {
-		t.Fatalf("expected error status, got %v", m)
+	// DNSCreateRecord - no DNS provider configured, returns error
+	_, err := b.DNSCreateRecord(ctx, "example.com", "A", "www", "1.2.3.4")
+	if err == nil {
+		t.Fatal("expected error for DNSCreateRecord without provider")
 	}
 
 	// DNSDeleteRecord - no DNS provider configured, returns error
@@ -498,24 +494,16 @@ func TestDNSStubs(t *testing.T) {
 		t.Fatal("expected error for DNSDeleteRecord without provider")
 	}
 
-	// DNSListRecords - no DNS provider configured, returns error status
-	res, err = b.DNSListRecords(ctx, "example.com")
-	if err != nil {
-		t.Fatalf("DNSListRecords failed: %v", err)
-	}
-	m = res.(map[string]interface{})
-	if m["status"] != "error" {
-		t.Fatalf("expected error status, got %v", m)
+	// DNSListRecords - no DNS provider configured, returns error
+	_, err = b.DNSListRecords(ctx, "example.com")
+	if err == nil {
+		t.Fatal("expected error for DNSListRecords without provider")
 	}
 
-	// UpdateDNSRecord - no DNS provider configured, returns error status
-	res, err = b.UpdateDNSRecord(ctx, "example.com", "www", "A", "5.6.7.8")
-	if err != nil {
-		t.Fatalf("UpdateDNSRecord failed: %v", err)
-	}
-	m = res.(map[string]interface{})
-	if m["status"] != "error" {
-		t.Fatalf("expected error status, got %v", m)
+	// UpdateDNSRecord - no DNS provider configured, returns error
+	_, err = b.UpdateDNSRecord(ctx, "example.com", "www", "A", "5.6.7.8")
+	if err == nil {
+		t.Fatal("expected error for UpdateDNSRecord without provider")
 	}
 }
 
@@ -1960,16 +1948,9 @@ func TestSaveDeploymentRecord_WithPreflight(t *testing.T) {
 
 func TestDNSListRecords_NoProviderBridge(t *testing.T) {
 	b, _ := newTestBridge(t)
-	res, err := b.DNSListRecords(context.TODO(), "example.com")
-	if err != nil {
-		t.Fatalf("DNSListRecords failed: %v", err)
-	}
-	m, ok := res.(map[string]interface{})
-	if !ok {
-		t.Fatal("expected map")
-	}
-	if m["status"] != "error" {
-		t.Errorf("expected error status, got %v", m["status"])
+	_, err := b.DNSListRecords(context.TODO(), "example.com")
+	if err == nil {
+		t.Fatal("expected error when no DNS provider configured")
 	}
 }
 
@@ -1978,16 +1959,9 @@ func TestDNSListRecords_InvalidConfig(t *testing.T) {
 	b.DB.Exec(`INSERT INTO providers (id, type, name, config, enabled) VALUES
 		('dns-bad-list', 'dns-cloudflare', 'bad-list', 'not-json', 1)`)
 
-	res, err := b.DNSListRecords(context.TODO(), "example.com")
-	if err != nil {
-		t.Fatalf("DNSListRecords failed: %v", err)
-	}
-	m, ok := res.(map[string]interface{})
-	if !ok {
-		t.Fatal("expected map")
-	}
-	if m["status"] != "error" {
-		t.Errorf("expected error status, got %v", m["status"])
+	_, err := b.DNSListRecords(context.TODO(), "example.com")
+	if err == nil {
+		t.Fatal("expected error for invalid DNS provider config")
 	}
 }
 
@@ -1996,31 +1970,17 @@ func TestDNSCreateRecord_InvalidConfig(t *testing.T) {
 	b.DB.Exec(`INSERT INTO providers (id, type, name, config, enabled) VALUES
 		('dns-bad-create', 'dns-cloudflare', 'bad-create', 'not-json', 1)`)
 
-	res, err := b.DNSCreateRecord(context.TODO(), "example.com", "A", "www", "1.2.3.4")
-	if err != nil {
-		t.Fatalf("DNSCreateRecord failed: %v", err)
-	}
-	m, ok := res.(map[string]interface{})
-	if !ok {
-		t.Fatal("expected map")
-	}
-	if m["status"] != "error" {
-		t.Errorf("expected error status, got %v", m["status"])
+	_, err := b.DNSCreateRecord(context.TODO(), "example.com", "A", "www", "1.2.3.4")
+	if err == nil {
+		t.Fatal("expected error for invalid DNS provider config")
 	}
 }
 
 func TestDNSCreateRecord_NilDB(t *testing.T) {
 	b := &Bridge{DB: nil}
-	res, err := b.DNSCreateRecord(context.TODO(), "example.com", "A", "www", "1.2.3.4")
-	if err != nil {
-		t.Fatalf("DNSCreateRecord failed: %v", err)
-	}
-	m, ok := res.(map[string]interface{})
-	if !ok {
-		t.Fatal("expected map")
-	}
-	if m["status"] != "error" {
-		t.Errorf("expected error status, got %v", m["status"])
+	_, err := b.DNSCreateRecord(context.TODO(), "example.com", "A", "www", "1.2.3.4")
+	if err == nil {
+		t.Fatal("expected error when DB is nil")
 	}
 }
 
@@ -2051,16 +2011,9 @@ func TestDNSCreateRecord_ProviderAPIFails(t *testing.T) {
 	b.DB.Exec(`INSERT INTO providers (id, type, name, config, enabled) VALUES
 		('dns-cf-api-fail', 'dns-cloudflare', 'cf-api-fail', ?, 1)`, string(cfg))
 
-	res, err := b.DNSCreateRecord(context.TODO(), "example.com", "A", "www", "1.2.3.4")
-	if err != nil {
-		t.Fatalf("DNSCreateRecord failed: %v", err)
-	}
-	m, ok := res.(map[string]interface{})
-	if !ok {
-		t.Fatal("expected map")
-	}
-	if m["status"] != "error" {
-		t.Errorf("expected error status when API call fails, got %v", m["status"])
+	_, err := b.DNSCreateRecord(context.TODO(), "example.com", "A", "www", "1.2.3.4")
+	if err == nil {
+		t.Fatal("expected error when provider API fails")
 	}
 }
 
@@ -2088,16 +2041,9 @@ func TestDNSListRecords_ProviderAPIFails(t *testing.T) {
 	b.DB.Exec(`INSERT INTO providers (id, type, name, config, enabled) VALUES
 		('dns-cf-list-fail', 'dns-cloudflare', 'cf-list-fail', ?, 1)`, string(cfg))
 
-	res, err := b.DNSListRecords(context.TODO(), "example.com")
-	if err != nil {
-		t.Fatalf("DNSListRecords failed: %v", err)
-	}
-	m, ok := res.(map[string]interface{})
-	if !ok {
-		t.Fatal("expected map")
-	}
-	if m["status"] != "error" {
-		t.Errorf("expected error status when API call fails, got %v", m["status"])
+	_, err := b.DNSListRecords(context.TODO(), "example.com")
+	if err == nil {
+		t.Fatal("expected error when provider API fails")
 	}
 }
 
@@ -2110,16 +2056,9 @@ func TestUpdateDNSRecord_ProviderAPIFails(t *testing.T) {
 	b.DB.Exec(`INSERT INTO providers (id, type, name, config, enabled) VALUES
 		('dns-cf-update-fail', 'dns-cloudflare', 'cf-update-fail', ?, 1)`, string(cfg))
 
-	res, err := b.UpdateDNSRecord(context.TODO(), "example.com", "www", "A", "9.9.9.9")
-	if err != nil {
-		t.Fatalf("UpdateDNSRecord failed: %v", err)
-	}
-	m, ok := res.(map[string]interface{})
-	if !ok {
-		t.Fatal("expected map")
-	}
-	if m["status"] != "error" {
-		t.Errorf("expected error status when API call fails, got %v", m["status"])
+	_, err := b.UpdateDNSRecord(context.TODO(), "example.com", "www", "A", "9.9.9.9")
+	if err == nil {
+		t.Fatal("expected error when provider API fails")
 	}
 }
 
@@ -2650,17 +2589,13 @@ func TestDeleteSSLCertificate_Success(t *testing.T) {
 
 func TestUpdateDNSRecord_NilDB(t *testing.T) {
 	b := &Bridge{DB: nil}
-	// UpdateDNSRecord wraps provider errors in a map response, not an error return
-	res, err := b.UpdateDNSRecord(context.TODO(), "example.com", "www", "A", "1.2.3.4")
-	if err != nil {
-		t.Fatalf("UpdateDNSRecord should not return error: %v", err)
+	// UpdateDNSRecord now returns error when DB is nil
+	_, err := b.UpdateDNSRecord(context.TODO(), "example.com", "www", "A", "1.2.3.4")
+	if err == nil {
+		t.Fatal("expected error when DB is nil")
 	}
-	m, ok := res.(map[string]interface{})
-	if !ok {
-		t.Fatal("expected map")
-	}
-	if m["status"] != "error" {
-		t.Errorf("expected error status, got %v", m["status"])
+	if !strings.Contains(err.Error(), "database not available") {
+		t.Errorf("expected 'database not available' error, got: %v", err)
 	}
 }
 
@@ -2669,16 +2604,12 @@ func TestUpdateDNSRecord_InvalidConfig(t *testing.T) {
 	b.DB.Exec(`INSERT INTO providers (id, type, name, config, enabled) VALUES
 		('dns-bad-update', 'dns-cloudflare', 'bad-update', 'not-json', 1)`)
 
-	res, err := b.UpdateDNSRecord(context.TODO(), "example.com", "www", "A", "1.2.3.4")
-	if err != nil {
-		t.Fatalf("UpdateDNSRecord failed: %v", err)
+	_, err := b.UpdateDNSRecord(context.TODO(), "example.com", "www", "A", "1.2.3.4")
+	if err == nil {
+		t.Fatal("expected error for invalid DNS provider config")
 	}
-	m, ok := res.(map[string]interface{})
-	if !ok {
-		t.Fatal("expected map")
-	}
-	if m["status"] != "error" {
-		t.Errorf("expected error status, got %v", m["status"])
+	if !strings.Contains(err.Error(), "failed to parse DNS provider config") {
+		t.Errorf("expected 'failed to parse DNS provider config' error, got: %v", err)
 	}
 }
 
@@ -2771,16 +2702,12 @@ func TestHealContainer_NilDB(t *testing.T) {
 func TestUpdateDNSRecord_NoProvider(t *testing.T) {
 	b, _ := newTestBridge(t)
 	// No DNS provider configured at all
-	res, err := b.UpdateDNSRecord(context.TODO(), "example.com", "www", "A", "1.2.3.4")
-	if err != nil {
-		t.Fatalf("UpdateDNSRecord failed: %v", err)
+	_, err := b.UpdateDNSRecord(context.TODO(), "example.com", "www", "A", "1.2.3.4")
+	if err == nil {
+		t.Fatal("expected error when no DNS provider configured")
 	}
-	m, ok := res.(map[string]interface{})
-	if !ok {
-		t.Fatal("expected map")
-	}
-	if m["status"] != "error" {
-		t.Errorf("expected error status, got %v", m["status"])
+	if !strings.Contains(err.Error(), "no enabled DNS provider found") {
+		t.Errorf("expected 'no enabled DNS provider found' error, got: %v", err)
 	}
 }
 
@@ -2790,17 +2717,13 @@ func TestDNSListRecords_UnsupportedProvider(t *testing.T) {
 	b.DB.Exec(`INSERT INTO providers (id, type, name, config, enabled) VALUES
 		('dns-unsup-list', 'dns-route53', 'unsupported', '{"api_token":"t"}', 1)`)
 
-	// DNSListRecords wraps provider errors in a map response, not an error return
-	res, err := b.DNSListRecords(context.TODO(), "example.com")
-	if err != nil {
-		t.Fatalf("DNSListRecords failed: %v", err)
+	// DNSListRecords now returns error for unsupported provider type
+	_, err := b.DNSListRecords(context.TODO(), "example.com")
+	if err == nil {
+		t.Fatal("expected error for unsupported DNS provider type")
 	}
-	m, ok := res.(map[string]interface{})
-	if !ok {
-		t.Fatal("expected map")
-	}
-	if m["status"] != "error" {
-		t.Errorf("expected error status, got %v", m["status"])
+	if !strings.Contains(err.Error(), "unsupported DNS provider type") {
+		t.Errorf("expected 'unsupported DNS provider type' error, got: %v", err)
 	}
 }
 
@@ -2810,16 +2733,12 @@ func TestDNSCreateRecord_UnsupportedProvider(t *testing.T) {
 	b.DB.Exec(`INSERT INTO providers (id, type, name, config, enabled) VALUES
 		('dns-unsup-create', 'dns-route53', 'unsupported', '{"api_token":"t"}', 1)`)
 
-	res, err := b.DNSCreateRecord(context.TODO(), "example.com", "A", "www", "1.2.3.4")
-	if err != nil {
-		t.Fatalf("DNSCreateRecord failed: %v", err)
+	_, err := b.DNSCreateRecord(context.TODO(), "example.com", "A", "www", "1.2.3.4")
+	if err == nil {
+		t.Fatal("expected error for unsupported DNS provider type")
 	}
-	m, ok := res.(map[string]interface{})
-	if !ok {
-		t.Fatal("expected map")
-	}
-	if m["status"] != "error" {
-		t.Errorf("expected error status, got %v", m["status"])
+	if !strings.Contains(err.Error(), "unsupported DNS provider type") {
+		t.Errorf("expected 'unsupported DNS provider type' error, got: %v", err)
 	}
 }
 
@@ -2830,17 +2749,13 @@ func TestUpdateDNSRecord_UnsupportedProvider(t *testing.T) {
 	b.DB.Exec(`INSERT INTO providers (id, type, name, config, enabled) VALUES
 		('dns-unsup-update', 'dns-route53', 'unsupported', '{"api_token":"t"}', 1)`)
 
-	// UpdateDNSRecord wraps provider errors in a map response, not an error return
-	res, err := b.UpdateDNSRecord(context.TODO(), "example.com", "www", "A", "5.6.7.8")
-	if err != nil {
-		t.Fatalf("UpdateDNSRecord failed: %v", err)
+	// UpdateDNSRecord now returns error for unsupported provider type
+	_, err := b.UpdateDNSRecord(context.TODO(), "example.com", "www", "A", "5.6.7.8")
+	if err == nil {
+		t.Fatal("expected error for unsupported DNS provider type")
 	}
-	m, ok := res.(map[string]interface{})
-	if !ok {
-		t.Fatal("expected map")
-	}
-	if m["status"] != "error" {
-		t.Errorf("expected error status, got %v", m["status"])
+	if !strings.Contains(err.Error(), "unsupported DNS provider type") {
+		t.Errorf("expected 'unsupported DNS provider type' error, got: %v", err)
 	}
 }
 

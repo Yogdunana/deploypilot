@@ -117,16 +117,9 @@ func TestGetNotifiers_InvalidConfig(t *testing.T) {
 
 func TestDNSCreateRecord_NoProvider(t *testing.T) {
 	b, _ := newTestBridge(t)
-	res, err := b.DNSCreateRecord(context.Background(), "example.com", "A", "www", "1.2.3.4")
-	if err != nil {
-		t.Fatalf("DNSCreateRecord failed: %v", err)
-	}
-	m, ok := res.(map[string]interface{})
-	if !ok {
-		t.Fatal("expected map")
-	}
-	if m["status"] != "error" {
-		t.Fatalf("expected error status, got %v", m["status"])
+	_, err := b.DNSCreateRecord(context.Background(), "example.com", "A", "www", "1.2.3.4")
+	if err == nil {
+		t.Fatal("expected error when no DNS provider configured")
 	}
 }
 
@@ -137,35 +130,17 @@ func TestDNSCreateRecord_WithProvider(t *testing.T) {
 		err:    map[string]error{},
 	}
 	b := NewBridge(db, exec, []byte("01234567890123456789012345678901"), nil)
-	// The DNS provider will try to make HTTP calls to Cloudflare API,
-	// which will fail in tests. We just verify it doesn't panic and returns
-	// a result (error from the API call is wrapped in the response).
-	res, err := b.DNSCreateRecord(context.Background(), "example.com", "A", "www", "1.2.3.4")
-	if err != nil {
-		t.Fatalf("DNSCreateRecord failed: %v", err)
-	}
-	m, ok := res.(map[string]interface{})
-	if !ok {
-		t.Fatal("expected map")
-	}
-	// The Cloudflare API call will fail (no real API), so status should be error
-	if m["status"] != "error" {
-		t.Fatalf("expected error status (API call fails in test), got %v", m["status"])
+	_, err := b.DNSCreateRecord(context.Background(), "example.com", "A", "www", "1.2.3.4")
+	if err == nil {
+		t.Fatal("expected error when DNS API call fails in test environment")
 	}
 }
 
 func TestDNSListRecords_NoProvider(t *testing.T) {
 	b, _ := newTestBridge(t)
-	res, err := b.DNSListRecords(context.Background(), "example.com")
-	if err != nil {
-		t.Fatalf("DNSListRecords failed: %v", err)
-	}
-	m, ok := res.(map[string]interface{})
-	if !ok {
-		t.Fatal("expected map")
-	}
-	if m["status"] != "error" {
-		t.Fatalf("expected error status, got %v", m["status"])
+	_, err := b.DNSListRecords(context.Background(), "example.com")
+	if err == nil {
+		t.Fatal("expected error when no DNS provider configured")
 	}
 }
 

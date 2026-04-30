@@ -91,6 +91,9 @@ func run(configFilePath, cliDriver, cliDSN, cliAddr string) error {
 	// Inject JWT secret from config into environment for jwt.go's os.Getenv("JWT_SECRET")
 	// This bridges config.yaml / DEPLOYPILOT_AUTH_JWT_SECRET → JWT_SECRET
 	if cfg.Auth.JWTSecret != "" && os.Getenv("JWT_SECRET") == "" {
+		if len(cfg.Auth.JWTSecret) < 16 {
+			return fmt.Errorf("auth.jwt_secret in config must be at least 16 characters, current length: %d", len(cfg.Auth.JWTSecret))
+		}
 		_ = os.Setenv("JWT_SECRET", cfg.Auth.JWTSecret)
 	}
 
