@@ -100,17 +100,9 @@ func TestDNSListRecords_WithValidProvider(t *testing.T) {
 
 func TestDNSListRecords_NoProvider_Cov(t *testing.T) {
 	b, _ := newTestBridge(t)
-	// No DNS provider configured
-	res, err := b.DNSListRecords(context.TODO(), "example.com")
-	if err != nil {
-		t.Fatalf("DNSListRecords failed: %v", err)
-	}
-	m, ok := res.(map[string]interface{})
-	if !ok {
-		t.Fatal("expected map")
-	}
-	if m["status"] != "error" {
-		t.Errorf("expected error status, got %v", m["status"])
+	_, err := b.DNSListRecords(context.TODO(), "example.com")
+	if err == nil {
+		t.Fatal("expected error when no DNS provider configured")
 	}
 }
 

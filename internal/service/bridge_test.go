@@ -482,14 +482,10 @@ func TestDNSStubs(t *testing.T) {
 	b, _ := newTestBridge(t)
 	ctx := context.Background()
 
-	// DNSCreateRecord - no DNS provider configured, returns error status
-	res, err := b.DNSCreateRecord(ctx, "example.com", "A", "www", "1.2.3.4")
-	if err != nil {
-		t.Fatalf("DNSCreateRecord failed: %v", err)
-	}
-	m, ok := res.(map[string]interface{})
-	if !ok || m["status"] != "error" {
-		t.Fatalf("expected error status, got %v", m)
+	// DNSCreateRecord - no DNS provider configured, returns error
+	_, err := b.DNSCreateRecord(ctx, "example.com", "A", "www", "1.2.3.4")
+	if err == nil {
+		t.Fatal("expected error for DNSCreateRecord without provider")
 	}
 
 	// DNSDeleteRecord - no DNS provider configured, returns error
@@ -498,24 +494,16 @@ func TestDNSStubs(t *testing.T) {
 		t.Fatal("expected error for DNSDeleteRecord without provider")
 	}
 
-	// DNSListRecords - no DNS provider configured, returns error status
-	res, err = b.DNSListRecords(ctx, "example.com")
-	if err != nil {
-		t.Fatalf("DNSListRecords failed: %v", err)
-	}
-	m = res.(map[string]interface{})
-	if m["status"] != "error" {
-		t.Fatalf("expected error status, got %v", m)
+	// DNSListRecords - no DNS provider configured, returns error
+	_, err = b.DNSListRecords(ctx, "example.com")
+	if err == nil {
+		t.Fatal("expected error for DNSListRecords without provider")
 	}
 
-	// UpdateDNSRecord - no DNS provider configured, returns error status
-	res, err = b.UpdateDNSRecord(ctx, "example.com", "www", "A", "5.6.7.8")
-	if err != nil {
-		t.Fatalf("UpdateDNSRecord failed: %v", err)
-	}
-	m = res.(map[string]interface{})
-	if m["status"] != "error" {
-		t.Fatalf("expected error status, got %v", m)
+	// UpdateDNSRecord - no DNS provider configured, returns error
+	_, err = b.UpdateDNSRecord(ctx, "example.com", "www", "A", "5.6.7.8")
+	if err == nil {
+		t.Fatal("expected error for UpdateDNSRecord without provider")
 	}
 }
 

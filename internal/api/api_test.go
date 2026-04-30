@@ -1907,10 +1907,10 @@ func TestListDNSRecords_WithDomain(t *testing.T) {
 	r := setupFullTestRouter(db, bridge)
 	token := getTestToken(t, "user-1", "viewer")
 
-	// No DNS provider configured, so it should return an error response (but not 500)
+	// No DNS provider configured, should return 500
 	w := makeRequest(r, "GET", "/api/v1/dns/records?domain=example.com", nil, token)
-	if w.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	if w.Code != http.StatusInternalServerError {
+		t.Fatalf("expected 500, got %d: %s", w.Code, w.Body.String())
 	}
 }
 
@@ -1928,9 +1928,9 @@ func TestCreateDNSRecord(t *testing.T) {
 		"name":   "@",
 		"value":  "1.2.3.4",
 	}, token)
-	// No DNS provider configured, but the handler should still return 200 with error status in body
-	if w.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	// No DNS provider configured, should return 500
+	if w.Code != http.StatusInternalServerError {
+		t.Fatalf("expected 500, got %d: %s", w.Code, w.Body.String())
 	}
 }
 
@@ -1962,9 +1962,9 @@ func TestUpdateDNSRecord(t *testing.T) {
 		"type":      "A",
 		"new_value": "5.6.7.8",
 	}, token)
-	// No DNS provider, returns 200 with error in body
-	if w.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	// No DNS provider configured, should return 500
+	if w.Code != http.StatusInternalServerError {
+		t.Fatalf("expected 500, got %d: %s", w.Code, w.Body.String())
 	}
 }
 
