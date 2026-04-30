@@ -52,7 +52,7 @@ func (s *APIKeyService) Create(ctx context.Context, userID, tenantID, name strin
 	}
 
 	apiKey := &model.APIKey{
-		ID:        generateID(),
+		ID:        generateAPIKeyID(),
 		TenantID:  tenantID,
 		UserID:    userID,
 		Name:      name,
@@ -127,6 +127,13 @@ func (s *APIKeyService) Delete(ctx context.Context, keyID, userID string) error 
 	return nil
 }
 
+// generateAPIKeyID generates a random hex ID for API keys.
+func generateAPIKeyID() string {
+	b := make([]byte, 12)
+	rand.Read(b)
+	return hex.EncodeToString(b)
+}
+
 // ParseScopes parses the JSON scopes string into a slice.
 func ParseScopes(scopesJSON string) []string {
 	var scopes []string
@@ -146,9 +153,3 @@ func HasScope(scopes []string, required string) bool {
 	return false
 }
 
-// generateID generates a random ID for API keys.
-func generateID() string {
-	b := make([]byte, 12)
-	rand.Read(b)
-	return hex.EncodeToString(b)
-}
