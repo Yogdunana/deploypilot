@@ -11,6 +11,8 @@ type ContextEntry struct {
 	Tool     string    `json:"tool"`
 	Args     string    `json:"args,omitempty"`
 	Result   string    `json:"result,omitempty"`
+	Success  bool      `json:"success"`
+	Error    string    `json:"error,omitempty"`
 	Duration string    `json:"duration,omitempty"`
 	Time     time.Time `json:"time"`
 }
@@ -30,11 +32,16 @@ type SessionContext struct {
 func NewSessionContext(sessionID string) *SessionContext {
 	return &SessionContext{
 		entries:    list.New(),
-		maxEntries: 20,
+		maxEntries: 50,
 		maxMemory:  10 * 1024 * 1024, // 10MB
 		lastAccess: time.Now(),
 		sessionID:  sessionID,
 	}
+}
+
+// entrySize computes the approximate byte size of a ContextEntry.
+func entrySize(e ContextEntry) int64 {
+	return int64(len(e.Tool) + len(e.Args) + len(e.Result) + len(e.Error) + len(e.Duration))
 }
 
 // AddEntry adds an operation to the context history.
@@ -48,26 +55,26 @@ func (sc *SessionContext) AddEntry(entry ContextEntry) {
 	for sc.entries.Len() >= sc.maxEntries {
 		if front := sc.entries.Front(); front != nil {
 			if e, ok := front.Value.(ContextEntry); ok {
-				sc.currentSize -= int64(len(e.Tool) + len(e.Args) + len(e.Result) + len(e.Duration))
+				sc.currentSize -= entrySize(e)
 			}
 			sc.entries.Remove(front)
 		}
 	}
 
-	entrySize := int64(len(entry.Tool) + len(entry.Args) + len(entry.Result) + len(entry.Duration))
+	es := entrySize(entry)
 
 	// Evict for memory too
-	for sc.currentSize+entrySize > sc.maxMemory && sc.entries.Len() > 0 {
+	for sc.currentSize+es > sc.maxMemory && sc.entries.Len() > 0 {
 		if front := sc.entries.Front(); front != nil {
 			if e, ok := front.Value.(ContextEntry); ok {
-				sc.currentSize -= int64(len(e.Tool) + len(e.Args) + len(e.Result) + len(e.Duration))
+				sc.currentSize -= entrySize(e)
 			}
 			sc.entries.Remove(front)
 		}
 	}
 
 	sc.entries.PushBack(entry)
-	sc.currentSize += entrySize
+	sc.currentSize += es
 }
 
 // GetEntries returns all entries (most recent last).
