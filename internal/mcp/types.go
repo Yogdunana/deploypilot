@@ -84,10 +84,11 @@ type BackupManager interface {
 	BatchBackup(ctx context.Context, appIDs []string) (interface{}, error)
 }
 
-// MonitorService handles metrics, alerts, and health checks.
+// MonitorService handles metrics, alerts, health checks, and container healing.
 type MonitorService interface {
 	DetectEnv(ctx context.Context, level int, ports []int, services []string) (interface{}, error)
 	HealthCheck(ctx context.Context, target, healthType string) (interface{}, error)
+	HealContainer(ctx context.Context, containerName string) (interface{}, error)
 	GetContainerMetrics(ctx context.Context, containerName string) (interface{}, error)
 	GetSystemMetrics(ctx context.Context) (interface{}, error)
 	GetRemoteSystemMetrics(ctx context.Context, serverID string) (interface{}, error)
