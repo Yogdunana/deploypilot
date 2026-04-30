@@ -112,6 +112,7 @@ export interface SSLCertificate {
   id: number
   domain: string
   email: string
+  totp_enabled?: boolean
   provider: string
   status: string
   cert_path: string
@@ -131,6 +132,7 @@ export interface User {
   role_id: number
   username: string
   email: string
+  totp_enabled?: boolean
   created_at: string
   updated_at: string
   tenant?: Tenant
@@ -241,4 +243,23 @@ export interface CICDBuild {
   started_at: string
   finished_at: string
   created_at: string
+}
+
+export interface ApiKey {
+  id: string
+  tenant_id: string
+  user_id: string
+  name: string
+  key_prefix: string
+  scopes: string[] | string
+  expires_at?: string
+  last_used_at?: string
+  created_at: string
+  updated_at: string
+}
+
+export interface TwoFASetupResponse {
+  secret: string
+  qr_code_url: string
+  backup_codes: string[]
 }
