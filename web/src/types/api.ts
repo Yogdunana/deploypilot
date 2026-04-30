@@ -58,3 +58,24 @@ export interface RollbackConfig {
 export interface RestoreConfig {
   backup_id: string
 }
+
+export interface LoginResponse2FA {
+  requires_2fa: true
+  two_fa_token: string
+  user_id: string
+}
+
+export interface TwoFAVerifyRequest {
+  two_fa_token: string
+  code: string
+}
+
+export interface TwoFACodeRequest {
+  code: string
+}
+
+export interface CreateApiKeyRequest {
+  name: string
+  scopes?: string[]
+  expires_in_days?: number
+}
