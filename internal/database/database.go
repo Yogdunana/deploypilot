@@ -500,6 +500,16 @@ func Migrate(db *gorm.DB) error {
 				return tx.Migrator().DropTable("task_executions", "scheduled_tasks")
 			},
 		},
+		// 202605010001: Create api_keys table
+		{
+			ID: "202605010001",
+			Migrate: func(tx *gorm.DB) error {
+				return tx.AutoMigrate(&model.APIKey{})
+			},
+			Rollback: func(tx *gorm.DB) error {
+				return tx.Migrator().DropTable("api_keys")
+			},
+		},
 	})
 
 	// Use InitSchema for initial creation (faster than Migrate)

@@ -17,7 +17,7 @@ import (
 )
 
 // RegisterRoutes registers all API routes on the given Gin engine.
-func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *WSHub, auditSvc *service.AuditService, pluginManager *plugin.Manager, blacklist auth.TokenBlacklist, oauthSvc *service.OAuthService, backupSvc *backup.Service) {
+func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *WSHub, auditSvc *service.AuditService, pluginManager *plugin.Manager, blacklist auth.TokenBlacklist, oauthSvc *service.OAuthService, backupSvc *backup.Service, keySvc *service.APIKeyService) {
 	// Swagger documentation — only accessible in development mode.
 	// In production, the endpoint is disabled to prevent information leakage.
 	if os.Getenv("DEPLOYPILOT_ENV") == "development" || os.Getenv("GIN_MODE") == "debug" {
@@ -73,8 +73,9 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 		}
 	}
 
-	// Protected routes
+	// Protected routes (JWT or API Key)
 	protected := api.Group("")
+	protected.Use(auth.APIKeyMiddleware(keySvc))
 	protected.Use(auth.AuthMiddleware(blacklist))
 	{
 		// Apps (12 endpoints)
@@ -269,6 +270,14 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 			plugins.POST("/:id/enable", pluginHandler.EnablePlugin())
 			plugins.POST("/:id/disable", pluginHandler.DisablePlugin())
 			plugins.POST("/:id/reload", pluginHandler.ReloadPlugin())
+		}
+
+		// API Keys (3 endpoints)
+		apiKeys := protected.Group("/api-keys")
+		{
+			apiKeys.GET("", ListAPIKeys(keySvc))
+			apiKeys.POST("", CreateAPIKey(keySvc, auditSvc))
+			apiKeys.DELETE("/:id", DeleteAPIKey(keySvc, auditSvc))
 		}
 	}
 }
