@@ -2743,8 +2743,8 @@ func TestHandleGetContext(t *testing.T) {
 		t.Errorf("handleGetContext should not return error, got: %v", result)
 	}
 	text := result.Content[0].(mcp.TextContent).Text
-	if !strings.Contains(text, "Session:") {
-		t.Errorf("expected 'Session:' in output, got: %s", text)
+	if !strings.Contains(text, "session_id") {
+		t.Errorf("expected 'session_id' in output, got: %s", text)
 	}
 }
 
