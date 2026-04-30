@@ -14,8 +14,8 @@ func TestNewSessionContext(t *testing.T) {
 	if sc.sessionID != "test-session" {
 		t.Errorf("sessionID = %q, want %q", sc.sessionID, "test-session")
 	}
-	if sc.maxEntries != 20 {
-		t.Errorf("maxEntries = %d, want 20", sc.maxEntries)
+	if sc.maxEntries != 50 {
+		t.Errorf("maxEntries = %d, want 50", sc.maxEntries)
 	}
 	if sc.maxMemory != 10*1024*1024 {
 		t.Errorf("maxMemory = %d, want %d", sc.maxMemory, 10*1024*1024)
@@ -100,8 +100,8 @@ func TestGetSummary(t *testing.T) {
 	if summary["entries"] != 2 {
 		t.Errorf("summary[entries] = %v, want 2", summary["entries"])
 	}
-	if summary["max_entries"] != 20 {
-		t.Errorf("summary[max_entries] = %v, want 20", summary["max_entries"])
+	if summary["max_entries"] != 50 {
+		t.Errorf("summary[max_entries] = %v, want 50", summary["max_entries"])
 	}
 }
 

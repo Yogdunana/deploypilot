@@ -13,6 +13,7 @@ var ToolPermissions = map[string]int{
 	"query_metric_history": 1, "query_alert_history": 1,
 	"get_ci_build_status": 1, "list_ssl_certificates": 1,
 	"get_context": 1, "detect_panel": 1,
+	"list_recent_operations": 1,
 	"list_clusters": 1, "k8s_list_deployments": 1, "k8s_get_pods": 1,
 	// Dev-level (operations)
 	"deploy_app": 2, "create_app": 2, "update_app": 2,
@@ -50,6 +51,7 @@ var ToolPermissions = map[string]int{
 	"delete_scheduled_task": 3,
 	// Owner-level (system)
 	"update_user_role": 4, "delete_user": 4,
+	"clear_context": 2,
 }
 
 // RoleLevels maps role names to numeric levels.

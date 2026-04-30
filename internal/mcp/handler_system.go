@@ -4,8 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+
 	"github.com/mark3labs/mcp-go/mcp"
 )
+
 func handleCheckSystemUpdate(ctx context.Context, d SystemService, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	update, err := d.CheckSystemUpdate(ctx)
 	if err != nil {
@@ -15,17 +17,43 @@ func handleCheckSystemUpdate(ctx context.Context, d SystemService, request mcp.C
 	data, _ := json.MarshalIndent(result, "", "  ")
 	return mcp.NewToolResultText(string(data)), nil
 }
+
 func handleGetContext(_ context.Context, _ mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	sessionID := "default" // In production, extract from session
+	sessionID := "default"
 	session := contextManager.GetOrCreateSession(sessionID)
 	entries := session.GetEntries()
 	summary := session.GetSummary()
 
-	result := fmt.Sprintf("Session: %s\nEntries: %d\nMemory: %d bytes\nLast access: %s\n\nRecent operations:\n",
-		summary["session_id"], summary["entries"], summary["memory_usage"], summary["last_access"])
-	for i, e := range entries {
-		result += fmt.Sprintf("%d. [%s] %s (%s)\n", i+1, e.Time.Format("15:04:05"), e.Tool, e.Duration)
+	type opEntry struct {
+		Tool     string `json:"tool"`
+		Success  bool   `json:"success"`
+		Error    string `json:"error,omitempty"`
+		Duration string `json:"duration,omitempty"`
+		Time     string `json:"time"`
 	}
 
-	return mcp.NewToolResultText(result), nil
+	ops := make([]opEntry, 0, len(entries))
+	for _, e := range entries {
+		ops = append(ops, opEntry{
+			Tool:     e.Tool,
+			Success:  e.Success,
+			Error:    e.Error,
+			Duration: e.Duration,
+			Time:     e.Time.Format("15:04:05"),
+		})
+	}
+
+	result := map[string]interface{}{
+		"session_id":   summary["session_id"],
+		"total_ops":    len(entries),
+		"memory_usage": summary["memory_usage"],
+		"last_access":  fmt.Sprintf("%v", summary["last_access"]),
+		"operations":   ops,
+	}
+
+	data, err := json.MarshalIndent(result, "", "  ")
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("failed to marshal result: %v", err)), nil
+	}
+	return mcp.NewToolResultText(string(data)), nil
 }
