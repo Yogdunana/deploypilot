@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-04-30
+
+### Added
+- **Two-Factor Authentication (2FA/TOTP)** (PR #172): TOTP 服务端实现、两步登录流程、2FA 启用/禁用管理、AES-256-GCM 加密 secret 存储、一次性备份码生成
+- **API Key 管理系统** (PR #171): API Key CRUD、scope 权限控制、可配置过期时间、key 前缀展示
+- **Credential Vault 加固** (PR #170): HKDF 密钥派生增强、凭证加密存储改进、审计日志集成
+- **审计日志增强** (PR #169): 时间范围过滤、保留策略配置、资源类型过滤
+- **MCP 会话上下文记忆** (PR #167): list_recent_operations 工具、会话级操作历史
+- **面板网站管理** (PR #166): DeleteReverseProxy、CreateWebsite、GetWebsiteList 面板工具
+- **企业级前端 UI** (PR #131, #173): API Keys 管理页面、安全设置页面（2FA/TOTP 设置）、Login 2FA 验证步骤、Credentials 审计历史 Tab、侧边栏导航更新、~78 条 i18n 中英文翻译
+
+### Changed
+- **前端类型系统** (PR #131): LoginResponse 扩展 2FA 可选字段、新增 ApiKey/TwoFASetupResponse 接口、User 模型添加 totp_enabled 字段
+- **Auth Store** (PR #131): 新增 pending2FAToken/pending2FAUserId 状态、requires2FA computed、verify2FACode/clear2FAPending 方法
+
+## [1.3.0] - 2026-04-30
+
 ### Added
 - **监控数据持久化** (PR #109): MetricRecord + AlertHistory GORM 模型，MetricStore（SaveMetrics/QueryMetrics/CleanupOldMetrics），Monitor 自动持久化，query_metric_history/query_alert_history MCP 工具
 - **计划任务系统** (PR #109): robfig/cron/v3 调度器（秒级精度），ScheduledTask + TaskExecution 模型，3 种任务类型（shell/health_check/log_cleanup），5 个 MCP 工具（create/list/get_executions/toggle/delete）
@@ -98,6 +115,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CORS configuration
 - Input validation and sanitization
 
+[1.4.0]: https://github.com/Yogdunana/deploypilot/releases/tag/v1.4.0
+[1.3.0]: https://github.com/Yogdunana/deploypilot/releases/tag/v1.3.0
 [1.2.0]: https://github.com/Yogdunana/deploypilot/releases/tag/v1.2.0
 [1.1.0]: https://github.com/Yogdunana/deploypilot/releases/tag/v1.1.0
 [1.0.0]: https://github.com/Yogdunana/deploypilot/releases/tag/v1.0.0
