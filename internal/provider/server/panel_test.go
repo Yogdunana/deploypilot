@@ -53,9 +53,21 @@ func setupPanelProviderTestServer() *httptest.Server {
 
 	// 1Panel endpoints
 	mux.HandleFunc("/api/v1/firewall/rules", func(w http.ResponseWriter, r *http.Request) {
-		resp := panel1Response{Code: 200, Message: "success", Data: json.RawMessage(`{"id": 1}`)}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(resp)
+		switch r.Method {
+		case http.MethodGet:
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"code": 200, "message": "ok",
+				"data": map[string]interface{}{
+					"items": []map[string]interface{}{
+						{"id": 1, "protocol": "tcp", "port": "8080", "address": "", "comment": "deploypilot", "action": "accept"},
+					},
+					"total": 1,
+				},
+			})
+		default:
+			json.NewEncoder(w).Encode(map[string]interface{}{"code": 200, "message": "ok", "data": map[string]interface{}{"id": 1}})
+		}
 	})
 	mux.HandleFunc("/api/v1/websites/reverse_proxy", func(w http.ResponseWriter, r *http.Request) {
 		resp := panel1Response{Code: 200, Message: "success", Data: json.RawMessage(`{"id": 1}`)}
