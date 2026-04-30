@@ -177,6 +177,18 @@ const router = createRouter({
           component: () => import('@/views/System.vue'),
           meta: { titleKey: 'routes.system' },
         },
+        {
+          path: 'api-keys',
+          name: 'ApiKeys',
+          component: () => import('@/views/ApiKeys.vue'),
+          meta: { titleKey: 'routes.apiKeys' },
+        },
+        {
+          path: 'settings/security',
+          name: 'SecuritySettings',
+          component: () => import('@/views/SecuritySettings.vue'),
+          meta: { titleKey: 'routes.security' },
+        },
       ],
     },
   ],
