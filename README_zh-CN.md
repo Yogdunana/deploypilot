@@ -18,11 +18,11 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/github/actions/workflow/status/Yogdunana/deploypilot/ci.yml?branch=main&style=flat-square" alt="CI">
+  <img src="https://img.shields.io/github/actions/workflow/status/Yogdunana/deploypilot/ci.yml?branch=main&amp;style=flat-square" alt="CI">
   <img src="https://img.shields.io/github/v/release/Yogdunana/deploypilot?style=flat-square" alt="Release">
   <img src="https://img.shields.io/github/license/Yogdunana/deploypilot?style=flat-square" alt="License">
-  <img src="https://img.shields.io/badge/Go-1.23-00ADD8?style=flat-square&logo=go&logoColor=white" alt="Go">
-  <img src="https://img.shields.io/badge/Vue-3.5-4FC08D?style=flat-square&logo=vue.js&logoColor=white" alt="Vue">
+  <img src="https://img.shields.io/badge/Go-1.23-00ADD8?style=flat-square&amp;logo=go&amp;logoColor=white" alt="Go">
+  <img src="https://img.shields.io/badge/Vue-3.5-4FC08D?style=flat-square&amp;logo=vue.js&amp;logoColor=white" alt="Vue">
   <img src="https://img.shields.io/docker/pulls/ghcr.io/yogdunana/deploypilot?style=flat-square" alt="Docker Pulls">
 </p>
 
@@ -47,7 +47,7 @@ AI IDE（如 **Claude**、**Cursor**、**SOLO**、**TRAE**、**扣子/Coze**）�
 
 ## 什么是 DeployPilot
 
-> DeployPilot 是一个 **AI IDE 部署网关**，解决 AI IDE（TRAE Solo、扣子/Coze、Cursor、Claude、SOLO）在云端沙箱中无法直接 SSH 到服务器进行部署的问题，以及企业内网服务器必须通过跳板机才能访问的部署难题。
+&gt; DeployPilot 是一个 **AI IDE 部署网关**，解决 AI IDE（TRAE Solo、扣子/Coze、Cursor、Claude、SOLO）在云端沙箱中无法直接 SSH 到服务器进行部署的问题，以及企业内网服务器必须通过跳板机才能访问的部署难题。
 
 DeployPilot 是一个自托管的部署网关，使用 **MCP 协议** 与 AI IDE 通信，一行命令即可安装完成。它作为桥梁，将沙箱中的 AI IDE 与你的服务器基础设施连接起来，实现全链路自动化部署。
 
@@ -63,11 +63,11 @@ curl -fsSL https://raw.githubusercontent.com/Yogdunana/deploypilot/main/scripts/
 
 安装脚本会自动完成以下操作：
 - ✅ 下载对应架构的最新二进制文件
-- ✅ 生成管理员凭据（随机用户名 + 强密码）
+- ✅ 生成管理员凭证（随机用户名 + 强密码）
 - ✅ 配置 systemd 服务（API 服务器 + MCP 服务器）
 - ✅ 设置 JWT 认证
 
-安装完成后，打开 `http://<你的服务器IP>:8080`，使用终端输出的凭据登录。
+安装完成后，打开 `http://&lt;你的服务器IP&gt;:8080`，使用终端输出的凭证登录。
 
 ### Docker 部署
 
@@ -93,7 +93,7 @@ docker run -d --name deploypilot \
 
 ```bash
 git clone https://github.com/Yogdunana/deploypilot.git
-cd deploypilot && make build-all
+cd deploypilot &amp;&amp; make build-all
 ```
 
 ---
@@ -127,7 +127,7 @@ DeployPilot 通过标准 MCP 协议与各大 AI IDE 集成，配置方式请参�
 
 然后直接告诉你的 AI：
 
-> *"帮我部署这个项目，配置 DNS 和 SSL。"*
+&gt; *“帮我部署这个项目，配置 DNS 和 SSL。”*
 
 DeployPilot 会自动完成端口分配、反向代理、DNS 记录、SSL 证书和防火墙规则配置。
 
@@ -144,8 +144,8 @@ graph LR
     end
 
     subgraph "DeployPilot（你的服务器）"
-        B[MCP Server<br>52+ 工具]
-        C[REST API<br>68 个端点]
+        B[MCP Server&lt;br&gt;52+ 工具]
+        C[REST API&lt;br&gt;68 个端点]
         D[WebSocket / SSE]
         E[部署引擎]
         F[提供商插件]
@@ -158,15 +158,15 @@ graph LR
         J[GitHub Actions]
     end
 
-    A -- "MCP（stdio）" --> B
-    A -- "REST + JWT" --> C
-    C --> E
-    B --> E
-    E --> F
-    F --> G
-    F --> H
-    F --> I
-    F --> J
+    A -- "MCP（stdio）" --&gt; B
+    A -- "REST + JWT" --&gt; C
+    C --&gt; E
+    B --&gt; E
+    E --&gt; F
+    F --&gt; G
+    F --&gt; H
+    F --&gt; I
+    F --&gt; J
 ```
 
 **为什么用 MCP 而不是 SSH？** AI IDE 运行在沙箱中，没有 SSH 能力。MCP 是原生的 AI 插件协议 — DeployPilot 完美支持它。
@@ -230,7 +230,7 @@ graph LR
 
 | 提供商 | 说明 |
 |--------|------|
-| **GitHub Actions** | 触发工作流、查看运行状态 |
+| **GitHub Actions** | 触发工作流、柣看运行状态 |
 | **Gitea** | 自建 Git 平台集成 |
 
 ### 监控与自愈
@@ -247,8 +247,8 @@ graph LR
 |------|------|
 | **OAuth 登录** | 支持 GitHub / Gitee 第三方登录 |
 | **JWT 认证** | 基于 Token 的认证，可配置过期时间 |
-| **RBAC 权限** | 4 级角色：owner > admin > dev > viewer |
-| **凭据加密** | AES-256-GCM 加密，数据库中无明文 |
+| **RBAC 权限** | 4 级角色：owner &gt; admin &gt; dev &gt; viewer |
+| **凭证加密** | AES-256-GCM 加密，数据库中无明文 |
 | **WebSocket Ticket** | 一次性 Ticket，防止 JWT 泄露 |
 | **审计日志** | 完整记录用户、操作、IP、时间戳 |
 | **速率限制** | 令牌桶算法，基于角色的限流（50-200 次/分钟） |
@@ -259,7 +259,7 @@ graph LR
 ### Web 管理面板
 
 - Vue 3 + TypeScript + Tailwind CSS 4
-- 27 个页面：仪表盘、应用、服务器、DNS、凭据、部署、监控、SSL、审计日志等
+- 27 个页面：仪表盘、应用、服务器、DNS、凭证、部署、监控、SSL、审计日志等
 - 实时日志流、SSH 终端、部署进度追踪
 - 国际化（中文 / 英文），响应式设计
 
@@ -334,18 +334,18 @@ monitor:
 
 ## 技术栈
 
-<p>
-  <img src="https://img.shields.io/badge/Go-1.23-00ADD8?style=flat-square&logo=go&logoColor=white">
-  <img src="https://img.shields.io/badge/Gin-Web_Framework-00ADD8?style=flat-square&logo=go&logoColor=white">
-  <img src="https://img.shields.io/badge/GORM-ORM-02A25F?style=flat-square&logo=go&logoColor=white">
-  <img src="https://img.shields.io/badge/Vue-3.5-4FC08D?style=flat-square&logo=vue.js&logoColor=white">
-  <img src="https://img.shields.io/badge/TypeScript-5.6-3178C6?style=flat-square&logo=typescript&logoColor=white">
-  <img src="https://img.shields.io/badge/Tailwind_CSS-4-06B6D4?style=flat-square&logo=tailwindcss&logoColor=white">
-  <img src="https://img.shields.io/badge/MCP-Protocol-7C3AED?style=flat-square">
-  <img src="https://img.shields.io/badge/Docker-Container-2496ED?style=flat-square&logo=docker&logoColor=white">
-  <img src="https://img.shields.io/badge/SQLite-Database-003B57?style=flat-square&logo=sqlite&logoColor=white">
-  <img src="https://img.shields.io/badge/Redis-Cache-DC382D?style=flat-square&logo=redis&logoColor=white">
-</p>
+&lt;p&gt;
+  &lt;img src="https://img.shields.io/badge/Go-1.23-00ADD8?style=flat-square&amp;logo=go&amp;logoColor=white"&gt;
+  &lt;img src="https://img.shields.io/badge/Gin-Web_Framework-00ADD8?style=flat-square&amp;logo=go&amp;logoColor=white"&gt;
+  &lt;img src="https://img.shields.io/badge/GORM-ORM-02A25F?style=flat-square&amp;logo=go&amp;logoColor=white"&gt;
+  &lt;img src="https://img.shields.io/badge/Vue-3.5-4FC08D?style=flat-square&amp;logo=vue.js&amp;logoColor=white"&gt;
+  &lt;img src="https://img.shields.io/badge/TypeScript-5.6-3178C6?style=flat-square&amp;logo=typescript&amp;logoColor=white"&gt;
+  &lt;img src="https://img.shields.io/badge/Tailwind_CSS-4-06B6D4?style=flat-square&amp;logo=tailwindcss&amp;logoColor=white"&gt;
+  &lt;img src="https://img.shields.io/badge/MCP-Protocol-7C3AED?style=flat-square"&gt;
+  &lt;img src="https://img.shields.io/badge/Docker-Container-2496ED?style=flat-square&amp;logo=docker&amp;logoColor=white"&gt;
+  &lt;img src="https://img.shields.io/badge/SQLite-Database-003B57?style=flat-square&amp;logo=sqlite&amp;logoColor=white"&gt;
+  &lt;img src="https://img.shields.io/badge/Redis-Cache-DC382D?style=flat-square&amp;logo=redis&amp;logoColor=white"&gt;
+&lt;/p&gt;
 
 ---
 
@@ -377,7 +377,7 @@ monitor:
 - [x] SSL 适配器重构（定义接口 → ACME/Lego）
 - [x] Database 适配器重构（registry + 可配置连接池）
 - [x] 外部调用熔断器（Circuit Breaker + 降级策略）
-- [x] 许可证切换（MIT → BUSL-1.1）
+- [x] 许可证切换（MIT → BSL 1.1）
 
 ### 近期计划
 
@@ -386,7 +386,7 @@ monitor:
 - [ ] 完整的移动端响应式布局
 - [ ] 更多 DNS / 通知提供商
 
-> 完整路线图请查看 [Wiki Roadmap](https://github.com/Yogdunana/deploypilot/wiki/Roadmap)
+&gt; 完整路线图请查看 [Wiki Roadmap](https://github.com/Yogdunana/deploypilot/wiki/Roadmap)
 
 ---
 
@@ -396,7 +396,13 @@ monitor:
 
 ## 许可证
 
-[MIT](LICENSE) © 2026 Yogdunana
+本项目使用 **Business Source License 1.1 (BSL 1.1)** 许可证。
+
+&gt; **允许非商业用途** — 包括个人使用、组织内部使用、测试评估和非商业教育用途。详见 [LICENSE](LICENSE)。
+&gt;
+&gt; **2029-04-28** 起，本许可证将自动转换为 [MIT](https://opensource.org/licenses/MIT)。
+
+&amp;copy; 2026 Yogdunana
 
 ---
 

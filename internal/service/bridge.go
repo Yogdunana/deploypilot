@@ -81,6 +81,19 @@ type Bridge struct {
 	BFProtector   *bruteforce.Protector
 	Cache         Cache                    // general-purpose cache (Redis or in-memory)
 	Scheduler     *Scheduler               // scheduled task system
+
+	// Task tracking (moved from package-level globals, Issue #117)
+	taskMu      sync.RWMutex
+	tasks       map[string]*taskInfo
+	taskCounter int64
+
+	// Backup tracking (moved from package-level globals, Issue #117)
+	backupMu   sync.RWMutex
+	backupApps map[string]string // backupID -> appID
+
+	// Port forwarding (moved from package-level globals, Issue #117)
+	portForwardMu sync.RWMutex
+	portForwards  map[string]*portForwardEntry
 }
 
 // TunnelManager defines the interface for agent reverse tunnel management.
@@ -106,6 +119,9 @@ func NewBridge(db *gorm.DB, executor deployer.CommandExecutor, encryptionKey []b
 		EventBus:      eventBus,
 		ConfirmStore:  confirm.NewStore(),
 		BFProtector:   bruteforce.New(bruteforce.DefaultConfig()),
+		tasks:         make(map[string]*taskInfo),
+		backupApps:    make(map[string]string),
+		portForwards:  make(map[string]*portForwardEntry),
 	}
 }
 
@@ -205,6 +221,7 @@ func (b *Bridge) getRemoteExecutor(ctx context.Context, serverID string) (*sshCl
 		username = os.Getenv("DEPLOYPILOT_SSH_DEFAULT_USER")
 	}
 	if username == "" {
+		slog.Warn("SSH username not configured, falling back to root (configure DEPLOYPILOT_SSH_DEFAULT_USER or set server username)", "serverID", serverID)
 		username = "root"
 	}
 	cfg := server.Config{
@@ -677,7 +694,7 @@ func (b *Bridge) ExecCommand(ctx context.Context, serverID, command string, time
 func (b *Bridge) ListImages(ctx context.Context, serverID, filter string) (string, error) {
 	dockerCmd := `docker images --format "{{.Repository}}:{{.Tag}}\t{{.Size}}\t{{.CreatedSince}}"`
 	if filter != "" {
-		dockerCmd += " | grep " + filter
+		dockerCmd += " | grep " + shellQuote(filter)
 	}
 
 	execCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
@@ -711,25 +728,19 @@ type portForwardEntry struct {
 	Command    string
 }
 
-// portForwardMu protects portForwards map.
-var portForwardMu sync.RWMutex
-
-// portForwards stores active port forwards keyed by "serverID:localPort".
-var portForwards = make(map[string]*portForwardEntry)
-
 func (b *Bridge) PortForward(ctx context.Context, action, serverID string, localPort, remotePort int, remoteHost string) (string, error) {
 	switch action {
 	case "list":
-		portForwardMu.RLock()
-		defer portForwardMu.RUnlock()
-		if len(portForwards) == 0 {
+		b.portForwardMu.RLock()
+		defer b.portForwardMu.RUnlock()
+		if len(b.portForwards) == 0 {
 			return "No active port forwards.", nil
 		}
 		var lines []string
-		for key, pf := range portForwards {
+		for key, pf := range b.portForwards {
 			lines = append(lines, fmt.Sprintf("  %s -> server=%s remote=%s:%d (key=%s)", pf.Command, pf.ServerID, pf.RemoteHost, pf.RemotePort, key))
 		}
-		return fmt.Sprintf("Active port forwards (%d):\n%s", len(portForwards), strings.Join(lines, "\n")), nil
+		return fmt.Sprintf("Active port forwards (%d):\n%s", len(b.portForwards), strings.Join(lines, "\n")), nil
 
 	case "create":
 		if serverID == "" {
@@ -743,10 +754,10 @@ func (b *Bridge) PortForward(ctx context.Context, action, serverID string, local
 		}
 
 		key := fmt.Sprintf("%s:%d", serverID, localPort)
-		portForwardMu.Lock()
-		defer portForwardMu.Unlock()
+		b.portForwardMu.Lock()
+		defer b.portForwardMu.Unlock()
 
-		if _, exists := portForwards[key]; exists {
+		if _, exists := b.portForwards[key]; exists {
 			return "", fmt.Errorf("port forward already exists for %s (local port %d is already in use)", key, localPort)
 		}
 
@@ -763,6 +774,7 @@ func (b *Bridge) PortForward(ctx context.Context, action, serverID string, local
 			username = os.Getenv("DEPLOYPILOT_SSH_DEFAULT_USER")
 		}
 		if username == "" {
+			slog.Warn("SSH username not configured for port forward, falling back to root", "serverID", serverID)
 			username = "root"
 		}
 
@@ -793,7 +805,7 @@ func (b *Bridge) PortForward(ctx context.Context, action, serverID string, local
 			cancel()
 		}()
 
-		portForwards[key] = &portForwardEntry{
+		b.portForwards[key] = &portForwardEntry{
 			ServerID:   serverID,
 			LocalPort:  localPort,
 			RemotePort: remotePort,
@@ -812,21 +824,21 @@ func (b *Bridge) PortForward(ctx context.Context, action, serverID string, local
 		}
 
 		key := fmt.Sprintf("%s:%d", serverID, localPort)
-		portForwardMu.Lock()
-		defer portForwardMu.Unlock()
+		b.portForwardMu.Lock()
+		defer b.portForwardMu.Unlock()
 
-		entry, exists := portForwards[key]
+		entry, exists := b.portForwards[key]
 		if !exists {
 			return "", fmt.Errorf("port forward not found for %s", key)
 		}
 
 		// Kill the SSH tunnel process
-		killCmd := fmt.Sprintf("pkill -f 'ssh.*-L %d:%s:%d'", localPort, entry.RemoteHost, entry.RemotePort)
+		killCmd := fmt.Sprintf("pkill -f 'ssh.*-L %d:%s:%d'", localPort, shellQuote(entry.RemoteHost), entry.RemotePort)
 		if _, err := b.Executor.RunCommand(ctx, killCmd); err != nil {
 			slog.Warn("failed to kill SSH tunnel process", "error", err)
 		}
 
-		delete(portForwards, key)
+		delete(b.portForwards, key)
 		return fmt.Sprintf("Port forward deleted: %s", key), nil
 
 	default:

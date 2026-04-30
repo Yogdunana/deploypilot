@@ -7,7 +7,7 @@ import (
 )
 
 // registerPluginTools registers plugin tools.
-func registerPluginTools(s *server.MCPServer, d Deployer) {
+func registerPluginTools(s *server.MCPServer, d PluginService) {
 	listPluginsTool := mcp.NewTool("list_plugins",
 		mcp.WithDescription("List all registered plugins"),
 		mcp.WithString("provider", mcp.Description("Filter by provider type (dns, notify, registry, cicd, server, ssl)")),

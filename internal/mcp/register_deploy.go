@@ -7,7 +7,7 @@ import (
 )
 
 // registerDeployTools registers deploy tools.
-func registerDeployTools(s *server.MCPServer, d Deployer) {
+func registerDeployTools(s *server.MCPServer, d ContainerDeployer) {
 	deployTool := mcp.NewTool("deploy_app",
 		mcp.WithDescription("Deploy a Docker container. Use server_id to deploy to a remote server via SSH; omit for local Docker deployment."),
 		mcp.WithString("image",
@@ -174,13 +174,6 @@ func registerDeployTools(s *server.MCPServer, d Deployer) {
 	)
 	s.AddTool(batchDeployTool, withPermissionCheck("batch_deploy", withValidation("batch_deploy", batchDeployTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return handleBatchDeploy(ctx, d, request)
-	})))
-	healContainerTool := mcp.NewTool("heal_container",
-		mcp.WithDescription("Trigger self-healing for a container. Inspects the container state and takes corrective action (restart or rollback) if needed."),
-		mcp.WithString("container_name", mcp.Required(), mcp.Description("Name of the container to heal")),
-	)
-	s.AddTool(healContainerTool, withPermissionCheck("heal_container", withValidation("heal_container", healContainerTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		return handleHealContainer(ctx, d, request)
 	})))
 	listImagesTool := mcp.NewTool("list_images",
 		mcp.WithDescription("List Docker images on a server. Runs locally if server_id is omitted, or remotely via SSH if server_id is provided."),

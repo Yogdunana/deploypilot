@@ -38,7 +38,7 @@ func (b *Bridge) Backup(ctx context.Context, appID string) (string, error) {
 	// Attempt a docker-based backup: exec into the container and create a timestamped archive
 	timestamp := time.Now().Format("20060102-150405")
 	backupFile := fmt.Sprintf("/tmp/backup-%s-%s.tar.gz", containerName, timestamp)
-	cmd := fmt.Sprintf("docker exec %s sh -c 'tar czf - /app /data 2>/dev/null' > %s 2>/dev/null || echo 'no_backup_paths'", containerName, backupFile)
+	cmd := fmt.Sprintf("docker exec %s sh -c 'tar czf - /app /data 2>/dev/null' > %s 2>/dev/null || echo 'no_backup_paths'", shellQuote(containerName), shellQuote(backupFile))
 	out, err := b.Executor.RunCommand(ctx, cmd)
 	if err != nil {
 		slog.Warn("backup: container exec failed (may be expected)", "error", err, "output", out)
@@ -47,9 +47,9 @@ func (b *Bridge) Backup(ctx context.Context, appID string) (string, error) {
 	slog.Info("backup completed", "app_id", appID, "container", containerName, "backup_id", backupID, "file", backupFile)
 
 	// Store backup-to-app mapping for Restore
-	backupMu.Lock()
-	backupApps[backupID] = appID
-	backupMu.Unlock()
+	b.backupMu.Lock()
+	b.backupApps[backupID] = appID
+	b.backupMu.Unlock()
 
 	return backupID, nil
 }
@@ -62,9 +62,9 @@ func (b *Bridge) Restore(ctx context.Context, backupID string) (*mcp.ContainerSt
 	}
 
 	// Look up the appID from the backup mapping
-	backupMu.RLock()
-	appID, ok := backupApps[backupID]
-	backupMu.RUnlock()
+	b.backupMu.RLock()
+	appID, ok := b.backupApps[backupID]
+	b.backupMu.RUnlock()
 	if !ok {
 		return nil, fmt.Errorf("backup %s not found", backupID)
 	}

@@ -7,7 +7,7 @@ import (
 )
 
 // registerDNSTools registers dns tools.
-func registerDNSTools(s *server.MCPServer, d Deployer) {
+func registerDNSTools(s *server.MCPServer, d DNSManager) {
 	dnsCreateTool := mcp.NewTool("add_dns_record",
 		mcp.WithDescription("Create a DNS record"),
 		mcp.WithString("domain", mcp.Required(), mcp.Description("Domain name (e.g. example.com)")),

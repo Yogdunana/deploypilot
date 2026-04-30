@@ -7,7 +7,7 @@ import (
 )
 
 // registerTemplateTools registers template tools.
-func registerTemplateTools(s *server.MCPServer, d Deployer) {
+func registerTemplateTools(s *server.MCPServer, d TemplateService) {
 	listTmplTool := mcp.NewTool("list_templates",
 		mcp.WithDescription("List all available application templates"),
 	)

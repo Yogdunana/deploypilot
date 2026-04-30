@@ -7,7 +7,7 @@ import (
 )
 
 // registerLogTools registers log tools.
-func registerLogTools(s *server.MCPServer, d Deployer) {
+func registerLogTools(s *server.MCPServer, d LogService) {
 	getLogsTool := mcp.NewTool("get_app_logs",
 		mcp.WithDescription("Get logs from a deployed container"),
 		mcp.WithString("container_name",

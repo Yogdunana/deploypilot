@@ -49,9 +49,9 @@ func NewServer(deployer Deployer) *server.MCPServer {
 		server.WithToolCapabilities(false),
 	)
 
-	// Register tools by domain
+	// Register tools by domain (each receives only its sub-interface, fixes #116)
 	registerDeployTools(s, deployer)
-	registerServerTools(s, deployer)
+	registerServerTools(s, deployer, deployer)
 	registerCredentialTools(s, deployer)
 	registerDNSTools(s, deployer)
 	registerBackupTools(s, deployer)

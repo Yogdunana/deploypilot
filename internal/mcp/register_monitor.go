@@ -7,7 +7,7 @@ import (
 )
 
 // registerMonitorTools registers monitor tools.
-func registerMonitorTools(s *server.MCPServer, d Deployer) {
+func registerMonitorTools(s *server.MCPServer, d MonitorService) {
 	detectEnvTool := mcp.NewTool("detect_environment",
 		mcp.WithDescription("Detect server environment (OS, Docker, ports, services)"),
 		mcp.WithString("level",
@@ -87,6 +87,13 @@ func registerMonitorTools(s *server.MCPServer, d Deployer) {
 	)
 	s.AddTool(queryAlertHistoryTool, withPermissionCheck("query_alert_history", withValidation("query_alert_history", queryAlertHistoryTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return handleQueryAlertHistory(ctx, d, request)
+	})))
+	healContainerTool := mcp.NewTool("heal_container",
+		mcp.WithDescription("Trigger self-healing for a container. Inspects the container state and takes corrective action (restart or rollback) if needed."),
+		mcp.WithString("container_name", mcp.Required(), mcp.Description("Name of the container to heal")),
+	)
+	s.AddTool(healContainerTool, withPermissionCheck("heal_container", withValidation("heal_container", healContainerTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return handleHealContainer(ctx, d, request)
 	})))
 
 }

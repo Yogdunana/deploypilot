@@ -255,9 +255,9 @@ func TestRestore_BackupExists_AppGone(t *testing.T) {
 	b := NewBridge(db, exec, []byte("01234567890123456789012345678901"), nil)
 
 	// Manually insert a backup mapping for a nonexistent app
-	backupMu.Lock()
-	backupApps["backup-orphan"] = "nonexistent-app-id"
-	backupMu.Unlock()
+	b.backupMu.Lock()
+	b.backupApps["backup-orphan"] = "nonexistent-app-id"
+	b.backupMu.Unlock()
 
 	_, err := b.Restore(context.Background(), "backup-orphan")
 	if err == nil {
@@ -284,7 +284,7 @@ func TestGetTaskStatus_NotFound(t *testing.T) {
 
 func TestGetTaskStatus_Found(t *testing.T) {
 	b, _ := newTestBridge(t)
-	id := createTask("deploy")
+	id := b.createTask("deploy")
 	result, err := b.GetTaskStatus(context.Background(), id)
 	if err != nil {
 		t.Fatalf("GetTaskStatus failed: %v", err)
@@ -305,18 +305,18 @@ func TestGetTaskStatus_Found(t *testing.T) {
 }
 
 func TestListTasks_Empty(t *testing.T) {
+	b, _ := newTestBridge(t)
 	// Clear tasks for this test
-	taskMu.Lock()
-	oldTasks := tasks
-	tasks = make(map[string]*taskInfo)
-	taskMu.Unlock()
+	b.taskMu.Lock()
+	oldTasks := b.tasks
+	b.tasks = make(map[string]*taskInfo)
+	b.taskMu.Unlock()
 	defer func() {
-		taskMu.Lock()
-		tasks = oldTasks
-		taskMu.Unlock()
+		b.taskMu.Lock()
+		b.tasks = oldTasks
+		b.taskMu.Unlock()
 	}()
 
-	b, _ := newTestBridge(t)
 	result, err := b.ListTasks(context.Background(), 10, "")
 	if err != nil {
 		t.Fatalf("ListTasks failed: %v", err)
@@ -338,37 +338,36 @@ func TestListTasks_Empty(t *testing.T) {
 }
 
 func TestListTasks_WithFilter(t *testing.T) {
+	b, _ := newTestBridge(t)
 	// Clear tasks and add known tasks
-	taskMu.Lock()
-	oldTasks := tasks
-	oldCounter := taskCounter
-	tasks = make(map[string]*taskInfo)
-	taskCounter = 0
-	taskMu.Unlock()
+	b.taskMu.Lock()
+	oldTasks := b.tasks
+	oldCounter := b.taskCounter
+	b.tasks = make(map[string]*taskInfo)
+	b.taskCounter = 0
+	b.taskMu.Unlock()
 	defer func() {
-		taskMu.Lock()
-		tasks = oldTasks
-		taskCounter = oldCounter
-		taskMu.Unlock()
+		b.taskMu.Lock()
+		b.tasks = oldTasks
+		b.taskCounter = oldCounter
+		b.taskMu.Unlock()
 	}()
 
-	id1 := createTask("deploy")
+	id1 := b.createTask("deploy")
 	// Mark id1 as success
-	taskMu.Lock()
-	if t, ok := tasks[id1]; ok {
+	b.taskMu.Lock()
+	if t, ok := b.tasks[id1]; ok {
 		t.Status = "success"
 	}
-	taskMu.Unlock()
+	b.taskMu.Unlock()
 
-	id2 := createTask("backup")
+	id2 := b.createTask("backup")
 	// Mark id2 as failed
-	taskMu.Lock()
-	if t, ok := tasks[id2]; ok {
+	b.taskMu.Lock()
+	if t, ok := b.tasks[id2]; ok {
 		t.Status = "failed"
 	}
-	taskMu.Unlock()
-
-	b, _ := newTestBridge(t)
+	b.taskMu.Unlock()
 
 	// Filter by "success"
 	result, err := b.ListTasks(context.Background(), 10, "success")
@@ -425,22 +424,23 @@ func TestListTasks_WithFilter(t *testing.T) {
 }
 
 func TestCreateTask(t *testing.T) {
+	b, _ := newTestBridge(t)
 	// Save and restore state
-	taskMu.Lock()
-	oldTasks := tasks
-	oldCounter := taskCounter
-	tasks = make(map[string]*taskInfo)
-	taskCounter = 0
-	taskMu.Unlock()
+	b.taskMu.Lock()
+	oldTasks := b.tasks
+	oldCounter := b.taskCounter
+	b.tasks = make(map[string]*taskInfo)
+	b.taskCounter = 0
+	b.taskMu.Unlock()
 	defer func() {
-		taskMu.Lock()
-		tasks = oldTasks
-		taskCounter = oldCounter
-		taskMu.Unlock()
+		b.taskMu.Lock()
+		b.tasks = oldTasks
+		b.taskCounter = oldCounter
+		b.taskMu.Unlock()
 	}()
 
-	id1 := createTask("deploy")
-	id2 := createTask("backup")
+	id1 := b.createTask("deploy")
+	id2 := b.createTask("backup")
 
 	if id1 == id2 {
 		t.Fatal("expected unique task IDs")
@@ -452,28 +452,29 @@ func TestCreateTask(t *testing.T) {
 		t.Fatalf("expected task-2, got %s", id2)
 	}
 
-	taskMu.RLock()
-	if len(tasks) != 2 {
-		t.Fatalf("expected 2 tasks, got %d", len(tasks))
+	b.taskMu.RLock()
+	if len(b.tasks) != 2 {
+		t.Fatalf("expected 2 tasks, got %d", len(b.tasks))
 	}
-	taskMu.RUnlock()
+	b.taskMu.RUnlock()
 }
 
 // ===================== Concurrency Tests =====================
 
 func TestTaskTracker_Concurrent(t *testing.T) {
+	b, _ := newTestBridge(t)
 	// Save and restore state
-	taskMu.Lock()
-	oldTasks := tasks
-	oldCounter := taskCounter
-	tasks = make(map[string]*taskInfo)
-	taskCounter = 0
-	taskMu.Unlock()
+	b.taskMu.Lock()
+	oldTasks := b.tasks
+	oldCounter := b.taskCounter
+	b.tasks = make(map[string]*taskInfo)
+	b.taskCounter = 0
+	b.taskMu.Unlock()
 	defer func() {
-		taskMu.Lock()
-		tasks = oldTasks
-		taskCounter = oldCounter
-		taskMu.Unlock()
+		b.taskMu.Lock()
+		b.tasks = oldTasks
+		b.taskCounter = oldCounter
+		b.taskMu.Unlock()
 	}()
 
 	var wg sync.WaitGroup
@@ -481,16 +482,16 @@ func TestTaskTracker_Concurrent(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			createTask("concurrent-test")
+			b.createTask("concurrent-test")
 		}()
 	}
 	wg.Wait()
 
-	taskMu.RLock()
-	if len(tasks) != 100 {
-		t.Fatalf("expected 100 tasks, got %d", len(tasks))
+	b.taskMu.RLock()
+	if len(b.tasks) != 100 {
+		t.Fatalf("expected 100 tasks, got %d", len(b.tasks))
 	}
-	taskMu.RUnlock()
+	b.taskMu.RUnlock()
 }
 
 // ===================== Email Notifier Config Test =====================
