@@ -166,7 +166,7 @@ type AuditLog struct {
 	UserAgent    string    `json:"user_agent" gorm:"size:500"`
 	RecordHash   string    `json:"record_hash" gorm:"column:record_hash;size:128"`
 	TraceID      string    `json:"trace_id,omitempty" gorm:"size:36;index"`
-	CreatedAt    time.Time `json:"created_at" gorm:"autoCreateTime"`
+	CreatedAt    time.Time `json:"created_at" gorm:"autoCreateTime;index"`
 }
 
 func (AuditLog) TableName() string { return "audit_logs" }

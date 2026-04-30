@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
+	"time"
 	"strings"
 
 	"github.com/Yogdunana/deploypilot/internal/model"
@@ -68,9 +69,12 @@ type AuditEntry struct {
 // AuditFilter defines filtering options for listing audit logs.
 type AuditFilter struct {
 	UserID       uint
+	Username     string
 	Action       string
 	ResourceType string
 	TraceID      string
+	StartTime    time.Time
+	EndTime      time.Time
 	Page         int
 	PageSize     int
 }
@@ -178,6 +182,15 @@ func (s *AuditService) List(ctx context.Context, filter AuditFilter) ([]model.Au
 	if filter.TraceID != "" {
 		query = query.Where("trace_id = ?", filter.TraceID)
 	}
+	if filter.Username != "" {
+		query = query.Where("username LIKE ?", "%"+filter.Username+"%")
+	}
+	if !filter.StartTime.IsZero() {
+		query = query.Where("created_at >= ?", filter.StartTime)
+	}
+	if !filter.EndTime.IsZero() {
+		query = query.Where("created_at <= ?", filter.EndTime)
+	}
 
 	if err := query.Count(&total).Error; err != nil {
 		return nil, 0, err
@@ -227,6 +240,24 @@ func (s *AuditService) ListByTraceID(ctx context.Context, traceID string) ([]mod
 	}
 
 	return logs, total, nil
+}
+
+// Cleanup deletes audit logs older than the specified retention period.
+// Returns the number of deleted records.
+func (s *AuditService) Cleanup(ctx context.Context, retentionDays int) (int64, error) {
+	cutoff := time.Now().AddDate(0, 0, -retentionDays)
+	result := s.db.WithContext(ctx).
+		Where("created_at < ?", cutoff).
+		Delete(&model.AuditLog{})
+	if result.Error != nil {
+		return 0, result.Error
+	}
+	slog.Info("audit log cleanup completed",
+		"deleted", result.RowsAffected,
+		"retention_days", retentionDays,
+		"cutoff", cutoff.Format(time.RFC3339),
+	)
+	return result.RowsAffected, nil
 }
 
 // ClientIP extracts the client IP from request headers.

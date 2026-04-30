@@ -38,6 +38,7 @@ security:
 
 audit:
   external_log_path: ""    # Optional: path for external audit log (JSON Lines)
+  retention_days: 90       # Audit log retention period (days)
 
 log:
   level: info               # debug, info, warn, error

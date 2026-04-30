@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/Yogdunana/deploypilot/internal/model"
 	"gorm.io/driver/sqlite"
@@ -257,5 +258,135 @@ func TestAuditService_ListPageSizeBounds(t *testing.T) {
 	logs, _, _ = svc.List(context.TODO(), AuditFilter{Page: 0, PageSize: 10})
 	if len(logs) != 5 {
 		t.Errorf("with page=0, got %d logs, want 5", len(logs))
+	}
+}
+
+func TestAuditService_VerifyRecord(t *testing.T) {
+	db := setupAuditTestDB(t)
+	svc := NewAuditService(db)
+
+	_ = svc.Record(context.TODO(), AuditEntry{
+		UserID: 1, Username: "test", Action: "app.create",
+		ResourceType: "app", ResourceID: "1", IPAddress: "1.2.3.4",
+	})
+
+	logs, _, _ := svc.List(context.TODO(), AuditFilter{Page: 1, PageSize: 1})
+	if len(logs) != 1 {
+		t.Fatalf("expected 1 log, got %d", len(logs))
+	}
+
+	// Intact record should pass
+	if err := svc.VerifyRecord(logs[0]); err != nil {
+		t.Errorf("VerifyRecord() should pass for intact record, got: %v", err)
+	}
+
+	// Tampered record should fail
+	logs[0].Username = "tampered"
+	if err := svc.VerifyRecord(logs[0]); err == nil {
+		t.Error("VerifyRecord() should fail for tampered record")
+	}
+}
+
+func TestAuditService_VerifyRecords(t *testing.T) {
+	db := setupAuditTestDB(t)
+	svc := NewAuditService(db)
+
+	for i := 0; i < 5; i++ {
+		_ = svc.Record(context.TODO(), AuditEntry{UserID: uint(i), Action: "app.create"})
+	}
+
+	logs, _, _ := svc.List(context.TODO(), AuditFilter{Page: 1, PageSize: 10})
+	failed := svc.VerifyRecords(logs)
+	if len(failed) != 0 {
+		t.Errorf("VerifyRecords() failed = %v, want empty", failed)
+	}
+
+	// Tamper one record
+	logs[2].Action = "tampered"
+	failed = svc.VerifyRecords(logs)
+	if len(failed) != 1 || failed[0] != logs[2].ID {
+		t.Errorf("VerifyRecords() should report 1 failed record, got %v", failed)
+	}
+}
+
+func TestAuditService_ListWithUsername(t *testing.T) {
+	db := setupAuditTestDB(t)
+	svc := NewAuditService(db)
+
+	_ = svc.Record(context.TODO(), AuditEntry{Username: "alice", Action: "app.create"})
+	_ = svc.Record(context.TODO(), AuditEntry{Username: "bob", Action: "app.create"})
+	_ = svc.Record(context.TODO(), AuditEntry{Username: "alice", Action: "app.delete"})
+
+	_, total, _ := svc.List(context.TODO(), AuditFilter{Username: "alice", Page: 1, PageSize: 10})
+	if total != 2 {
+		t.Errorf("total for username 'alice' = %d, want 2", total)
+	}
+
+	_, total, _ = svc.List(context.TODO(), AuditFilter{Username: "bob", Page: 1, PageSize: 10})
+	if total != 1 {
+		t.Errorf("total for username 'bob' = %d, want 1", total)
+	}
+}
+
+func TestAuditService_ListWithTimeRange(t *testing.T) {
+	db := setupAuditTestDB(t)
+	svc := NewAuditService(db)
+
+	_ = svc.Record(context.TODO(), AuditEntry{Action: "app.create"})
+	_ = svc.Record(context.TODO(), AuditEntry{Action: "app.create"})
+
+	// Query all — should get 2
+	_, total, _ := svc.List(context.TODO(), AuditFilter{Page: 1, PageSize: 10})
+	if total != 2 {
+		t.Fatalf("total = %d, want 2", total)
+	}
+
+	// Query with future start time — should get 0
+	future := time.Now().Add(24 * time.Hour)
+	_, total, _ = svc.List(context.TODO(), AuditFilter{StartTime: future, Page: 1, PageSize: 10})
+	if total != 0 {
+		t.Errorf("total with future start = %d, want 0", total)
+	}
+
+	// Query with past end time — should get 0
+	past := time.Now().Add(-24 * time.Hour)
+	_, total, _ = svc.List(context.TODO(), AuditFilter{EndTime: past, Page: 1, PageSize: 10})
+	if total != 0 {
+		t.Errorf("total with past end = %d, want 0", total)
+	}
+}
+
+func TestAuditService_Cleanup(t *testing.T) {
+	db := setupAuditTestDB(t)
+	svc := NewAuditService(db)
+
+	// Record is created "now" — cleanup with 0 days retention should delete it
+	_ = svc.Record(context.TODO(), AuditEntry{Action: "app.create"})
+	_, total, _ := svc.List(context.TODO(), AuditFilter{Page: 1, PageSize: 10})
+	if total != 1 {
+		t.Fatalf("total before cleanup = %d, want 1", total)
+	}
+
+	deleted, err := svc.Cleanup(context.TODO(), 0)
+	if err != nil {
+		t.Fatalf("Cleanup() error = %v", err)
+	}
+	if deleted != 1 {
+		t.Errorf("deleted = %d, want 1", deleted)
+	}
+
+	_, total, _ = svc.List(context.TODO(), AuditFilter{Page: 1, PageSize: 10})
+	if total != 0 {
+		t.Errorf("total after cleanup = %d, want 0", total)
+	}
+
+	// Cleanup with 365 days retention should not delete anything
+	_ = svc.Record(context.TODO(), AuditEntry{Action: "app.create"})
+	deleted, err = svc.Cleanup(context.TODO(), 365)
+	if err != nil {
+		t.Fatalf("Cleanup(365) error = %v", err)
+	}
+	if deleted != 0 {
+		t.Errorf("deleted with 365 days = %d, want 0", deleted)
 	}
 }

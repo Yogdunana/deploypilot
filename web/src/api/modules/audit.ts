@@ -6,6 +6,7 @@ export interface AuditLogParams extends PaginationParams {
   user_id?: number
   action?: string
   resource_type?: string
+  username?: string
   start_date?: string
   end_date?: string
 }
