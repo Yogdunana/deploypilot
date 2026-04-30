@@ -3,6 +3,7 @@ package crypto
 import (
 	"encoding/base64"
 	"strings"
+	"bytes"
 	"testing"
 
 	"golang.org/x/crypto/bcrypt"
@@ -472,5 +473,79 @@ func TestCheckPassword_EmptyHash(t *testing.T) {
 func TestCheckPassword_EmptyBoth(t *testing.T) {
 	if CheckPassword("", "") {
 		t.Error("CheckPassword() should return false for empty password and hash")
+	}
+}
+
+func TestDeriveKey_Deterministic(t *testing.T) {
+	masterKey := NewEncryptionKey()
+	nonce := []byte("test-credential-nonce-1")
+
+	key1 := DeriveKey(masterKey, nonce)
+	key2 := DeriveKey(masterKey, nonce)
+
+	if !bytes.Equal(key1, key2) {
+		t.Error("DeriveKey should be deterministic for same inputs")
+	}
+	if len(key1) != 32 {
+		t.Errorf("derived key length = %d, want 32", len(key1))
+	}
+}
+
+func TestDeriveKey_DifferentNonces(t *testing.T) {
+	masterKey := NewEncryptionKey()
+
+	key1 := DeriveKey(masterKey, []byte("nonce-1"))
+	key2 := DeriveKey(masterKey, []byte("nonce-2"))
+
+	if bytes.Equal(key1, key2) {
+		t.Error("different nonces should produce different keys")
+	}
+}
+
+func TestDeriveKey_DifferentMasterKeys(t *testing.T) {
+	nonce := []byte("same-nonce")
+	master1 := NewEncryptionKey()
+	master2 := NewEncryptionKey()
+
+	key1 := DeriveKey(master1, nonce)
+	key2 := DeriveKey(master2, nonce)
+
+	if bytes.Equal(key1, key2) {
+		t.Error("different master keys should produce different derived keys")
+	}
+}
+
+func TestDeriveKey_EncryptDecryptRoundTrip(t *testing.T) {
+	masterKey := NewEncryptionKey()
+	nonce := []byte("round-trip-test")
+
+	derivedKey := DeriveKey(masterKey, nonce)
+
+	plaintext := "secret credential value"
+	ciphertext, err := Encrypt(derivedKey, plaintext)
+	if err != nil {
+		t.Fatalf("Encrypt failed: %v", err)
+	}
+
+	// Decrypt with same derived key should work
+	decrypted, err := Decrypt(derivedKey, ciphertext)
+	if err != nil {
+		t.Fatalf("Decrypt with derived key failed: %v", err)
+	}
+	if decrypted != plaintext {
+		t.Errorf("decrypted = %q, want %q", decrypted, plaintext)
+	}
+
+	// Decrypt with master key should fail
+	_, err = Decrypt(masterKey, ciphertext)
+	if err == nil {
+		t.Error("Decrypt with master key should fail (key isolation)")
+	}
+
+	// Decrypt with different derived key should fail
+	otherKey := DeriveKey(masterKey, []byte("other-nonce"))
+	_, err = Decrypt(otherKey, ciphertext)
+	if err == nil {
+		t.Error("Decrypt with different derived key should fail")
 	}
 }

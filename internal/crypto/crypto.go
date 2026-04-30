@@ -4,6 +4,7 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
+	"crypto/sha256"
 	"crypto/subtle"
 	"encoding/base64"
 	"errors"
@@ -13,6 +14,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"golang.org/x/crypto/hkdf"
 	"golang.org/x/crypto/argon2"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -32,6 +34,20 @@ func NewEncryptionKey() []byte {
 		panic(fmt.Sprintf("failed to generate encryption key: %v", err))
 	}
 	return key
+}
+
+// DeriveKey derives a unique AES-256 key from a master key and a per-credential nonce
+// using HKDF-SHA256. This ensures each credential is encrypted with a different key,
+// providing key isolation — compromising one credential's key does not affect others.
+func DeriveKey(masterKey, nonce []byte) []byte {
+	// Use HKDF with SHA-256 to derive a 32-byte key
+	// info parameter provides context separation (empty here, can be extended)
+	hkdf := hkdf.New(sha256.New, masterKey, nonce, nil)
+	derived := make([]byte, 32)
+	if _, err := io.ReadFull(hkdf, derived); err != nil {
+		panic(fmt.Sprintf("HKDF derivation failed: %v", err))
+	}
+	return derived
 }
 
 // Encrypt encrypts plaintext using AES-256-GCM and returns a base64-encoded ciphertext.

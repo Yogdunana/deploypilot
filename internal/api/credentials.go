@@ -85,7 +85,7 @@ func ListCredentials(bridge *service.Bridge) gin.HandlerFunc {
 // @Failure      401 {object} map[string]interface{} "unauthorized"
 // @Failure      500 {object} map[string]interface{} "internal error"
 // @Router       /credentials [post]
-func CreateCredential(bridge *service.Bridge) gin.HandlerFunc {
+func CreateCredential(bridge *service.Bridge, auditSvc *service.AuditService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var input struct {
 			TenantID      string `json:"tenant_id"`
@@ -107,6 +107,20 @@ func CreateCredential(bridge *service.Bridge) gin.HandlerFunc {
 			respondErrori18n(c, http.StatusInternalServerError, "error.common.internal_error")
 			return
 		}
+		// Record audit log
+		if auditSvc != nil {
+			userID, _ := c.Get(string(auth.UserIDKey))
+			uid, _ := userID.(string)
+			_ = auditSvc.Record(c.Request.Context(), service.AuditEntry{
+				UserID:       parseUserID(uid),
+				Username:     uid,
+				Action:       "credential.create",
+				ResourceType: "credential",
+				ResourceID:   fmt.Sprintf("%v", cred),
+				Detail:       map[string]string{"name": input.Name, "type": input.Type},
+			})
+		}
+
 		respondSuccess(c, cred)
 	}
 }
@@ -125,7 +139,7 @@ func CreateCredential(bridge *service.Bridge) gin.HandlerFunc {
 // @Failure      401 {object} map[string]interface{} "unauthorized"
 // @Failure      500 {object} map[string]interface{} "internal error"
 // @Router       /credentials/{id} [put]
-func UpdateCredential(bridge *service.Bridge) gin.HandlerFunc {
+func UpdateCredential(bridge *service.Bridge, auditSvc *service.AuditService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		id := c.Param("id")
 		var input struct {
@@ -141,6 +155,19 @@ func UpdateCredential(bridge *service.Bridge) gin.HandlerFunc {
 			respondErrori18n(c, http.StatusInternalServerError, "error.common.internal_error")
 			return
 		}
+		// Record audit log
+		if auditSvc != nil {
+			userID, _ := c.Get(string(auth.UserIDKey))
+			uid, _ := userID.(string)
+			_ = auditSvc.Record(c.Request.Context(), service.AuditEntry{
+				UserID:       parseUserID(uid),
+				Username:     uid,
+				Action:       "credential.update",
+				ResourceType: "credential",
+				ResourceID:   id,
+			})
+		}
+
 		respondSuccess(c, result)
 	}
 }
@@ -156,13 +183,26 @@ func UpdateCredential(bridge *service.Bridge) gin.HandlerFunc {
 // @Failure      401 {object} map[string]interface{} "unauthorized"
 // @Failure      500 {object} map[string]interface{} "internal error"
 // @Router       /credentials/{id} [delete]
-func DeleteCredential(bridge *service.Bridge) gin.HandlerFunc {
+func DeleteCredential(bridge *service.Bridge, auditSvc *service.AuditService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		id := c.Param("id")
 		if err := bridge.DeleteCredential(c.Request.Context(), id); err != nil {
 			respondErrori18n(c, http.StatusInternalServerError, "error.common.internal_error")
 			return
 		}
+		// Record audit log
+		if auditSvc != nil {
+			userID, _ := c.Get(string(auth.UserIDKey))
+			uid, _ := userID.(string)
+			_ = auditSvc.Record(c.Request.Context(), service.AuditEntry{
+				UserID:       parseUserID(uid),
+				Username:     uid,
+				Action:       "credential.delete",
+				ResourceType: "credential",
+				ResourceID:   id,
+			})
+		}
+
 		respondSuccess(c, gin.H{"message": "credential deleted", "id": id})
 	}
 }

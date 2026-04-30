@@ -322,7 +322,7 @@ func TestCreateCredential_WithUserID_Cov(t *testing.T) {
 	bridge := createTestBridge(t, db)
 
 	r := gin.New()
-	r.POST("/api/v1/credentials", CreateCredential(bridge))
+	r.POST("/api/v1/credentials", CreateCredential(bridge, nil))
 
 	body, _ := json.Marshal(map[string]interface{}{
 		"name":  "test-cred-cov",
@@ -1171,7 +1171,7 @@ func TestCreateCredential_MissingFields(t *testing.T) {
 
 	bridge := createTestBridge(t, db)
 	r := gin.New()
-	r.POST("/api/v1/credentials", CreateCredential(bridge))
+	r.POST("/api/v1/credentials", CreateCredential(bridge, nil))
 
 	// Missing type and value
 	body, _ := json.Marshal(map[string]string{"name": "test"})
@@ -1192,7 +1192,7 @@ func TestUpdateCredential_NotFound(t *testing.T) {
 
 	bridge := createTestBridge(t, db)
 	r := gin.New()
-	r.PUT("/api/v1/credentials/:id", UpdateCredential(bridge))
+	r.PUT("/api/v1/credentials/:id", UpdateCredential(bridge, nil))
 
 	body, _ := json.Marshal(map[string]string{"value": "new-val"})
 	req, _ := http.NewRequest("PUT", "/api/v1/credentials/nonexistent", bytes.NewBuffer(body))
@@ -1985,7 +1985,7 @@ func TestCreateCredential_WithCustomTenant(t *testing.T) {
 
 	bridge := createTestBridge(t, db)
 	r := gin.New()
-	r.POST("/api/v1/credentials", CreateCredential(bridge))
+	r.POST("/api/v1/credentials", CreateCredential(bridge, nil))
 
 	body, _ := json.Marshal(map[string]interface{}{
 		"name":      "custom-cred",
@@ -2531,7 +2531,7 @@ func TestUpdateCredential_Success_Cov(t *testing.T) {
 
 	bridge := createTestBridge(t, db)
 	r := gin.New()
-	r.PUT("/api/v1/credentials/:id", UpdateCredential(bridge))
+	r.PUT("/api/v1/credentials/:id", UpdateCredential(bridge, nil))
 
 	body, _ := json.Marshal(map[string]string{"value": "new-secret"})
 	req, _ := http.NewRequest("PUT", "/api/v1/credentials/some-id", bytes.NewBuffer(body))
