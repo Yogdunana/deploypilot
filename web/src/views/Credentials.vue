@@ -18,7 +18,7 @@ import Skeleton from '@/components/ui/Skeleton.vue'
 import Tabs from '@/components/ui/Tabs.vue'
 import * as credentialsApi from '@/api/modules/credentials'
 import * as auditApi from '@/api/modules/audit'
-import type { Credential, AuditLog } from '@/types/models'
+import type { Credential } from '@/types/models'
 import { useI18n } from 'vue-i18n'
 
 const { toast } = inject<any>('toast')!
@@ -51,8 +51,10 @@ const rotateSubmitting = ref(false)
 // Detail dialog
 const detailDialogOpen = ref(false)
 const detailItem = ref<Credential | null>(null)
-const detailTab = ref('details')
-const detailAuditLogs = ref<AuditLog[]>([])
+
+// Detail audit
+const detailActiveTab = ref('info')
+const detailAuditLogs = ref<any[]>([])
 const detailAuditLoading = ref(false)
 
 // Delete dialog
@@ -74,14 +76,6 @@ const columns = computed(() => [
   { key: 'expiry_status', label: t('credentials.expiryStatus'), mobile: true },
   { key: 'created_at', label: t('credentials.createdAt') },
   { key: 'actions', label: t('credentials.actions'), width: '80px' },
-])
-
-// Audit table columns
-const auditColumns = computed(() => [
-  { key: 'action', label: t('audit.action'), mobile: true },
-  { key: 'username', label: t('audit.username'), mobile: true },
-  { key: 'ip_address', label: t('audit.ipAddress') },
-  { key: 'created_at', label: t('audit.createdAt') },
 ])
 
 // Type badge mapping
@@ -131,21 +125,6 @@ async function fetchCredentials() {
     toast(err.response?.data?.message || t('credentials.fetchFailed'), 'destructive')
   } finally {
     loading.value = false
-  }
-}
-
-// Fetch detail audit logs
-async function fetchDetailAudit(credentialId: number) {
-  detailAuditLoading.value = true
-  try {
-    const res = await auditApi.list({ resource_type: 'credential', resource_id: String(credentialId) })
-    if (res.data.status === 'success') {
-      detailAuditLogs.value = res.data.data
-    }
-  } catch {
-    detailAuditLogs.value = []
-  } finally {
-    detailAuditLoading.value = false
   }
 }
 
@@ -229,10 +208,23 @@ async function handleRotate() {
 // Open detail dialog
 function openDetailDialog(item: Credential) {
   detailItem.value = item
-  detailTab.value = 'details'
-  detailAuditLogs.value = []
+  detailActiveTab.value = 'info'
   detailDialogOpen.value = true
-  fetchDetailAudit(item.id)
+  fetchDetailAudit(item)
+}
+
+// Fetch detail audit logs
+async function fetchDetailAudit(item: any) {
+  detailAuditLoading.value = true
+  try {
+    const res = await auditApi.listLogs({ resource_type: 'credential', page: 1, page_size: 10 })
+    if (res.data.status === 'success') {
+      detailAuditLogs.value = res.data.data.filter(
+        (log: any) => log.detail?.includes(item.name) || String(log.resource_id) === String(item.id)
+      )
+    }
+  } catch { /* ignore */ }
+  finally { detailAuditLoading.value = false }
 }
 
 // Delete
@@ -426,82 +418,80 @@ onMounted(fetchCredentials)
       </div>
     </Dialog>
 
-    <!-- Detail Dialog with Tabs -->
+    <!-- Detail Dialog -->
     <Dialog
       v-model:open="detailDialogOpen"
       :title="detailItem?.name || ''"
       :description="t('credentials.configDesc')"
     >
       <div v-if="detailItem" class="space-y-4">
-        <Tabs v-model="detailTab" :tabs="[
-          { value: 'details', label: t('credentials.detailInfo') },
-          { value: 'audit', label: t('credentials.auditHistory') },
-        ]" />
-
-        <!-- Details Tab -->
-        <div v-if="detailTab === 'details'" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div class="space-y-1">
-            <p class="text-sm text-muted-foreground">{{ t('credentials.name') }}</p>
-            <p class="text-sm font-medium">{{ detailItem.name }}</p>
+        <Tabs v-model="detailActiveTab" :tabs="[{ key: 'info', label: t('credentials.detailInfo') }, { key: 'audit', label: t('credentials.auditHistory') }]" />
+        <div v-if="detailActiveTab === 'info'">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div class="space-y-1">
+              <p class="text-sm text-muted-foreground">{{ t('credentials.name') }}</p>
+              <p class="text-sm font-medium">{{ detailItem.name }}</p>
+            </div>
+            <div class="space-y-1">
+              <p class="text-sm text-muted-foreground">{{ t('credentials.type') }}</p>
+              <Badge :variant="getTypeBadge(detailItem.type).variant">
+                {{ getTypeBadge(detailItem.type).label }}
+              </Badge>
+            </div>
+            <div class="space-y-1">
+              <p class="text-sm text-muted-foreground">{{ t('credentials.expiryStatus') }}</p>
+              <Badge :variant="getExpiryStatus(detailItem).variant">
+                {{ getExpiryStatus(detailItem).label }}
+              </Badge>
+            </div>
+            <div class="space-y-1">
+              <p class="text-sm text-muted-foreground">{{ t('credentials.expiresAt') }}</p>
+              <p class="text-sm font-medium">
+                {{ detailItem.expires_at ? new Date(detailItem.expires_at).toLocaleString() : t('credentials.neverExpires') }}
+              </p>
+            </div>
+            <div class="space-y-1">
+              <p class="text-sm text-muted-foreground">{{ t('credentials.lastRotated') }}</p>
+              <p class="text-sm font-medium">
+                {{ detailItem.last_rotated ? new Date(detailItem.last_rotated).toLocaleString() : '-' }}
+              </p>
+            </div>
+            <div class="space-y-1">
+              <p class="text-sm text-muted-foreground">{{ t('credentials.rotationDays') }}</p>
+              <p class="text-sm font-medium">
+                {{ detailItem.rotation_days || 0 === 0 ? t('credentials.neverExpires') : detailItem.rotation_days + ' ' + t('common.days') }}
+              </p>
+            </div>
+            <div class="space-y-1">
+              <p class="text-sm text-muted-foreground">{{ t('credentials.createdAt') }}</p>
+              <p class="text-sm font-medium">{{ new Date(detailItem.created_at).toLocaleString() }}</p>
+            </div>
           </div>
-          <div class="space-y-1">
-            <p class="text-sm text-muted-foreground">{{ t('credentials.type') }}</p>
-            <Badge :variant="getTypeBadge(detailItem.type).variant">
-              {{ getTypeBadge(detailItem.type).label }}
-            </Badge>
-          </div>
-          <div class="space-y-1">
-            <p class="text-sm text-muted-foreground">{{ t('credentials.expiryStatus') }}</p>
-            <Badge :variant="getExpiryStatus(detailItem).variant">
-              {{ getExpiryStatus(detailItem).label }}
-            </Badge>
-          </div>
-          <div class="space-y-1">
-            <p class="text-sm text-muted-foreground">{{ t('credentials.expiresAt') }}</p>
-            <p class="text-sm font-medium">
-              {{ detailItem.expires_at ? new Date(detailItem.expires_at).toLocaleString() : t('credentials.neverExpires') }}
-            </p>
-          </div>
-          <div class="space-y-1">
-            <p class="text-sm text-muted-foreground">{{ t('credentials.lastRotated') }}</p>
-            <p class="text-sm font-medium">
-              {{ detailItem.last_rotated ? new Date(detailItem.last_rotated).toLocaleString() : '-' }}
-            </p>
-          </div>
-          <div class="space-y-1">
-            <p class="text-sm text-muted-foreground">{{ t('credentials.rotationDays') }}</p>
-            <p class="text-sm font-medium">
-              {{ detailItem.rotation_days || 0 === 0 ? t('credentials.neverExpires') : detailItem.rotation_days + ' ' + t('common.days') }}
-            </p>
-          </div>
-          <div class="space-y-1">
-            <p class="text-sm text-muted-foreground">{{ t('credentials.createdAt') }}</p>
-            <p class="text-sm font-medium">{{ new Date(detailItem.created_at).toLocaleString() }}</p>
+          <div class="flex justify-end gap-2 pt-2">
+            <Button variant="outline" @click="detailDialogOpen = false">{{ t('common.close') }}</Button>
+            <Button @click="detailDialogOpen = false; openRotateDialog(detailItem)">
+              <template #icon><RefreshCw class="w-4 h-4" /></template>
+              {{ t('credentials.rotate') }}
+            </Button>
           </div>
         </div>
-
-        <!-- Audit History Tab -->
-        <div v-else-if="detailTab === 'audit'">
+        <div v-else-if="detailActiveTab === 'audit'" class="space-y-3">
           <div v-if="detailAuditLoading" class="space-y-2">
             <Skeleton v-for="i in 3" :key="i" class="h-4 w-full" />
           </div>
-          <Table v-else-if="detailAuditLogs.length > 0" :columns="auditColumns" :data="detailAuditLogs">
-            <template #cell-action="{ row }">
-              <Badge variant="outline">{{ (row as AuditLog).action }}</Badge>
-            </template>
-            <template #cell-created_at="{ row }">
-              <RelativeTime :date="(row as AuditLog).created_at" />
-            </template>
-          </Table>
+          <div v-else-if="detailAuditLogs.length > 0" class="space-y-2">
+            <div v-for="log in detailAuditLogs" :key="log.id" class="flex items-start gap-3 rounded-md border border-border p-3 text-sm">
+              <div class="min-w-0 flex-1">
+                <div class="flex items-center gap-2">
+                  <Badge variant="outline" class="text-xs">{{ log.action }}</Badge>
+                  <span class="text-muted-foreground">{{ log.username }}</span>
+                </div>
+                <p class="text-xs text-muted-foreground mt-1">{{ log.detail }}</p>
+              </div>
+              <RelativeTime :date="log.created_at" class="text-xs text-muted-foreground shrink-0" />
+            </div>
+          </div>
           <p v-else class="text-sm text-muted-foreground text-center py-4">{{ t('credentials.noAuditLogs') }}</p>
-        </div>
-
-        <div class="flex justify-end gap-2 pt-2">
-          <Button variant="outline" @click="detailDialogOpen = false">{{ t('common.close') }}</Button>
-          <Button @click="detailDialogOpen = false; openRotateDialog(detailItem)">
-            <template #icon><RefreshCw class="w-4 h-4" /></template>
-            {{ t('credentials.rotate') }}
-          </Button>
         </div>
       </div>
     </Dialog>
