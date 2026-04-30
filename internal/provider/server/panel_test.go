@@ -33,6 +33,13 @@ type mockPanelClient struct {
 func (m *mockPanelClient) OpenFirewall(_ context.Context, _ int, _ string) error { return nil }
 func (m *mockPanelClient) CloseFirewall(_ context.Context, _ int, _ string) error { return nil }
 func (m *mockPanelClient) CreateReverseProxy(_ context.Context, _, _ string, _ int) error { return nil }
+func (m *mockPanelClient) DeleteReverseProxy(_ context.Context, _ string) error             { return nil }
+func (m *mockPanelClient) CreateWebsite(_ context.Context, _, _, _ string) (*WebsiteInfo, error) {
+	return &WebsiteInfo{PrimaryDomain: "mock.local", Type: "static", Status: true}, nil
+}
+func (m *mockPanelClient) GetWebsiteList(_ context.Context) ([]WebsiteInfo, error) {
+	return []WebsiteInfo{{PrimaryDomain: "mock.local", Type: "static", Status: true}}, nil
+}
 func (m *mockPanelClient) GetInfo() map[string]interface{} {
 	return map[string]interface{}{
 		"name":     m.name,
@@ -55,10 +62,16 @@ func setupPanelProviderTestServer() *httptest.Server {
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(resp)
 	})
+	mux.HandleFunc("/api/v1/websites", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			resp := panel1Response{Code: 200, Message: "success", Data: json.RawMessage(`{"items":[],"total":0}`)}
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(resp)
+		}
+	})
 
 	// BT-Panel endpoints
 	mux.HandleFunc("/login", func(w http.ResponseWriter, r *http.Request) {
-		// Set auth cookie
 		w.Header().Set("Set-Cookie", "bt_user_token=test-token; Path=/")
 		resp := btPanelResponse{Status: true, Msg: "Login successful"}
 		w.Header().Set("Content-Type", "application/json")
@@ -68,10 +81,10 @@ func setupPanelProviderTestServer() *httptest.Server {
 		resp := btPanelResponse{Status: true, Msg: "ok", Data: map[string]interface{}{
 			"list": []map[string]interface{}{
 				{
-					"id": "1",
-					"port": "8080",
+					"id":       "1",
+					"port":     "8080",
 					"protocol": "tcp",
-					"ps": "deploypilot",
+					"ps":       "deploypilot",
 				},
 			},
 		}}
@@ -93,6 +106,13 @@ func setupPanelProviderTestServer() *httptest.Server {
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(resp)
 	})
+	mux.HandleFunc("/site/list", func(w http.ResponseWriter, r *http.Request) {
+		resp := btPanelResponse{Status: true, Msg: "ok", Data: map[string]interface{}{
+			"list": []interface{}{},
+		}}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(resp)
+	})
 
 	return httptest.NewServer(mux)
 }
@@ -105,7 +125,6 @@ func TestDetectPanel_None(t *testing.T) {
 			"ps aux | grep -E '1panel|BT-Panel|bt' | grep -v grep || true": "",
 		},
 	}
-
 	client := DetectPanel(context.TODO(), executor)
 	if client != nil {
 		t.Errorf("DetectPanel() = %v, want nil", client)
@@ -118,7 +137,6 @@ func TestDetectPanel_1Panel(t *testing.T) {
 			"systemctl is-active 1panel 2>/dev/null || echo 'inactive'": "active",
 		},
 	}
-
 	client := DetectPanel(context.TODO(), executor)
 	if client == nil {
 		t.Fatal("DetectPanel() returned nil, want PanelClient")
@@ -136,7 +154,6 @@ func TestDetectPanel_BTPanel(t *testing.T) {
 			"systemctl is-active bt 2>/dev/null || echo 'inactive'":     "active",
 		},
 	}
-
 	client := DetectPanel(context.TODO(), executor)
 	if client == nil {
 		t.Fatal("DetectPanel() returned nil, want PanelClient")
@@ -183,7 +200,6 @@ func TestGetPanelInfo_WithClient(t *testing.T) {
 func TestOpenFirewall_1Panel(t *testing.T) {
 	server := setupPanelProviderTestServer()
 	defer server.Close()
-
 	client := NewPanel1Client(server.URL, "test-key")
 	p := NewPanelProvider(client)
 	err := p.OpenFirewall(context.TODO(), 8080, "tcp")
@@ -195,7 +211,6 @@ func TestOpenFirewall_1Panel(t *testing.T) {
 func TestOpenFirewall_BTPanel(t *testing.T) {
 	server := setupPanelProviderTestServer()
 	defer server.Close()
-
 	client := NewBTPanelClient(server.URL, "admin", "test-key")
 	p := NewPanelProvider(client)
 	err := p.OpenFirewall(context.TODO(), 8080, "tcp")
@@ -215,7 +230,6 @@ func TestOpenFirewall_None(t *testing.T) {
 func TestCloseFirewall_1Panel(t *testing.T) {
 	server := setupPanelProviderTestServer()
 	defer server.Close()
-
 	client := NewPanel1Client(server.URL, "test-key")
 	p := NewPanelProvider(client)
 	err := p.CloseFirewall(context.TODO(), 8080, "tcp")
@@ -227,7 +241,6 @@ func TestCloseFirewall_1Panel(t *testing.T) {
 func TestCloseFirewall_BTPanel(t *testing.T) {
 	server := setupPanelProviderTestServer()
 	defer server.Close()
-
 	client := NewBTPanelClient(server.URL, "admin", "test-key")
 	p := NewPanelProvider(client)
 	err := p.CloseFirewall(context.TODO(), 8080, "tcp")
@@ -247,7 +260,6 @@ func TestCloseFirewall_None(t *testing.T) {
 func TestCreateReverseProxy_1Panel(t *testing.T) {
 	server := setupPanelProviderTestServer()
 	defer server.Close()
-
 	client := NewPanel1Client(server.URL, "test-key")
 	p := NewPanelProvider(client)
 	err := p.CreateReverseProxy(context.TODO(), "example.com", "http://localhost:3000", 3000)
@@ -259,7 +271,6 @@ func TestCreateReverseProxy_1Panel(t *testing.T) {
 func TestCreateReverseProxy_BTPanel(t *testing.T) {
 	server := setupPanelProviderTestServer()
 	defer server.Close()
-
 	client := NewBTPanelClient(server.URL, "admin", "test-key")
 	p := NewPanelProvider(client)
 	err := p.CreateReverseProxy(context.TODO(), "example.com", "http://localhost:3000", 3000)
@@ -306,7 +317,6 @@ func TestDetectPanel_ProcessFallback(t *testing.T) {
 			"ps aux | grep -E '1panel|BT-Panel|bt' | grep -v grep || true": "root  1234  1panel serve",
 		},
 	}
-
 	client := DetectPanel(context.TODO(), executor)
 	if client == nil {
 		t.Fatal("DetectPanel() returned nil (process fallback)")
