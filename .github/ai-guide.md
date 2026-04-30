@@ -243,6 +243,12 @@ dockerCmd += " | grep " + filter  // filter 未转义！
 **修复**: 在 Gitleaks step 中添加 `env: GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}`。
 **相关 PR**: #119
 
+### 36. 接口拆分后工具注册必须匹配 handler 的接口类型
+将 God Interface 拆分为子接口后，每个 `register_*.go` 中的工具注册函数接收对应的子接口类型。如果 handler 函数签名是 `handleXxx(ctx, d MonitorService, ...)`，则该工具必须在 `register_monitor.go` 中注册（传入 `MonitorService`），不能注册在 `register_deploy.go`（传入 `ContainerDeployer`）中，否则 Lint 会报类型不匹配。
+**反例**: `handleHealContainer` 期望 `MonitorService`，但注册在 `register_deploy.go` 中传入 `ContainerDeployer`，导致 Lint 失败。
+**修复**: 将工具注册移到与 handler 接口类型匹配的 register 文件中。如果方法同时属于多个子接口（如 `HealContainer` 同时在 `ContainerDeployer` 和 `MonitorService` 中），选择与 handler 签名匹配的那个。
+**相关 PR**: #122
+
 ## 项目结构关键路径
 
 | 路径 | 说明 |
@@ -301,7 +307,7 @@ Bridge God Object 已拆分为 18 个文件，87 个方法按领域分布：
 | 文件 | 行数 | 内容 |
 |------|------|------|
 | `server.go` | 71 | NewServer 入口 + context/permission helpers |
-| `types.go` | 209 | Deployer 接口 + PreflightErrorInfo + 12 个 struct |
+| `types.go` | 337 | 18 个子接口 + Deployer 组合接口 + PreflightErrorInfo + 12 个 struct |
 | `helpers.go` | 81 | validateVolumePath, validateImageRegistry 等 |
 | `handler_deploy.go` | ~410 | 部署相关 handler（deploy, rollback, batch 等） |
 | `handler_server.go` | ~176 | 服务器管理 handler |
@@ -452,8 +458,8 @@ permissions:
 | Issue | 问题 | 状态 |
 |-------|------|------|
 | #115 | SSH 静默回退 root 用户 | ✅ 已修复 (PR #119) |
-| #116 | Deployer God Interface（~70 方法） | 🟡 Open |
-| #117 | 全局可变状态导致内存泄漏和数据丢失 | 🟡 Open |
+| #116 | Deployer God Interface（~70 方法） | ✅ 已修复 (PR #122) |
+| #117 | 全局可变状态导致内存泄漏和数据丢失 | ✅ 已修复 (PR #121) |
 
 ### 🟡 Medium — 计划修复
 
@@ -471,9 +477,9 @@ permissions:
 
 | 优先级 | 改进项 | 复杂度 | 说明 |
 |--------|--------|--------|------|
-| P1 | Deployer 接口拆分为聚焦接口 | 高 | 拆为 ContainerDeployer/DNSManager/SSLManager 等 |
+| P1 | Deployer 接口拆分为聚焦接口 | ✅ 完成 | 已拆为 18 个子接口 (PR #122) |
 | P1 | 消除 `interface{}` 返回值 | 高 | 为每个方法定义具体 struct |
-| P2 | 全局状态迁移到 DB/Redis | 中 | tasks/backupApps/portForwards |
+| P2 | 全局状态迁移到 DB/Redis | ✅ 完成 | tasks/backupApps/portForwards 已移入 Bridge (PR #121) |
 | P2 | 统一错误码体系 | 中 | sentinel errors + 错误码 |
 | P3 | Bridge 逐步解耦为独立 Service | 高 | 从 (b *Bridge) 改为独立 struct |
 | P3 | README 数据同步更新 | 低 | MCP 工具数、REST 端点数等 |
@@ -481,7 +487,7 @@ permissions:
 ### 📌 里程碑提醒
 
 - **v1.2 Unreleased**: 包含指标持久化 + 定时任务系统（PR #109 已合并），需要执行版本完成检查清单（见踩坑记录 #20）
-- **v1.3 规划中**: #113（命令注入）和 #114（Gitleaks）已修复，建议将 #117（全局可变状态）作为 v1.3 的 P0 项
+- **v1.3 规划中**: #113（命令注入）、#114（Gitleaks）、#115（SSH root 回退）、#116（God Interface）、#117（全局可变状态）均已修复，建议将消除 `interface{}` 返回值作为 v1.3 的 P0 项
 - **Dependabot PR #111**: Go 依赖批量更新（11 个），需要审查后合并
 - **分支保护操作**: 使用 PAT token 通过 API 临时删除/恢复保护（见踩坑记录 #35），流程：备份配置 → DELETE → merge → PUT 恢复
 
