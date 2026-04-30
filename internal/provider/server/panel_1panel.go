@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"io"
 	"log/slog"
 	"net/http"
@@ -99,6 +100,8 @@ func (p *Panel1Client) doRequest(ctx context.Context, method, path string, body 
 	}
 	defer func() { _ = resp.Body.Close() }()
 	respBody, err := io.ReadAll(resp.Body)
+	// DEBUG
+	fmt.Fprintf(os.Stderr, "DEBUG doRequest: method=%s path=%s status=%d body=%q\n", method, path, resp.StatusCode, string(respBody))
 	if err != nil {
 		return nil, fmt.Errorf("failed to read response body: %w", err)
 	}
