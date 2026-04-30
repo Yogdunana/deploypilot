@@ -72,6 +72,9 @@ func setupPanelProviderTestServer() *httptest.Server {
 				json.NewEncoder(w).Encode(map[string]interface{}{"code": 200, "message": "ok", "data": map[string]interface{}{"id": 1}})
 			}
 
+		case r.Method == http.MethodDelete && strings.HasPrefix(path, "/api/v1/firewall/rules/"):
+			json.NewEncoder(w).Encode(map[string]interface{}{"code": 200, "message": "ok"})
+
 		case path == "/api/v1/websites/reverse_proxy":
 			resp := panel1Response{Code: 200, Message: "success", Data: json.RawMessage(`{"id": 1}`)}
 			json.NewEncoder(w).Encode(resp)
@@ -81,6 +84,9 @@ func setupPanelProviderTestServer() *httptest.Server {
 				resp := panel1Response{Code: 200, Message: "success", Data: json.RawMessage(`{"items":[],"total":0}`)}
 				json.NewEncoder(w).Encode(resp)
 			}
+
+		case r.Method == http.MethodDelete && strings.HasPrefix(path, "/api/v1/websites/"):
+			json.NewEncoder(w).Encode(map[string]interface{}{"code": 200, "message": "ok"})
 
 		// BT-Panel endpoints
 		case path == "/login":
@@ -122,9 +128,6 @@ func setupPanelProviderTestServer() *httptest.Server {
 		case path == "/site/delete":
 			resp := btPanelResponse{Status: true, Msg: "Site deleted"}
 			json.NewEncoder(w).Encode(resp)
-
-		case strings.HasPrefix(path, "/api/v1/websites/") && r.Method == http.MethodDelete:
-			json.NewEncoder(w).Encode(map[string]interface{}{"code": 200, "message": "ok"})
 
 		default:
 			http.NotFound(w, r)

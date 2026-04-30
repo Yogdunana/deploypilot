@@ -14,7 +14,7 @@ func setup1PanelTestServer() *httptest.Server {
 		w.Header().Set("Content-Type", "application/json")
 
 		switch {
-		// Firewall rules
+		// Firewall rules - list/create (exact path)
 		case r.URL.Path == "/api/v1/firewall/rules":
 			switch r.Method {
 			case http.MethodPost:
@@ -32,9 +32,13 @@ func setup1PanelTestServer() *httptest.Server {
 						"total": 2,
 					},
 				})
-			case http.MethodDelete:
-				json.NewEncoder(w).Encode(map[string]interface{}{"code": 200, "message": "ok"})
+			default:
+				http.NotFound(w, r)
 			}
+
+		// Firewall rules - delete by ID (e.g., /api/v1/firewall/rules/1)
+		case r.Method == http.MethodDelete && strings.HasPrefix(r.URL.Path, "/api/v1/firewall/rules/"):
+			json.NewEncoder(w).Encode(map[string]interface{}{"code": 200, "message": "ok"})
 
 		// Delete website by ID (e.g., /api/v1/websites/10)
 		case r.Method == http.MethodDelete && strings.HasPrefix(r.URL.Path, "/api/v1/websites/") && r.URL.Path != "/api/v1/websites/reverse_proxy":
@@ -63,6 +67,8 @@ func setup1PanelTestServer() *httptest.Server {
 					"code": 200, "message": "ok",
 					"data": map[string]interface{}{"id": 12, "primaryDomain": "new.example.com", "type": "static", "status": true},
 				})
+			default:
+				http.NotFound(w, r)
 			}
 
 		default:
