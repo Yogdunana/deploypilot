@@ -15,8 +15,10 @@ import AlertDialog from '@/components/ui/AlertDialog.vue'
 import DropdownMenu from '@/components/ui/DropdownMenu.vue'
 import Pagination from '@/components/ui/Pagination.vue'
 import Skeleton from '@/components/ui/Skeleton.vue'
+import Tabs from '@/components/ui/Tabs.vue'
 import * as credentialsApi from '@/api/modules/credentials'
-import type { Credential } from '@/types/models'
+import * as auditApi from '@/api/modules/audit'
+import type { Credential, AuditLog } from '@/types/models'
 import { useI18n } from 'vue-i18n'
 
 const { toast } = inject<any>('toast')!
@@ -49,6 +51,9 @@ const rotateSubmitting = ref(false)
 // Detail dialog
 const detailDialogOpen = ref(false)
 const detailItem = ref<Credential | null>(null)
+const detailTab = ref('details')
+const detailAuditLogs = ref<AuditLog[]>([])
+const detailAuditLoading = ref(false)
 
 // Delete dialog
 const deleteDialogOpen = ref(false)
@@ -69,6 +74,14 @@ const columns = computed(() => [
   { key: 'expiry_status', label: t('credentials.expiryStatus'), mobile: true },
   { key: 'created_at', label: t('credentials.createdAt') },
   { key: 'actions', label: t('credentials.actions'), width: '80px' },
+])
+
+// Audit table columns
+const auditColumns = computed(() => [
+  { key: 'action', label: t('audit.action'), mobile: true },
+  { key: 'username', label: t('audit.username'), mobile: true },
+  { key: 'ip_address', label: t('audit.ipAddress') },
+  { key: 'created_at', label: t('audit.createdAt') },
 ])
 
 // Type badge mapping
@@ -118,6 +131,21 @@ async function fetchCredentials() {
     toast(err.response?.data?.message || t('credentials.fetchFailed'), 'destructive')
   } finally {
     loading.value = false
+  }
+}
+
+// Fetch detail audit logs
+async function fetchDetailAudit(credentialId: number) {
+  detailAuditLoading.value = true
+  try {
+    const res = await auditApi.list({ resource_type: 'credential', resource_id: String(credentialId) })
+    if (res.data.status === 'success') {
+      detailAuditLogs.value = res.data.data
+    }
+  } catch {
+    detailAuditLogs.value = []
+  } finally {
+    detailAuditLoading.value = false
   }
 }
 
@@ -201,7 +229,10 @@ async function handleRotate() {
 // Open detail dialog
 function openDetailDialog(item: Credential) {
   detailItem.value = item
+  detailTab.value = 'details'
+  detailAuditLogs.value = []
   detailDialogOpen.value = true
+  fetchDetailAudit(item.id)
 }
 
 // Delete
@@ -395,14 +426,20 @@ onMounted(fetchCredentials)
       </div>
     </Dialog>
 
-    <!-- Detail Dialog -->
+    <!-- Detail Dialog with Tabs -->
     <Dialog
       v-model:open="detailDialogOpen"
       :title="detailItem?.name || ''"
       :description="t('credentials.configDesc')"
     >
       <div v-if="detailItem" class="space-y-4">
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <Tabs v-model="detailTab" :tabs="[
+          { value: 'details', label: t('credentials.detailInfo') },
+          { value: 'audit', label: t('credentials.auditHistory') },
+        ]" />
+
+        <!-- Details Tab -->
+        <div v-if="detailTab === 'details'" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div class="space-y-1">
             <p class="text-sm text-muted-foreground">{{ t('credentials.name') }}</p>
             <p class="text-sm font-medium">{{ detailItem.name }}</p>
@@ -442,6 +479,23 @@ onMounted(fetchCredentials)
             <p class="text-sm font-medium">{{ new Date(detailItem.created_at).toLocaleString() }}</p>
           </div>
         </div>
+
+        <!-- Audit History Tab -->
+        <div v-else-if="detailTab === 'audit'">
+          <div v-if="detailAuditLoading" class="space-y-2">
+            <Skeleton v-for="i in 3" :key="i" class="h-4 w-full" />
+          </div>
+          <Table v-else-if="detailAuditLogs.length > 0" :columns="auditColumns" :data="detailAuditLogs">
+            <template #cell-action="{ row }">
+              <Badge variant="outline">{{ (row as AuditLog).action }}</Badge>
+            </template>
+            <template #cell-created_at="{ row }">
+              <RelativeTime :date="(row as AuditLog).created_at" />
+            </template>
+          </Table>
+          <p v-else class="text-sm text-muted-foreground text-center py-4">{{ t('credentials.noAuditLogs') }}</p>
+        </div>
+
         <div class="flex justify-end gap-2 pt-2">
           <Button variant="outline" @click="detailDialogOpen = false">{{ t('common.close') }}</Button>
           <Button @click="detailDialogOpen = false; openRotateDialog(detailItem)">
