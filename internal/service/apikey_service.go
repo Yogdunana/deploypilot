@@ -130,7 +130,7 @@ func (s *APIKeyService) Delete(ctx context.Context, keyID, userID string) error 
 // generateAPIKeyID generates a random hex ID for API keys.
 func generateAPIKeyID() string {
 	b := make([]byte, 12)
-	rand.Read(b)
+	if _, err := rand.Read(b); err != nil { panic("failed to generate ID: " + err.Error()) }
 	return hex.EncodeToString(b)
 }
 
