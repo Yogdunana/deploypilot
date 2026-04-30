@@ -224,25 +224,27 @@ func TestInMemoryEventBus_Close(t *testing.T) {
 }
 
 func TestUpdateTask(t *testing.T) {
+	bridge := NewBridge(nil, nil, nil, nil)
+
 	// Reset tasks for test
-	taskMu.Lock()
-	oldTasks := tasks
-	oldCounter := taskCounter
-	tasks = make(map[string]*taskInfo)
-	taskCounter = 0
-	taskMu.Unlock()
+	bridge.taskMu.Lock()
+	oldTasks := bridge.tasks
+	oldCounter := bridge.taskCounter
+	bridge.tasks = make(map[string]*taskInfo)
+	bridge.taskCounter = 0
+	bridge.taskMu.Unlock()
 
 	defer func() {
-		taskMu.Lock()
-		tasks = oldTasks
-		taskCounter = oldCounter
-		taskMu.Unlock()
+		bridge.taskMu.Lock()
+		bridge.tasks = oldTasks
+		bridge.taskCounter = oldCounter
+		bridge.taskMu.Unlock()
 	}()
 
-	id := createTask("test")
-	updateTask(id, "running", 50, "halfway done")
+	id := bridge.createTask("test")
+	bridge.updateTask(id, "running", 50, "halfway done")
 
-	task := getTask(id)
+	task := bridge.getTask(id)
 	if task == nil {
 		t.Fatal("getTask returned nil")
 	}
@@ -257,32 +259,34 @@ func TestUpdateTask(t *testing.T) {
 	}
 
 	// Update non-existent task should not panic
-	updateTask("nonexistent", "failed", 100, "error")
+	bridge.updateTask("nonexistent", "failed", 100, "error")
 }
 
 func TestGetTask(t *testing.T) {
-	taskMu.Lock()
-	oldTasks := tasks
-	oldCounter := taskCounter
-	tasks = make(map[string]*taskInfo)
-	taskCounter = 0
-	taskMu.Unlock()
+	bridge := NewBridge(nil, nil, nil, nil)
+
+	bridge.taskMu.Lock()
+	oldTasks := bridge.tasks
+	oldCounter := bridge.taskCounter
+	bridge.tasks = make(map[string]*taskInfo)
+	bridge.taskCounter = 0
+	bridge.taskMu.Unlock()
 
 	defer func() {
-		taskMu.Lock()
-		tasks = oldTasks
-		taskCounter = oldCounter
-		taskMu.Unlock()
+		bridge.taskMu.Lock()
+		bridge.tasks = oldTasks
+		bridge.taskCounter = oldCounter
+		bridge.taskMu.Unlock()
 	}()
 
 	// Non-existent task
-	task := getTask("nonexistent")
+	task := bridge.getTask("nonexistent")
 	if task != nil {
 		t.Error("expected nil for non-existent task")
 	}
 
-	id := createTask("test")
-	task = getTask(id)
+	id := bridge.createTask("test")
+	task = bridge.getTask(id)
 	if task == nil {
 		t.Fatal("expected non-nil task")
 	}

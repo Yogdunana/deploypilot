@@ -722,8 +722,8 @@ func TestGetTemplate_NotFound_Cov(t *testing.T) {
 
 func TestGetTaskStatus_Found_Cov(t *testing.T) {
 	b, _ := newTestBridge(t)
-	taskID := createTask("test-cov")
-	updateTask(taskID, "success", 100, "done")
+	taskID := b.createTask("test-cov")
+	b.updateTask(taskID, "success", 100, "done")
 
 	res, err := b.GetTaskStatus(context.TODO(), taskID)
 	if err != nil {
@@ -738,9 +738,9 @@ func TestGetTaskStatus_Found_Cov(t *testing.T) {
 	}
 
 	// Clean up to avoid interfering with other tests
-	taskMu.Lock()
-	delete(tasks, taskID)
-	taskMu.Unlock()
+	b.taskMu.Lock()
+	delete(b.tasks, taskID)
+	b.taskMu.Unlock()
 }
 
 // ===================== GetLatestDeploymentRecord Coverage =====================

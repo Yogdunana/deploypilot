@@ -19,13 +19,13 @@ import (
 
 // DeployAsync starts a deploy in a goroutine and returns a task ID immediately.
 func (b *Bridge) DeployAsync(ctx context.Context, cfg mcp.DeployConfig, appID string) (taskID string, err error) {
-	taskID = createTask("deploy")
+	taskID = b.createTask("deploy")
 	traceID := tracing.TraceIDFromContext(ctx)
-	updateTask(taskID, "running", 0, "deploy started")
+	b.updateTask(taskID, "running", 0, "deploy started")
 	go func() {
 		cs, deployErr := b.Deploy(ctx, cfg)
 		if deployErr != nil {
-			updateTask(taskID, "failed", 100, deployErr.Error())
+			b.updateTask(taskID, "failed", 100, deployErr.Error())
 			b.EventBus.Publish(DeployEvent{
 				TaskID:    taskID,
 				AppID:     appID,
@@ -37,7 +37,7 @@ func (b *Bridge) DeployAsync(ctx context.Context, cfg mcp.DeployConfig, appID st
 				TraceID:   traceID,
 			})
 		} else {
-			updateTask(taskID, "success", 100, "deploy completed")
+			b.updateTask(taskID, "success", 100, "deploy completed")
 			b.EventBus.Publish(DeployEvent{
 				TaskID:    taskID,
 				AppID:     appID,
@@ -48,11 +48,11 @@ func (b *Bridge) DeployAsync(ctx context.Context, cfg mcp.DeployConfig, appID st
 				Timestamp: time.Now().Format(time.RFC3339),
 				TraceID:   traceID,
 			})
-			taskMu.Lock()
-			if t, ok := tasks[taskID]; ok {
+			b.taskMu.Lock()
+			if t, ok := b.tasks[taskID]; ok {
 				t.Result = cs
 			}
-			taskMu.Unlock()
+			b.taskMu.Unlock()
 		}
 	}()
 	return taskID, nil

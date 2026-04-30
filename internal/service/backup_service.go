@@ -47,9 +47,9 @@ func (b *Bridge) Backup(ctx context.Context, appID string) (string, error) {
 	slog.Info("backup completed", "app_id", appID, "container", containerName, "backup_id", backupID, "file", backupFile)
 
 	// Store backup-to-app mapping for Restore
-	backupMu.Lock()
-	backupApps[backupID] = appID
-	backupMu.Unlock()
+	b.backupMu.Lock()
+	b.backupApps[backupID] = appID
+	b.backupMu.Unlock()
 
 	return backupID, nil
 }
@@ -62,9 +62,9 @@ func (b *Bridge) Restore(ctx context.Context, backupID string) (*mcp.ContainerSt
 	}
 
 	// Look up the appID from the backup mapping
-	backupMu.RLock()
-	appID, ok := backupApps[backupID]
-	backupMu.RUnlock()
+	b.backupMu.RLock()
+	appID, ok := b.backupApps[backupID]
+	b.backupMu.RUnlock()
 	if !ok {
 		return nil, fmt.Errorf("backup %s not found", backupID)
 	}

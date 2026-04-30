@@ -1756,9 +1756,9 @@ func TestRestore_BackupExists_AppFound(t *testing.T) {
 	})
 
 	// Insert backup mapping
-	backupMu.Lock()
-	backupApps["restore-backup-id"] = id
-	backupMu.Unlock()
+	b.backupMu.Lock()
+	b.backupApps["restore-backup-id"] = id
+	b.backupMu.Unlock()
 
 	exec.output["docker stop restore-app-container"] = ""
 	exec.output["docker rm -f restore-app-container"] = ""
@@ -2299,14 +2299,14 @@ func TestRestore_WithEnvVars(t *testing.T) {
 		"env_vars":        `{"FOO":"bar"}`,
 	})
 
-	backupMu.Lock()
-	backupApps["restore-env-backup-id"] = id
-	backupMu.Unlock()
+	b.backupMu.Lock()
+	b.backupApps["restore-env-backup-id"] = id
+	b.backupMu.Unlock()
 
 	defer func() {
-		backupMu.Lock()
-		delete(backupApps, "restore-env-backup-id")
-		backupMu.Unlock()
+		b.backupMu.Lock()
+		delete(b.backupApps, "restore-env-backup-id")
+		b.backupMu.Unlock()
 	}()
 
 	exec.output["docker stop restore-env-container"] = ""
@@ -2334,14 +2334,14 @@ func TestRestore_DeployFails(t *testing.T) {
 		"current_version": "nginx:alpine",
 	})
 
-	backupMu.Lock()
-	backupApps["restore-deploy-fail-backup"] = id
-	backupMu.Unlock()
+	b.backupMu.Lock()
+	b.backupApps["restore-deploy-fail-backup"] = id
+	b.backupMu.Unlock()
 
 	defer func() {
-		backupMu.Lock()
-		delete(backupApps, "restore-deploy-fail-backup")
-		backupMu.Unlock()
+		b.backupMu.Lock()
+		delete(b.backupApps, "restore-deploy-fail-backup")
+		b.backupMu.Unlock()
 	}()
 
 	exec.output["docker stop restore-deploy-fail-container"] = ""
@@ -2365,14 +2365,14 @@ func TestRestore_FallbackImage(t *testing.T) {
 		"current_version": "",
 	})
 
-	backupMu.Lock()
-	backupApps["restore-fallback-backup"] = id
-	backupMu.Unlock()
+	b.backupMu.Lock()
+	b.backupApps["restore-fallback-backup"] = id
+	b.backupMu.Unlock()
 
 	defer func() {
-		backupMu.Lock()
-		delete(backupApps, "restore-fallback-backup")
-		backupMu.Unlock()
+		b.backupMu.Lock()
+		delete(b.backupApps, "restore-fallback-backup")
+		b.backupMu.Unlock()
 	}()
 
 	exec.output["docker stop restore-fallback-container"] = ""
@@ -2401,14 +2401,14 @@ func TestRestore_ContainerNameFallback(t *testing.T) {
 		"current_version": "nginx:alpine",
 	})
 
-	backupMu.Lock()
-	backupApps["restore-cn-fallback-backup"] = id
-	backupMu.Unlock()
+	b.backupMu.Lock()
+	b.backupApps["restore-cn-fallback-backup"] = id
+	b.backupMu.Unlock()
 
 	defer func() {
-		backupMu.Lock()
-		delete(backupApps, "restore-cn-fallback-backup")
-		backupMu.Unlock()
+		b.backupMu.Lock()
+		delete(b.backupApps, "restore-cn-fallback-backup")
+		b.backupMu.Unlock()
 	}()
 
 	exec.output["docker stop restore-cn-fallback"] = ""
@@ -2738,14 +2738,14 @@ func TestRestore_BackupNotFound(t *testing.T) {
 func TestRestore_AppNotFound_OrphanBackup(t *testing.T) {
 	b, _ := newTestBridge(t)
 	// Insert a backup mapping to a nonexistent app
-	backupMu.Lock()
-	backupApps["orphan-backup-id-2"] = "nonexistent-app-id-2"
-	backupMu.Unlock()
+	b.backupMu.Lock()
+	b.backupApps["orphan-backup-id-2"] = "nonexistent-app-id-2"
+	b.backupMu.Unlock()
 
 	defer func() {
-		backupMu.Lock()
-		delete(backupApps, "orphan-backup-id-2")
-		backupMu.Unlock()
+		b.backupMu.Lock()
+		delete(b.backupApps, "orphan-backup-id-2")
+		b.backupMu.Unlock()
 	}()
 
 	_, err := b.Restore(context.TODO(), "orphan-backup-id-2")
@@ -2871,10 +2871,10 @@ func TestBatchDNS_MultipleRecords(t *testing.T) {
 func TestListTasks_WithStatusFilter(t *testing.T) {
 	b, _ := newTestBridge(t)
 	// Create tasks with different statuses
-	id1 := createTask("deploy")
-	updateTask(id1, "success", 100, "done")
-	id2 := createTask("deploy")
-	updateTask(id2, "failed", 100, "error")
+	id1 := b.createTask("deploy")
+	b.updateTask(id1, "success", 100, "done")
+	id2 := b.createTask("deploy")
+	b.updateTask(id2, "failed", 100, "error")
 
 	result, err := b.ListTasks(context.TODO(), 10, "success")
 	if err != nil {
@@ -2899,7 +2899,7 @@ func TestListTasks_WithLimit(t *testing.T) {
 	b, _ := newTestBridge(t)
 	// Create multiple tasks
 	for i := 0; i < 5; i++ {
-		createTask("deploy")
+		b.createTask("deploy")
 	}
 
 	result, err := b.ListTasks(context.TODO(), 2, "")

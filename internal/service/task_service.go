@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"sort"
-	"sync"
 	"time"
 )
 
@@ -20,21 +19,12 @@ type taskInfo struct {
 	UpdatedAt time.Time   `json:"updated_at"`
 }
 
-var (
-	taskMu      sync.RWMutex
-	tasks       = make(map[string]*taskInfo)
-	taskCounter int64
-
-	backupMu   sync.RWMutex
-	backupApps = make(map[string]string) // backupID -> appID
-)
-
-func createTask(taskType string) string {
-	taskMu.Lock()
-	defer taskMu.Unlock()
-	taskCounter++
-	id := fmt.Sprintf("task-%d", taskCounter)
-	tasks[id] = &taskInfo{
+func (b *Bridge) createTask(taskType string) string {
+	b.taskMu.Lock()
+	defer b.taskMu.Unlock()
+	b.taskCounter++
+	id := fmt.Sprintf("task-%d", b.taskCounter)
+	b.tasks[id] = &taskInfo{
 		ID:        id,
 		Type:      taskType,
 		Status:    "pending",
@@ -46,10 +36,10 @@ func createTask(taskType string) string {
 }
 
 // updateTask updates the status of an existing task.
-func updateTask(id, status string, progress int, message string) {
-	taskMu.Lock()
-	defer taskMu.Unlock()
-	if t, ok := tasks[id]; ok {
+func (b *Bridge) updateTask(id, status string, progress int, message string) {
+	b.taskMu.Lock()
+	defer b.taskMu.Unlock()
+	if t, ok := b.tasks[id]; ok {
 		t.Status = status
 		t.Progress = progress
 		t.Message = message
@@ -58,10 +48,10 @@ func updateTask(id, status string, progress int, message string) {
 }
 
 // getTask returns a copy of the task info for the given task ID.
-func getTask(id string) *taskInfo {
-	taskMu.RLock()
-	defer taskMu.RUnlock()
-	if t, ok := tasks[id]; ok {
+func (b *Bridge) getTask(id string) *taskInfo {
+	b.taskMu.RLock()
+	defer b.taskMu.RUnlock()
+	if t, ok := b.tasks[id]; ok {
 		cp := *t
 		return &cp
 	}
@@ -71,9 +61,9 @@ func getTask(id string) *taskInfo {
 // ---------- 27. GetTaskStatus ----------
 
 func (b *Bridge) GetTaskStatus(ctx context.Context, taskID string) (interface{}, error) {
-	taskMu.RLock()
-	defer taskMu.RUnlock()
-	t, ok := tasks[taskID]
+	b.taskMu.RLock()
+	defer b.taskMu.RUnlock()
+	t, ok := b.tasks[taskID]
 	if !ok {
 		return map[string]interface{}{
 			"task_id": taskID,
@@ -87,11 +77,11 @@ func (b *Bridge) GetTaskStatus(ctx context.Context, taskID string) (interface{},
 // ---------- 28. ListTasks ----------
 
 func (b *Bridge) ListTasks(ctx context.Context, limit int, statusFilter string) (interface{}, error) {
-	taskMu.RLock()
-	defer taskMu.RUnlock()
+	b.taskMu.RLock()
+	defer b.taskMu.RUnlock()
 
 	result := make([]*taskInfo, 0)
-	for _, t := range tasks {
+	for _, t := range b.tasks {
 		if statusFilter != "" && t.Status != statusFilter {
 			continue
 		}
