@@ -111,35 +111,35 @@ See [DEPLOY.md](DEPLOY.md) for the full deployment guide, including PostgreSQL s
 DeployPilot uses a **three-layer architecture** designed for both AI agents and human operators:
 
 ```mermaid
-graph LR
-    subgraph "AI IDE Sandbox"
+flowchart LR
+    subgraph S1["AI IDE Sandbox"]
         A[Claude / Cursor / TRAE / Coze / SOLO]
     end
 
-    subgraph "DeployPilot Gateway"
-        B["MCP Server (52+ tools)"]
-        C["REST API (JWT + RBAC)"]
-        D["WebSocket / SSE"]
+    subgraph S2["DeployPilot Gateway"]
+        B["MCP Server - 52+ tools"]
+        C["REST API - JWT + RBAC"]
+        D[WebSocket / SSE]
         E[Deploy Engine]
         F[Provider Plugins]
     end
 
-    subgraph "Infrastructure"
+    subgraph S3["Infrastructure"]
         G["1Panel / BT Panel"]
         H["Docker / Kubernetes"]
         I["Cloudflare / Aliyun DNS"]
         J["GitHub Actions / Gitea"]
     end
 
-    A -- "MCP stdio" --&gt; B
-    A -- "REST + JWT" --&gt; C
-    C --&gt; E
-    B --&gt; E
-    E --&gt; F
-    F --&gt; G
-    F --&gt; H
-    F --&gt; I
-    F --&gt; J
+    A --> B
+    A --> C
+    C --> E
+    B --> E
+    E --> F
+    F --> G
+    F --> H
+    F --> I
+    F --> J
 ```
 
 | Layer | Protocol | Purpose |
