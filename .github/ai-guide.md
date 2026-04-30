@@ -372,7 +372,22 @@ Bridge God Object 已拆分为 18 个文件，87 个方法按领域分布：
 
 ## Git 工作流规范（Agent-Aware）
 
-&gt; 参考：TRAE 技术专家小夏《新范式下 Agent 如何参与开发》
+> 参考：TRAE 技术专家小夏《新范式下 Agent 如何参与开发》
+
+### ⚠️ Git 提交身份
+
+**所有 git commit 必须使用仓库所有者的身份信息，禁止使用 AI 默认身份。**
+
+```bash
+git config user.name "Yogdunana"
+git config user.email "106004584+Yogdunana@users.noreply.github.com"
+```
+
+- **Name**: Yogdunana
+- **Email**: 106004584+Yogdunana@users.noreply.github.com
+- **GitHub Login**: Yogdunana
+
+**不要**使用 `AI Agent`、`Claude`、`SOLO` 等任何 AI 相关身份。每次开始任务前必须确认 git config 正确。
 
 ### Commit 规范
 
