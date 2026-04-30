@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"github.com/mark3labs/mcp-go/mcp"
 )
-func handleListSSLCertificates(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	result, err := deployer.ListSSLCertificates(ctx)
+func handleListSSLCertificates(ctx context.Context, d SSLService, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	result, err := d.ListSSLCertificates(ctx)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("failed to list SSL certificates: %v", err)), nil
 	}
@@ -15,7 +15,7 @@ func handleListSSLCertificates(ctx context.Context, deployer Deployer, request m
 	data, _ := json.MarshalIndent(result, "", "  ")
 	return mcp.NewToolResultText(string(data)), nil
 }
-func handleRequestSSLCertificate(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func handleRequestSSLCertificate(ctx context.Context, d SSLService, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	domain, err := request.RequireString("domain")
 	if err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
@@ -25,7 +25,7 @@ func handleRequestSSLCertificate(ctx context.Context, deployer Deployer, request
 		return mcp.NewToolResultError(err.Error()), nil
 	}
 
-	result, err := deployer.RequestSSLCertificate(ctx, domain, email)
+	result, err := d.RequestSSLCertificate(ctx, domain, email)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("failed to request SSL certificate: %v", err)), nil
 	}
@@ -33,13 +33,13 @@ func handleRequestSSLCertificate(ctx context.Context, deployer Deployer, request
 	data, _ := json.MarshalIndent(result, "", "  ")
 	return mcp.NewToolResultText(string(data)), nil
 }
-func handleRenewSSLCertificate(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func handleRenewSSLCertificate(ctx context.Context, d SSLService, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	domain, err := request.RequireString("domain")
 	if err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
 	}
 
-	result, err := deployer.RenewSSLCertificate(ctx, domain)
+	result, err := d.RenewSSLCertificate(ctx, domain)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("failed to renew SSL certificate: %v", err)), nil
 	}
@@ -47,13 +47,13 @@ func handleRenewSSLCertificate(ctx context.Context, deployer Deployer, request m
 	data, _ := json.MarshalIndent(result, "", "  ")
 	return mcp.NewToolResultText(string(data)), nil
 }
-func handleDeleteSSLCertificate(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func handleDeleteSSLCertificate(ctx context.Context, d SSLService, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	domain, err := request.RequireString("domain")
 	if err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
 	}
 
-	result, err := deployer.DeleteSSLCertificate(ctx, domain)
+	result, err := d.DeleteSSLCertificate(ctx, domain)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("failed to delete SSL certificate: %v", err)), nil
 	}

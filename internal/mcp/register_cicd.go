@@ -7,7 +7,7 @@ import (
 )
 
 // registerCICDTools registers cicd tools.
-func registerCICDTools(s *server.MCPServer, d Deployer) {
+func registerCICDTools(s *server.MCPServer, d CICDService) {
 	triggerCITool := mcp.NewTool("trigger_ci_build",
 		mcp.WithDescription("Trigger a CI/CD build for a repository"),
 		mcp.WithString("provider", mcp.Required(), mcp.Description("CI/CD provider type: github-actions")),

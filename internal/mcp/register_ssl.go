@@ -7,7 +7,7 @@ import (
 )
 
 // registerSSLTools registers ssl tools.
-func registerSSLTools(s *server.MCPServer, d Deployer) {
+func registerSSLTools(s *server.MCPServer, d SSLService) {
 	listSSLCertsTool := mcp.NewTool("list_ssl_certificates",
 		mcp.WithDescription("List all SSL certificates"),
 	)

@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"github.com/mark3labs/mcp-go/mcp"
 )
-func handleTriggerCIBuild(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func handleTriggerCIBuild(ctx context.Context, d CICDService, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	provider, err := request.RequireString("provider")
 	if err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
@@ -20,7 +20,7 @@ func handleTriggerCIBuild(ctx context.Context, deployer Deployer, request mcp.Ca
 		return mcp.NewToolResultError(err.Error()), nil
 	}
 
-	result, err := deployer.TriggerCIBuild(ctx, provider, repo, branch)
+	result, err := d.TriggerCIBuild(ctx, provider, repo, branch)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("failed to trigger CI build: %v", err)), nil
 	}
@@ -28,7 +28,7 @@ func handleTriggerCIBuild(ctx context.Context, deployer Deployer, request mcp.Ca
 	data, _ := json.MarshalIndent(result, "", "  ")
 	return mcp.NewToolResultText(string(data)), nil
 }
-func handleGetCIBuildStatus(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func handleGetCIBuildStatus(ctx context.Context, d CICDService, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	provider, err := request.RequireString("provider")
 	if err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
@@ -38,7 +38,7 @@ func handleGetCIBuildStatus(ctx context.Context, deployer Deployer, request mcp.
 		return mcp.NewToolResultError(err.Error()), nil
 	}
 
-	result, err := deployer.GetCIBuildStatus(ctx, provider, runID)
+	result, err := d.GetCIBuildStatus(ctx, provider, runID)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("failed to get CI build status: %v", err)), nil
 	}

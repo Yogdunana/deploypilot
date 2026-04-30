@@ -8,8 +8,8 @@ import (
 
 	"github.com/mark3labs/mcp-go/mcp"
 )
-func handleListServers(ctx context.Context, deployer Deployer, _ mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	servers, err := deployer.ListServers(ctx)
+func handleListServers(ctx context.Context, d ServerManager, _ mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	servers, err := d.ListServers(ctx)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("failed to list servers: %v", err)), nil
 	}
@@ -23,7 +23,7 @@ func handleListServers(ctx context.Context, deployer Deployer, _ mcp.CallToolReq
 	data, _ := json.MarshalIndent(result, "", "  ")
 	return mcp.NewToolResultText(string(data)), nil
 }
-func handleAddServer(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func handleAddServer(ctx context.Context, d ServerManager, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	name, err := request.RequireString("name")
 	if err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
@@ -39,7 +39,7 @@ func handleAddServer(ctx context.Context, deployer Deployer, request mcp.CallToo
 	}
 	user := request.GetString("user", "root")
 
-	srv, err := deployer.AddServer(ctx, name, host, port, user)
+	srv, err := d.AddServer(ctx, name, host, port, user)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("failed to add server: %v", err)), nil
 	}
@@ -58,13 +58,13 @@ func handleAddServer(ctx context.Context, deployer Deployer, request mcp.CallToo
 	data, _ := json.MarshalIndent(result, "", "  ")
 	return mcp.NewToolResultText(string(data)), nil
 }
-func handleRemoveServer(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func handleRemoveServer(ctx context.Context, d ServerManager, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	serverID, err := request.RequireString("server_id")
 	if err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
 	}
 
-	if err := deployer.RemoveServer(ctx, serverID); err != nil {
+	if err := d.RemoveServer(ctx, serverID); err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("failed to remove server: %v", err)), nil
 	}
 
@@ -75,13 +75,13 @@ func handleRemoveServer(ctx context.Context, deployer Deployer, request mcp.Call
 	data, _ := json.MarshalIndent(result, "", "  ")
 	return mcp.NewToolResultText(string(data)), nil
 }
-func handleTestServer(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func handleTestServer(ctx context.Context, d ServerManager, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	serverID, err := request.RequireString("server_id")
 	if err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
 	}
 
-	testResult, err := deployer.TestServer(ctx, serverID)
+	testResult, err := d.TestServer(ctx, serverID)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("server test failed: %v", err)), nil
 	}
@@ -93,13 +93,11 @@ func handleTestServer(ctx context.Context, deployer Deployer, request mcp.CallTo
 	data, _ := json.MarshalIndent(result, "", "  ")
 	return mcp.NewToolResultText(string(data)), nil
 }
-func handleDoctor(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func handleDoctor(ctx context.Context, cd ContainerDeployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	checks := []map[string]interface{}{}
 
 	// Check 1: Docker
-	_, dockerErr := deployer.(interface {
-		GetContainerStatus(ctx context.Context, name string) (*ContainerStatus, error)
-	}).GetContainerStatus(ctx, "__doctor_probe__")
+	_, dockerErr := cd.GetContainerStatus(ctx, "__doctor_probe__")
 
 	dockerCheck := map[string]interface{}{"name": "Docker"}
 	if dockerErr != nil {
@@ -134,7 +132,7 @@ func handleDoctor(ctx context.Context, deployer Deployer, request mcp.CallToolRe
 	data, _ := json.MarshalIndent(result, "", "  ")
 	return mcp.NewToolResultText(string(data)), nil
 }
-func handleUpdateServer(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func handleUpdateServer(ctx context.Context, d ServerManager, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	serverID, err := request.RequireString("server_id")
 	if err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
@@ -147,7 +145,7 @@ func handleUpdateServer(ctx context.Context, deployer Deployer, request mcp.Call
 	if err := json.Unmarshal([]byte(configStr), &config); err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("invalid config JSON: %v", err)), nil
 	}
-	res, err := deployer.UpdateServer(ctx, serverID, config)
+	res, err := d.UpdateServer(ctx, serverID, config)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("update server failed: %v", err)), nil
 	}
@@ -155,14 +153,14 @@ func handleUpdateServer(ctx context.Context, deployer Deployer, request mcp.Call
 	data, _ := json.MarshalIndent(result, "", "  ")
 	return mcp.NewToolResultText(string(data)), nil
 }
-func handleDetectPanel(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func handleDetectPanel(ctx context.Context, d ServerManager, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	serverID, err := request.RequireString("server_id")
 	if err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
 	}
 
 	// Use TestServer to verify server connectivity and detect panel
-	_, err = deployer.TestServer(ctx, serverID)
+	_, err = d.TestServer(ctx, serverID)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("failed to connect to server %s: %v", serverID, err)), nil
 	}
@@ -176,7 +174,7 @@ func handleDetectPanel(ctx context.Context, deployer Deployer, request mcp.CallT
 	data, _ := json.MarshalIndent(result, "", "  ")
 	return mcp.NewToolResultText(string(data)), nil
 }
-func handleExecCommand(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func handleExecCommand(ctx context.Context, d ServerManager, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	command, err := request.RequireString("command")
 	if err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
@@ -190,7 +188,7 @@ func handleExecCommand(ctx context.Context, deployer Deployer, request mcp.CallT
 		}
 	}
 
-	output, err := deployer.ExecCommand(ctx, serverID, command, timeout)
+	output, err := d.ExecCommand(ctx, serverID, command, timeout)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("command execution failed: %v", err)), nil
 	}

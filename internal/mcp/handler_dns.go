@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"github.com/mark3labs/mcp-go/mcp"
 )
-func handleDNSCreateRecord(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func handleDNSCreateRecord(ctx context.Context, d DNSManager, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	domain, _ := request.RequireString("domain")
 	recordType, _ := request.RequireString("type")
 	name, _ := request.RequireString("name")
@@ -16,7 +16,7 @@ func handleDNSCreateRecord(ctx context.Context, deployer Deployer, request mcp.C
 		return mcp.NewToolResultError("domain, type, name, and value are required"), nil
 	}
 
-	record, err := deployer.DNSCreateRecord(ctx, domain, recordType, name, value)
+	record, err := d.DNSCreateRecord(ctx, domain, recordType, name, value)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("DNS create failed: %v", err)), nil
 	}
@@ -25,13 +25,13 @@ func handleDNSCreateRecord(ctx context.Context, deployer Deployer, request mcp.C
 	data, _ := json.MarshalIndent(result, "", "  ")
 	return mcp.NewToolResultText(string(data)), nil
 }
-func handleDNSDeleteRecord(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func handleDNSDeleteRecord(ctx context.Context, d DNSManager, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	recordID, err := request.RequireString("record_id")
 	if err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
 	}
 
-	if err := deployer.DNSDeleteRecord(ctx, recordID); err != nil {
+	if err := d.DNSDeleteRecord(ctx, recordID); err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("DNS delete failed: %v", err)), nil
 	}
 
@@ -39,13 +39,13 @@ func handleDNSDeleteRecord(ctx context.Context, deployer Deployer, request mcp.C
 	data, _ := json.MarshalIndent(result, "", "  ")
 	return mcp.NewToolResultText(string(data)), nil
 }
-func handleDNSListRecords(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func handleDNSListRecords(ctx context.Context, d DNSManager, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	domain, err := request.RequireString("domain")
 	if err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
 	}
 
-	records, err := deployer.DNSListRecords(ctx, domain)
+	records, err := d.DNSListRecords(ctx, domain)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("DNS list failed: %v", err)), nil
 	}
@@ -54,7 +54,7 @@ func handleDNSListRecords(ctx context.Context, deployer Deployer, request mcp.Ca
 	data, _ := json.MarshalIndent(result, "", "  ")
 	return mcp.NewToolResultText(string(data)), nil
 }
-func handleUpdateDNSRecord(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func handleUpdateDNSRecord(ctx context.Context, d DNSManager, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	domain, _ := request.RequireString("domain")
 	subdomain, _ := request.RequireString("subdomain")
 	recordType, _ := request.RequireString("type")
@@ -62,7 +62,7 @@ func handleUpdateDNSRecord(ctx context.Context, deployer Deployer, request mcp.C
 	if domain == "" || subdomain == "" || recordType == "" || newValue == "" {
 		return mcp.NewToolResultError("domain, subdomain, type, and new_value are required"), nil
 	}
-	res, err := deployer.UpdateDNSRecord(ctx, domain, subdomain, recordType, newValue)
+	res, err := d.UpdateDNSRecord(ctx, domain, subdomain, recordType, newValue)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("update DNS failed: %v", err)), nil
 	}
@@ -70,7 +70,7 @@ func handleUpdateDNSRecord(ctx context.Context, deployer Deployer, request mcp.C
 	data, _ := json.MarshalIndent(result, "", "  ")
 	return mcp.NewToolResultText(string(data)), nil
 }
-func handleBatchDNS(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func handleBatchDNS(ctx context.Context, d DNSManager, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	recordsStr, err := request.RequireString("records")
 	if err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
@@ -79,7 +79,7 @@ func handleBatchDNS(ctx context.Context, deployer Deployer, request mcp.CallTool
 	if err := json.Unmarshal([]byte(recordsStr), &records); err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("invalid records JSON: %v", err)), nil
 	}
-	res, err := deployer.BatchDNS(ctx, records)
+	res, err := d.BatchDNS(ctx, records)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("batch DNS failed: %v", err)), nil
 	}

@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"github.com/mark3labs/mcp-go/mcp"
 )
-func handleRegistryLogin(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func handleRegistryLogin(ctx context.Context, d RegistryService, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	registryID, err := request.RequireString("registry_id")
 	if err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
@@ -18,7 +18,7 @@ func handleRegistryLogin(ctx context.Context, deployer Deployer, request mcp.Cal
 		"password":     request.GetString("password", ""),
 	}
 
-	result, err := deployer.RegistryOps(registryID, "login", args)
+	result, err := d.RegistryOps(registryID, "login", args)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("registry login failed: %v", err)), nil
 	}
@@ -26,7 +26,7 @@ func handleRegistryLogin(ctx context.Context, deployer Deployer, request mcp.Cal
 	data, _ := json.MarshalIndent(result, "", "  ")
 	return mcp.NewToolResultText(string(data)), nil
 }
-func handlePushImage(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func handlePushImage(ctx context.Context, d RegistryService, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	registryID, err := request.RequireString("registry_id")
 	if err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
@@ -41,7 +41,7 @@ func handlePushImage(ctx context.Context, deployer Deployer, request mcp.CallToo
 		"remote_tag":  request.GetString("remote_tag", ""),
 	}
 
-	result, err := deployer.RegistryOps(registryID, "push", args)
+	result, err := d.RegistryOps(registryID, "push", args)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("push image failed: %v", err)), nil
 	}
@@ -49,7 +49,7 @@ func handlePushImage(ctx context.Context, deployer Deployer, request mcp.CallToo
 	data, _ := json.MarshalIndent(result, "", "  ")
 	return mcp.NewToolResultText(string(data)), nil
 }
-func handleListRegistryTags(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func handleListRegistryTags(ctx context.Context, d RegistryService, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	registryID, err := request.RequireString("registry_id")
 	if err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
@@ -63,7 +63,7 @@ func handleListRegistryTags(ctx context.Context, deployer Deployer, request mcp.
 		"repository": repository,
 	}
 
-	result, err := deployer.RegistryOps(registryID, "list_tags", args)
+	result, err := d.RegistryOps(registryID, "list_tags", args)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("list registry tags failed: %v", err)), nil
 	}
@@ -71,13 +71,13 @@ func handleListRegistryTags(ctx context.Context, deployer Deployer, request mcp.
 	data, _ := json.MarshalIndent(result, "", "  ")
 	return mcp.NewToolResultText(string(data)), nil
 }
-func handlePingRegistry(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func handlePingRegistry(ctx context.Context, d RegistryService, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	registryID, err := request.RequireString("registry_id")
 	if err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
 	}
 
-	result, err := deployer.RegistryOps(registryID, "ping", nil)
+	result, err := d.RegistryOps(registryID, "ping", nil)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("ping registry failed: %v", err)), nil
 	}

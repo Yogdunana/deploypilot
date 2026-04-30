@@ -8,7 +8,7 @@ import (
 )
 
 // registerPortForwardTools registers port forwarding tools.
-func registerPortForwardTools(s *server.MCPServer, d Deployer) {
+func registerPortForwardTools(s *server.MCPServer, d PortForwardService) {
 	portForwardTool := mcp.NewTool("port_forward",
 		mcp.WithDescription("Manage SSH port forwards to servers. Actions: create, delete, list."),
 		mcp.WithString("action", mcp.Required(), mcp.Description("Action to perform: 'create', 'delete', or 'list'")),

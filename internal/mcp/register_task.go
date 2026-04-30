@@ -7,7 +7,7 @@ import (
 )
 
 // registerTaskTools registers task tools.
-func registerTaskTools(s *server.MCPServer, d Deployer) {
+func registerTaskTools(s *server.MCPServer, d TaskManager) {
 	getTaskStatusTool := mcp.NewTool("get_task_status",
 		mcp.WithDescription("Get status of an async task"),
 		mcp.WithString("task_id", mcp.Required(), mcp.Description("Task ID")),

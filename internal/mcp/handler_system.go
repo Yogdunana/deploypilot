@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"github.com/mark3labs/mcp-go/mcp"
 )
-func handleCheckSystemUpdate(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	update, err := deployer.CheckSystemUpdate(ctx)
+func handleCheckSystemUpdate(ctx context.Context, d SystemService, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	update, err := d.CheckSystemUpdate(ctx)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("check update failed: %v", err)), nil
 	}

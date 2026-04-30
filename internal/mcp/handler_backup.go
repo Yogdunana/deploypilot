@@ -6,13 +6,13 @@ import (
 	"fmt"
 	"github.com/mark3labs/mcp-go/mcp"
 )
-func handleBackup(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func handleBackup(ctx context.Context, d BackupManager, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	appID, err := request.RequireString("app_id")
 	if err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
 	}
 
-	backupID, err := deployer.Backup(ctx, appID)
+	backupID, err := d.Backup(ctx, appID)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("backup failed: %v", err)), nil
 	}
@@ -28,13 +28,13 @@ func handleBackup(ctx context.Context, deployer Deployer, request mcp.CallToolRe
 	data, _ := json.MarshalIndent(result, "", "  ")
 	return mcp.NewToolResultText(string(data)), nil
 }
-func handleRestore(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func handleRestore(ctx context.Context, d BackupManager, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	backupID, err := request.RequireString("backup_id")
 	if err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
 	}
 
-	status, err := deployer.Restore(ctx, backupID)
+	status, err := d.Restore(ctx, backupID)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("restore failed: %v", err)), nil
 	}
@@ -53,7 +53,7 @@ func handleRestore(ctx context.Context, deployer Deployer, request mcp.CallToolR
 	data, _ := json.MarshalIndent(result, "", "  ")
 	return mcp.NewToolResultText(string(data)), nil
 }
-func handleBatchBackup(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func handleBatchBackup(ctx context.Context, d BackupManager, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	appIDsStr, err := request.RequireString("app_ids")
 	if err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
@@ -62,7 +62,7 @@ func handleBatchBackup(ctx context.Context, deployer Deployer, request mcp.CallT
 	if err := json.Unmarshal([]byte(appIDsStr), &appIDs); err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("invalid app_ids JSON: %v", err)), nil
 	}
-	res, err := deployer.BatchBackup(ctx, appIDs)
+	res, err := d.BatchBackup(ctx, appIDs)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("batch backup failed: %v", err)), nil
 	}

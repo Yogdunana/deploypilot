@@ -9,7 +9,7 @@ import (
 	"github.com/mark3labs/mcp-go/mcp"
 )
 
-func handlePortForward(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func handlePortForward(ctx context.Context, d PortForwardService, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	action, err := request.RequireString("action")
 	if err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
@@ -35,7 +35,7 @@ func handlePortForward(ctx context.Context, deployer Deployer, request mcp.CallT
 	}
 	remoteHost := request.GetString("remote_host", "127.0.0.1")
 
-	output, err := deployer.PortForward(ctx, action, serverID, localPort, remotePort, remoteHost)
+	output, err := d.PortForward(ctx, action, serverID, localPort, remotePort, remoteHost)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("port forward operation failed: %v", err)), nil
 	}

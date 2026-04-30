@@ -7,7 +7,7 @@ import (
 )
 
 // registerSystemTools registers system tools.
-func registerSystemTools(s *server.MCPServer, d Deployer) {
+func registerSystemTools(s *server.MCPServer, d SystemService) {
 	checkSysUpdateTool := mcp.NewTool("check_system_update",
 		mcp.WithDescription("Check if a newer version of DeployPilot is available"),
 	)

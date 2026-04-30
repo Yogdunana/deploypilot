@@ -7,7 +7,7 @@ import (
 )
 
 // registerDeployTools registers deploy tools.
-func registerDeployTools(s *server.MCPServer, d Deployer) {
+func registerDeployTools(s *server.MCPServer, d ContainerDeployer) {
 	deployTool := mcp.NewTool("deploy_app",
 		mcp.WithDescription("Deploy a Docker container. Use server_id to deploy to a remote server via SSH; omit for local Docker deployment."),
 		mcp.WithString("image",

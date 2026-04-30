@@ -7,7 +7,7 @@ import (
 )
 
 // registerK8sTools registers k8s tools.
-func registerK8sTools(s *server.MCPServer, d Deployer) {
+func registerK8sTools(s *server.MCPServer, d K8sService) {
 	listClustersTool := mcp.NewTool("list_clusters",
 		mcp.WithDescription("List all Kubernetes clusters"),
 		mcp.WithString("tenant_id", mcp.Description("Tenant ID (default: tenant-default)")),

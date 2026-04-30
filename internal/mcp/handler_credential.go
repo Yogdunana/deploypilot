@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"github.com/mark3labs/mcp-go/mcp"
 )
-func handleCreateCredential(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func handleCreateCredential(ctx context.Context, d CredentialManager, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	tenantID, err := request.RequireString("tenant_id")
 	if err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
@@ -24,7 +24,7 @@ func handleCreateCredential(ctx context.Context, deployer Deployer, request mcp.
 		return mcp.NewToolResultError(err.Error()), nil
 	}
 
-	cred, err := deployer.CreateCredential(ctx, tenantID, name, credType, value)
+	cred, err := d.CreateCredential(ctx, tenantID, name, credType, value)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("failed to create credential: %v", err)), nil
 	}
@@ -37,13 +37,13 @@ func handleCreateCredential(ctx context.Context, deployer Deployer, request mcp.
 	data, _ := json.MarshalIndent(result, "", "  ")
 	return mcp.NewToolResultText(string(data)), nil
 }
-func handleListCredentials(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func handleListCredentials(ctx context.Context, d CredentialManager, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	tenantID, err := request.RequireString("tenant_id")
 	if err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
 	}
 
-	creds, err := deployer.ListCredentials(ctx, tenantID)
+	creds, err := d.ListCredentials(ctx, tenantID)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("failed to list credentials: %v", err)), nil
 	}
@@ -55,13 +55,13 @@ func handleListCredentials(ctx context.Context, deployer Deployer, request mcp.C
 	data, _ := json.MarshalIndent(result, "", "  ")
 	return mcp.NewToolResultText(string(data)), nil
 }
-func handleDeleteCredential(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func handleDeleteCredential(ctx context.Context, d CredentialManager, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	credID, err := request.RequireString("credential_id")
 	if err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
 	}
 
-	if err := deployer.DeleteCredential(ctx, credID); err != nil {
+	if err := d.DeleteCredential(ctx, credID); err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("failed to delete credential: %v", err)), nil
 	}
 
@@ -72,7 +72,7 @@ func handleDeleteCredential(ctx context.Context, deployer Deployer, request mcp.
 	data, _ := json.MarshalIndent(result, "", "  ")
 	return mcp.NewToolResultText(string(data)), nil
 }
-func handleUpdateCredential(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func handleUpdateCredential(ctx context.Context, d CredentialManager, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	credID, err := request.RequireString("credential_id")
 	if err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
@@ -81,7 +81,7 @@ func handleUpdateCredential(ctx context.Context, deployer Deployer, request mcp.
 	if err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
 	}
-	res, err := deployer.UpdateCredential(ctx, credID, value)
+	res, err := d.UpdateCredential(ctx, credID, value)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("update credential failed: %v", err)), nil
 	}

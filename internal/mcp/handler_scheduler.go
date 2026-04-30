@@ -10,7 +10,7 @@ import (
 	"github.com/mark3labs/mcp-go/mcp"
 )
 
-func handleCreateScheduledTask(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func handleCreateScheduledTask(ctx context.Context, d SchedulerService, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	name, err := request.RequireString("name")
 	if err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
@@ -29,7 +29,7 @@ func handleCreateScheduledTask(ctx context.Context, deployer Deployer, request m
 	}
 	serverID := request.GetString("server_id", "")
 
-	result, err := deployer.CreateScheduledTask(ctx, name, cronExpr, taskType, command, serverID)
+	result, err := d.CreateScheduledTask(ctx, name, cronExpr, taskType, command, serverID)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("failed to create scheduled task: %v", err)), nil
 	}
@@ -38,8 +38,8 @@ func handleCreateScheduledTask(ctx context.Context, deployer Deployer, request m
 	return mcp.NewToolResultText(string(data)), nil
 }
 
-func handleListScheduledTasks(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	result, err := deployer.ListScheduledTasks(ctx)
+func handleListScheduledTasks(ctx context.Context, d SchedulerService, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	result, err := d.ListScheduledTasks(ctx)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("failed to list scheduled tasks: %v", err)), nil
 	}
@@ -48,7 +48,7 @@ func handleListScheduledTasks(ctx context.Context, deployer Deployer, request mc
 	return mcp.NewToolResultText(string(data)), nil
 }
 
-func handleGetTaskExecutions(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func handleGetTaskExecutions(ctx context.Context, d SchedulerService, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	taskID, err := request.RequireString("task_id")
 	if err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
@@ -60,7 +60,7 @@ func handleGetTaskExecutions(ctx context.Context, deployer Deployer, request mcp
 		}
 	}
 
-	result, err := deployer.GetTaskExecutions(ctx, taskID, limit)
+	result, err := d.GetTaskExecutions(ctx, taskID, limit)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("failed to get task executions: %v", err)), nil
 	}
@@ -69,7 +69,7 @@ func handleGetTaskExecutions(ctx context.Context, deployer Deployer, request mcp
 	return mcp.NewToolResultText(string(data)), nil
 }
 
-func handleToggleScheduledTask(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func handleToggleScheduledTask(ctx context.Context, d SchedulerService, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	taskID, err := request.RequireString("task_id")
 	if err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
@@ -80,7 +80,7 @@ func handleToggleScheduledTask(ctx context.Context, deployer Deployer, request m
 	}
 	enabled := strings.EqualFold(strings.TrimSpace(enabledStr), "true")
 
-	result, err := deployer.ToggleScheduledTask(ctx, taskID, enabled)
+	result, err := d.ToggleScheduledTask(ctx, taskID, enabled)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("failed to toggle scheduled task: %v", err)), nil
 	}
@@ -89,13 +89,13 @@ func handleToggleScheduledTask(ctx context.Context, deployer Deployer, request m
 	return mcp.NewToolResultText(string(data)), nil
 }
 
-func handleDeleteScheduledTask(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func handleDeleteScheduledTask(ctx context.Context, d SchedulerService, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	taskID, err := request.RequireString("task_id")
 	if err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
 	}
 
-	result, err := deployer.DeleteScheduledTask(ctx, taskID)
+	result, err := d.DeleteScheduledTask(ctx, taskID)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("failed to delete scheduled task: %v", err)), nil
 	}

@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"github.com/mark3labs/mcp-go/mcp"
 )
-func handleSendNotification(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func handleSendNotification(ctx context.Context, d NotificationService, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	nType, err := request.RequireString("type")
 	if err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
@@ -16,7 +16,7 @@ func handleSendNotification(ctx context.Context, deployer Deployer, request mcp.
 	status, _ := request.RequireString("status")
 	message := request.GetString("message", "")
 
-	result, err := deployer.SendNotification(ctx, nType, appName, server, status, message)
+	result, err := d.SendNotification(ctx, nType, appName, server, status, message)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("notification failed: %v", err)), nil
 	}

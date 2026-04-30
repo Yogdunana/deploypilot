@@ -7,7 +7,7 @@ import (
 )
 
 // registerMonitorTools registers monitor tools.
-func registerMonitorTools(s *server.MCPServer, d Deployer) {
+func registerMonitorTools(s *server.MCPServer, d MonitorService) {
 	detectEnvTool := mcp.NewTool("detect_environment",
 		mcp.WithDescription("Detect server environment (OS, Docker, ports, services)"),
 		mcp.WithString("level",
