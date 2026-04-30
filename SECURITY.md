@@ -4,8 +4,9 @@
 
 | Version | Supported | Notes |
 |---------|:---------:|-------|
-| v1.1.x  | Yes       | Current release series |
-| v1.0.x  | Yes       | Maintenance only |
+| v1.2.x  | Yes       | Current release series |
+| v1.1.x  | Yes       | Maintenance only |
+| v1.0.x  | No        | End of life |
 | < v1.0  | No        | End of life |
 
 ## Reporting a Vulnerability

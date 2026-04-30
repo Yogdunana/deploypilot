@@ -24,7 +24,7 @@
 <p align="center">
   <img src="https://img.shields.io/github/actions/workflow/status/Yogdunana/deploypilot/ci.yml?branch=main&amp;style=flat-square" alt="CI">
   <img src="https://img.shields.io/github/v/release/Yogdunana/deploypilot?style=flat-square" alt="Release">
-  <img src="https://img.shields.io/github/license/Yogdunana/deploypilot?style=flat-square" alt="License">
+  <img src="https://img.shields.io/badge/License-BSL_1.1-blue?style=flat-square" alt="License">
   <img src="https://img.shields.io/badge/Go-1.23-00ADD8?style=flat-square&amp;logo=go&amp;logoColor=white" alt="Go">
   <img src="https://img.shields.io/badge/Vue-3.5-4FC08D?style=flat-square&amp;logo=vue.js&amp;logoColor=white" alt="Vue">
   <img src="https://img.shields.io/docker/pulls/ghcr.io/yogdunana/deploypilot?style=flat-square" alt="Docker Pulls">
@@ -112,26 +112,26 @@ DeployPilot uses a **three-layer architecture** designed for both AI agents and 
 
 ```mermaid
 graph LR
-    subgraph "AI IDE (Sandbox)"
+    subgraph "AI IDE Sandbox"
         A[Claude / Cursor / TRAE / Coze / SOLO]
     end
 
-    subgraph "DeployPilot Gateway (Your Server)"
-        B[MCP Server&lt;br&gt;52+ tools]
-        C[REST API&lt;br&gt;JWT + RBAC]
-        D[WebSocket / SSE]
+    subgraph "DeployPilot Gateway"
+        B["MCP Server (52+ tools)"]
+        C["REST API (JWT + RBAC)"]
+        D["WebSocket / SSE"]
         E[Deploy Engine]
         F[Provider Plugins]
     end
 
     subgraph "Infrastructure"
-        G[1Panel / BT Panel]
-        H[Docker / Kubernetes]
-        I[Cloudflare / Aliyun DNS]
-        J[GitHub Actions / Gitea]
+        G["1Panel / BT Panel"]
+        H["Docker / Kubernetes"]
+        I["Cloudflare / Aliyun DNS"]
+        J["GitHub Actions / Gitea"]
     end
 
-    A -- "MCP (stdio)" --&gt; B
+    A -- "MCP stdio" --&gt; B
     A -- "REST + JWT" --&gt; C
     C --&gt; E
     B --&gt; E
