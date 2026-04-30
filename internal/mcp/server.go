@@ -45,8 +45,8 @@ func withPermissionCheck(toolName string, handler server.ToolHandlerFunc) server
 
 		// Extract arguments as JSON string for history
 		args := ""
-		if params := request.Params; params != nil && len(params.Arguments) > 0 {
-			if argBytes, err := json.Marshal(params.Arguments); err == nil {
+		if argMap, ok := request.Params.Arguments.(map[string]any); ok && len(argMap) > 0 {
+			if argBytes, err := json.Marshal(argMap); err == nil {
 				args = string(argBytes)
 			}
 		}
@@ -89,7 +89,6 @@ func recordOperation(toolName, args string, result *mcp.CallToolResult, err erro
 
 	if result != nil && result.IsError {
 		entry.Success = false
-		// Extract error text from result
 		if content := result.Content; len(content) > 0 {
 			if textContent, ok := content[0].(mcp.TextContent); ok {
 				entry.Error = textContent.Text
