@@ -112,26 +112,26 @@ DeployPilot uses a **three-layer architecture** designed for both AI agents and 
 
 ```mermaid
 graph LR
-    subgraph "AI IDE (Sandbox)"
+    subgraph "AI IDE Sandbox"
         A[Claude / Cursor / TRAE / Coze / SOLO]
     end
 
-    subgraph "DeployPilot Gateway (Your Server)"
-        B[MCP Server&lt;br&gt;52+ tools]
-        C[REST API&lt;br&gt;JWT + RBAC]
-        D[WebSocket / SSE]
+    subgraph "DeployPilot Gateway"
+        B["MCP Server (52+ tools)"]
+        C["REST API (JWT + RBAC)"]
+        D["WebSocket / SSE"]
         E[Deploy Engine]
         F[Provider Plugins]
     end
 
     subgraph "Infrastructure"
-        G[1Panel / BT Panel]
-        H[Docker / Kubernetes]
-        I[Cloudflare / Aliyun DNS]
-        J[GitHub Actions / Gitea]
+        G["1Panel / BT Panel"]
+        H["Docker / Kubernetes"]
+        I["Cloudflare / Aliyun DNS"]
+        J["GitHub Actions / Gitea"]
     end
 
-    A -- "MCP (stdio)" --&gt; B
+    A -- "MCP stdio" --&gt; B
     A -- "REST + JWT" --&gt; C
     C --&gt; E
     B --&gt; E
