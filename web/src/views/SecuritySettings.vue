@@ -8,14 +8,12 @@ import Badge from '@/components/ui/Badge.vue'
 import Card from '@/components/ui/Card.vue'
 import Dialog from '@/components/ui/Dialog.vue'
 import Skeleton from '@/components/ui/Skeleton.vue'
-import { twofaApi } from '@/api/twofa'
+import * as twofaApi from '@/api/modules/twofa'
 import { useAuthStore } from '@/stores/auth'
 import { useI18n } from 'vue-i18n'
-
 const { t } = useI18n()
 const authStore = useAuthStore()
 const toast = inject<any>('toast')!
-
 const twoFAEnabled = ref(false)
 const loadingStatus = ref(true)
 const setupStep = ref<'idle' | 'qr'>('idle')
@@ -28,11 +26,9 @@ const confirmLoading = ref(false)
 const disableDialogOpen = ref(false)
 const disableCode = ref('')
 const disableLoading = ref(false)
-
 const qrCodeImage = computed(() => {
   return `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrCodeUrl.value)}`
 })
-
 async function fetch2FAStatus() {
   loadingStatus.value = true
   try {
@@ -44,14 +40,14 @@ async function fetch2FAStatus() {
     loadingStatus.value = false
   }
 }
-
 async function startSetup() {
   setupLoading.value = true
   try {
     const res = await twofaApi.setup()
-    secret.value = res.secret
-    qrCodeUrl.value = res.qr_code_url
-    backupCodes.value = res.backup_codes
+    const data = res.data.data
+    secret.value = data.secret
+    qrCodeUrl.value = data.qr_code_url
+    backupCodes.value = data.backup_codes
     setupStep.value = 'qr'
   } catch {
     toast(t('security.setupFailed'), 'destructive')
@@ -59,7 +55,6 @@ async function startSetup() {
     setupLoading.value = false
   }
 }
-
 async function confirmSetup() {
   if (!confirmCode.value.trim()) return
   confirmLoading.value = true
@@ -75,12 +70,10 @@ async function confirmSetup() {
     confirmLoading.value = false
   }
 }
-
 function openDisableDialog() {
   disableCode.value = ''
   disableDialogOpen.value = true
 }
-
 async function confirmDisable() {
   if (!disableCode.value.trim()) return
   disableLoading.value = true
@@ -96,7 +89,6 @@ async function confirmDisable() {
     disableLoading.value = false
   }
 }
-
 async function copyBackupCodes() {
   try {
     await navigator.clipboard.writeText(backupCodes.value.join('\n'))
@@ -105,7 +97,6 @@ async function copyBackupCodes() {
     toast(t('security.copyFailed'), 'destructive')
   }
 }
-
 onMounted(() => {
   fetch2FAStatus()
 })
@@ -114,7 +105,6 @@ onMounted(() => {
 <template>
   <div class="p-6 space-y-4">
     <PageHeader :title="t('security.title')" :description="t('security.description')" />
-
     <!-- Status Card -->
     <Card>
       <div class="flex items-center gap-3">
@@ -136,7 +126,6 @@ onMounted(() => {
         </template>
       </div>
     </Card>
-
     <!-- Setup Card -->
     <Card>
       <!-- idle + not enabled: show enable instructions -->
@@ -146,7 +135,6 @@ onMounted(() => {
           {{ t('security.enable2FA') }}
         </Button>
       </div>
-
       <!-- qr step: show QR + manual key + verify + backup codes -->
       <div v-else-if="setupStep === 'qr'" class="space-y-6">
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -155,7 +143,6 @@ onMounted(() => {
             <img :src="qrCodeImage" :alt="t('security.qrCode')" class="rounded border" />
             <p class="text-xs text-muted-foreground">{{ t('security.scanQR') }}</p>
           </div>
-
           <!-- Right: manual key + code input + verify -->
           <div class="space-y-4">
             <div>
@@ -177,7 +164,6 @@ onMounted(() => {
             </Button>
           </div>
         </div>
-
         <!-- Backup codes -->
         <div class="space-y-2">
           <div class="flex items-center justify-between">
@@ -199,7 +185,6 @@ onMounted(() => {
           <p class="text-xs text-muted-foreground">{{ t('security.backupCodesWarning') }}</p>
         </div>
       </div>
-
       <!-- idle + enabled: show already enabled + disable button -->
       <div v-else-if="setupStep === 'idle' && twoFAEnabled" class="space-y-4">
         <p class="text-sm text-muted-foreground">{{ t('security.alreadyEnabled') }}</p>
@@ -208,7 +193,6 @@ onMounted(() => {
         </Button>
       </div>
     </Card>
-
     <!-- Disable Dialog -->
     <Dialog :open="disableDialogOpen" @update:open="disableDialogOpen = $event">
       <template #title>{{ t('security.disableDialogTitle') }}</template>
