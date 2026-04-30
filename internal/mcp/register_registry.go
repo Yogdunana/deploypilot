@@ -7,7 +7,7 @@ import (
 )
 
 // registerRegistryTools registers registry tools.
-func registerRegistryTools(s *server.MCPServer, d Deployer) {
+func registerRegistryTools(s *server.MCPServer, d RegistryService) {
 	registryLoginTool := mcp.NewTool("registry_login",
 		mcp.WithDescription("Authenticate with a container registry"),
 		mcp.WithString("registry_id", mcp.Required(), mcp.Description("Registry ID to authenticate with")),

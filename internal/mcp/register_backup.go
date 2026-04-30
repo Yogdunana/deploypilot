@@ -7,7 +7,7 @@ import (
 )
 
 // registerBackupTools registers backup tools.
-func registerBackupTools(s *server.MCPServer, d Deployer) {
+func registerBackupTools(s *server.MCPServer, d BackupManager) {
 	backupTool := mcp.NewTool("backup_database",
 		mcp.WithDescription("Create a backup of an application"),
 		mcp.WithString("app_id",

@@ -7,7 +7,7 @@ import (
 )
 
 // registerCredentialTools registers credential tools.
-func registerCredentialTools(s *server.MCPServer, d Deployer) {
+func registerCredentialTools(s *server.MCPServer, d CredentialManager) {
 	createCredTool := mcp.NewTool("add_credential",
 		mcp.WithDescription("Create an encrypted credential. The value is encrypted with AES-256-GCM before storage — plaintext never touches the database."),
 		mcp.WithString("tenant_id", mcp.Required(), mcp.Description("Tenant ID")),

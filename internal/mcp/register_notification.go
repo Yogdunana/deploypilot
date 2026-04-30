@@ -7,7 +7,7 @@ import (
 )
 
 // registerNotificationTools registers notification tools.
-func registerNotificationTools(s *server.MCPServer, d Deployer) {
+func registerNotificationTools(s *server.MCPServer, d NotificationService) {
 	sendNotifyTool := mcp.NewTool("send_notification",
 		mcp.WithDescription("Send a deployment notification"),
 		mcp.WithString("type", mcp.Required(), mcp.Description("Notification type: deploy_success, deploy_failed, health_check, rollback")),

@@ -7,10 +7,10 @@ import (
 	"strings"
 	"github.com/mark3labs/mcp-go/mcp"
 )
-func handleListClusters(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func handleListClusters(ctx context.Context, d K8sService, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	tenantID := request.GetString("tenant_id", "tenant-default")
 
-	clusters, err := deployer.ListClusters(ctx, tenantID)
+	clusters, err := d.ListClusters(ctx, tenantID)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("failed to list clusters: %v", err)), nil
 	}
@@ -24,7 +24,7 @@ func handleListClusters(ctx context.Context, deployer Deployer, request mcp.Call
 	data, _ := json.MarshalIndent(result, "", "  ")
 	return mcp.NewToolResultText(string(data)), nil
 }
-func handleK8sDeploy(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func handleK8sDeploy(ctx context.Context, d K8sService, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	clusterID, err := request.RequireString("cluster_id")
 	if err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
@@ -81,7 +81,7 @@ func handleK8sDeploy(ctx context.Context, deployer Deployer, request mcp.CallToo
 
 	cfg.Namespace = request.GetString("namespace", "")
 
-	if err := deployer.K8sDeploy(ctx, clusterID, cfg); err != nil {
+	if err := d.K8sDeploy(ctx, clusterID, cfg); err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("k8s deploy failed: %v", err)), nil
 	}
 
@@ -98,13 +98,13 @@ func handleK8sDeploy(ctx context.Context, deployer Deployer, request mcp.CallToo
 	data, _ := json.MarshalIndent(result, "", "  ")
 	return mcp.NewToolResultText(string(data)), nil
 }
-func handleK8sListDeployments(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func handleK8sListDeployments(ctx context.Context, d K8sService, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	clusterID, err := request.RequireString("cluster_id")
 	if err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
 	}
 
-	result, err := deployer.K8sListDeployments(ctx, clusterID)
+	result, err := d.K8sListDeployments(ctx, clusterID)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("failed to list k8s deployments: %v", err)), nil
 	}
@@ -112,7 +112,7 @@ func handleK8sListDeployments(ctx context.Context, deployer Deployer, request mc
 	data, _ := json.MarshalIndent(result, "", "  ")
 	return mcp.NewToolResultText(string(data)), nil
 }
-func handleK8sGetPods(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func handleK8sGetPods(ctx context.Context, d K8sService, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	clusterID, err := request.RequireString("cluster_id")
 	if err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
@@ -120,7 +120,7 @@ func handleK8sGetPods(ctx context.Context, deployer Deployer, request mcp.CallTo
 
 	labelSelector := request.GetString("label_selector", "")
 
-	result, err := deployer.K8sGetPods(ctx, clusterID, labelSelector)
+	result, err := d.K8sGetPods(ctx, clusterID, labelSelector)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("failed to get k8s pods: %v", err)), nil
 	}

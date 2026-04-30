@@ -7,7 +7,7 @@ import (
 )
 
 // registerSchedulerTools registers scheduled task tools.
-func registerSchedulerTools(s *server.MCPServer, d Deployer) {
+func registerSchedulerTools(s *server.MCPServer, d SchedulerService) {
 	createScheduledTaskTool := mcp.NewTool("create_scheduled_task",
 		mcp.WithDescription("Create a new cron-based scheduled task. Supports shell commands, health checks, and log cleanup."),
 		mcp.WithString("name",

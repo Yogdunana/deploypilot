@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"github.com/mark3labs/mcp-go/mcp"
 )
-func handleGetAppLogs(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func handleGetAppLogs(ctx context.Context, d LogService, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	containerName, err := request.RequireString("container_name")
 	if err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
@@ -17,7 +17,7 @@ func handleGetAppLogs(ctx context.Context, deployer Deployer, request mcp.CallTo
 		_, _ = fmt.Sscanf(t, "%d", &tail)
 	}
 
-	logs, err := deployer.GetContainerLogs(ctx, containerName, tail)
+	logs, err := d.GetContainerLogs(ctx, containerName, tail)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("failed to get logs: %v", err)), nil
 	}
@@ -32,7 +32,7 @@ func handleGetAppLogs(ctx context.Context, deployer Deployer, request mcp.CallTo
 	data, _ := json.MarshalIndent(result, "", "  ")
 	return mcp.NewToolResultText(string(data)), nil
 }
-func handleSearchAppLogs(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func handleSearchAppLogs(ctx context.Context, d LogService, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	appID, err := request.RequireString("app_id")
 	if err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
@@ -45,7 +45,7 @@ func handleSearchAppLogs(ctx context.Context, deployer Deployer, request mcp.Cal
 	if l := request.GetString("limit", "50"); l != "" {
 		fmt.Sscanf(l, "%d", &limit)
 	}
-	res, err := deployer.SearchAppLogs(ctx, appID, keyword, limit)
+	res, err := d.SearchAppLogs(ctx, appID, keyword, limit)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("search logs failed: %v", err)), nil
 	}

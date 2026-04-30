@@ -15,101 +15,204 @@ type PreflightErrorInfo interface {
 	PreflightChecks() interface{}
 }
 
-// Deployer abstracts deployment operations for the MCP server.
-type Deployer interface {
+// ============================================================================
+// Sub-interfaces (Interface Segregation, fixes #116)
+// Each sub-interface corresponds to a register_*.go / handler_*.go file pair.
+// ============================================================================
+
+// ContainerDeployer handles container lifecycle, compose, and preflight operations.
+type ContainerDeployer interface {
 	Deploy(ctx context.Context, cfg DeployConfig) (*ContainerStatus, error)
 	GetContainerStatus(ctx context.Context, name string) (*ContainerStatus, error)
 	ListApps(ctx context.Context) ([]ContainerStatus, error)
-	ListServers(ctx context.Context) ([]ServerInfo, error)
 	CreateApp(ctx context.Context, cfg CreateAppConfig) (string, error)
 	DeleteApp(ctx context.Context, appID string) error
 	Stop(ctx context.Context, name string) error
 	Remove(ctx context.Context, name string) error
-	GetContainerLogs(ctx context.Context, name string, tail int) (string, error)
 	Rollback(ctx context.Context, containerName, previousImage string) (*ContainerStatus, error)
-	Backup(ctx context.Context, appID string) (string, error)
-	Restore(ctx context.Context, backupID string) (*ContainerStatus, error)
-	DetectEnv(ctx context.Context, level int, ports []int, services []string) (interface{}, error)
-	HealthCheck(ctx context.Context, target, healthType string) (interface{}, error)
-	AddServer(ctx context.Context, name, host string, port int, user string) (*ServerInfo, error)
-	RemoveServer(ctx context.Context, serverID string) error
-	TestServer(ctx context.Context, serverID string) (interface{}, error)
-	CreateCredential(ctx context.Context, tenantID, name, credType, plainValue string) (interface{}, error)
-	ListCredentials(ctx context.Context, tenantID string) (interface{}, error)
-	DeleteCredential(ctx context.Context, credID string) error
-	DNSCreateRecord(ctx context.Context, domain, recordType, name, value string) (interface{}, error)
-	DNSDeleteRecord(ctx context.Context, recordID string) error
-	DNSListRecords(ctx context.Context, domain string) (interface{}, error)
-	SendNotification(ctx context.Context, nType, appName, server, status, message string) (interface{}, error)
-	ListTemplates(ctx context.Context) (interface{}, error)
-	GetTemplate(ctx context.Context, tmplType string) (interface{}, error)
-	ListEnvTemplates(ctx context.Context) (interface{}, error)
-	GetEnvTemplate(ctx context.Context, serviceType string) (interface{}, error)
-	GetAppDetail(ctx context.Context, appID string) (interface{}, error)
-	UpdateApp(ctx context.Context, appID string, config map[string]interface{}) (interface{}, error)
-	GetTaskStatus(ctx context.Context, taskID string) (interface{}, error)
-	ListTasks(ctx context.Context, limit int, statusFilter string) (interface{}, error)
-	SearchAppLogs(ctx context.Context, appID, keyword string, limit int) (interface{}, error)
-	UpdateDNSRecord(ctx context.Context, domain, subdomain, recordType, newValue string) (interface{}, error)
-	UpdateCredential(ctx context.Context, credID string, value string) (interface{}, error)
-	UpdateServer(ctx context.Context, serverID string, config map[string]interface{}) (interface{}, error)
+	BuildAndDeploy(ctx context.Context, cfg BuildAndDeployConfig) (*BuildAndDeployResult, error)
 	CheckDeployReadiness(ctx context.Context, appConfig map[string]interface{}) (interface{}, error)
 	BatchDeploy(ctx context.Context, apps []map[string]interface{}) (interface{}, error)
 	BatchDeployWithConfig(ctx context.Context, config BatchDeployConfig) (*BatchDeployResult, error)
-	BatchBackup(ctx context.Context, appIDs []string) (interface{}, error)
-	BatchDNS(ctx context.Context, records []map[string]interface{}) (interface{}, error)
-	CheckSystemUpdate(ctx context.Context) (interface{}, error)
+	GetAppDetail(ctx context.Context, appID string) (interface{}, error)
+	UpdateApp(ctx context.Context, appID string, config map[string]interface{}) (interface{}, error)
+	HealContainer(ctx context.Context, containerName string) (interface{}, error)
 	GetLatestDeploymentRecord(ctx context.Context, containerName string) (*model.DeploymentRecord, error)
-	BuildAndDeploy(ctx context.Context, cfg BuildAndDeployConfig) (*BuildAndDeployResult, error)
+	// Compose operations
+	ComposeDeploy(ctx context.Context, appID string) (string, error)
+	ComposeStop(ctx context.Context, appID string) (string, error)
+	ComposePs(ctx context.Context, appID string) (string, error)
+	ComposeLogs(ctx context.Context, appID, service, tail string) (string, error)
+	ComposeRestart(ctx context.Context, appID, service string) (string, error)
+	// Preflight
+	RunPreflightFull(ctx context.Context, serverID string, portMappings string) (interface{}, error)
+	// Server-side operations used by deploy handlers
+	ListImages(ctx context.Context, serverID, filter string) (string, error)
+}
+
+// ServerManager handles server registration and remote execution.
+type ServerManager interface {
+	ListServers(ctx context.Context) ([]ServerInfo, error)
+	AddServer(ctx context.Context, name, host string, port int, user string) (*ServerInfo, error)
+	RemoveServer(ctx context.Context, serverID string) error
+	TestServer(ctx context.Context, serverID string) (interface{}, error)
+	UpdateServer(ctx context.Context, serverID string, config map[string]interface{}) (interface{}, error)
+	ExecCommand(ctx context.Context, serverID, command string, timeout int) (string, error)
+}
+
+// CredentialManager handles credential CRUD and rotation.
+type CredentialManager interface {
+	CreateCredential(ctx context.Context, tenantID, name, credType, plainValue string) (interface{}, error)
+	ListCredentials(ctx context.Context, tenantID string) (interface{}, error)
+	DeleteCredential(ctx context.Context, credID string) error
+	UpdateCredential(ctx context.Context, credID string, value string) (interface{}, error)
+}
+
+// DNSManager handles DNS record management.
+type DNSManager interface {
+	DNSCreateRecord(ctx context.Context, domain, recordType, name, value string) (interface{}, error)
+	DNSDeleteRecord(ctx context.Context, recordID string) error
+	DNSListRecords(ctx context.Context, domain string) (interface{}, error)
+	UpdateDNSRecord(ctx context.Context, domain, subdomain, recordType, newValue string) (interface{}, error)
+	BatchDNS(ctx context.Context, records []map[string]interface{}) (interface{}, error)
+}
+
+// BackupManager handles backup and restore operations.
+type BackupManager interface {
+	Backup(ctx context.Context, appID string) (string, error)
+	Restore(ctx context.Context, backupID string) (*ContainerStatus, error)
+	BatchBackup(ctx context.Context, appIDs []string) (interface{}, error)
+}
+
+// MonitorService handles metrics, alerts, health checks, and container healing.
+type MonitorService interface {
+	DetectEnv(ctx context.Context, level int, ports []int, services []string) (interface{}, error)
+	HealthCheck(ctx context.Context, target, healthType string) (interface{}, error)
 	HealContainer(ctx context.Context, containerName string) (interface{}, error)
 	GetContainerMetrics(ctx context.Context, containerName string) (interface{}, error)
 	GetSystemMetrics(ctx context.Context) (interface{}, error)
 	GetRemoteSystemMetrics(ctx context.Context, serverID string) (interface{}, error)
 	ListAlerts(ctx context.Context) (interface{}, error)
 	ListAlertRules(ctx context.Context) (interface{}, error)
-	TriggerCIBuild(ctx context.Context, provider, repo, branch string) (interface{}, error)
-	GetCIBuildStatus(ctx context.Context, provider, runID string) (interface{}, error)
+	QueryMetricHistory(ctx context.Context, metricType string, duration string) (interface{}, error)
+	QueryAlertHistory(ctx context.Context, status string, limit int) (interface{}, error)
+}
+
+// LogService handles container and application log retrieval.
+type LogService interface {
+	GetContainerLogs(ctx context.Context, name string, tail int) (string, error)
+	SearchAppLogs(ctx context.Context, appID, keyword string, limit int) (interface{}, error)
+}
+
+// NotificationService handles multi-channel notifications.
+type NotificationService interface {
+	SendNotification(ctx context.Context, nType, appName, server, status, message string) (interface{}, error)
+}
+
+// TemplateService handles deployment and environment templates.
+type TemplateService interface {
+	ListTemplates(ctx context.Context) (interface{}, error)
+	GetTemplate(ctx context.Context, tmplType string) (interface{}, error)
+	ListEnvTemplates(ctx context.Context) (interface{}, error)
+	GetEnvTemplate(ctx context.Context, serviceType string) (interface{}, error)
+}
+
+// TaskManager handles async task status queries.
+type TaskManager interface {
+	GetTaskStatus(ctx context.Context, taskID string) (interface{}, error)
+	ListTasks(ctx context.Context, limit int, statusFilter string) (interface{}, error)
+}
+
+// SSLService handles SSL certificate management.
+type SSLService interface {
 	ListSSLCertificates(ctx context.Context) (interface{}, error)
 	RequestSSLCertificate(ctx context.Context, domain, email string) (interface{}, error)
 	RenewSSLCertificate(ctx context.Context, domain string) (interface{}, error)
 	DeleteSSLCertificate(ctx context.Context, domain string) (interface{}, error)
+}
+
+// CICDService handles CI/CD build operations.
+type CICDService interface {
+	TriggerCIBuild(ctx context.Context, provider, repo, branch string) (interface{}, error)
+	GetCIBuildStatus(ctx context.Context, provider, runID string) (interface{}, error)
+}
+
+// RegistryService handles container registry operations.
+type RegistryService interface {
 	RegistryOps(registryID string, operation string, args map[string]interface{}) (interface{}, error)
-	// Kubernetes cluster management
+}
+
+// PluginService handles plugin lifecycle management.
+type PluginService interface {
+	PluginOps(pluginID string, action string) (interface{}, error)
+	ListPlugins(provider string) (interface{}, error)
+	GetPluginInfo(pluginID string) (interface{}, error)
+}
+
+// K8sService handles Kubernetes cluster and deployment operations.
+type K8sService interface {
 	CreateCluster(ctx context.Context, cluster *model.Cluster) (*model.Cluster, error)
 	GetCluster(ctx context.Context, id string) (*model.Cluster, error)
 	ListClusters(ctx context.Context, tenantID string) ([]model.Cluster, error)
 	UpdateCluster(ctx context.Context, id string, updates map[string]interface{}) (*model.Cluster, error)
 	DeleteCluster(ctx context.Context, id string) error
 	TestClusterConnection(ctx context.Context, id string) (interface{}, error)
-	// Kubernetes deployment operations
 	K8sDeploy(ctx context.Context, clusterID string, app *K8sDeployConfig) error
 	K8sListDeployments(ctx context.Context, clusterID string) (interface{}, error)
 	K8sGetPods(ctx context.Context, clusterID, labelSelector string) (interface{}, error)
-	PluginOps(pluginID string, action string) (interface{}, error)
-	ListPlugins(provider string) (interface{}, error)
-	GetPluginInfo(pluginID string) (interface{}, error)
-	// Phase 3.3: Server operations
-	ExecCommand(ctx context.Context, serverID, command string, timeout int) (string, error)
-	ListImages(ctx context.Context, serverID, filter string) (string, error)
+}
+
+// SystemService handles system-level operations.
+type SystemService interface {
+	CheckSystemUpdate(ctx context.Context) (interface{}, error)
+}
+
+// PortForwardService handles SSH port forwarding.
+type PortForwardService interface {
 	PortForward(ctx context.Context, action, serverID string, localPort, remotePort int, remoteHost string) (string, error)
-	// Phase 3.1: Compose operations
-	ComposeDeploy(ctx context.Context, appID string) (string, error)
-	ComposeStop(ctx context.Context, appID string) (string, error)
-	ComposePs(ctx context.Context, appID string) (string, error)
-	ComposeLogs(ctx context.Context, appID, service, tail string) (string, error)
-	ComposeRestart(ctx context.Context, appID, service string) (string, error)
-	// Phase 3.5: Preflight visualization
-	RunPreflightFull(ctx context.Context, serverID string, portMappings string) (interface{}, error)
-	// Phase 3.9: Monitoring data persistence
-	QueryMetricHistory(ctx context.Context, metricType string, duration string) (interface{}, error)
-	QueryAlertHistory(ctx context.Context, status string, limit int) (interface{}, error)
-	// Phase 3.10: Scheduled task system
+}
+
+// SchedulerService handles scheduled task management.
+type SchedulerService interface {
 	CreateScheduledTask(ctx context.Context, name, cronExpr, taskType, command string, serverID string) (interface{}, error)
 	ListScheduledTasks(ctx context.Context) (interface{}, error)
 	GetTaskExecutions(ctx context.Context, taskID string, limit int) (interface{}, error)
 	ToggleScheduledTask(ctx context.Context, taskID string, enabled bool) (interface{}, error)
 	DeleteScheduledTask(ctx context.Context, taskID string) (interface{}, error)
 }
+
+// ============================================================================
+// Deployer — composed interface for backward compatibility (fixes #116)
+// Embeds all sub-interfaces. Existing code using Deployer continues to work.
+// New code can depend on specific sub-interfaces for better testability.
+// ============================================================================
+
+// Deployer abstracts all deployment operations for the MCP server.
+// It composes all domain-specific sub-interfaces for backward compatibility.
+type Deployer interface {
+	ContainerDeployer
+	ServerManager
+	CredentialManager
+	DNSManager
+	BackupManager
+	MonitorService
+	LogService
+	NotificationService
+	TemplateService
+	TaskManager
+	SSLService
+	CICDService
+	RegistryService
+	PluginService
+	K8sService
+	SystemService
+	PortForwardService
+	SchedulerService
+}
+
+// ============================================================================
+// Value types (unchanged)
+// ============================================================================
 
 // DeployConfig mirrors deployer.DeployConfig to avoid circular imports.
 type DeployConfig struct {
@@ -158,11 +261,11 @@ type BatchDeployConfig struct {
 
 // BatchDeployResult holds the result of a batch deployment.
 type BatchDeployResult struct {
-	Total    int                        `json:"total"`
-	Success  int                        `json:"success"`
-	Failed   int                        `json:"failed"`
-	Results  []BatchDeployItemResult    `json:"results"`
-	Duration float64                    `json:"duration_seconds"`
+	Total    int                     `json:"total"`
+	Success  int                     `json:"success"`
+	Failed   int                     `json:"failed"`
+	Results  []BatchDeployItemResult `json:"results"`
+	Duration float64                 `json:"duration_seconds"`
 }
 
 // BatchDeployItemResult holds the result of a single app deployment within a batch.

@@ -9,7 +9,7 @@ import (
 	"strings"
 	"github.com/mark3labs/mcp-go/mcp"
 )
-func handleBuildAndDeploy(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func handleBuildAndDeploy(ctx context.Context, d ContainerDeployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	repoURL, err := request.RequireString("repo_url")
 	if err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
@@ -48,7 +48,7 @@ func handleBuildAndDeploy(ctx context.Context, deployer Deployer, request mcp.Ca
 		cfg.PushImage = strings.ToLower(v) == "true"
 	}
 
-	result, err := deployer.BuildAndDeploy(ctx, cfg)
+	result, err := d.BuildAndDeploy(ctx, cfg)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("build and deploy failed: %v", err)), nil
 	}
@@ -59,13 +59,13 @@ func handleBuildAndDeploy(ctx context.Context, deployer Deployer, request mcp.Ca
 
 // ---------- Phase 3.1: Compose Handlers ----------
 
-func handleComposeDeploy(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func handleComposeDeploy(ctx context.Context, d ContainerDeployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	appID, err := request.RequireString("app_id")
 	if err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
 	}
 
-	output, err := deployer.ComposeDeploy(ctx, appID)
+	output, err := d.ComposeDeploy(ctx, appID)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("compose deploy failed: %v", err)), nil
 	}
@@ -79,13 +79,13 @@ func handleComposeDeploy(ctx context.Context, deployer Deployer, request mcp.Cal
 	return mcp.NewToolResultText(string(data)), nil
 }
 
-func handleComposeStop(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func handleComposeStop(ctx context.Context, d ContainerDeployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	appID, err := request.RequireString("app_id")
 	if err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
 	}
 
-	output, err := deployer.ComposeStop(ctx, appID)
+	output, err := d.ComposeStop(ctx, appID)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("compose stop failed: %v", err)), nil
 	}
@@ -99,13 +99,13 @@ func handleComposeStop(ctx context.Context, deployer Deployer, request mcp.CallT
 	return mcp.NewToolResultText(string(data)), nil
 }
 
-func handleComposePs(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func handleComposePs(ctx context.Context, d ContainerDeployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	appID, err := request.RequireString("app_id")
 	if err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
 	}
 
-	output, err := deployer.ComposePs(ctx, appID)
+	output, err := d.ComposePs(ctx, appID)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("compose ps failed: %v", err)), nil
 	}
@@ -119,7 +119,7 @@ func handleComposePs(ctx context.Context, deployer Deployer, request mcp.CallToo
 	return mcp.NewToolResultText(string(data)), nil
 }
 
-func handleComposeLogs(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func handleComposeLogs(ctx context.Context, d ContainerDeployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	appID, err := request.RequireString("app_id")
 	if err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
@@ -128,7 +128,7 @@ func handleComposeLogs(ctx context.Context, deployer Deployer, request mcp.CallT
 	service := request.GetString("service", "")
 	tail := request.GetString("tail", "")
 
-	output, err := deployer.ComposeLogs(ctx, appID, service, tail)
+	output, err := d.ComposeLogs(ctx, appID, service, tail)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("compose logs failed: %v", err)), nil
 	}
@@ -143,7 +143,7 @@ func handleComposeLogs(ctx context.Context, deployer Deployer, request mcp.CallT
 	return mcp.NewToolResultText(string(data)), nil
 }
 
-func handleComposeRestart(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func handleComposeRestart(ctx context.Context, d ContainerDeployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	appID, err := request.RequireString("app_id")
 	if err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
@@ -151,7 +151,7 @@ func handleComposeRestart(ctx context.Context, deployer Deployer, request mcp.Ca
 
 	service := request.GetString("service", "")
 
-	output, err := deployer.ComposeRestart(ctx, appID, service)
+	output, err := d.ComposeRestart(ctx, appID, service)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("compose restart failed: %v", err)), nil
 	}
@@ -165,11 +165,11 @@ func handleComposeRestart(ctx context.Context, deployer Deployer, request mcp.Ca
 	data, _ := json.MarshalIndent(result, "", "  ")
 	return mcp.NewToolResultText(string(data)), nil
 }
-func handleListImages(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func handleListImages(ctx context.Context, d ContainerDeployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	serverID := request.GetString("server_id", "")
 	filter := request.GetString("filter", "")
 
-	output, err := deployer.ListImages(ctx, serverID, filter)
+	output, err := d.ListImages(ctx, serverID, filter)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("failed to list images: %v", err)), nil
 	}
@@ -190,11 +190,11 @@ func handleListImages(ctx context.Context, deployer Deployer, request mcp.CallTo
 
 // ---------- Phase 3.5: Preflight Visualization ----------
 
-func handleRunPreflight(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func handleRunPreflight(ctx context.Context, d ContainerDeployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	serverID := request.GetString("server_id", "")
 	portMappings := request.GetString("port_mappings", "")
 
-	result, err := deployer.RunPreflightFull(ctx, serverID, portMappings)
+	result, err := d.RunPreflightFull(ctx, serverID, portMappings)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("preflight check failed: %v", err)), nil
 	}
@@ -202,7 +202,7 @@ func handleRunPreflight(ctx context.Context, deployer Deployer, request mcp.Call
 	data, _ := json.MarshalIndent(result, "", "  ")
 	return mcp.NewToolResultText(string(data)), nil
 }
-func handleDeployApp(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func handleDeployApp(ctx context.Context, d ContainerDeployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	image, err := request.RequireString("image")
 	if err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
@@ -278,7 +278,7 @@ func handleDeployApp(ctx context.Context, deployer Deployer, request mcp.CallToo
 		cfg.Labels = labels
 	}
 
-	status, err := deployer.Deploy(ctx, cfg)
+	status, err := d.Deploy(ctx, cfg)
 	if err != nil {
 		// Check if it's a preflight error for structured output
 		var pfErr PreflightErrorInfo
@@ -309,8 +309,8 @@ func handleDeployApp(ctx context.Context, deployer Deployer, request mcp.CallToo
 	data, _ := json.MarshalIndent(result, "", "  ")
 	return mcp.NewToolResultText(string(data)), nil
 }
-func handleListApps(ctx context.Context, deployer Deployer, _ mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	apps, err := deployer.ListApps(ctx)
+func handleListApps(ctx context.Context, d ContainerDeployer, _ mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	apps, err := d.ListApps(ctx)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("failed to list apps: %v", err)), nil
 	}
@@ -324,7 +324,7 @@ func handleListApps(ctx context.Context, deployer Deployer, _ mcp.CallToolReques
 	data, _ := json.MarshalIndent(result, "", "  ")
 	return mcp.NewToolResultText(string(data)), nil
 }
-func handleCreateApp(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func handleCreateApp(ctx context.Context, d ContainerDeployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	name, err := request.RequireString("name")
 	if err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
@@ -346,7 +346,7 @@ func handleCreateApp(ctx context.Context, deployer Deployer, request mcp.CallToo
 		Environment: request.GetString("environment", "production"),
 	}
 
-	appID, err := deployer.CreateApp(ctx, cfg)
+	appID, err := d.CreateApp(ctx, cfg)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("failed to create app: %v", err)), nil
 	}
@@ -364,13 +364,13 @@ func handleCreateApp(ctx context.Context, deployer Deployer, request mcp.CallToo
 	data, _ := json.MarshalIndent(result, "", "  ")
 	return mcp.NewToolResultText(string(data)), nil
 }
-func handleDeleteApp(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func handleDeleteApp(ctx context.Context, d ContainerDeployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	appID, err := request.RequireString("app_id")
 	if err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
 	}
 
-	if err := deployer.DeleteApp(ctx, appID); err != nil {
+	if err := d.DeleteApp(ctx, appID); err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("failed to delete app: %v", err)), nil
 	}
 
@@ -382,7 +382,7 @@ func handleDeleteApp(ctx context.Context, deployer Deployer, request mcp.CallToo
 	data, _ := json.MarshalIndent(result, "", "  ")
 	return mcp.NewToolResultText(string(data)), nil
 }
-func handleRollback(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func handleRollback(ctx context.Context, d ContainerDeployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	containerName, err := request.RequireString("container_name")
 	if err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
@@ -391,7 +391,7 @@ func handleRollback(ctx context.Context, deployer Deployer, request mcp.CallTool
 	// previous_image is now optional — auto-resolves from deployment history
 	previousImage := request.GetString("previous_image", "")
 
-	status, err := deployer.Rollback(ctx, containerName, previousImage)
+	status, err := d.Rollback(ctx, containerName, previousImage)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("rollback failed: %v", err)), nil
 	}
@@ -415,13 +415,13 @@ func handleRollback(ctx context.Context, deployer Deployer, request mcp.CallTool
 	data, _ := json.MarshalIndent(result, "", "  ")
 	return mcp.NewToolResultText(string(data)), nil
 }
-func handleGetAppDetail(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func handleGetAppDetail(ctx context.Context, d ContainerDeployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	appID, err := request.RequireString("app_id")
 	if err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
 	}
 
-	detail, err := deployer.GetAppDetail(ctx, appID)
+	detail, err := d.GetAppDetail(ctx, appID)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("failed to get app detail: %v", err)), nil
 	}
@@ -430,7 +430,7 @@ func handleGetAppDetail(ctx context.Context, deployer Deployer, request mcp.Call
 	data, _ := json.MarshalIndent(result, "", "  ")
 	return mcp.NewToolResultText(string(data)), nil
 }
-func handleUpdateApp(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func handleUpdateApp(ctx context.Context, d ContainerDeployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	appID, err := request.RequireString("app_id")
 	if err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
@@ -445,7 +445,7 @@ func handleUpdateApp(ctx context.Context, deployer Deployer, request mcp.CallToo
 		return mcp.NewToolResultError(fmt.Sprintf("invalid config JSON: %v", err)), nil
 	}
 
-	updated, err := deployer.UpdateApp(ctx, appID, config)
+	updated, err := d.UpdateApp(ctx, appID, config)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("failed to update app: %v", err)), nil
 	}
@@ -454,7 +454,7 @@ func handleUpdateApp(ctx context.Context, deployer Deployer, request mcp.CallToo
 	data, _ := json.MarshalIndent(result, "", "  ")
 	return mcp.NewToolResultText(string(data)), nil
 }
-func handleCheckDeployReadiness(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func handleCheckDeployReadiness(ctx context.Context, d ContainerDeployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	configStr, err := request.RequireString("app_config")
 	if err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
@@ -463,7 +463,7 @@ func handleCheckDeployReadiness(ctx context.Context, deployer Deployer, request 
 	if err := json.Unmarshal([]byte(configStr), &appConfig); err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("invalid app_config JSON: %v", err)), nil
 	}
-	res, err := deployer.CheckDeployReadiness(ctx, appConfig)
+	res, err := d.CheckDeployReadiness(ctx, appConfig)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("readiness check failed: %v", err)), nil
 	}
@@ -471,7 +471,7 @@ func handleCheckDeployReadiness(ctx context.Context, deployer Deployer, request 
 	data, _ := json.MarshalIndent(result, "", "  ")
 	return mcp.NewToolResultText(string(data)), nil
 }
-func handleBatchDeploy(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func handleBatchDeploy(ctx context.Context, d ContainerDeployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	appsStr, err := request.RequireString("apps")
 	if err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
@@ -513,7 +513,7 @@ func handleBatchDeploy(ctx context.Context, deployer Deployer, request mcp.CallT
 		ServerIDs:     serverIDs,
 	}
 
-	res, err := deployer.BatchDeployWithConfig(ctx, config)
+	res, err := d.BatchDeployWithConfig(ctx, config)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("batch deploy failed: %v", err)), nil
 	}
@@ -521,13 +521,13 @@ func handleBatchDeploy(ctx context.Context, deployer Deployer, request mcp.CallT
 	data, _ := json.MarshalIndent(result, "", "  ")
 	return mcp.NewToolResultText(string(data)), nil
 }
-func handleGetDeployStatus(ctx context.Context, deployer Deployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func handleGetDeployStatus(ctx context.Context, d ContainerDeployer, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	containerName, err := request.RequireString("container_name")
 	if err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
 	}
 
-	status, err := deployer.GetContainerStatus(ctx, containerName)
+	status, err := d.GetContainerStatus(ctx, containerName)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("failed to get status: %v", err)), nil
 	}
@@ -543,7 +543,7 @@ func handleGetDeployStatus(ctx context.Context, deployer Deployer, request mcp.C
 	}
 
 	// Add preflight summary from latest deployment record
-	if record, err := deployer.GetLatestDeploymentRecord(ctx, containerName); err == nil && record.PreflightCode != "" {
+	if record, err := d.GetLatestDeploymentRecord(ctx, containerName); err == nil && record.PreflightCode != "" {
 		result["last_preflight"] = map[string]interface{}{
 			"status":  record.Status,
 			"code":    record.PreflightCode,

@@ -7,7 +7,7 @@ import (
 )
 
 // registerServerTools registers server tools.
-func registerServerTools(s *server.MCPServer, d Deployer) {
+func registerServerTools(s *server.MCPServer, d ServerManager, cd ContainerDeployer) {
 	listServersTool := mcp.NewTool("list_servers",
 		mcp.WithDescription("List all registered servers"),
 	)
@@ -58,7 +58,7 @@ func registerServerTools(s *server.MCPServer, d Deployer) {
 		mcp.WithDescription("Check DeployPilot prerequisites: Docker availability, database connectivity, and SSH configuration."),
 	)
 	s.AddTool(doctorTool, withPermissionCheck("doctor", withValidation("doctor", doctorTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		return handleDoctor(ctx, d, request)
+		return handleDoctor(ctx, cd, request)
 	})))
 	execCommandTool := mcp.NewTool("exec_command",
 		mcp.WithDescription("Execute a command on a server. Runs locally if server_id is omitted, or remotely via SSH if server_id is provided."),
