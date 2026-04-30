@@ -48,6 +48,7 @@ type BruteForceConfig struct {
 
 // AuditConfig holds configuration for audit logging.
 type AuditConfig struct {
+	RetentionDays int    `mapstructure:"retention_days"` // default: 90
 	ExternalLogPath string `mapstructure:"external_log_path"`
 }
 

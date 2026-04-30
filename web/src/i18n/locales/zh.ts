@@ -862,6 +862,8 @@ export default {
     allActions: '全部操作',
     allResources: '全部资源',
     search: '搜索',
+    startDate: '开始日期',
+    endDate: '结束日期',
     create: '创建',
     update: '更新',
     delete: '删除',

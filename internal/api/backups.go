@@ -3,6 +3,7 @@ package api
 import (
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/Yogdunana/deploypilot/internal/backup"
 	"github.com/Yogdunana/deploypilot/internal/service"
@@ -99,6 +100,23 @@ func ListAuditLogs(auditSvc *service.AuditService) gin.HandlerFunc {
 		}
 		if resourceType := c.Query("resource_type"); resourceType != "" {
 			filter.ResourceType = resourceType
+		}
+		if username := c.Query("username"); username != "" {
+			filter.Username = username
+		}
+		if startDate := c.Query("start_date"); startDate != "" {
+			if t, err := time.Parse(time.RFC3339, startDate); err == nil {
+				filter.StartTime = t
+			} else if t, err := time.Parse("2006-01-02", startDate); err == nil {
+				filter.StartTime = t
+			}
+		}
+		if endDate := c.Query("end_date"); endDate != "" {
+			if t, err := time.Parse(time.RFC3339, endDate); err == nil {
+				filter.EndTime = t
+			} else if t, err := time.Parse("2006-01-02", endDate); err == nil {
+				filter.EndTime = t
+			}
 		}
 
 		logs, total, err := auditSvc.List(c.Request.Context(), filter)

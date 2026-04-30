@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, inject, onMounted } from 'vue'
-import { Search, FileText } from 'lucide-vue-next'
+import { Search, FileText, Calendar } from 'lucide-vue-next'
 import PageHeader from '@/components/common/PageHeader.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import RelativeTime from '@/components/common/RelativeTime.vue'
@@ -28,6 +28,8 @@ const total = ref(0)
 const filterUsername = ref('')
 const filterAction = ref('')
 const filterResourceType = ref('')
+const filterStartDate = ref('')
+const filterEndDate = ref('')
 
 // Action options
 const actionOptions = computed(() => [
@@ -71,8 +73,11 @@ async function fetchLogs() {
       page: page.value,
       page_size: pageSize.value,
     }
+    if (filterUsername.value) params.username = filterUsername.value
     if (filterAction.value) params.action = filterAction.value
     if (filterResourceType.value) params.resource_type = filterResourceType.value
+    if (filterStartDate.value) params.start_date = filterStartDate.value
+    if (filterEndDate.value) params.end_date = filterEndDate.value
     const res = await auditApi.listLogs(params)
     if (res.data.status === 'success') {
       logs.value = res.data.data
@@ -130,6 +135,26 @@ onMounted(fetchLogs)
         class="w-36"
         @update:model-value="applyFilters"
       />
+      <div class="relative w-40">
+        <Calendar class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+        <Input
+          v-model="filterStartDate"
+          type="date"
+          :placeholder="t('audit.startDate')"
+          class="pl-9"
+          @change="applyFilters"
+        />
+      </div>
+      <div class="relative w-40">
+        <Calendar class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+        <Input
+          v-model="filterEndDate"
+          type="date"
+          :placeholder="t('audit.endDate')"
+          class="pl-9"
+          @change="applyFilters"
+        />
+      </div>
       <Button variant="outline" size="sm" @click="applyFilters">{{ t('audit.search') }}</Button>
     </div>
 
