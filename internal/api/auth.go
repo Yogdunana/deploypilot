@@ -256,6 +256,21 @@ func Login(db *gorm.DB, bf *bruteforce.Protector) gin.HandlerFunc {
 			roleName = role.Name
 		}
 
+		// If 2FA is enabled, return a pending token instead of a full JWT
+		if user.TOTPEnabled {
+			pendingToken, err := auth.Generate2FAPendingToken(user.ID, roleName)
+			if err != nil {
+				respondErrori18n(c, http.StatusInternalServerError, "error.auth.failed_to_generate_token")
+				return
+			}
+			respondSuccess(c, gin.H{
+				"requires_2fa": true,
+				"two_fa_token": pendingToken,
+				"user_id":      user.ID,
+			})
+			return
+		}
+
 		token, err := auth.GenerateToken(user.ID, roleName)
 		if err != nil {
 			respondErrori18n(c, http.StatusInternalServerError, "error.auth.failed_to_generate_token")

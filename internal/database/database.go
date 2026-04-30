@@ -500,6 +500,22 @@ func Migrate(db *gorm.DB) error {
 				return tx.Migrator().DropTable("task_executions", "scheduled_tasks")
 			},
 		},
+		// 202605010002: Add 2FA fields to users table
+		{
+			ID: "202605010002",
+			Migrate: func(tx *gorm.DB) error {
+				return tx.AutoMigrate(&model.User{})
+			},
+			Rollback: func(tx *gorm.DB) error {
+				if err := tx.Migrator().DropColumn("users", "totp_secret"); err != nil {
+					return err
+				}
+				if err := tx.Migrator().DropColumn("users", "totp_enabled"); err != nil {
+					return err
+				}
+				return tx.Migrator().DropColumn("users", "backup_codes")
+			},
+		},
 		// 202605010001: Create api_keys table
 		{
 			ID: "202605010001",

@@ -78,6 +78,9 @@ func New(addr string, db *gorm.DB, bridge *service.Bridge, cfg *config.Config, b
 	// API Key service
 	keySvc := service.NewAPIKeyService(db)
 
+	// Set encryption key for 2FA TOTP secret encryption
+	api.SetEncryptionKey(bridge.EncryptionKey)
+
 	api.RegisterRoutes(r, db, bridge, wsHub, auditSvc, nil, blacklist, oauthSvc, nil, keySvc)
 
 	// Serve embedded frontend static files
