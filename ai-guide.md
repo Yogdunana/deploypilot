@@ -64,6 +64,22 @@
 - `bridge_test.go` 等大文件 (>90KB) 超过 MCP 工具内容字段限制
 - **解决方案**: 通过 raw GitHub API 下载 → 本地 Python 编辑 → base64 编码后 `PUT /contents` 推送
 
+
+### MCP 工具调用自动记录
+- `withPermissionCheck` 中间件在每次工具调用后自动记录到 `ContextManager`
+- 跳过记录上下文管理工具 (`list_recent_operations`, `clear_context`, `get_context`)
+- 结果文本截断到 500 字符避免内存膨胀
+
+### Mock Server 路由最佳实践
+- Go 1.22+ 的 `http.ServeMux` subtree pattern (`/path/`) 可能导致路由歧义
+- **推荐**: 使用 `http.HandlerFunc` + `switch` 语句替代 `mux.HandleFunc`
+- DELETE `/api/v1/resource/{id}` 路径需要单独的 prefix 匹配 handler
+
+### mcp-go v0.47.0 类型注意
+- `CallToolParams` 是值类型 (非指针), 不能与 `nil` 比较
+- `CallToolParams.Arguments` 是 `any` 类型, 需类型断言为 `map[string]any`
+- `CallToolResult.Content` 是 `[]Content`, `TextContent` 实现了 `Content` interface
+
 ---
 
 ## 里程碑总览
@@ -72,7 +88,7 @@
 |---|------|------|------|---------|
 | 1 | v1.1 | Security & Stability | ✅ 已关闭 | — |
 | 2 | v1.2 | Adapter Layer Refactor | ✅ 已关闭 | — |
-| 3 | v1.3 | Deployment Enhancement | 🔄 进行中 | #8, #9 (2 open) |
+| 3 | v1.3 | Deployment Enhancement | ✅ 已关闭 | #8, #9 (2 closed) |
 | 4 | v1.4 | Enterprise Features | 📋 规划中 | #128-#132 |
 | 5 | v1.5 | Notification & Alerting | 📋 规划中 | #133-#136 |
 | 6 | v1.6 | Monitoring & Observability | 📋 规划中 | #137-#141 |
@@ -129,24 +145,56 @@
 
 ---
 
-## 当前待办 (v1.3 剩余)
+## 当前待办
 
-### Issue #8: 增强 1Panel 集成 (Medium 优先级)
-- [ ] 添加 `DeleteReverseProxy` 方法
-- [ ] 添加 `CreateWebsite` 和 `GetWebsiteList` 方法
-- [ ] 添加 1Panel API 启用提醒 (Web UI)
-- [ ] 1Panel API 未启用时返回友好错误信息
-- **相关文件**: `internal/provider/server/panel_1panel.go`, `internal/provider/server/panel.go`
-
-### Issue #9: MCP 会话上下文记忆 (Low 优先级)
-- [ ] 实现 `list_recent_operations` MCP 工具
-- [ ] Redis 存储操作历史 (session-based TTL)
-- [ ] 操作上下文包含 (app name, server, timestamp, status)
-- **相关文件**: `internal/mcp/`, `internal/service/`
+### v1.3 已完成 ✅
+- Milestone #3 已关闭 (2026-04-30)
+- Issue #8 (1Panel Enhancement) → PR #166 merged
+- Issue #9 (MCP Session Context) → PR #167 merged
 
 ### 其他待处理
 - [ ] Dependabot PR #82: bump @xterm/xterm 5.5.0 → 6.0.0 (breaking change, 需评估)
-- [ ] 发布 v1.3.0 (关闭 Milestone #3 后)
+- [ ] 发布 v1.3.0 release tag
+- [ ] 开始 v1.4 Enterprise Features (Issues #128-#132)
+
+### 2026-04-30 — ai-guide 创建 + v1.3 完成
+
+#### PR #165: 创建 ai-guide.md (merged)
+- **分支**: `docs/ai-guide`
+- **修改文件**: `ai-guide.md` (新建)
+- **内容**: 创建 AI Agent 工作交接指南，记录项目约定、技术决策、里程碑总览
+
+#### PR #166: 增强 1Panel 集成 (merged) — Closes #8
+- **分支**: `feat/1panel-enhancement`
+- **修改文件**: `panel.go`, `panel_1panel.go`, `panel_btpanel.go`, `panel_1panel_test.go`, `panel_test.go`
+- **内容**:
+  - 扩展 `PanelClient` 接口: 添加 `DeleteReverseProxy`, `CreateWebsite`, `GetWebsiteList`
+  - 新增 `WebsiteInfo` struct
+  - 1Panel 实现: list-then-delete 模式, 优雅响应解析
+  - BT-Panel 实现: 动态 ID 类型断言 (string/float64)
+  - 20+ 测试用例
+- **踩坑记录**:
+  - Mock server 的 `DELETE /api/v1/firewall/rules/{id}` 路由未注册导致 404
+  - `http.ServeMux` 路由匹配: 用 `http.HandlerFunc` + `switch` 替代 `mux.HandleFunc` 避免 Go 1.22+ 路由歧义
+  - MCP `merge_pull_request` 不支持 squash → 用 REST API `PUT /pulls/{id}/merge` + `merge_method: "squash"`
+  - 分支 behind 需 `git rebase --onto origin/main <merge-base> <branch>` 后 force push
+
+#### PR #167: MCP 会话上下文记忆 (merged) — Closes #9
+- **分支**: `feat/mcp-session-context`
+- **修改文件**: `context.go`, `server.go`, `handler_system.go`, `permissions.go`, `register_context.go` (新建), `context_test.go`, `server_test.go`
+- **内容**:
+  - 新增 `list_recent_operations` MCP 工具 (支持 tool_filter, limit 参数)
+  - 新增 `clear_context` MCP 工具
+  - `withPermissionCheck` 中间件自动记录所有工具调用
+  - `ContextEntry` 增加 `Success` 和 `Error` 字段
+  - `maxEntries` 从 20 提升到 50
+  - `get_context` 返回增强的 JSON 格式
+- **踩坑记录**:
+  - `CallToolParams` 是值类型 (非指针), 不能与 `nil` 比较
+  - `Arguments` 是 `any` 类型, 需类型断言 `.(map[string]any)` 后才能用 `len()`
+  - mcp-go v0.47.0 的 `TextContent` 实现了 `Content` interface
+
+---
 
 ---
 
