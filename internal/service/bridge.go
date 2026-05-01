@@ -883,21 +883,33 @@ func (b *Bridge) DeleteScheduledTask(ctx context.Context, taskID string) (interf
 
 // GetSystemMetrics returns system-level metrics (CPU, memory, disk).
 func (b *Bridge) GetSystemMetrics(ctx context.Context) (interface{}, error) {
+	if b.Monitor == nil {
+		return nil, fmt.Errorf("monitor not initialized")
+	}
 	return b.Monitor.GetSystemMetrics(ctx)
 }
 
 // GetContainerMetrics returns resource usage metrics for a specific container.
 func (b *Bridge) GetContainerMetrics(ctx context.Context, name string) (interface{}, error) {
+	if b.Monitor == nil {
+		return nil, fmt.Errorf("monitor not initialized")
+	}
 	return b.Monitor.GetContainerMetrics(ctx, name)
 }
 
 // ListAlerts returns all currently active (firing) alerts.
 func (b *Bridge) ListAlerts(ctx context.Context) (interface{}, error) {
+	if b.Monitor == nil {
+		return nil, fmt.Errorf("monitor not initialized")
+	}
 	return b.Monitor.ListAlerts(ctx)
 }
 
 // ListAlertRules returns all configured alert rules.
 func (b *Bridge) ListAlertRules(ctx context.Context) (interface{}, error) {
+	if b.Monitor == nil {
+		return nil, fmt.Errorf("monitor not initialized")
+	}
 	return b.Monitor.ListAlertRules(ctx)
 }
 
