@@ -14,7 +14,6 @@ import (
 
 const (
 	EventUser     EventType = "user"     // login, logout, register, 2fa
-	EventDeploy   EventType = "deploy"   // deploy start, success, fail, rollback
 	EventServer   EventType = "server"   // server up, down, health check
 	EventSecurity EventType = "security" // brute force, suspicious activity
 	EventAudit    EventType = "audit"    // config change, permission change
