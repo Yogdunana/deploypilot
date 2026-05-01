@@ -93,9 +93,12 @@ func (s *APIKeyService) Validate(ctx context.Context, rawKey string) (*model.API
 		return nil, fmt.Errorf("API key expired")
 	}
 
-	// Update last used time (fire-and-forget)
+	// Update last used time and usage count (fire-and-forget)
 	now := time.Now()
-	s.DB.WithContext(ctx).Model(&apiKey).Update("last_used_at", now)
+	s.DB.WithContext(ctx).Model(&apiKey).Updates(map[string]interface{}{
+		"last_used_at": now,
+		"usage_count":  gorm.Expr("usage_count + 1"),
+	})
 
 	return &apiKey, nil
 }
@@ -124,6 +127,36 @@ func (s *APIKeyService) Delete(ctx context.Context, keyID, userID string) error 
 		return sql.ErrNoRows
 	}
 	slog.Info("API key deleted", "id", keyID, "user_id", userID)
+	return nil
+}
+
+// GetByID returns a single API key by ID. Only the owner can access their own keys.
+func (s *APIKeyService) GetByID(ctx context.Context, keyID, userID string) (*model.APIKey, error) {
+	var apiKey model.APIKey
+	if err := s.DB.WithContext(ctx).
+		Where("id = ? AND user_id = ?", keyID, userID).
+		First(&apiKey).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, sql.ErrNoRows
+		}
+		return nil, fmt.Errorf("failed to get API key: %w", err)
+	}
+	return &apiKey, nil
+}
+
+// Update modifies an API key's metadata (name, scopes, allowed_ips, expires_at).
+func (s *APIKeyService) Update(ctx context.Context, keyID, userID string, updates map[string]interface{}) error {
+	result := s.DB.WithContext(ctx).
+		Model(&model.APIKey{}).
+		Where("id = ? AND user_id = ?", keyID, userID).
+		Updates(updates)
+	if result.Error != nil {
+		return fmt.Errorf("failed to update API key: %w", result.Error)
+	}
+	if result.RowsAffected == 0 {
+		return sql.ErrNoRows
+	}
+	slog.Info("API key updated", "id", keyID, "user_id", userID)
 	return nil
 }
 

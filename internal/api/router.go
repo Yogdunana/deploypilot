@@ -309,8 +309,11 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 		apiKeys := protected.Group("/api-keys")
 		{
 			apiKeys.GET("", ListAPIKeys(keySvc))
-			apiKeys.POST("", CreateAPIKey(keySvc, auditSvc))
-			apiKeys.DELETE("/:id", DeleteAPIKey(keySvc, auditSvc))
+		apiKeys.POST("", CreateAPIKey(keySvc, auditSvc))
+		apiKeys.GET("/:id", GetAPIKey(keySvc))
+		apiKeys.PATCH("/:id", UpdateAPIKey(keySvc, auditSvc))
+		apiKeys.DELETE("/:id", DeleteAPIKey(keySvc, auditSvc))
+		apiKeys.GET("/:id/stats", GetAPIKeyStats(keySvc))
 		}
 	}
 }
