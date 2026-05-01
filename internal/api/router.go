@@ -216,6 +216,11 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 			system.DELETE("/backup/records/:id", auth.RoleRequired("owner", "admin"), DeleteBackupRecord(backupSvc))
 			system.POST("/backup/cloud/download/:id", auth.RoleRequired("owner", "admin"), DownloadCloudBackup(backupSvc))
 			system.POST("/backup/cloud/retention", auth.RoleRequired("owner", "admin"), ApplyCloudRetention(backupSvc))
+			if bridge != nil {
+				system.GET("/detect/all", DetectAllComponents(bridge.Executor))
+				system.GET("/detect/databases", DetectDatabases(bridge.Executor))
+				system.GET("/detect/webservers", DetectWebServers(bridge.Executor))
+			}
 		}
 
 	// Public health check endpoint (no auth required for Docker healthcheck)
