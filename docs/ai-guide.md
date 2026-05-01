@@ -2,7 +2,7 @@
 
 > 本文件为唯一权威版本，位于 `docs/ai-guide.md`。
 > 此文件为 AI 助手操作本项目时的参考指南，避免重复踩坑。
-> **最后更新**: 2026-05-01 (Phase 5.8 完成, 进度 8/9)
+> **最后更新**: 2026-05-01 (v1.5 全部完成 9/9, 开始 v1.6)
 
 ---
 
@@ -787,7 +787,7 @@ permissions:
 | 2 | v1.2 | Adapter Layer Refactor | ✅ 已关闭 | — |
 | 3 | v1.3 | Deployment Enhancement | ✅ 已关闭 | #8, #9 (2 closed) |
 | 4 | v1.4 | Enterprise Features | ✅ 已关闭 | #128-#132 |
-| 5 | v1.5 | Notification & Alerting | 🔄 进行中 (8/9 phases) | #133-#136, #198-#203 |
+| 5 | v1.5 | Notification & Alerting | ✅ 已完成 (9/9 phases) | #133-#136, #198-#203 |
 | 6 | v1.6 | Monitoring & Observability | 📋 规划中 | #137-#141 |
 | 7 | v1.7 | Ecosystem Integration | 📋 规划中 | #142-#146 |
 | 8 | v1.8 | Commercial & Licensing | 📋 规划中 | #147-#150 |
@@ -890,10 +890,9 @@ permissions:
 - Milestone #4 已关闭
 - Issues #128-#132 (Enterprise Features) 全部完成
 
-### v1.5 🔄 进行中 (8/9 phases done)
-- Phase 5.1-5.8 已完成 (PR #188-#215)
-- Phase 5.9 待开始
-- Milestone #5 open (1 open issue remaining)
+### v1.5 ✅ 已完成 (9/9 phases done)
+- Phase 5.1-5.9 全部完成 (PR #188-#217)
+- Milestone #5 已关闭
 
 ### 其他待处理
 - [ ] Dependabot PR #82: bump @xterm/xterm 5.5.0 → 6.0.0 (breaking change, 需评估)
@@ -915,7 +914,7 @@ permissions:
 ### 当前项目状态
 
 - **最新版本**: v1.4.0
-- **开发中**: v1.5.0 Notification & Alerting（Phase 5.1-5.8 已完成，5.9 待开始）
+- **开发中**: v1.6.0 Monitoring & Observability（Phase 6.1-6.5 待开始）
 - **许可证**: BUSL-1.1（Change Date: 2029-04-28）
 - **语言**: Go 81.6%, Vue 12.4%, TypeScript 4.0%
 
@@ -978,7 +977,7 @@ permissions:
 
 #### 待处理事项
 
-- [ ] 推进 v1.5 剩余 Phase（5.9）
+- [ ] 推进 v1.6 Phase（6.1-6.5 监控与可观测性）
 - [ ] 发布 v1.5.0
 - [ ] 开始 v1.6 Monitoring & Observability (Issues #137-#141)
 
