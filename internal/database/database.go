@@ -526,6 +526,24 @@ func Migrate(db *gorm.DB) error {
 				return tx.Migrator().DropTable("api_keys")
 			},
 		},
+		// 202605010200: Add allowed_ips and usage_count to api_keys
+		{
+			ID: "202605010200",
+			Migrate: func(tx *gorm.DB) error {
+				if err := tx.Exec("ALTER TABLE api_keys ADD COLUMN IF NOT EXISTS allowed_ips TEXT").Error; err != nil {
+					return err
+				}
+				if err := tx.Exec("ALTER TABLE api_keys ADD COLUMN IF NOT EXISTS usage_count BIGINT DEFAULT 0").Error; err != nil {
+					return err
+				}
+				return nil
+			},
+			Rollback: func(tx *gorm.DB) error {
+				tx.Migrator().DropColumn("api_keys", "allowed_ips")
+				tx.Migrator().DropColumn("api_keys", "usage_count")
+				return nil
+			},
+		},
 		// 202605020001: Create alert_rules table for persistent alert rule configuration
 		{
 			ID: "202605020001",
