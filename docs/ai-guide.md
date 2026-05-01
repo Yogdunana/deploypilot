@@ -337,6 +337,148 @@ Bridge God Object 已拆分为 18 个文件，87 个方法按领域分布：
 5. **Roadmap Phase 完成** → `docs/wiki/Roadmap.md` + 关联 Issue + Milestone 状态
 6. **版本完成** → Milestone 关闭 + CHANGELOG 更新 + Tag/Release 创建 + 孤立 Issue 关联
 
+## Issue & Milestone 生命周期管理
+
+> 这是 AI Agent 协作开发的核心流程。所有 Agent 必须遵循此流程来管理需求和进度追踪。
+
+### 整体流程图
+
+```
+需求提出 → 创建 Milestone → 创建子 Issues → 开发实现 → 关联 PR → 关闭 Issue → 关闭 Milestone → 发布版本
+```
+
+### 1. Milestone 管理
+
+**何时创建 Milestone**:
+- 每个 Roadmap 版本（v1.x）对应一个 GitHub Milestone
+- Milestone 在该版本开始开发**之前**创建
+- 标题格式: `v1.x: 简短描述`（如 `v1.5: Notification & Alerting`）
+- 描述中包含该版本的所有 Phase 列表
+
+**Milestone 状态**:
+- `OPEN`: 版本开发中
+- `CLOSED`: 版本已发布（所有 Phase 完成 + Release 创建后）
+
+**不要做的事**:
+- ❌ 不要在 Milestone 中混入不属于该版本的 Issue
+- ❌ 不要在版本未完成时关闭 Milestone
+- ❌ 不要创建没有对应 Roadmap Phase 的 Milestone
+
+### 2. Issue 管理
+
+**何时创建 Issue**:
+- 每个 Roadmap Phase 对应一个 GitHub Issue
+- Issue 在该 Phase **开始开发之前**创建
+- 标题格式: `[v1.x] Phase 描述`（如 `[v1.5] Event Bus System`）
+- 必须关联到正确的 Milestone
+
+**Issue 类型**:
+| 类型 | 标题格式 | 示例 |
+|------|----------|------|
+| 功能 Phase | `[v1.x] Phase 名称` | `[v1.5] Event Bus System` |
+| Bug | `🐛 Bug: 描述` | `🐛 Bug: Memory leak in WebSocket` |
+| 增强 | `✨ Enhancement: 描述` | `✨ Enhancement: Add dark mode` |
+
+**Issue 生命周期**:
+```
+OPEN (创建) → IN_PROGRESS (开发中) → CLOSED (PR 合并时自动关闭)
+```
+
+**Issue 与 PR 的关联**:
+- PR 描述中必须包含 `Closes #xx` 或 `Fixes #xx`
+- 这样 PR 合并时 GitHub 会自动关闭关联的 Issue
+- 如果一个 PR 覆盖多个 Phase，关闭对应的所有 Issue
+
+**Issue 内容模板**:
+```markdown
+## 目标
+简要描述该 Phase 要实现什么
+
+## 范围
+- 具体要做的事情列表
+- 不包含什么（明确边界）
+
+## 验收标准
+- [ ] 功能点 1
+- [ ] 功能点 2
+- [ ] 测试通过
+- [ ] 文档更新
+
+## 关联
+- Roadmap: Phase X.X
+- Milestone: v1.x
+```
+
+### 3. 开发过程中的 Issue 操作
+
+**每个 Phase 开发前**:
+1. 确认该 Phase 对应的 Issue 存在且关联了正确的 Milestone
+2. 如果 Issue 不存在，先创建 Issue
+3. 如果 Milestone 不存在，先创建 Milestone
+
+**每个 Phase 完成后**:
+1. PR 描述中写 `Closes #xx` 关联 Issue
+2. PR 合并后确认 Issue 自动关闭
+3. 如果 Issue 未自动关闭，手动关闭并添加评论说明
+
+**版本所有 Phase 完成后**:
+1. 确认 Milestone 中 0 个 open issue
+2. 如果有延后的 Phase，将对应 Issue 移到下一个版本的 Milestone
+3. 关闭 Milestone
+4. 执行版本发布流程（见下方）
+
+### 4. 新需求接入流程
+
+当用户提出新需求时，按以下顺序操作：
+
+```
+Step 1: 评估需求
+  ↓ 确定属于哪个版本（当前版本 or 未来版本）
+Step 2: 创建/更新 Milestone（如果版本 milestone 不存在）
+  ↓
+Step 3: 创建 Issue（关联到对应 Milestone）
+  ↓
+Step 4: 更新 Roadmap.md（添加 Phase 条目）
+  ↓
+Step 5: 开始开发
+```
+
+**关键规则**:
+- **先 Milestone，后 Issue**: Milestone 是容器，Issue 是任务
+- **先 Issue，后开发**: 不要直接开发而不创建 Issue
+- **PR 必须关联 Issue**: 通过 `Closes #xx` 确保可追溯性
+- **Issue 必须关联 Milestone**: 确保进度可追踪
+
+### 5. 多 Agent 协作时的 Issue 管理
+
+当多个 Agent 同时开发不同 Phase 时：
+
+1. **每个 Agent 开始前检查**: 该 Phase 的 Issue 是否已被其他 Agent 认领
+   - 查看 Issue 是否有 `in-progress` label 或被 assign
+   - 如果已被认领，选择其他 Phase 或等待
+
+2. **开发过程中更新 Issue**: 在 Issue 中评论进度
+   - `@agent 正在实现 Phase X.X，预计 PR #xxx`
+   - 遇到阻塞时及时评论
+
+3. **完成后更新 Issue**: PR 合并后确认 Issue 关闭
+   - 如果 Issue 未自动关闭，手动关闭
+
+### 6. Issue/Milestone 自动化检查清单
+
+完成一个 Phase 后，检查以下项：
+- [ ] Issue 已关闭（通过 PR 的 `Closes #xx` 或手动）
+- [ ] Issue 关联了正确的 Milestone
+- [ ] PR 描述中引用了 Issue 编号
+- [ ] Roadmap.md 中该 Phase 标记为 ✅
+
+完成一个版本后，检查以下项：
+- [ ] Milestone 中 0 个 open issue
+- [ ] Milestone 已关闭
+- [ ] CHANGELOG 已更新
+- [ ] Tag + Release 已创建
+- [ ] 无孤立的 open issue（所有 issue 都关联了 milestone）
+
 ## 版本发布流程
 
 1. **Milestone 清理**: 确认 milestone 中 0 open issues，关闭/移除遗留 issues
