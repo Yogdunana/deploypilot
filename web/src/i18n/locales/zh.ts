@@ -1078,14 +1078,6 @@ export default {
     comingSoon: '活动流功能即将推出',
   },
 
-  routes: {
-    clusters: '集群管理',
-    registries: '镜像仓库',
-    plugins: '插件管理',
-    batch: '批量操作',
-    activity: '活动流',
-  },
-
   status: {
     running: '运行中',
     stopped: '已停止',
@@ -1144,5 +1136,10 @@ export default {
     system: '系统设置',
     apiKeys: 'API 密钥',
     security: '安全设置',
+    clusters: '集群管理',
+    registries: '镜像仓库',
+    plugins: '插件管理',
+    batch: '批量操作',
+    activity: '活动流',
   },
 }

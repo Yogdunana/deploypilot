@@ -1082,14 +1082,6 @@ export default {
     comingSoon: 'Activity feed is coming soon',
   },
 
-  routes: {
-    clusters: 'Clusters',
-    registries: 'Registries',
-    plugins: 'Plugins',
-    batch: 'Batch Operations',
-    activity: 'Activity',
-  },
-
   status: {
     running: 'Running',
     stopped: 'Stopped',
@@ -1148,5 +1140,10 @@ export default {
     system: 'System Settings',
     apiKeys: 'API Keys',
     security: 'Security Settings',
+    clusters: 'Clusters',
+    registries: 'Registries',
+    plugins: 'Plugins',
+    batch: 'Batch Operations',
+    activity: 'Activity',
   },
 }
