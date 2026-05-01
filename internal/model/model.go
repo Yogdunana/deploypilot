@@ -290,3 +290,16 @@ type TaskExecution struct {
 }
 
 func (TaskExecution) TableName() string { return "task_executions" }
+
+// EventLog represents a persisted event record for audit and debugging.
+type EventLog struct {
+	ID        string    `gorm:"primaryKey" json:"id"`
+	TenantID  string    `gorm:"index" json:"tenant_id"`
+	EventType string    `gorm:"index;size:20" json:"event_type"`
+	Topic     string    `gorm:"size:200" json:"topic"`
+	Source    string    `gorm:"size:100" json:"source,omitempty"`
+	Payload   string    `gorm:"type:text" json:"payload"`
+	CreatedAt time.Time `gorm:"index;autoCreateTime" json:"created_at"`
+}
+
+func (EventLog) TableName() string { return "event_logs" }
