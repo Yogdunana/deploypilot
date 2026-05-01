@@ -28,6 +28,9 @@ import {
   KeyRound,
   ShieldCheck,
   Settings,
+  Container,
+  Puzzle,
+  Layers,
   PanelLeftClose,
   PanelLeftOpen,
   Search,
@@ -95,6 +98,8 @@ const navGroups = computed(() => [
       { path: '/dns', label: t('layout.dns'), icon: Globe },
       { path: '/ssl', label: t('layout.ssl'), icon: Shield },
       { path: '/providers', label: t('layout.providers'), icon: Cloud },
+      { path: '/clusters', label: t('layout.clusters'), icon: Server },
+      { path: '/registries', label: t('layout.registries'), icon: Container },
     ],
   },
   {
@@ -104,11 +109,14 @@ const navGroups = computed(() => [
       { path: '/monitor', label: t('layout.monitor'), icon: Activity },
       { path: '/notifications', label: t('layout.notifications'), icon: Bell },
       { path: '/templates', label: t('layout.templates'), icon: FileCode },
+      { path: '/plugins', label: t('layout.plugins'), icon: Puzzle },
+      { path: '/batch', label: t('layout.batch'), icon: Layers },
     ],
   },
   {
     label: t('layout.management'),
     items: [
+      { path: '/activity', label: t('layout.activity'), icon: Activity },
       { path: '/users', label: t('layout.users'), icon: Users },
       { path: '/audit', label: t('layout.audit'), icon: ScrollText },
       { path: '/api-keys', label: t('layout.apiKeys'), icon: KeyRound },
