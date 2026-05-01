@@ -1,6 +1,20 @@
 # DeployPilot AI Operations Guide
 
+> 本文件为唯一权威版本，位于 `docs/ai-guide.md`。
 > 此文件为 AI 助手操作本项目时的参考指南，避免重复踩坑。
+> **最后更新**: 2026-05-01
+
+---
+
+## 项目概览
+
+- **仓库**: https://github.com/Yogdunana/deploypilot
+- **所有者**: Yogdunana
+- **技术栈**: Go 1.23 / Gin / GORM (后端) + Vue 3.5 / TypeScript / Vite 6 / Tailwind CSS 4 (前端)
+- **架构**: 三二进制架构 — `deploypilot` (CLI)、`api-server` (REST API + Web)、`mcp-server` (MCP stdio)
+- **许可证**: BSL 1.1 (Change Date 2029-04-28, Change License MIT)
+
+---
 
 ## GitHub 仓库信息
 
@@ -41,6 +55,74 @@ PR 合并前必须全部通过的 check-runs：
 - Build Frontend
 
 `build-and-push` 和 Release workflow 是独立触发的，不在 PR check 中。
+
+---
+
+## 工作约定
+
+### Git & PR 规范
+- **Commit 格式**: Conventional Commits (`feat:`, `fix:`, `chore:`, `docs:`, `refactor:`, `test:`, `ci:`)
+- **分支命名**: `fix/<short-desc>` / `feat/<short-desc>` / `chore/<short-desc>`
+- **PR 合并方式**: Squash only (main 分支保护规则)
+- **PR 标题**: 遵循 Conventional Commits 格式
+- **PR 审批**: review requirement 已设为 0，Agent 可自主合并
+
+### 分支保护 (main)
+- 7 个 CI status check 必须全部通过
+- Squash merge only
+- 不可直接 push 到 main (409 Conflict)，必须走 branch + PR 流程
+
+### GitHub 身份
+- 所有 commits/PRs 使用 Yogdunana 身份
+- PAT Token 位置: `/data/user/work/.gh_token` (仅本地沙箱可用)
+- 主要通过 MCP GitHub 工具操作，PAT 用于 MCP 无法处理的场景
+
+### CI/CD
+- Workflow 文件: `.github/workflows/ci.yml`
+- npm audit 不再 `continue-on-error` (PR #127 修复)
+- govulncheck 保留 `continue-on-error: true` (需要 Go 1.24+，跟踪为 M-14)
+
+### 内容安全
+- DNS 测试失败日志中的 provider 错误信息可能触发内容过滤
+- 不要粘贴原始 DNS 测试错误日志，用自然语言描述即可
+
+---
+
+## 关键技术决策
+
+### GitHub Mermaid 兼容性
+- GitHub 的 Markdown 处理器会将 `-->` 编码为 `--&gt;`，导致 `graph LR` 语法中的边标签解析失败
+- **解决方案**: 使用 `flowchart LR` 语法，移除所有边标签
+- GitHub API 返回的内容中 HTML 标签以实体形式存在 (`&lt;br&gt;` 而非 `<br>`)，字符串匹配时需注意
+
+### BSL 1.1 License Badge
+- BSL 1.1 不在 GitHub 标准 SPDX 列表中，动态 badge (`img.shields.io/github/license/...`) 显示 "Other"
+- **解决方案**: 使用静态 badge `img.shields.io/badge/License-BSL_1.1-blue`
+
+### GitHub API 内容编码
+- 通过 API 获取文件内容时，HTML 特殊字符以实体形式存在
+- 匹配/替换时必须使用 `&lt;` `&gt;` `&amp;` 而非原始字符
+
+### 大文件编辑
+- `bridge_test.go` 等大文件 (>90KB) 超过 MCP 工具内容字段限制
+- **解决方案**: 通过 raw GitHub API 下载 → 本地 Python 编辑 → base64 编码后 `PUT /contents` 推送
+
+### MCP 工具调用自动记录
+- `withPermissionCheck` 中间件在每次工具调用后自动记录到 `ContextManager`
+- 跳过记录上下文管理工具 (`list_recent_operations`, `clear_context`, `get_context`)
+- 结果文本截断到 500 字符避免内存膨胀
+
+### Mock Server 路由最佳实践
+- Go 1.22+ 的 `http.ServeMux` subtree pattern (`/path/`) 可能导致路由歧义
+- **推荐**: 使用 `http.HandlerFunc` + `switch` 语句替代 `mux.HandleFunc`
+- DELETE `/api/v1/resource/{id}` 路径需要单独的 prefix 匹配 handler
+
+### mcp-go v0.47.0 类型注意
+- `CallToolParams` 是值类型 (非指针), 不能与 `nil` 比较
+- `CallToolParams.Arguments` 是 `any` 类型, 需类型断言为 `map[string]any`
+- `CallToolResult.Content` 是 `[]Content`, `TextContent` 实现了 `Content` interface
+
+---
 
 ## 踩坑记录
 
@@ -206,21 +288,64 @@ stub 模式: `func (m *mockDeployer) MethodName(_ context.Context, ...) (type, e
 
 **实现**: WSHub 使用 UUID 前 8 位作为 instanceID，WSMessage 新增 `SourceInstance` 字段，Redis 订阅者收到消息后检查 `msg.SourceInstance != h.instanceID`。
 
-### 29. 前端新文件推送后远程可能缺失
+### 29. [安全] ListImages 的 filter 参数存在命令注入漏洞（Critical）
+`internal/service/bridge.go` 中 `ListImages` 函数将 `filter` 参数直接拼接到 shell 命令：
+```go
+dockerCmd += " | grep " + filter  // filter 未转义！
+```
+攻击者可传入 `; rm -rf /` 或 `$(malicious)` 执行任意命令。**修复**: 对 filter 做白名单校验或使用 `shellQuote()`。
+**相关 Issue**: #113
+
+### 30. [安全] CI 中安全扫描设置了 continue-on-error
+`.github/workflows/ci.yml` 中 `gitleaks`、`govulncheck`、`npm audit` 均设置了 `continue-on-error: true`，意味着即使发现密钥泄露或严重漏洞，CI 也不会阻断。其中 gitleaks 最严重——密钥扫描形同虚设。
+- **gitleaks**: 无理由设为 non-blocking，应立即移除 `continue-on-error`
+- **govulncheck**: 注释说明需 Go 1.24 修复 stdlib 漏洞，但第三方依赖漏洞也被忽略了
+- **npm audit**: 应至少对 critical 级别阻断
+**相关 Issue**: #114
+
+### 31. [安全] SSH 连接静默回退到 root 用户
+`internal/service/bridge.go` 的 `getRemoteExecutor` 和 `PortForward` 中，当服务器记录的 `username` 为空时，静默回退到 `"root"`，无任何日志警告。违反最小权限原则。
+**修复**: 移除 root 回退改为返回错误，或至少添加 `slog.Warn` 日志。
+**相关 Issue**: #115
+
+### 32. [安全] DNS 服务吞掉错误（返回 nil error + 错误 map）
+`internal/service/dns_service.go` 中 `DNSCreateRecord`、`DNSListRecords` 等方法在出错时返回 `nil` error，将错误信息包装到 `map[string]interface{}` 中。这导致调用方无法使用标准 `if err != nil` 模式，`BatchDNS` 中出现混乱的双重判断逻辑。
+**修复**: 让错误正常返回，不要吞掉。
+
+### 33. [安全] Backup 和 PortForward 中 shellQuote 未一致使用
+`internal/service/backup_service.go:41` 中 `containerName` 和 `backupFile` 未使用 `shellQuote()`。`internal/service/bridge.go:824` 中 `PortForward` 的 `pkill` 命令中 `RemoteHost` 也未转义。虽然这些参数来自数据库，但如果应用名被污染可能导致命令注入。
+**修复**: 所有 shell 命令拼接处统一使用 `shellQuote()`。
+
+### 34. [安全] JWT Secret 配置注入绕过长度校验
+`cmd/api-server/main.go:91-95` 中，如果 `config.yaml` 设置了 `auth.jwt_secret`，会直接注入环境变量。但 `getJWTSecret()` 的 16 字符长度校验只检查环境变量值，config 层的 `Load()` 没有前置校验。如果配置了短密钥，会在运行时才报错，错误信息不够明确。
+**修复**: 在 `main.go` 中注入前增加长度校验。
+
+### 35. [安全] Gitleaks Action 需要 GITHUB_TOKEN 环境变量
+`gitleaks/gitleaks-action@v2` 的最新版本要求配置 `GITHUB_TOKEN` 环境变量才能扫描 Pull Requests。如果缺少此配置，action 会报错 `GITHUB_TOKEN is now required to scan pull requests` 并失败。
+**修复**: 在 Gitleaks step 中添加 `env: GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}`。
+**相关 PR**: #119
+
+### 36. [安全] 接口拆分后工具注册必须匹配 handler 的接口类型
+将 God Interface 拆分为子接口后，每个 `register_*.go` 中的工具注册函数接收对应的子接口类型。如果 handler 函数签名是 `handleXxx(ctx, d MonitorService, ...)`，则该工具必须在 `register_monitor.go` 中注册（传入 `MonitorService`），不能注册在 `register_deploy.go`（传入 `ContainerDeployer`）中，否则 Lint 会报类型不匹配。
+**反例**: `handleHealContainer` 期望 `MonitorService`，但注册在 `register_deploy.go` 中传入 `ContainerDeployer`，导致 Lint 失败。
+**修复**: 将工具注册移到与 handler 接口类型匹配的 register 文件中。如果方法同时属于多个子接口（如 `HealContainer` 同时在 `ContainerDeployer` 和 `MonitorService` 中），选择与 handler 签名匹配的那个。
+**相关 PR**: #122
+
+### 29-FE. [前端] 前端新文件推送后远程可能缺失
 
 通过 GitHub MCP `create_or_update_file` 推送新文件时，如果文件内容过大或网络问题，文件可能未成功写入远程分支但本地认为已推送。**必须**在推送后通过 `get_file_contents` 验证文件确实存在于远程。
 
 - **排查方法**: 推送后立即 `get_file_contents(path, branch)` 确认返回 200 而非 404
 - **反例**: PR #173 中 `api/modules/apikeys.ts` 本地存在但远程 404，导致 CI Build Frontend 失败
 
-### 30. vue-tsc -b 的 tsbuildinfo 缓存可能导致类型检查跳过新文件
+### 30-FE. [前端] vue-tsc -b 的 tsbuildinfo 缓存可能导致类型检查跳过新文件
 
 `vue-tsc -b`（build mode）使用 `tsconfig.tsbuildinfo` 增量编译缓存。如果该文件提交在仓库中且记录的文件列表不包含新增文件，`vue-tsc -b` 可能跳过对新文件的类型检查，导致 `Cannot find module` 错误在 CI 中出现但本地不出现。
 
 - **修复**: 清空或删除 `tsconfig.tsbuildinfo` 文件，强制 `vue-tsc -b` 全量重建
 - **最佳实践**: 将 `tsconfig.tsbuildinfo` 加入 `.gitignore`，不要提交到仓库
 
-### 31. 前端组件导入路径必须与文件实际位置完全匹配
+### 31-FE. [前端] 前端组件导入路径必须与文件实际位置完全匹配
 
 Vue 组件中的 `import` 路径必须与 `web/src/` 下的文件结构完全一致。常见错误：
 
@@ -233,6 +358,8 @@ Vue 组件中的 `import` 路径必须与 `web/src/` 下的文件结构完全一
 - 不要假设模块有默认导出或命名空间导出
 
 - **反例**: PR #173 中 `SecuritySettings.vue` 使用 `import { twofaApi } from '@/api/twofa'`，路径错误且导入方式不匹配，导致 CI 报 `Cannot find module '@/api/twofa'`
+
+---
 
 ## 项目结构关键路径
 
@@ -257,6 +384,42 @@ Vue 组件中的 `import` 路径必须与 `web/src/` 下的文件结构完全一
 | `web/` | 前端项目根目录（Vue 3 + TypeScript + Vite 6） |
 | `web/vitest.config.ts` | Vitest 测试配置 |
 | `web/src/lib/utils.ts` | 前端工具函数（cn, formatDate, formatRelativeTime） |
+
+### 项目结构速查
+
+```
+cmd/
+  deploypilot/     # CLI 工具
+  api-server/      # REST API + Web Dashboard
+  mcp-server/      # MCP stdio 服务器
+internal/
+  api/             # REST API 路由和处理器
+  auth/            # JWT 认证
+  config/          # Viper 配置
+  engine/          # 部署引擎核心
+  mcp/             # MCP 服务器 (52+ 工具, 48 文件)
+  middleware/      # Gin 中间件
+  model/           # GORM 数据模型
+  provider/        # Provider 插件
+    dns/           # DNS (Cloudflare, Aliyun, Tencent, WestDNS)
+    server/        # 面板 (1Panel, BT-Panel, SSH, K8s)
+    ssl/           # SSL 提供商
+    cicd/          # CI/CD (GitHub Actions, Gitea)
+    registry/      # 镜像仓库
+    notify/        # 通知渠道
+  service/         # 业务逻辑层 (18 个服务, 47 文件)
+  util/            # 工具 (circuitbreaker 等)
+web/               # Vue 3 前端
+  src/
+    api/           # API 请求封装
+    components/    # 可复用组件
+    composables/   # 组合式函数
+    i18n/          # 国际化
+    views/         # 页面视图
+    stores/        # Pinia 状态管理
+```
+
+---
 
 ## Service 层架构（v1.2 重构后）
 
@@ -326,6 +489,8 @@ Bridge God Object 已拆分为 18 个文件，87 个方法按领域分布：
 
 **前端测试命令**: `npm test`（在 `web/` 目录下）
 **CI 集成**: `Build Frontend` job 中包含 `npm test` 步骤
+
+---
 
 ## 文档同步规则
 
@@ -569,3 +734,240 @@ permissions:
   contents: read
 ```
 
+---
+
+## 里程碑总览
+
+| # | 版本 | 名称 | 状态 | 子 Issue |
+|---|------|------|------|---------|
+| 1 | v1.1 | Security & Stability | ✅ 已关闭 | — |
+| 2 | v1.2 | Adapter Layer Refactor | ✅ 已关闭 | — |
+| 3 | v1.3 | Deployment Enhancement | ✅ 已关闭 | #8, #9 (2 closed) |
+| 4 | v1.4 | Enterprise Features | ✅ 已关闭 | #128-#132 |
+| 5 | v1.5 | Notification & Alerting | 🔄 进行中 (3/9 phases) | #133-#136 |
+| 6 | v1.6 | Monitoring & Observability | 📋 规划中 | #137-#141 |
+| 7 | v1.7 | Ecosystem Integration | 📋 规划中 | #142-#146 |
+| 8 | v1.8 | Commercial & Licensing | 📋 规划中 | #147-#150 |
+| 9 | v1.9 | Security Hardening | 📋 规划中 | #151-#156 |
+| 10 | v1.10 | Engineering Quality | 📋 规划中 | #157-#164 |
+
+---
+
+## 已完成工作记录
+
+### 2026-04-28 — DNS 测试修复 + README 修复 + CI 修复 + Issue 拆分
+
+#### PR #123: 修复 DNS 测试失败 (merged)
+- **分支**: `fix/dns-error-swallowing-and-jwt-validation`
+- **修改文件**: `internal/service/bridge_test.go`, `internal/service/bridge_coverage_test.go`
+- **内容**: 修复 19 个 DNS 相关测试的断言模式
+  - 旧模式: 检查 error map 响应 (`m["status"]`)
+  - 新模式: 检查 Go error (`err == nil` 或 `err != nil`)
+- **注意**: PR #124 (ai-guide 更新) 先合并导致分支 behind，需 `update-branch` 后重新等 CI
+
+#### PR #125: README + SECURITY.md 修复 (merged)
+- **分支**: `fix/readme-and-security`
+- **修改文件**: `README.md`, `SECURITY.md`
+- **内容**:
+  - README: 替换 Mermaid 节点中的 `<br>` 标签
+  - README: License badge 从动态改为静态 BSL 1.1
+  - SECURITY.md: 版本表更新 (v1.2→current, v1.1→maintenance, v1.0→EOL)
+
+#### PR #126: Mermaid 图表修复 (merged)
+- **分支**: `fix/mermaid-diagram`
+- **修改文件**: `README.md`
+- **内容**: Architecture 区域 Mermaid 图表
+  - `graph LR` → `flowchart LR`
+  - 移除所有边标签 (解决 `--&gt;` HTML 实体编码问题)
+  - 添加 subgraph ID (S1, S2, S3)
+
+#### PR #127: CI 安全扫描修复 (merged)
+- **分支**: `fix/ci-security-audit`
+- **修改文件**: `.github/workflows/ci.yml`
+- **内容**: 移除 npm audit 的 `continue-on-error: true`
+- **注意**: govulncheck 保留 `continue-on-error` (需 Go 1.24+)
+
+#### Issue 拆分: #43-#49 → 37 个子 Issue (#128-#164)
+- **#43 (v1.4)** → #128-#132: 2FA, API Key, Credential Vault, Enterprise UI, Audit Log
+- **#44 (v1.5)** → #133-#136: Event Bus, Notification Channels, Alert Rules, Templates
+- **#45 (v1.6)** → #137-#141: Prometheus, Uptime, Heartbeat, Dashboard TV, Monitoring UI
+- **#46 (v1.7)** → #142-#146: Webhooks, Grafana, OpenClaw, Open API, Plugin System
+- **#47 (v1.8)** → #147-#150: License Core, Feature Flags, License UI, Keygen
+- **#48 (v1.9)** → #151-#156: Brute-force, JWT Cookie, Tracing, Circuit Breaker, Audit, Graceful Shutdown
+- **#49 (v1.10)** → #157-#164: DB Migration, Redis Cache, WebSocket, Test Suite, Dev Env, Community, Onboarding, API Versioning
+- 所有父 Issue 已更新 Sub-Issues 追踪列表
+
+### 2026-04-30 — ai-guide 创建 + v1.3 完成
+
+#### PR #165: 创建 ai-guide.md (merged)
+- **分支**: `docs/ai-guide`
+- **修改文件**: `ai-guide.md` (新建)
+- **内容**: 创建 AI Agent 工作交接指南，记录项目约定、技术决策、里程碑总览
+
+#### PR #166: 增强 1Panel 集成 (merged) — Closes #8
+- **分支**: `feat/1panel-enhancement`
+- **修改文件**: `panel.go`, `panel_1panel.go`, `panel_btpanel.go`, `panel_1panel_test.go`, `panel_test.go`
+- **内容**:
+  - 扩展 `PanelClient` 接口: 添加 `DeleteReverseProxy`, `CreateWebsite`, `GetWebsiteList`
+  - 新增 `WebsiteInfo` struct
+  - 1Panel 实现: list-then-delete 模式, 优雅响应解析
+  - BT-Panel 实现: 动态 ID 类型断言 (string/float64)
+  - 20+ 测试用例
+- **踩坑记录**:
+  - Mock server 的 `DELETE /api/v1/firewall/rules/{id}` 路由未注册导致 404
+  - `http.ServeMux` 路由匹配: 用 `http.HandlerFunc` + `switch` 替代 `mux.HandleFunc` 避免 Go 1.22+ 路由歧义
+  - MCP `merge_pull_request` 不支持 squash → 用 REST API `PUT /pulls/{id}/merge` + `merge_method: "squash"`
+  - 分支 behind 需 `git rebase --onto origin/main <merge-base> <branch>` 后 force push
+
+#### PR #167: MCP 会话上下文记忆 (merged) — Closes #9
+- **分支**: `feat/mcp-session-context`
+- **修改文件**: `context.go`, `server.go`, `handler_system.go`, `permissions.go`, `register_context.go` (新建), `context_test.go`, `server_test.go`
+- **内容**:
+  - 新增 `list_recent_operations` MCP 工具 (支持 tool_filter, limit 参数)
+  - 新增 `clear_context` MCP 工具
+  - `withPermissionCheck` 中间件自动记录所有工具调用
+  - `ContextEntry` 增加 `Success` 和 `Error` 字段
+  - `maxEntries` 从 20 提升到 50
+  - `get_context` 返回增强的 JSON 格式
+- **踩坑记录**:
+  - `CallToolParams` 是值类型 (非指针), 不能与 `nil` 比较
+  - `Arguments` 是 `any` 类型, 需类型断言 `.(map[string]any)` 后才能用 `len()`
+  - mcp-go v0.47.0 的 `TextContent` 实现了 `Content` interface
+
+---
+
+## 当前待办
+
+### v1.3 ✅ 已完成
+- Milestone #3 已关闭 (2026-04-30)
+- Issue #8 (1Panel Enhancement) → PR #166 merged
+- Issue #9 (MCP Session Context) → PR #167 merged
+
+### v1.4 ✅ 已完成
+- Milestone #4 已关闭
+- Issues #128-#132 (Enterprise Features) 全部完成
+
+### v1.5 🔄 进行中 (3/9 phases done)
+- Phase 5.1-5.3 已完成
+- Phase 5.4-5.9 待开始
+- Issues #133-#136 (Notification & Alerting)
+
+### 其他待处理
+- [ ] Dependabot PR #82: bump @xterm/xterm 5.5.0 → 6.0.0 (breaking change, 需评估)
+- [ ] 发布 v1.3.0 release tag
+- [ ] 发布 v1.4.0 release tag
+
+---
+
+## SOLO Agent 接手指南
+
+> **接手日期**: 2026-04-30
+> **接手 Agent**: SOLO (Claude)
+> **操作身份**: Yogdunana（仓库 Owner）
+
+### 接手背景
+
+2026-04-30 SOLO Agent 全面接手 DeployPilot 项目维护，以 Yogdunana 身份进行所有 Git 操作。
+
+### 当前项目状态
+
+- **最新版本**: v1.4.0
+- **开发中**: v1.5.0 Notification & Alerting（Phase 5.1-5.3 已完成，5.4-5.9 待开始）
+- **许可证**: BUSL-1.1（Change Date: 2029-04-28）
+- **语言**: Go 81.6%, Vue 12.4%, TypeScript 4.0%
+
+### SOLO Agent 工作习惯
+
+#### Git 操作规范
+
+1. **身份**: 所有 commit 使用 Yogdunana 身份，通过 MCP GitHub 工具操作
+2. **分支命名**: `type/scope-description`
+   - `fix/dns-error-swallowing`
+   - `feat/docker-compose-support`
+   - `chore/update-ai-guide`
+   - `docs/update-contributing`
+   - `refactor/split-service-layer`
+3. **Commit Message**: 严格遵循 Conventional Commits
+   - `feat(scope): description`
+   - `fix(scope): description`
+   - `docs(scope): description`
+   - `chore(scope): description`
+   - `security(scope): description`
+   - `refactor(scope): description`
+   - `test(scope): description`
+4. **PR 合并**: 必须使用 squash merge（仓库禁止 merge commit）
+5. **PR 关联**: 必须用 `Fixes #xx` 或 `Closes #xx` 关联 Issue
+
+#### 操作工具链
+
+- **GitHub 操作**: 使用 MCP GitHub 工具（mcp_GitHub）
+  - `create_branch` → `push_files` → `create_pull_request` → `merge_pull_request`
+  - 不使用本地 gh CLI（环境未安装）
+- **文件操作**: 通过 `push_files` 推送文件到分支
+- **PR 合并**: 通过 `merge_pull_request` with `merge_method: squash`
+
+#### 决策原则
+
+1. **安全优先**: 安全相关问题立即处理，不等待版本周期
+2. **最小变更**: 每个 PR 只做一件事，便于 review 和回滚
+3. **文档同步**: 代码变更必须同步更新相关文档（见上方文档同步规则）
+4. **CI 必须通过**: 合并前确保 CI 通过，合并后确认 main CI 通过
+5. **版本规范**: 严格按 ai-guide #20 检查清单执行版本发布
+
+#### 工作流程
+
+```
+1. 读取 ai-guide.md → 了解项目规范和踩坑记录
+2. 分析任务 → 确定影响范围和依赖关系
+3. 创建分支 → push_files 推送变更
+4. 创建 PR → 关联 Issue
+5. 等待 CI → 确认通过
+6. 合并 PR → squash merge
+7. 确认 main CI → 更新文档
+```
+
+#### 接手时已处理事项
+
+| 日期 | 操作 | PR/Commit |
+|------|------|-----------|
+| 2026-04-30 | 全面评估项目状态 | — |
+| 2026-04-30 | 更新 ai-guide.md 添加 SOLO Agent 接手指南 | PR #124 |
+
+#### 待处理事项
+
+- [ ] 推进 v1.5 剩余 Phase（5.4-5.9）
+- [ ] 发布 v1.5.0
+- [ ] 开始 v1.6 Monitoring & Observability (Issues #137-#141)
+
+---
+
+## 常用操作备忘
+
+### 创建 PR 的标准流程
+1. `create_branch` → 创建分支
+2. `push_files` → 推送修改
+3. `create_pull_request` → 创建 PR
+4. 等待 CI 通过 (7 个 check)
+5. `merge_pull_request` → Squash merge
+
+### 处理分支 behind
+- 调用 `PUT /pulls/{number}/update-branch` (需要 PAT)
+- 等待 CI 重新运行
+
+### Rate Limit 处理
+- GitHub API 认证请求限制 5000/hour
+- 遇到 rate limit 时等待 60 秒后重试
+- 批量操作时每个请求间隔 3 秒
+
+---
+
+## Agent 交接检查清单
+
+当另一个 Agent 接手时，必须：
+
+1. **阅读本文件**: 完整阅读 ai-guide.md，特别是踩坑记录 #1-#36 及前端踩坑 #29-FE ~ #31-FE
+2. **确认身份**: 使用 Yogdunana 身份操作（通过 MCP GitHub 工具）
+3. **检查待处理**: 查看「当前待办」列表，确认当前进度
+4. **更新记录**: 在「当前待办」中标记已完成的项，添加新发现的项
+5. **遵循规范**: 严格遵守 Git 操作规范、决策原则、工作流程
+6. **更新日期**: 修改「最后更新」日期和接手信息
