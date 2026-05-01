@@ -171,6 +171,16 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 			procGroup.DELETE("/rules/:id", procAPI.DeleteRule)
 		}
 
+		// System snapshot management
+		snapAPI := NewSnapshotAPI(db)
+		servers.GET("/:id/snapshots", snapAPI.ListSnapshots)
+		servers.GET("/:id/snapshots/files", snapAPI.GetSnapshotFiles)
+		servers.GET("/:id/snapshots/diff", snapAPI.DiffSnapshots)
+		servers.GET("/:id/snapshots/:snap_id", snapAPI.GetSnapshot)
+		servers.POST("/:id/snapshots", snapAPI.CreateSnapshot)
+		servers.POST("/:id/snapshots/:snap_id/restore", snapAPI.RestoreSnapshot)
+		servers.DELETE("/:id/snapshots/:snap_id", snapAPI.DeleteSnapshot)
+
 		// Credentials (5 endpoints)
 		creds := protected.Group("/credentials")
 		{
