@@ -361,15 +361,25 @@ func Login(db *gorm.DB, bf *bruteforce.Protector) gin.HandlerFunc {
 			})
 		}
 
+		// Detect first login and update last_login_at
+		isFirstLogin := user.LastLoginAt == nil && !user.OnboardingCompleted
+		now := time.Now()
+		db.Model(&user).Updates(map[string]interface{}{
+			"last_login_at": now,
+		})
+
 		respondSuccess(c, gin.H{
 			"user": model.User{
-				ID:       user.ID,
-				TenantID: user.TenantID,
-				RoleID:   user.RoleID,
-				Username: user.Username,
-				Email:    user.Email,
+				ID:                 user.ID,
+				TenantID:           user.TenantID,
+				RoleID:             user.RoleID,
+				Username:           user.Username,
+				Email:              user.Email,
+				OnboardingCompleted: user.OnboardingCompleted,
+				LastLoginAt:        &now,
 			},
-			"token": token,
+			"token":          token,
+			"is_first_login": isFirstLogin,
 		})
 	}
 }

@@ -624,6 +624,28 @@ func Migrate(db *gorm.DB) error {
 				return nil
 			},
 		},
+		// 202605010400: Add onboarding_completed and last_login_at to users
+		{
+			ID: "202605010400",
+			Migrate: func(tx *gorm.DB) error {
+				if err := tx.Exec("ALTER TABLE users ADD COLUMN onboarding_completed BOOLEAN DEFAULT false").Error; err != nil {
+					if !strings.Contains(err.Error(), "duplicate column") {
+						return err
+					}
+				}
+				if err := tx.Exec("ALTER TABLE users ADD COLUMN last_login_at DATETIME").Error; err != nil {
+					if !strings.Contains(err.Error(), "duplicate column") {
+						return err
+					}
+				}
+				return nil
+			},
+			Rollback: func(tx *gorm.DB) error {
+				_ = tx.Migrator().DropColumn("users", "onboarding_completed")
+				_ = tx.Migrator().DropColumn("users", "last_login_at")
+				return nil
+			},
+		},
 	})
 
 	// Use InitSchema for initial creation (faster than Migrate)

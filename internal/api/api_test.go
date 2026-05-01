@@ -53,6 +53,7 @@ func setupTestDB(t *testing.T) *gorm.DB {
 		username TEXT UNIQUE NOT NULL, email TEXT UNIQUE NOT NULL, password_hash TEXT NOT NULL,
 		auth_provider TEXT, auth_uid TEXT, avatar_url TEXT,
 		totp_secret TEXT, totp_enabled INTEGER DEFAULT 0, backup_codes TEXT,
+		onboarding_completed INTEGER DEFAULT 0, last_login_at DATETIME,
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 	)`)
 	db.Exec(`CREATE TABLE IF NOT EXISTS credentials (
