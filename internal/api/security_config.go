@@ -47,6 +47,9 @@ func GetSecurityConfig() gin.HandlerFunc {
 				"password_require_digit":   cfg.PasswordRequireDigit,
 				"password_require_special": cfg.PasswordRequireSpecial,
 				"password_max_age_days":    cfg.PasswordMaxAgeDays,
+				"force_2fa":                cfg.Force2FA,
+				"force_2fa_roles":          cfg.Force2FARoles,
+				"force_2fa_grace_days":     cfg.Force2FAGraceDays,
 			},
 		})
 	}
@@ -66,6 +69,9 @@ func UpdateSecurityConfig() gin.HandlerFunc {
 			PasswordRequireDigit    *bool    `json:"password_require_digit"`
 			PasswordRequireSpecial  *bool    `json:"password_require_special"`
 			PasswordMaxAgeDays      *int     `json:"password_max_age_days"`
+			Force2FA                *bool    `json:"force_2fa"`
+			Force2FARoles           []string `json:"force_2fa_roles"`
+			Force2FAGraceDays       *int     `json:"force_2fa_grace_days"`
 		}
 		if err := c.ShouldBindJSON(&input); err != nil {
 			respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request", err.Error())
@@ -107,6 +113,15 @@ func UpdateSecurityConfig() gin.HandlerFunc {
 		}
 		if input.PasswordMaxAgeDays != nil {
 			securityCfg.PasswordMaxAgeDays = *input.PasswordMaxAgeDays
+		}
+		if input.Force2FA != nil {
+			securityCfg.Force2FA = *input.Force2FA
+		}
+		if input.Force2FARoles != nil {
+			securityCfg.Force2FARoles = input.Force2FARoles
+		}
+		if input.Force2FAGraceDays != nil {
+			securityCfg.Force2FAGraceDays = *input.Force2FAGraceDays
 		}
 
 		// Update the global password validator
