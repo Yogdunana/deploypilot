@@ -2,7 +2,7 @@
 
 > 本文件为唯一权威版本，位于 `docs/ai-guide.md`。
 > 此文件为 AI 助手操作本项目时的参考指南，避免重复踩坑。
-> **最后更新**: 2026-05-01
+> **最后更新**: 2026-05-01 (Phase 5.6 完成, 新增全资源同步要求 + 踩坑 #37-#42)
 
 ---
 
@@ -359,6 +359,40 @@ Vue 组件中的 `import` 路径必须与 `web/src/` 下的文件结构完全一
 
 - **反例**: PR #173 中 `SecuritySettings.vue` 使用 `import { twofaApi } from '@/api/twofa'`，路径错误且导入方式不匹配，导致 CI 报 `Cannot find module '@/api/twofa'`
 
+### 37. 新增 struct 字段到 service 但忘记更新 NewXxxService 构造函数签名
+创建新的 service struct 时，如果构造函数接收 `*sandbox.Sandbox` 参数但 struct 中不再使用该字段，需要：
+1. 从 struct 中移除未使用的字段
+2. 如果 API 层调用 `NewXxxService(db, sb)`，构造函数签名仍需保留 `sb` 参数（或同步修改调用方）
+3. **排查方法**: `golangci-lint` 的 `unused` 检查会报错
+
+**反例**: Phase 5.5 FirewallService 移除了 `sb` 字段但忘记保留 import，导致编译失败。
+
+### 38. router.go 中变量作用域导致编译错误
+在 router.go 的 `servers := protected.Group(...)` 块内创建的变量（如 `sshAPI`），在块外不可见。如果其他路由组需要引用该变量，必须在块外创建。
+**正确做法**: 在 servers 组内使用 `NewSSHAPI(db).ListServerAuthorizations` 内联调用，在组外创建 `sshAPI := NewSSHAPI(db)` 供其他组使用。
+
+**反例**: Phase 5.6 中 `sshAPI` 在 servers 组内创建，`sshGroup` 在组外引用导致 `undefined: sshAPI`。
+
+### 39. 同一 package 内函数名重复导致编译失败
+从 bridge.go 提取方法到独立 service 文件时，如果新文件定义了与 bridge.go 同名的函数（如 `shellQuote`），会导致 `shellQuote redeclared in this block` 编译错误。
+**修复**: 删除重复定义，使用 bridge.go 中的原始定义。
+
+**反例**: Phase 5.4 file_manager_service.go 定义了 `shellQuote`，与 bridge.go 冲突。
+
+### 40. exec.Close() 返回值必须检查（errcheck 规则）
+golangci-lint 的 `errcheck` 规则要求检查所有 error 返回值，包括 `defer exec.Close()`。
+**修复**: 使用 `defer func() { _ = exec.Close() }()` 包装。
+
+**反例**: Phase 5.4 中 3 处 `defer exec.Close()` 导致 Lint 失败。
+
+### 41. Roadmap 表格缺少列头导致渲染异常
+Markdown 表格的列头行必须与数据行列数一致。如果列头只有 2 列 `| Phase | 内容 |` 但数据行有 3 列（含状态），表格渲染会异常。
+**修复**: 确保所有版本的表格列头统一为 `| Phase | 内容 | 状态 |`。
+
+### 42. docs/wiki/ 目录更新不会自动同步到 GitHub Wiki
+GitHub Wiki 是一个独立的 git 仓库（`<repo>.wiki.git`），修改 `docs/wiki/` 中的文件不会自动反映到 GitHub Wiki 页面。
+**解决方案**: 使用 GitHub Actions（如 `spencerblack/actions-wiki@v1`）在 push 到 main 时自动同步。
+
 ---
 
 ## 项目结构关键路径
@@ -502,6 +536,44 @@ Bridge God Object 已拆分为 18 个文件，87 个方法按领域分布：
 5. **Roadmap Phase 完成** → `docs/wiki/Roadmap.md` + 关联 Issue + Milestone 状态
 6. **版本完成** → Milestone 关闭 + CHANGELOG 更新 + Tag/Release 创建 + 孤立 Issue 关联
 
+## 全资源同步要求
+
+> **每个 Phase 完成后，Agent 必须检查并同步以下所有 GitHub 资源。**
+
+### 需要同步的资源清单
+
+| 资源 | URL | 同步内容 | 检查频率 |
+|------|-----|----------|----------|
+| **Roadmap** | `docs/wiki/Roadmap.md` | Phase 状态标记 ✅ | 每个 Phase 完成后 |
+| **GitHub Wiki** | `github.com/Yogdunana/deploypilot/wiki` | 由 Action 自动同步 | push 到 main 时自动 |
+| **Issues** | `github.com/Yogdunana/deploypilot/issues` | 关闭已完成的 Issue | 每个 Phase 完成后 |
+| **Milestones** | `github.com/Yogdunana/deploypilot/milestones` | 更新 open/closed 计数 | 每个 Phase 完成后 |
+| **Projects** | `github.com/users/Yogdunana/projects/3` | 更新 Project 卡片状态 | 每个版本完成后 |
+| **Discussions** | `github.com/Yogdunana/deploypilot/discussions` | 发布版本公告/变更日志 | 每个版本发布后 |
+| **ai-guide.md** | `docs/ai-guide.md` | 更新踩坑记录 + 当前待办 | 每个 Phase 完成后 |
+
+### Phase 完成后的同步 Checklist
+
+每个 Phase 完成并合并 PR 后，Agent 必须执行以下检查：
+
+- [ ] **Roadmap**: `docs/wiki/Roadmap.md` 中该 Phase 标记为 `✅ 已完成 (PR #xxx)`
+- [ ] **Issue**: 确认 Issue 已关闭（通过 PR 的 `Closes #xx` 或手动关闭）
+- [ ] **Milestone**: 确认 Milestone 的 open/closed 计数正确
+- [ ] **踩坑记录**: 如果开发中遇到新坑，添加到 `docs/ai-guide.md` 踩坑记录章节
+- [ ] **当前待办**: 更新 `docs/ai-guide.md` 中"当前待办"章节的进度
+- [ ] **Wiki 同步**: 确认 push 到 main 后 wiki-sync Action 自动运行（无需手动操作）
+
+### 版本完成后的同步 Checklist
+
+一个版本所有 Phase 完成后，额外执行：
+
+- [ ] **Milestone 关闭**: 通过 API 关闭 Milestone
+- [ ] **CHANGELOG**: 更新 CHANGELOG.md
+- [ ] **Tag + Release**: 创建 tag 并发布 Release
+- [ ] **Project Board**: 更新 `DeployPilot Roadmap` Project 中该版本的状态
+- [ ] **Discussions**: 发布版本发布公告
+- [ ] **孤立 Issue**: 检查所有 open issue 都关联了 milestone
+
 ## Issue & Milestone 生命周期管理
 
 > 这是 AI Agent 协作开发的核心流程。所有 Agent 必须遵循此流程来管理需求和进度追踪。
@@ -643,6 +715,7 @@ Step 5: 开始开发
 - [ ] CHANGELOG 已更新
 - [ ] Tag + Release 已创建
 - [ ] 无孤立的 open issue（所有 issue 都关联了 milestone）
+- [ ] **重复 Issue 清理**: 检查新版本 Milestone 中的 Issue 是否与已实现功能重复，关闭并评论 "已在 vX.X Phase X.X 中实现"
 
 ## 版本发布流程
 
@@ -744,7 +817,7 @@ permissions:
 | 2 | v1.2 | Adapter Layer Refactor | ✅ 已关闭 | — |
 | 3 | v1.3 | Deployment Enhancement | ✅ 已关闭 | #8, #9 (2 closed) |
 | 4 | v1.4 | Enterprise Features | ✅ 已关闭 | #128-#132 |
-| 5 | v1.5 | Notification & Alerting | 🔄 进行中 (3/9 phases) | #133-#136 |
+| 5 | v1.5 | Notification & Alerting | 🔄 进行中 (6/9 phases) | #133-#136 |
 | 6 | v1.6 | Monitoring & Observability | 📋 规划中 | #137-#141 |
 | 7 | v1.7 | Ecosystem Integration | 📋 规划中 | #142-#146 |
 | 8 | v1.8 | Commercial & Licensing | 📋 规划中 | #147-#150 |
@@ -847,10 +920,10 @@ permissions:
 - Milestone #4 已关闭
 - Issues #128-#132 (Enterprise Features) 全部完成
 
-### v1.5 🔄 进行中 (3/9 phases done)
-- Phase 5.1-5.3 已完成
-- Phase 5.4-5.9 待开始
-- Issues #133-#136 (Notification & Alerting)
+### v1.5 🔄 进行中 (6/9 phases done)
+- Phase 5.1-5.6 已完成 (PR #188-#195)
+- Phase 5.7-5.9 待开始
+- Milestone #5 open (1 open issue remaining)
 
 ### 其他待处理
 - [ ] Dependabot PR #82: bump @xterm/xterm 5.5.0 → 6.0.0 (breaking change, 需评估)
@@ -872,7 +945,7 @@ permissions:
 ### 当前项目状态
 
 - **最新版本**: v1.4.0
-- **开发中**: v1.5.0 Notification & Alerting（Phase 5.1-5.3 已完成，5.4-5.9 待开始）
+- **开发中**: v1.5.0 Notification & Alerting（Phase 5.1-5.6 已完成，5.7-5.9 待开始）
 - **许可证**: BUSL-1.1（Change Date: 2029-04-28）
 - **语言**: Go 81.6%, Vue 12.4%, TypeScript 4.0%
 
@@ -935,7 +1008,7 @@ permissions:
 
 #### 待处理事项
 
-- [ ] 推进 v1.5 剩余 Phase（5.4-5.9）
+- [ ] 推进 v1.5 剩余 Phase（5.7-5.9）
 - [ ] 发布 v1.5.0
 - [ ] 开始 v1.6 Monitoring & Observability (Issues #137-#141)
 
