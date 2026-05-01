@@ -157,7 +157,7 @@ func matchCIDR(ip, cidr string) bool {
 
 	// Simple prefix match for the network part
 	ipParts := strings.Split(ip, ".")
-	netParts := strings.Split(network, "."")
+	netParts := strings.Split(network, ".")
 	if len(ipParts) != 4 || len(netParts) != 4 {
 		return false
 	}
