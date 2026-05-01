@@ -321,7 +321,6 @@ func parsePsAuxLine(line string) *ProcessInfo {
 	}
 
 	cpu, _ := strconv.ParseFloat(matches[3], 64)
-	mem, _ := strconv.ParseFloat(matches[4], 64)
 	vsz, _ := strconv.ParseFloat(matches[5], 64)
 	rss, _ := strconv.ParseFloat(matches[6], 64)
 	pid, _ := strconv.Atoi(matches[2])
