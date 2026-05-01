@@ -363,12 +363,15 @@ func TestAuditService_Cleanup(t *testing.T) {
 	db := setupAuditTestDB(t)
 	svc := NewAuditService(db)
 
-	// Record is created "now" — cleanup with 0 days retention should delete it
+	// Record is created "now" — archive then cleanup with 0 days retention should delete it
 	_ = svc.Record(context.TODO(), AuditEntry{Action: "app.create"})
 	_, total, _ := svc.List(context.TODO(), AuditFilter{Page: 1, PageSize: 10})
 	if total != 1 {
 		t.Fatalf("total before cleanup = %d, want 1", total)
 	}
+
+	// Archive first (Cleanup only deletes archived records)
+	_, _ = svc.Archive(context.TODO(), 0)
 
 	deleted, err := svc.Cleanup(context.TODO(), 0)
 	if err != nil {
