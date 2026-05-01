@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"log/slog"
-	"sync"
 
 	"github.com/redis/go-redis/v9"
 )
@@ -12,13 +11,12 @@ import (
 // RedisTypedEventBus implements TypedEventBus using Redis Pub/Sub for multi-instance broadcasting.
 // It uses a Source field to prevent processing self-published messages (ai-guide #28).
 type RedisTypedEventBus struct {
-	client   *redis.Client
-	ctx      context.Context
-	cancel   context.CancelFunc
-	localBus *InMemoryTypedEventBus // for local subscribers
-	instanceID string               // unique instance identifier for loop prevention
-	channel  string                 // Redis Pub/Sub channel name
-	mu       sync.RWMutex
+	client     *redis.Client
+	ctx        context.Context
+	cancel     context.CancelFunc
+	localBus   *InMemoryTypedEventBus // for local subscribers
+	instanceID string                // unique instance identifier for loop prevention
+	channel    string                // Redis Pub/Sub channel name
 }
 
 // NewRedisTypedEventBus creates a new RedisTypedEventBus.
