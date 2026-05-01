@@ -43,6 +43,11 @@ func New(addr string, db *gorm.DB, bridge *service.Bridge, cfg *config.Config, b
 	r.Use(middleware.SecurityHeaders())
 	r.Use(corsMiddleware(cfg.Server.CORSAllowedOrigins))
 
+	// Panel security hardening (Phase 4.0)
+	r.Use(middleware.SecurityEntrance(cfg.Security.SecurityEntrance))
+	r.Use(middleware.DomainBinding(cfg.Security.AllowedDomains))
+	r.Use(middleware.IPWhitelist(cfg.Security.AllowedIPs))
+
 	// i18n locale middleware (early, before auth and rate limiting)
 	r.Use(i18n.LocaleMiddleware())
 
@@ -81,6 +86,12 @@ func New(addr string, db *gorm.DB, bridge *service.Bridge, cfg *config.Config, b
 
 	// Set encryption key for 2FA TOTP secret encryption
 	api.SetEncryptionKey(bridge.EncryptionKey)
+
+	// Set password validator for registration and password changes
+	api.SetPasswordValidator(middleware.NewPasswordValidator(cfg.Security))
+
+	// Store security config for API access
+	api.SetSecurityConfig(&cfg.Security)
 
 	api.RegisterRoutes(r, db, bridge, wsHub, auditSvc, nil, blacklist, oauthSvc, backupSvc, keySvc)
 

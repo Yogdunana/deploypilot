@@ -221,6 +221,8 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 				system.GET("/detect/databases", DetectDatabases(bridge.Executor))
 				system.GET("/detect/webservers", DetectWebServers(bridge.Executor))
 			}
+			system.GET("/security/config", GetSecurityConfig())
+			system.PUT("/security/config", auth.RoleRequired("owner", "admin"), UpdateSecurityConfig())
 		}
 
 	// Public health check endpoint (no auth required for Docker healthcheck)
