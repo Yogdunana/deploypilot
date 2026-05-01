@@ -33,6 +33,11 @@ func setupTestService(t *testing.T) (*Service, func()) {
 		file_size INTEGER DEFAULT 0,
 		trigger TEXT DEFAULT 'manual',
 		error TEXT,
+		storage_type TEXT DEFAULT 'local',
+		storage_path TEXT DEFAULT '',
+		storage_bucket TEXT DEFAULT '',
+		file_checksum TEXT DEFAULT '',
+		encrypted INTEGER DEFAULT 0,
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 	)`)
 
@@ -146,6 +151,11 @@ func TestCreateBackup_WithRealDB(t *testing.T) {
 		file_size INTEGER DEFAULT 0,
 		trigger TEXT DEFAULT 'manual',
 		error TEXT,
+		storage_type TEXT DEFAULT 'local',
+		storage_path TEXT DEFAULT '',
+		storage_bucket TEXT DEFAULT '',
+		file_checksum TEXT DEFAULT '',
+		encrypted INTEGER DEFAULT 0,
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 	)`)
 
@@ -278,6 +288,11 @@ func TestDeleteRecord(t *testing.T) {
 		file_size INTEGER DEFAULT 0,
 		trigger TEXT DEFAULT 'manual',
 		error TEXT,
+		storage_type TEXT DEFAULT 'local',
+		storage_path TEXT DEFAULT '',
+		storage_bucket TEXT DEFAULT '',
+		file_checksum TEXT DEFAULT '',
+		encrypted INTEGER DEFAULT 0,
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 	)`)
 

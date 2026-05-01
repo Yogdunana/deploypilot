@@ -100,7 +100,9 @@ func setupTestDB(t *testing.T) *gorm.DB {
 	db.Exec(`CREATE TABLE IF NOT EXISTS backup_records (
 		id TEXT PRIMARY KEY, app_id TEXT, filename TEXT, file_path TEXT,
 		file_size INTEGER, db_type TEXT, status TEXT DEFAULT 'completed',
-		error TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+		error TEXT, storage_type TEXT DEFAULT 'local', storage_path TEXT DEFAULT '',
+		storage_bucket TEXT DEFAULT '', file_checksum TEXT DEFAULT '', encrypted INTEGER DEFAULT 0,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 	)`)
 	db.Exec(`CREATE TABLE IF NOT EXISTS clusters (
 		id TEXT PRIMARY KEY, tenant_id TEXT, name TEXT NOT NULL,
