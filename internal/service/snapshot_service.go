@@ -276,14 +276,9 @@ func (s *SnapshotService) RestoreSnapshot(ctx context.Context, serverID, snapsho
 	config := DefaultSnapshotConfig()
 	currentFiles := s.collectFiles(ctx, exec, config)
 
-	// Find files that differ from snapshot
-	// Since we store file paths in the snapshot, we need to re-collect
-	// For now, return the list of files that would need restoration
-	var changed []SnapshotFile
-	for _, f := range currentFiles {
-		// Files that exist now but may have changed
-		changed = append(changed, f)
-	}
+	// Files that exist now and may have changed
+	changed := make([]SnapshotFile, len(currentFiles))
+	copy(changed, currentFiles)
 
 	s.logger.Info("snapshot restore analysis",
 		"snapshot", snap.Name,
