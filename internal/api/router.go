@@ -301,6 +301,9 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 
 		// Session management
 		protected.POST("/auth/logout-all", LogoutAllDevices())
+		protected.GET("/sessions", ListSessions())
+		protected.DELETE("/sessions/:token_id", KickSession())
+		protected.GET("/login-history", ListLoginHistory(auditSvc))
 
 		// API Keys (3 endpoints)
 		apiKeys := protected.Group("/api-keys")
