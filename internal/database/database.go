@@ -646,6 +646,21 @@ func Migrate(db *gorm.DB) error {
 				return nil
 			},
 		},
+		// 202605010500: Create event_logs table
+		{
+			ID: "202605010500",
+			Migrate: func(tx *gorm.DB) error {
+				return tx.Exec(`CREATE TABLE IF NOT EXISTS event_logs (
+					id TEXT PRIMARY KEY, tenant_id TEXT,
+					event_type TEXT NOT NULL, topic TEXT,
+					source TEXT, payload TEXT,
+					created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+				)`).Error
+			},
+			Rollback: func(tx *gorm.DB) error {
+				return tx.Exec("DROP TABLE IF EXISTS event_logs").Error
+			},
+		},
 	})
 
 	// Use InitSchema for initial creation (faster than Migrate)
