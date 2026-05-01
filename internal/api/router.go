@@ -153,6 +153,24 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 			sshGroup.POST("/revoke", sshAPI.RevokeKey)
 		}
 
+		// Process daemon management
+		procAPI := NewProcessAPI(db)
+		servers.GET("/:id/processes", procAPI.ListProcesses)
+		servers.GET("/:id/processes/tree", procAPI.GetProcessTree)
+		servers.GET("/:id/processes/search", procAPI.SearchProcesses)
+		servers.GET("/:id/processes/:pid", procAPI.GetProcess)
+		servers.POST("/:id/processes/:pid/kill", procAPI.KillProcess)
+		servers.GET("/:id/resources", procAPI.GetSystemResources)
+
+		procGroup := protected.Group("/processes")
+		{
+			procGroup.GET("/rules", procAPI.ListRules)
+			procGroup.GET("/rules/:id", procAPI.GetRule)
+			procGroup.POST("/rules", procAPI.CreateRule)
+			procGroup.PUT("/rules/:id", procAPI.UpdateRule)
+			procGroup.DELETE("/rules/:id", procAPI.DeleteRule)
+		}
+
 		// Credentials (5 endpoints)
 		creds := protected.Group("/credentials")
 		{

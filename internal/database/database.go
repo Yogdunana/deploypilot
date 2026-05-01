@@ -727,6 +727,29 @@ func Migrate(db *gorm.DB) error {
 				return tx.Exec("DROP TABLE IF EXISTS ssh_key_pairs").Error
 			},
 		},
+		// 202605010800: Create process_rules table
+		{
+			ID: "202605010800",
+			Migrate: func(tx *gorm.DB) error {
+				return tx.Exec(`CREATE TABLE IF NOT EXISTS process_rules (
+					id TEXT PRIMARY KEY,
+					tenant_id TEXT,
+					server_id TEXT,
+					name TEXT NOT NULL,
+					process_pattern TEXT NOT NULL,
+					restart_command TEXT,
+					auto_restart INTEGER DEFAULT 0,
+					max_restarts INTEGER DEFAULT 5,
+					restart_count INTEGER DEFAULT 0,
+					enabled INTEGER DEFAULT 1,
+					created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+					updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+				)`).Error
+			},
+			Rollback: func(tx *gorm.DB) error {
+				return tx.Exec("DROP TABLE IF EXISTS process_rules").Error
+			},
+		},
 	})
 
 	// Use InitSchema for initial creation (faster than Migrate)
