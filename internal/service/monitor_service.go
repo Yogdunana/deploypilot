@@ -540,7 +540,7 @@ func (m *MonitorService) checkPing(mon Monitor, result MonitorCheckResult) Monit
 		result.Message = fmt.Sprintf("host unreachable: %v", err)
 		return result
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	result.Status = "up"
 	result.Message = fmt.Sprintf("host %s is reachable", mon.Target)
