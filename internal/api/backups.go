@@ -101,6 +101,9 @@ func ListAuditLogs(auditSvc *service.AuditService) gin.HandlerFunc {
 		if resourceType := c.Query("resource_type"); resourceType != "" {
 			filter.ResourceType = resourceType
 		}
+		if logType := c.Query("log_type"); logType != "" {
+			filter.LogType = logType
+		}
 		if username := c.Query("username"); username != "" {
 			filter.Username = username
 		}

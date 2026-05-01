@@ -196,6 +196,10 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 
 		// Audit logs
 		protected.GET("/audit-logs", ListAuditLogs(auditSvc))
+		protected.GET("/audit-logs/stats", GetAuditStats(auditSvc))
+		protected.GET("/audit-logs/export", ExportAuditLogs(auditSvc))
+		protected.POST("/audit-logs/archive", ArchiveAuditLogs(auditSvc))
+		protected.POST("/audit-logs/verify", VerifyAuditLogs(auditSvc))
 		protected.GET("/audit-logs/trace/:trace_id", GetAuditLogsByTraceID(auditSvc))
 
 		// System (4 endpoints)

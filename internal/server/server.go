@@ -88,6 +88,21 @@ func New(addr string, db *gorm.DB, bridge *service.Bridge, cfg *config.Config, b
 	wsHub := api.NewWSHub(rdb)
 	go wsHub.Run()
 
+	// Register audit log real-time notification callback
+	auditSvc.OnRecord(func(entry service.AuditEntry) {
+		wsHub.Broadcast("audit", api.WSMessage{
+			Type: "audit_log",
+			Data: map[string]interface{}{
+				"action":        entry.Action,
+				"resource_type": entry.ResourceType,
+				"resource_id":   entry.ResourceID,
+				"username":      entry.Username,
+				"log_type":      entry.LogType,
+				"ip_address":    entry.IPAddress,
+			},
+		})
+	})
+
 	// API Key service
 	keySvc := service.NewAPIKeyService(db)
 

@@ -596,6 +596,34 @@ func Migrate(db *gorm.DB) error {
 				return nil
 			},
 		},
+		// 202605010300: Add log_type, archived, archived_at to audit_logs
+		{
+			ID: "202605010300",
+			Migrate: func(tx *gorm.DB) error {
+				if err := tx.Exec("ALTER TABLE audit_logs ADD COLUMN log_type TEXT DEFAULT 'operation'").Error; err != nil {
+					if !strings.Contains(err.Error(), "duplicate column") {
+						return err
+					}
+				}
+				if err := tx.Exec("ALTER TABLE audit_logs ADD COLUMN archived BOOLEAN DEFAULT false").Error; err != nil {
+					if !strings.Contains(err.Error(), "duplicate column") {
+						return err
+					}
+				}
+				if err := tx.Exec("ALTER TABLE audit_logs ADD COLUMN archived_at DATETIME").Error; err != nil {
+					if !strings.Contains(err.Error(), "duplicate column") {
+						return err
+					}
+				}
+				return nil
+			},
+			Rollback: func(tx *gorm.DB) error {
+				_ = tx.Migrator().DropColumn("audit_logs", "log_type")
+				_ = tx.Migrator().DropColumn("audit_logs", "archived")
+				_ = tx.Migrator().DropColumn("audit_logs", "archived_at")
+				return nil
+			},
+		},
 	})
 
 	// Use InitSchema for initial creation (faster than Migrate)
