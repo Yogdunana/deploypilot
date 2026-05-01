@@ -77,6 +77,11 @@ type ServerConfig struct {
 	MCPPort            int      `mapstructure:"mcp_port"`
 	WebPort            int      `mapstructure:"web_port"`
 	CORSAllowedOrigins []string `mapstructure:"cors_allowed_origins"`
+	CORSAllowedMethods []string `mapstructure:"cors_allowed_methods"`
+	CORSAllowedHeaders []string `mapstructure:"cors_allowed_headers"`
+	CORSAllowCredentials bool   `mapstructure:"cors_allow_credentials"`
+	CORSExposeHeaders  []string `mapstructure:"cors_expose_headers"`
+	CORSMaxAge         int      `mapstructure:"cors_max_age"`
 }
 
 // DatabaseConfig holds database connection settings.
@@ -238,6 +243,11 @@ func setDefaults(v *viper.Viper) {
 	// Security: CORS defaults to empty (no origins allowed).
 	// Users must explicitly configure allowed origins via config or DEPLOYPILOT_SERVER_CORS_ALLOWED_ORIGINS.
 	v.SetDefault("server.cors_allowed_origins", []string{})
+	v.SetDefault("server.cors_allowed_methods", []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"})
+	v.SetDefault("server.cors_allowed_headers", []string{"Authorization", "Content-Type", "X-API-Key"})
+	v.SetDefault("server.cors_allow_credentials", false)
+	v.SetDefault("server.cors_expose_headers", []string{})
+	v.SetDefault("server.cors_max_age", 86400)
 
 	// Database
 	v.SetDefault("database.type", "sqlite")

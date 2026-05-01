@@ -41,7 +41,14 @@ func New(addr string, db *gorm.DB, bridge *service.Bridge, cfg *config.Config, b
 
 	// Security middleware
 	r.Use(middleware.SecurityHeaders())
-	r.Use(corsMiddleware(cfg.Server.CORSAllowedOrigins))
+	r.Use(middleware.CORS(middleware.CORSConfig{
+		AllowedOrigins:   cfg.Server.CORSAllowedOrigins,
+		AllowedMethods:   cfg.Server.CORSAllowedMethods,
+		AllowedHeaders:   cfg.Server.CORSAllowedHeaders,
+		AllowCredentials: cfg.Server.CORSAllowCredentials,
+		ExposeHeaders:    cfg.Server.CORSExposeHeaders,
+		MaxAge:           cfg.Server.CORSMaxAge,
+	}))
 
 	// Panel security hardening (Phase 4.0)
 	r.Use(middleware.SecurityEntrance(cfg.Security.SecurityEntrance))
@@ -205,37 +212,3 @@ func (s *Server) Router() *gin.Engine {
 	return s.router
 }
 
-// corsMiddleware adds CORS headers to all responses.
-func corsMiddleware(allowedOrigins []string) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		origin := c.GetHeader("Origin")
-		allowed := false
-		hasWildcard := false
-		for _, o := range allowedOrigins {
-			if o == "*" {
-				hasWildcard = true
-			}
-			if o == "*" || o == origin {
-				allowed = true
-			}
-		}
-		if len(allowedOrigins) == 0 {
-			// No origins configured — allow all
-			c.Header("Access-Control-Allow-Origin", "*")
-		} else if allowed {
-			if origin != "" {
-				c.Header("Access-Control-Allow-Origin", origin)
-			} else if hasWildcard {
-				c.Header("Access-Control-Allow-Origin", "*")
-			}
-		}
-		c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-		c.Header("Access-Control-Allow-Headers", "Authorization, Content-Type")
-		c.Header("Access-Control-Max-Age", "86400")
-		if c.Request.Method == "OPTIONS" {
-			c.AbortWithStatus(204)
-			return
-		}
-		c.Next()
-	}
-}

@@ -86,7 +86,7 @@
 | 4.2 | JWT Cookie 模式（httpOnly + Secure + Refresh Token） | ✅ 已完成 (PR #181) |
 | 4.3 | 活跃会话管理（查看/踢出设备 + 登录历史） | ✅ 已完成 (PR #182) |
 | 4.4 | API Key 管理（创建/撤销/权限/统计 + IP 白名单 + 时间戳签名） | ✅ 已完成 (PR #183) |
-| 4.5 | 凭据增强（共享/引用、版本历史、分组标签） |
+| 4.5 | CORS 安全加固（可配置 Origin/Method/Header/Credentials/Expose） | ✅ 已完成 (PR #184) |
 | 4.6 | 前端补全（集群、Registry、插件、批量操作、活动流） |
 | 4.7 | 日志审计增强（操作/访问/系统/登录 4 类日志 + 导出、归档、实时通知、append-only） |
 | 4.8 | Onboarding 引导（首次登录流程 + 空状态提示 + Demo 应用） |
