@@ -174,11 +174,11 @@ func (m *MonitorService) CheckMonitor(ctx context.Context, monitorID string) (*M
 
 	switch MonitorType(mon.Type) {
 	case MonitorHTTP:
-		result = m.checkHTTP(mon, result)
+		result = m.checkHTTP(*mon, result)
 	case MonitorTCP:
-		result = m.checkTCP(mon, result)
+		result = m.checkTCP(*mon, result)
 	case MonitorPing:
-		result = m.checkPing(mon, result)
+		result = m.checkPing(*mon, result)
 	default:
 		result.Status = "down"
 		result.Message = fmt.Sprintf("unknown monitor type: %s", mon.Type)
