@@ -5,6 +5,7 @@ import (
 
 	"github.com/Yogdunana/deploypilot/internal/service"
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 // SSHAPI provides HTTP handlers for SSH key pair and authorization management.
