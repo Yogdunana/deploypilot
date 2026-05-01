@@ -111,7 +111,7 @@ func (s *s3Storage) Upload(ctx context.Context, key string, reader io.Reader, si
 		host, contentSHA256, datetime)
 	signedHeaders := "content-type;host;x-amz-content-sha256;x-amz-date"
 
-	canonicalRequest := fmt.Sprintf("PUT\n%s\n\n%s\n%s\n%s",
+	canonicalRequest := fmt.Sprintf("PUT\n%s\n%s\n%s\n%s\n%s",
 		canonicalURI, "", canonicalHeaders, signedHeaders, contentSHA256)
 
 	credentialScope := fmt.Sprintf("%s/%s/s3/aws4_request", date, s.region)
@@ -165,7 +165,7 @@ func (s *s3Storage) Download(ctx context.Context, key string) (io.ReadCloser, in
 		host, contentSHA256, datetime)
 	signedHeaders := "host;x-amz-content-sha256;x-amz-date"
 
-	canonicalRequest := fmt.Sprintf("GET\n%s\n\n%s\n%s\n%s",
+	canonicalRequest := fmt.Sprintf("GET\n%s\n%s\n%s\n%s\n%s",
 		canonicalURI, "", canonicalHeaders, signedHeaders, contentSHA256)
 
 	credentialScope := fmt.Sprintf("%s/%s/s3/aws4_request", date, s.region)
@@ -214,7 +214,7 @@ func (s *s3Storage) Delete(ctx context.Context, key string) error {
 		host, contentSHA256, datetime)
 	signedHeaders := "host;x-amz-content-sha256;x-amz-date"
 
-	canonicalRequest := fmt.Sprintf("DELETE\n%s\n\n%s\n%s\n%s",
+	canonicalRequest := fmt.Sprintf("DELETE\n%s\n%s\n%s\n%s\n%s",
 		canonicalURI, "", canonicalHeaders, signedHeaders, contentSHA256)
 
 	credentialScope := fmt.Sprintf("%s/%s/s3/aws4_request", date, s.region)
@@ -274,7 +274,7 @@ func (s *s3Storage) List(ctx context.Context, prefix string) ([]StorageObject, e
 		host, contentSHA256, datetime)
 	signedHeaders := "host;x-amz-content-sha256;x-amz-date"
 
-	canonicalRequest := fmt.Sprintf("GET\n%s\n%s\n%s\n%s%s",
+	canonicalRequest := fmt.Sprintf("GET\n%s\n%s\n%s\n%s\n%s",
 		canonicalURI, escapedQuery, canonicalHeaders, signedHeaders, contentSHA256)
 
 	credentialScope := fmt.Sprintf("%s/%s/s3/aws4_request", date, s.region)
@@ -346,7 +346,7 @@ func (s *s3Storage) Exists(ctx context.Context, key string) (bool, error) {
 		host, contentSHA256, datetime)
 	signedHeaders := "host;x-amz-content-sha256;x-amz-date"
 
-	canonicalRequest := fmt.Sprintf("HEAD\n%s\n\n%s\n%s%s",
+	canonicalRequest := fmt.Sprintf("HEAD\n%s\n%s\n%s\n%s\n%s",
 		canonicalURI, "", canonicalHeaders, signedHeaders, contentSHA256)
 
 	credentialScope := fmt.Sprintf("%s/%s/s3/aws4_request", date, s.region)
