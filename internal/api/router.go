@@ -136,11 +136,11 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 			servers.POST("/:id/firewall/common-ports", fwAPI.AllowCommonPorts)
 
 			// SSH management
-			sshAPI := NewSSHAPI(db)
-			servers.GET("/:id/ssh/authorizations", sshAPI.ListServerAuthorizations)
+			servers.GET("/:id/ssh/authorizations", NewSSHAPI(db).ListServerAuthorizations)
 		}
 
 		// SSH key management (top-level)
+		sshAPI := NewSSHAPI(db)
 		sshGroup := protected.Group("/ssh")
 		{
 			sshGroup.POST("/keys/generate", sshAPI.GenerateKeyPair)
