@@ -220,6 +220,63 @@ func RegisterBuiltinPlugins(r *Registry) error {
 				return notify.NewBarkNotifier(serverURL, deviceKey), nil
 			},
 		},
+		{
+			Name:        "slack-notify",
+			DisplayName: "Slack",
+			Version:     "1.0.0",
+			Description: "Slack Incoming Webhook notification provider",
+			Author:      "DeployPilot",
+			Provider:    "notify",
+			Type:        "slack",
+			Factory: func(cfg map[string]interface{}) (interface{}, error) {
+				webhookURL, _ := cfg["webhook_url"].(string)
+				if webhookURL == "" {
+					return nil, fmt.Errorf("slack notify: webhook_url is required")
+				}
+				notifier := notify.NewSlackNotifier(webhookURL)
+				if ch, ok := cfg["channel"].(string); ok {
+					notifier.Channel = ch
+				}
+				if emoji, ok := cfg["icon_emoji"].(string); ok {
+					notifier.IconEmoji = emoji
+				}
+				return notifier, nil
+			},
+		},
+		{
+			Name:        "sms-notify",
+			DisplayName: "SMS",
+			Version:     "1.0.0",
+			Description: "SMS notification provider (Alibaba Cloud or generic HTTP gateway)",
+			Author:      "DeployPilot",
+			Provider:    "notify",
+			Type:        "sms",
+			Factory: func(cfg map[string]interface{}) (interface{}, error) {
+				provider, _ := cfg["provider"].(string)
+				if provider == "" {
+					provider = "alicloud"
+				}
+				switch provider {
+				case "generic":
+					gatewayURL, _ := cfg["gateway_url"].(string)
+					gatewayKey, _ := cfg["gateway_key"].(string)
+					phoneField, _ := cfg["phone_field"].(string)
+					if gatewayURL == "" {
+						return nil, fmt.Errorf("sms notify: gateway_url is required for generic provider")
+					}
+					return notify.NewGenericSMSNotifier(gatewayURL, gatewayKey, phoneField), nil
+				default: // alicloud
+					accessKeyID, _ := cfg["access_key_id"].(string)
+					accessKeySecret, _ := cfg["access_key_secret"].(string)
+					signName, _ := cfg["sign_name"].(string)
+					templateCode, _ := cfg["template_code"].(string)
+					if accessKeyID == "" || accessKeySecret == "" {
+						return nil, fmt.Errorf("sms notify: access_key_id and access_key_secret are required")
+					}
+					return notify.NewSMSNotifier(accessKeyID, accessKeySecret, signName, templateCode), nil
+				}
+			},
+		},
 	}
 
 	// Registry providers
