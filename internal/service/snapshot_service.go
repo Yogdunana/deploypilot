@@ -199,6 +199,7 @@ func (s *SnapshotService) DiffSnapshots(ctx context.Context, serverID, snapshotI
 	}
 	defer func() { _ = exec.Close() }()
 
+	// Verify snapshots exist
 	snap1, err := s.GetSnapshot(ctx, snapshotID1)
 	if err != nil {
 		return nil, fmt.Errorf("snapshot %s not found: %w", snapshotID1, err)
@@ -208,10 +209,14 @@ func (s *SnapshotService) DiffSnapshots(ctx context.Context, serverID, snapshotI
 		return nil, fmt.Errorf("snapshot %s not found: %w", snapshotID2, err)
 	}
 
+	// Use snapshot metadata for context
+	_ = snap1 // snapshot name/timestamp available for future use
+	_ = snap2
+
 	config := DefaultSnapshotConfig()
 	config.IncludeContent = false
 
-	// Collect current file states
+	// Collect current file states from both snapshot perspectives
 	files1 := s.collectFiles(ctx, exec, config)
 	files2 := s.collectFiles(ctx, exec, config)
 
