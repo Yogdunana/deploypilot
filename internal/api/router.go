@@ -184,6 +184,9 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 		users := protected.Group("/users")
 		{
 			users.GET("/me", GetCurrentUser)
+			users.GET("/me/onboarding", GetOnboardingStatus(db))
+			users.PUT("/me/onboarding", CompleteOnboarding(db))
+			users.POST("/me/demo", GenerateDemoData(db))
 			users.GET("", auth.RoleRequired("owner", "admin"), ListUsers(db))
 			users.DELETE("/:id", auth.RoleRequired("owner"), DeleteUser(db))
 			users.PUT("/:id/role", auth.RoleRequired("owner", "admin"), UpdateUserRole(db))

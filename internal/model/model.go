@@ -28,20 +28,22 @@ func (Role) TableName() string { return "roles" }
 
 // User represents a system user.
 type User struct {
-	ID           string    `gorm:"primaryKey" json:"id"`
-	TenantID     string    `gorm:"index" json:"tenant_id"`
-	RoleID       string    `gorm:"index" json:"role_id"`
-	Username     string    `gorm:"uniqueIndex;not null" json:"username"`
-	Email        string    `gorm:"uniqueIndex;not null" json:"email"`
-	PasswordHash string    `gorm:"" json:"-"`
-	AuthProvider string `gorm:"size:20;index" json:"auth_provider,omitempty"`
-	AuthUID      string `gorm:"size:100;index" json:"auth_uid,omitempty"`
-	AvatarURL    string `gorm:"size:500" json:"avatar_url,omitempty"`
-	TOTPSecret   string    `gorm:"size:256" json:"-"`
-	TOTPEnabled  bool      `gorm:"default:false" json:"totp_enabled"`
-	BackupCodes  string    `gorm:"type:text" json:"-"`
-	CreatedAt    time.Time `gorm:"autoCreateTime" json:"created_at"`
-	UpdatedAt    time.Time `gorm:"autoUpdateTime" json:"updated_at"`
+	ID                 string     `gorm:"primaryKey" json:"id"`
+	TenantID           string     `gorm:"index" json:"tenant_id"`
+	RoleID             string     `gorm:"index" json:"role_id"`
+	Username           string     `gorm:"uniqueIndex;not null" json:"username"`
+	Email              string     `gorm:"uniqueIndex;not null" json:"email"`
+	PasswordHash       string     `gorm:"" json:"-"`
+	AuthProvider       string     `gorm:"size:20;index" json:"auth_provider,omitempty"`
+	AuthUID            string     `gorm:"size:100;index" json:"auth_uid,omitempty"`
+	AvatarURL          string     `gorm:"size:500" json:"avatar_url,omitempty"`
+	TOTPSecret         string     `gorm:"size:256" json:"-"`
+	TOTPEnabled        bool       `gorm:"default:false" json:"totp_enabled"`
+	BackupCodes        string     `gorm:"type:text" json:"-"`
+	OnboardingCompleted bool      `gorm:"default:false" json:"onboarding_completed"`
+	LastLoginAt        *time.Time `json:"last_login_at,omitempty"`
+	CreatedAt          time.Time  `gorm:"autoCreateTime" json:"created_at"`
+	UpdatedAt          time.Time  `gorm:"autoUpdateTime" json:"updated_at"`
 
 	Tenant Tenant `gorm:"foreignKey:TenantID" json:"tenant,omitempty"`
 	Role   Role   `gorm:"foreignKey:RoleID" json:"role,omitempty"`
