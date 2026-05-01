@@ -181,6 +181,22 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 		servers.POST("/:id/snapshots/:snap_id/restore", snapAPI.RestoreSnapshot)
 		servers.DELETE("/:id/snapshots/:snap_id", snapAPI.DeleteSnapshot)
 
+		// Toolbox management
+		tbAPI := NewToolboxAPI(db)
+		servers.GET("/:id/toolbox/detect", tbAPI.DetectEnvironment)
+		servers.POST("/:id/toolbox/run", tbAPI.RunScript)
+		servers.POST("/:id/toolbox/builtin", tbAPI.RunBuiltInScript)
+
+		tbGroup := protected.Group("/toolbox")
+		{
+			tbGroup.GET("/scripts/builtin", tbAPI.ListBuiltInScripts)
+			tbGroup.GET("/scripts", tbAPI.ListScripts)
+			tbGroup.GET("/scripts/:id", tbAPI.GetScript)
+			tbGroup.POST("/scripts", tbAPI.CreateScript)
+			tbGroup.PUT("/scripts/:id", tbAPI.UpdateScript)
+			tbGroup.DELETE("/scripts/:id", tbAPI.DeleteScript)
+		}
+
 		// Credentials (5 endpoints)
 		creds := protected.Group("/credentials")
 		{
