@@ -1032,6 +1032,62 @@ export default {
     closeMenu: 'Close Menu',
     apiKeys: 'API Keys',
     security: 'Security',
+    clusters: 'Clusters',
+    registries: 'Registries',
+    plugins: 'Plugins',
+    batch: 'Batch Operations',
+    activity: 'Activity',
+  },
+
+  clusters: {
+    title: 'Clusters',
+    description: 'Manage server clusters for high-availability deployments',
+    create: 'Create Cluster',
+    emptyTitle: 'No clusters yet',
+    emptyDescription: 'Create your first cluster to manage multiple servers as a group',
+    comingSoon: 'Cluster management is coming soon',
+  },
+
+  registries: {
+    title: 'Registries',
+    description: 'Manage container image registries',
+    create: 'Add Registry',
+    emptyTitle: 'No registries configured',
+    emptyDescription: 'Add a container registry to pull images for deployments',
+    comingSoon: 'Registry management is coming soon',
+  },
+
+  plugins: {
+    title: 'Plugins',
+    description: 'Extend functionality with plugins',
+    install: 'Install Plugin',
+    emptyTitle: 'No plugins installed',
+    emptyDescription: 'Browse and install plugins to extend DeployPilot capabilities',
+    comingSoon: 'Plugin management is coming soon',
+  },
+
+  batch: {
+    title: 'Batch Operations',
+    description: 'Perform bulk operations on multiple resources',
+    emptyTitle: 'No batch operations',
+    emptyDescription: 'Select multiple apps or servers to perform batch operations',
+    comingSoon: 'Batch operations are coming soon',
+  },
+
+  activity: {
+    title: 'Activity',
+    description: 'Real-time activity feed across all resources',
+    emptyTitle: 'No recent activity',
+    emptyDescription: 'Activity from deployments, configuration changes, and system events will appear here',
+    comingSoon: 'Activity feed is coming soon',
+  },
+
+  routes: {
+    clusters: 'Clusters',
+    registries: 'Registries',
+    plugins: 'Plugins',
+    batch: 'Batch Operations',
+    activity: 'Activity',
   },
 
   status: {

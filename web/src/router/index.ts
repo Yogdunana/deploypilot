@@ -118,6 +118,36 @@ const router = createRouter({
           meta: { titleKey: 'routes.providers' },
         },
         {
+          path: 'clusters',
+          name: 'Clusters',
+          component: () => import('@/views/Clusters.vue'),
+          meta: { titleKey: 'routes.clusters' },
+        },
+        {
+          path: 'registries',
+          name: 'Registries',
+          component: () => import('@/views/Registries.vue'),
+          meta: { titleKey: 'routes.registries' },
+        },
+        {
+          path: 'plugins',
+          name: 'Plugins',
+          component: () => import('@/views/Plugins.vue'),
+          meta: { titleKey: 'routes.plugins' },
+        },
+        {
+          path: 'batch',
+          name: 'BatchOperations',
+          component: () => import('@/views/BatchOperations.vue'),
+          meta: { titleKey: 'routes.batch' },
+        },
+        {
+          path: 'activity',
+          name: 'ActivityFeed',
+          component: () => import('@/views/ActivityFeed.vue'),
+          meta: { titleKey: 'routes.activity' },
+        },
+        {
           path: 'cicd',
           name: 'CICD',
           component: () => import('@/views/CICD.vue'),

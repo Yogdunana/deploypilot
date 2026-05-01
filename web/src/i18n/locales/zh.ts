@@ -1028,6 +1028,62 @@ export default {
     closeMenu: '关闭菜单',
     apiKeys: 'API 密钥',
     security: '安全设置',
+    clusters: '集群管理',
+    registries: '镜像仓库',
+    plugins: '插件管理',
+    batch: '批量操作',
+    activity: '活动流',
+  },
+
+  clusters: {
+    title: '集群管理',
+    description: '管理服务器集群，实现高可用部署',
+    create: '创建集群',
+    emptyTitle: '暂无集群',
+    emptyDescription: '创建你的第一个集群，将多台服务器作为一组管理',
+    comingSoon: '集群管理功能即将推出',
+  },
+
+  registries: {
+    title: '镜像仓库',
+    description: '管理容器镜像仓库',
+    create: '添加仓库',
+    emptyTitle: '暂无镜像仓库',
+    emptyDescription: '添加容器镜像仓库，用于部署时拉取镜像',
+    comingSoon: '镜像仓库管理功能即将推出',
+  },
+
+  plugins: {
+    title: '插件管理',
+    description: '通过插件扩展功能',
+    install: '安装插件',
+    emptyTitle: '暂无已安装插件',
+    emptyDescription: '浏览并安装插件，扩展 DeployPilot 功能',
+    comingSoon: '插件管理功能即将推出',
+  },
+
+  batch: {
+    title: '批量操作',
+    description: '对多个资源执行批量操作',
+    emptyTitle: '暂无批量操作',
+    emptyDescription: '选择多个应用或服务器执行批量操作',
+    comingSoon: '批量操作功能即将推出',
+  },
+
+  activity: {
+    title: '活动流',
+    description: '所有资源的实时活动动态',
+    emptyTitle: '暂无近期活动',
+    emptyDescription: '部署、配置变更和系统事件的活动将显示在这里',
+    comingSoon: '活动流功能即将推出',
+  },
+
+  routes: {
+    clusters: '集群管理',
+    registries: '镜像仓库',
+    plugins: '插件管理',
+    batch: '批量操作',
+    activity: '活动流',
   },
 
   status: {
