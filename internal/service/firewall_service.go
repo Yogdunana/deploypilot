@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/Yogdunana/deploypilot/internal/sandbox"
 	"gorm.io/gorm"
 )
 
@@ -45,15 +46,13 @@ type FirewallStatus struct {
 // FirewallService manages remote server firewalls via SSH.
 type FirewallService struct {
 	db     *gorm.DB
-	sb     *sandbox.Sandbox
 	logger *slog.Logger
 }
 
 // NewFirewallService creates a new FirewallService.
-func NewFirewallService(db *gorm.DB, sb *sandbox.Sandbox) *FirewallService {
+func NewFirewallService(db *gorm.DB, _ *sandbox.Sandbox) *FirewallService {
 	return &FirewallService{
 		db:     db,
-		sb:     sb,
 		logger: slog.Default(),
 	}
 }
