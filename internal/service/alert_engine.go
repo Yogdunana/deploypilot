@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log/slog"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/Yogdunana/deploypilot/internal/model"
@@ -16,11 +15,10 @@ import (
 // AlertEngine provides enhanced alert management with silence periods,
 // escalation policies, and alert grouping.
 type AlertEngine struct {
-	db          *gorm.DB
-	notifySvc   *NotificationService
-	mu          sync.RWMutex
-	logger      *slog.Logger
-	stopCh      chan struct{}
+	db        *gorm.DB
+	notifySvc *NotificationService
+	logger    *slog.Logger
+	stopCh    chan struct{}
 }
 
 // NewAlertEngine creates a new AlertEngine.
