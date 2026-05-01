@@ -207,6 +207,18 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 		protected.GET("/events", ListEventLogs(db))
 		protected.GET("/events/stats", GetEventStats(db))
 
+		// Alert silence management
+		alerts := protected.Group("/alerts")
+		{
+			alerts.POST("/silences", CreateAlertSilence(db))
+			alerts.GET("/silences", ListAlertSilences(db))
+			alerts.DELETE("/silences/:id", DeleteAlertSilence(db))
+			alerts.POST("/escalations", CreateAlertEscalation(db))
+			alerts.GET("/escalations", ListAlertEscalations(db))
+			alerts.DELETE("/escalations/:id", DeleteAlertEscalation(db))
+			alerts.GET("/groups", ListAlertGroups(db))
+		}
+
 		// System (4 endpoints)
 		system := protected.Group("/system")
 		{

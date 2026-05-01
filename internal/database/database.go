@@ -661,6 +661,48 @@ func Migrate(db *gorm.DB) error {
 				return tx.Exec("DROP TABLE IF EXISTS event_logs").Error
 			},
 		},
+		// 202605010600: Create alert_silences, alert_escalations, alert_groups tables
+		{
+			ID: "202605010600",
+			Migrate: func(tx *gorm.DB) error {
+				if err := tx.Exec(`CREATE TABLE IF NOT EXISTS alert_silences (
+					id TEXT PRIMARY KEY, tenant_id TEXT,
+					name TEXT, reason TEXT, matchers TEXT,
+					starts_at DATETIME, ends_at DATETIME,
+					created_by TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+				)`).Error; err != nil {
+					return err
+				}
+				if err := tx.Exec(`CREATE INDEX IF NOT EXISTS idx_silences_ends_at ON alert_silences(ends_at)`).Error; err != nil {
+					return err
+				}
+				if err := tx.Exec(`CREATE TABLE IF NOT EXISTS alert_escalations (
+					id TEXT PRIMARY KEY, tenant_id TEXT,
+					name TEXT, rule_ids TEXT, steps TEXT,
+					repeat_interval INTEGER DEFAULT 60,
+					enabled BOOLEAN DEFAULT 1,
+					created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+					updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+				)`).Error; err != nil {
+					return err
+				}
+				return tx.Exec(`CREATE TABLE IF NOT EXISTS alert_groups (
+					id TEXT PRIMARY KEY, tenant_id TEXT,
+					group_key TEXT, rule_id TEXT, severity TEXT,
+					alert_count INTEGER DEFAULT 1,
+					first_alert_at DATETIME, last_alert_at DATETIME,
+					status TEXT DEFAULT 'firing',
+					resolved_at DATETIME,
+					created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+					updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+				)`).Error
+			},
+			Rollback: func(tx *gorm.DB) error {
+				tx.Exec("DROP TABLE IF EXISTS alert_groups")
+				tx.Exec("DROP TABLE IF EXISTS alert_escalations")
+				return tx.Exec("DROP TABLE IF EXISTS alert_silences").Error
+			},
+		},
 	})
 
 	// Use InitSchema for initial creation (faster than Migrate)
