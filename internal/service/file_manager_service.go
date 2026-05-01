@@ -337,15 +337,6 @@ func (f *FileManagerService) getExecutor(ctx context.Context, serverID string) (
 	return b.getRemoteExecutor(ctx, serverID)
 }
 
-// shellQuote quotes a string for safe shell execution.
-func shellQuote(s string) string {
-	if s == "" {
-		return "''"
-	}
-	// Simple quoting: wrap in single quotes, escape existing single quotes
-	return "'" + strings.ReplaceAll(s, "'", "'\"'\"'") + "'"
-}
-
 // base64Encode encodes a string to base64.
 func base64Encode(s string) string {
 	return encodeToString([]byte(s))
