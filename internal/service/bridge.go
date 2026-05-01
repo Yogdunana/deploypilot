@@ -901,9 +901,4 @@ func (b *Bridge) ListAlertRules(ctx context.Context) (interface{}, error) {
 	return b.Monitor.ListAlertRules(ctx)
 }
 
-// HealContainer triggers self-healing for a container.
-func (b *Bridge) HealContainer(ctx context.Context, name string) (interface{}, error) {
-	return b.healer.CheckAndHeal(ctx, name)
-}
-
 
