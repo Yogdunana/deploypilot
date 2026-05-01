@@ -17,6 +17,10 @@ const (
 	UserIDKey contextKey = "userID"
 	// RoleKey is the context key for the authenticated user's role.
 	RoleKey contextKey = "role"
+	// AccessTokenCookie is the cookie name for the access token.
+	AccessTokenCookie = "dp_access_token"
+	// RefreshTokenCookie is the cookie name for the refresh token.
+	RefreshTokenCookie = "dp_refresh_token"
 )
 
 // roleHierarchy defines the permission levels for roles.
@@ -28,27 +32,26 @@ var roleHierarchy = map[string]int{
 	"viewer": 1,
 }
 
-// AuthMiddleware extracts and validates the Bearer token from the Authorization header.
-// It sets the userID and role in the gin.Context.
+// AuthMiddleware extracts and validates the JWT token.
+// It first tries the Authorization: Bearer header, then falls back to the access token cookie.
 func AuthMiddleware(blacklist TokenBlacklist) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		authHeader := c.GetHeader("Authorization")
-		if authHeader == "" {
+		tokenStr := extractBearerToken(c)
+		if tokenStr == "" {
+			// Fall back to cookie
+			if cookie, err := c.Cookie(AccessTokenCookie); err == nil && cookie != "" {
+				tokenStr = cookie
+			}
+		}
+
+		if tokenStr == "" {
 			locale := i18n.GetLocaleFromContext(c)
 			c.JSON(http.StatusUnauthorized, gin.H{"status": "error", "message": i18n.T(locale, "error.auth.authorization_header_required")})
 			c.Abort()
 			return
 		}
 
-		parts := strings.SplitN(authHeader, " ", 2)
-		if len(parts) != 2 || !strings.EqualFold(parts[0], "bearer") {
-			locale := i18n.GetLocaleFromContext(c)
-			c.JSON(http.StatusUnauthorized, gin.H{"status": "error", "message": i18n.T(locale, "error.auth.invalid_authorization_format")})
-			c.Abort()
-			return
-		}
-
-		claims, err := ParseToken(parts[1])
+		claims, err := ParseToken(tokenStr)
 		if err != nil {
 			locale := i18n.GetLocaleFromContext(c)
 			c.JSON(http.StatusUnauthorized, gin.H{"status": "error", "message": i18n.T(locale, "error.auth.invalid_or_expired_token")})
@@ -61,7 +64,6 @@ func AuthMiddleware(blacklist TokenBlacklist) gin.HandlerFunc {
 			revoked, err := blacklist.IsRevoked(claims.ID)
 			if err != nil {
 				slog.Warn("failed to check token revocation", "error", err)
-				// Fail open: allow request if blacklist check fails
 			} else if revoked {
 				locale := i18n.GetLocaleFromContext(c)
 				c.JSON(http.StatusUnauthorized, gin.H{"status": "error", "message": i18n.T(locale, "error.auth.invalid_or_expired_token")})
@@ -74,6 +76,19 @@ func AuthMiddleware(blacklist TokenBlacklist) gin.HandlerFunc {
 		c.Set(string(RoleKey), claims.Role)
 		c.Next()
 	}
+}
+
+// extractBearerToken extracts the token from the Authorization: Bearer header.
+func extractBearerToken(c *gin.Context) string {
+	authHeader := c.GetHeader("Authorization")
+	if authHeader == "" {
+		return ""
+	}
+	parts := strings.SplitN(authHeader, " ", 2)
+	if len(parts) == 2 && strings.EqualFold(parts[0], "bearer") {
+		return parts[1]
+	}
+	return ""
 }
 
 // RoleRequired returns middleware that checks if the authenticated user has one of the required roles.
@@ -123,22 +138,21 @@ func RoleRequired(roles ...string) gin.HandlerFunc {
 }
 
 // OptionalAuth parses the JWT token if present but does not require it.
-// If a valid token is found, it sets userID and role in the context.
+// Tries Authorization: Bearer header first, then cookie.
 func OptionalAuth(blacklist TokenBlacklist) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		authHeader := c.GetHeader("Authorization")
-		if authHeader == "" {
+		tokenStr := extractBearerToken(c)
+		if tokenStr == "" {
+			if cookie, err := c.Cookie(AccessTokenCookie); err == nil && cookie != "" {
+				tokenStr = cookie
+			}
+		}
+		if tokenStr == "" {
 			c.Next()
 			return
 		}
 
-		parts := strings.SplitN(authHeader, " ", 2)
-		if len(parts) != 2 || !strings.EqualFold(parts[0], "bearer") {
-			c.Next()
-			return
-		}
-
-		claims, err := ParseToken(parts[1])
+		claims, err := ParseToken(tokenStr)
 		if err != nil {
 			c.Next()
 			return
@@ -149,7 +163,6 @@ func OptionalAuth(blacklist TokenBlacklist) gin.HandlerFunc {
 			revoked, err := blacklist.IsRevoked(claims.ID)
 			if err != nil {
 				slog.Warn("failed to check token revocation", "error", err)
-				// Fail open: allow request if blacklist check fails
 			} else if revoked {
 				c.Next()
 				return
