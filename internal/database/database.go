@@ -791,6 +791,63 @@ func Migrate(db *gorm.DB) error {
 				return tx.Exec("DROP TABLE IF EXISTS toolbox_scripts").Error
 			},
 		},
+		// 202605011100: Create monitors, monitor_check_results, heartbeats tables
+		{
+			ID: "202605011100",
+			Migrate: func(tx *gorm.DB) error {
+				if err := tx.Exec(`CREATE TABLE IF NOT EXISTS monitors (
+					id TEXT PRIMARY KEY,
+					tenant_id TEXT,
+					name TEXT NOT NULL,
+					type TEXT NOT NULL,
+					target TEXT NOT NULL,
+					interval INTEGER DEFAULT 60,
+					timeout INTEGER DEFAULT 10,
+					retries INTEGER DEFAULT 3,
+					status TEXT DEFAULT 'unknown',
+					enabled INTEGER DEFAULT 1,
+					last_check TEXT,
+					last_status TEXT,
+					uptime REAL DEFAULT 100,
+					total_checks INTEGER DEFAULT 0,
+					up_checks INTEGER DEFAULT 0,
+					avg_latency REAL DEFAULT 0,
+					created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+					updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+				)`).Error; err != nil {
+					return err
+				}
+				if err := tx.Exec(`CREATE TABLE IF NOT EXISTS monitor_check_results (
+					id TEXT PRIMARY KEY,
+					monitor_id TEXT NOT NULL,
+					status TEXT,
+					status_code INTEGER DEFAULT 0,
+					latency REAL DEFAULT 0,
+					message TEXT,
+					created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+				)`).Error; err != nil {
+					return err
+				}
+				return tx.Exec(`CREATE TABLE IF NOT EXISTS heartbeats (
+					id TEXT PRIMARY KEY,
+					tenant_id TEXT,
+					name TEXT NOT NULL,
+					token TEXT NOT NULL UNIQUE,
+					interval INTEGER DEFAULT 60,
+					timeout INTEGER DEFAULT 120,
+					status TEXT DEFAULT 'unknown',
+					last_beat TEXT,
+					enabled INTEGER DEFAULT 1,
+					created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+					updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+				)`).Error
+			},
+			Rollback: func(tx *gorm.DB) error {
+				tx.Exec("DROP TABLE IF EXISTS monitor_check_results")
+				tx.Exec("DROP TABLE IF EXISTS monitors")
+				return tx.Exec("DROP TABLE IF EXISTS heartbeats").Error
+			},
+		},
 	})
 
 	// Use InitSchema for initial creation (faster than Migrate)

@@ -197,6 +197,34 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 			tbGroup.DELETE("/scripts/:id", tbAPI.DeleteScript)
 		}
 
+		// Monitoring & Observability
+		monAPI := NewMonitorAPI(db)
+		monGroup := protected.Group("/monitors")
+		{
+			monGroup.GET("", monAPI.ListMonitors)
+			monGroup.POST("", monAPI.CreateMonitor)
+			monGroup.GET("/:id", monAPI.GetMonitor)
+			monGroup.PUT("/:id", monAPI.UpdateMonitor)
+			monGroup.DELETE("/:id", monAPI.DeleteMonitor)
+			monGroup.POST("/:id/check", monAPI.CheckMonitor)
+			monGroup.GET("/:id/results", monAPI.GetMonitorResults)
+			monGroup.GET("/:id/sla", monAPI.GetMonitorSLA)
+			monGroup.POST("/check-all", monAPI.CheckAllMonitors)
+		}
+
+		// Heartbeat
+		hbGroup := protected.Group("/heartbeats")
+		{
+			hbGroup.GET("", monAPI.ListHeartbeats)
+			hbGroup.POST("", monAPI.CreateHeartbeat)
+			hbGroup.DELETE("/:id", monAPI.DeleteHeartbeat)
+		}
+
+		// Public endpoints (no auth required for heartbeat ping and status page)
+		r.GET("/api/v1/heartbeat/ping/:token", monAPI.PingHeartbeat)
+		r.GET("/api/v1/status", monAPI.GetStatusPage)
+		r.GET("/api/v1/metrics", monAPI.GetPrometheusMetrics)
+
 		// Credentials (5 endpoints)
 		creds := protected.Group("/credentials")
 		{
