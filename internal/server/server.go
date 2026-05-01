@@ -11,6 +11,7 @@ import (
 
 	"github.com/Yogdunana/deploypilot/internal/api"
 	"github.com/Yogdunana/deploypilot/internal/auth"
+	"github.com/Yogdunana/deploypilot/internal/backup"
 	"github.com/Yogdunana/deploypilot/internal/config"
 	"github.com/Yogdunana/deploypilot/internal/i18n"
 	"github.com/Yogdunana/deploypilot/internal/middleware"
@@ -32,7 +33,7 @@ type Server struct {
 }
 
 // New creates a new API server with the given address, database, bridge, and config.
-func New(addr string, db *gorm.DB, bridge *service.Bridge, cfg *config.Config, blacklist auth.TokenBlacklist, oauthSvc *service.OAuthService, rdb *redis.Client) *Server {
+func New(addr string, db *gorm.DB, bridge *service.Bridge, cfg *config.Config, blacklist auth.TokenBlacklist, oauthSvc *service.OAuthService, rdb *redis.Client, backupSvc *backup.Service) *Server {
 	r := gin.Default()
 
 	// Request tracing — must be first middleware
@@ -81,7 +82,7 @@ func New(addr string, db *gorm.DB, bridge *service.Bridge, cfg *config.Config, b
 	// Set encryption key for 2FA TOTP secret encryption
 	api.SetEncryptionKey(bridge.EncryptionKey)
 
-	api.RegisterRoutes(r, db, bridge, wsHub, auditSvc, nil, blacklist, oauthSvc, nil, keySvc)
+	api.RegisterRoutes(r, db, bridge, wsHub, auditSvc, nil, blacklist, oauthSvc, backupSvc, keySvc)
 
 	// Serve embedded frontend static files
 	serveStaticFiles(r)

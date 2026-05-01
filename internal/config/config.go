@@ -32,6 +32,17 @@ type BackupConfig struct {
 	RetentionCount int    `mapstructure:"retention_count"`  // max backup files (default: 10)
 	RetentionDays  int    `mapstructure:"retention_days"`   // max days to keep (default: 30)
 	BackupDir      string `mapstructure:"backup_dir"`       // backup directory (default: ./data/backups)
+	// Cloud storage configuration (S3-compatible)
+	CloudEnabled   bool   `mapstructure:"cloud_enabled"`
+	CloudType      string `mapstructure:"cloud_type"`           // s3, oss, cos, minio
+	CloudEndpoint  string `mapstructure:"cloud_endpoint"`       // e.g. "https://s3.amazonaws.com"
+	CloudRegion    string `mapstructure:"cloud_region"`         // e.g. "us-east-1"
+	CloudBucket    string `mapstructure:"cloud_bucket"`         // bucket name
+	CloudPrefix    string `mapstructure:"cloud_prefix"`         // key prefix
+	CloudAccessKey string `mapstructure:"cloud_access_key"`
+	CloudSecretKey string `mapstructure:"cloud_secret_key"`
+	CloudUseSSL    bool   `mapstructure:"cloud_use_ssl"`
+	CloudEncrypt   bool   `mapstructure:"cloud_encrypt"`        // AES-256-GCM encryption
 }
 
 // BruteForceConfig holds brute-force protection settings.
