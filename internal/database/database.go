@@ -770,6 +770,27 @@ func Migrate(db *gorm.DB) error {
 				return tx.Exec("DROP TABLE IF EXISTS system_snapshots").Error
 			},
 		},
+		// 202605011000: Create toolbox_scripts table
+		{
+			ID: "202605011000",
+			Migrate: func(tx *gorm.DB) error {
+				return tx.Exec(`CREATE TABLE IF NOT EXISTS toolbox_scripts (
+					id TEXT PRIMARY KEY,
+					tenant_id TEXT,
+					name TEXT NOT NULL,
+					description TEXT,
+					category TEXT,
+					script TEXT NOT NULL,
+					is_built_in INTEGER DEFAULT 0,
+					enabled INTEGER DEFAULT 1,
+					created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+					updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+				)`).Error
+			},
+			Rollback: func(tx *gorm.DB) error {
+				return tx.Exec("DROP TABLE IF EXISTS toolbox_scripts").Error
+			},
+		},
 	})
 
 	// Use InitSchema for initial creation (faster than Migrate)
