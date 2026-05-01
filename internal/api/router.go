@@ -9,6 +9,7 @@ import (
 	"github.com/Yogdunana/deploypilot/internal/backup"
 	"github.com/Yogdunana/deploypilot/internal/bruteforce"
 	"github.com/Yogdunana/deploypilot/internal/plugin"
+	"github.com/Yogdunana/deploypilot/internal/sandbox"
 	"github.com/Yogdunana/deploypilot/internal/service"
 	"github.com/gin-gonic/gin"
 	ginSwagger "github.com/swaggo/gin-swagger"
@@ -111,6 +112,18 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 			servers.POST("/:id/detect", auth.RequireResourceAccessCached(bridge, "server", "id"), DetectEnvironment(bridge))
 			servers.GET("/:id/environment", auth.RequireResourceAccessCached(bridge, "server", "id"), GetServerEnvironment(bridge))
 			servers.POST("/:id/test", auth.RequireResourceAccessCached(bridge, "server", "id"), TestServer(bridge))
+
+			// File management
+			fileAPI := NewFileManagerAPI(db, sandbox.New(sandbox.DefaultConfig()))
+			servers.GET("/:id/files", fileAPI.ListFiles)
+			servers.GET("/:id/files/read", fileAPI.ReadFile)
+			servers.PUT("/:id/files/write", fileAPI.WriteFile)
+			servers.DELETE("/:id/files", fileAPI.DeleteFile)
+			servers.POST("/:id/files/mkdir", fileAPI.CreateDirectory)
+			servers.POST("/:id/files/move", fileAPI.MoveFile)
+			servers.GET("/:id/files/disk-usage", fileAPI.GetDiskUsage)
+			servers.GET("/:id/files/info", fileAPI.GetFileInfo)
+			servers.GET("/:id/files/search", fileAPI.SearchFiles)
 		}
 
 		// Credentials (5 endpoints)
