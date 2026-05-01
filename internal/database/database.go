@@ -530,11 +530,16 @@ func Migrate(db *gorm.DB) error {
 		{
 			ID: "202605010200",
 			Migrate: func(tx *gorm.DB) error {
-				if err := tx.Exec("ALTER TABLE api_keys ADD COLUMN IF NOT EXISTS allowed_ips TEXT").Error; err != nil {
-					return err
+				if err := tx.Exec("ALTER TABLE api_keys ADD COLUMN allowed_ips TEXT").Error; err != nil {
+					// Column may already exist, check if it's a duplicate column error
+					if !strings.Contains(err.Error(), "duplicate column") {
+						return err
+					}
 				}
-				if err := tx.Exec("ALTER TABLE api_keys ADD COLUMN IF NOT EXISTS usage_count BIGINT DEFAULT 0").Error; err != nil {
-					return err
+				if err := tx.Exec("ALTER TABLE api_keys ADD COLUMN usage_count BIGINT DEFAULT 0").Error; err != nil {
+					if !strings.Contains(err.Error(), "duplicate column") {
+						return err
+					}
 				}
 				return nil
 			},
