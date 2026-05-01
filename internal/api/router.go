@@ -124,6 +124,16 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 			servers.GET("/:id/files/disk-usage", fileAPI.GetDiskUsage)
 			servers.GET("/:id/files/info", fileAPI.GetFileInfo)
 			servers.GET("/:id/files/search", fileAPI.SearchFiles)
+
+			// Firewall management
+			fwAPI := NewFirewallAPI(db, sandbox.New(sandbox.DefaultConfig()))
+			servers.GET("/:id/firewall", fwAPI.GetFirewallStatus)
+			servers.GET("/:id/firewall/detect", fwAPI.DetectFirewall)
+			servers.POST("/:id/firewall/ports/open", fwAPI.OpenPort)
+			servers.POST("/:id/firewall/ports/close", fwAPI.ClosePort)
+			servers.POST("/:id/firewall/blocks", fwAPI.BlockIP)
+			servers.DELETE("/:id/firewall/blocks/:ip", fwAPI.UnblockIP)
+			servers.POST("/:id/firewall/common-ports", fwAPI.AllowCommonPorts)
 		}
 
 		// Credentials (5 endpoints)
