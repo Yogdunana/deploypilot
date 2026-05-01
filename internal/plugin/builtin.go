@@ -203,6 +203,23 @@ func RegisterBuiltinPlugins(r *Registry) error {
 				return notify.NewWeComNotifier(webhookURL), nil
 			},
 		},
+		{
+			Name:        "bark-notify",
+			DisplayName: "Bark",
+			Version:     "1.0.0",
+			Description: "Bark (iOS Push) notification provider",
+			Author:      "DeployPilot",
+			Provider:    "notify",
+			Type:        "bark",
+			Factory: func(cfg map[string]interface{}) (interface{}, error) {
+				serverURL, _ := cfg["server_url"].(string)
+				deviceKey, _ := cfg["device_key"].(string)
+				if deviceKey == "" {
+					return nil, fmt.Errorf("bark notify: device_key is required")
+				}
+				return notify.NewBarkNotifier(serverURL, deviceKey), nil
+			},
+		},
 	}
 
 	// Registry providers

@@ -27,6 +27,7 @@ type Monitor struct {
 	healer       *healer.Healer
 	executor     deployer.CommandExecutor
 	store        *MetricStore
+	alertHandler AlertHandler // optional: called when alerts fire/resolve
 	cancel       context.CancelFunc
 	mu           sync.Mutex
 	running      bool
@@ -45,6 +46,11 @@ func NewMonitor(executor deployer.CommandExecutor, h *healer.Healer) *Monitor {
 // SetStore sets the metric store for persistence.
 func (m *Monitor) SetStore(store *MetricStore) {
 	m.store = store
+}
+
+// SetAlertHandler sets the alert handler for processing fired/resolved alerts.
+func (m *Monitor) SetAlertHandler(handler AlertHandler) {
+	m.alertHandler = handler
 }
 
 // GetStore returns the current metric store (may be nil).
@@ -189,6 +195,10 @@ func (m *Monitor) collectAndEvaluate(ctx context.Context) {
 
 	newAlerts := m.alertManager.Evaluate(metrics)
 	for _, alert := range newAlerts {
-		slog.Warn("alert fired", "message", alert.Message, "severity", alert.Severity)
+		if m.alertHandler != nil {
+			m.alertHandler.OnAlert(alert)
+		} else {
+			slog.Warn("alert fired", "message", alert.Message, "severity", alert.Severity)
+		}
 	}
 }

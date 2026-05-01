@@ -51,6 +51,7 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 	sseGroup.Use(auth.AuthMiddleware(blacklist))
 	{
 		sseGroup.GET("/deploy/:app_id", DeploySSE(bridge))
+		sseGroup.GET("/alerts", AlertSSE(bridge))
 	}
 
 	// Public routes
@@ -239,6 +240,10 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 			mon.GET("/container/:name", GetContainerMetrics(bridge))
 			mon.GET("/alerts", ListAlerts(bridge))
 			mon.GET("/alert-rules", ListAlertRules(bridge))
+			mon.POST("/alert-rules", CreateAlertRule(db))
+			mon.GET("/alert-rules/:id", GetAlertRule(db))
+			mon.PUT("/alert-rules/:id", UpdateAlertRule(db))
+			mon.DELETE("/alert-rules/:id", DeleteAlertRule(db))
 			mon.POST("/heal/:name", HealContainer(bridge))
 			mon.POST("/check/:name", CheckContainerHealth(bridge))
 		}
