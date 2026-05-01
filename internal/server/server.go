@@ -93,6 +93,15 @@ func New(addr string, db *gorm.DB, bridge *service.Bridge, cfg *config.Config, b
 	// Store security config for API access
 	api.SetSecurityConfig(&cfg.Security)
 
+	// Initialize refresh token store
+	if rdb != nil {
+		api.SetRefreshTokenStore(auth.NewRedisRefreshTokenStore(rdb))
+	} else {
+		memRefreshStore := auth.NewMemoryRefreshTokenStore()
+		memRefreshStore.StartCleanup(context.Background(), 10*time.Minute)
+		api.SetRefreshTokenStore(memRefreshStore)
+	}
+
 	api.RegisterRoutes(r, db, bridge, wsHub, auditSvc, nil, blacklist, oauthSvc, backupSvc, keySvc)
 
 	// Serve embedded frontend static files

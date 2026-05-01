@@ -67,6 +67,7 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 		authGroup.POST("/ws-ticket", WSTicket(ticketStore, 30*time.Second))
 		authGroup.POST("/revoke", RevokeToken(blacklist))
 		authGroup.POST("/2fa/verify", Check2FARateLimit(), Verify2FA(db, auditSvc))
+		authGroup.POST("/refresh", RefreshToken())
 		if oauthSvc != nil {
 			stateStore := auth.NewMemoryStateStore()
 			go stateStore.StartCleanup(context.Background(), 5*time.Minute)
@@ -297,6 +298,9 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 			twofa.POST("/disable", Disable2FA(db, auditSvc))
 			twofa.POST("/regenerate-backup-codes", RegenerateBackupCodes(db, auditSvc))
 		}
+
+		// Session management
+		protected.POST("/auth/logout-all", LogoutAllDevices())
 
 		// API Keys (3 endpoints)
 		apiKeys := protected.Group("/api-keys")

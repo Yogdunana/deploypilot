@@ -97,6 +97,19 @@ func Register(db *gorm.DB) gin.HandlerFunc {
 			return
 		}
 
+		// Set auth cookies if refresh store is available
+		if refreshStore != nil {
+			refreshID, rErr := auth.GenerateRefreshTokenID()
+			if rErr == nil {
+				_ = refreshStore.Store(auth.RefreshTokenEntry{
+					TokenID: refreshID, UserID: user.ID, Role: "viewer",
+					DeviceInfo: c.GetHeader("User-Agent"), IPAddress: c.ClientIP(),
+					CreatedAt: time.Now(), ExpiresAt: time.Now().Add(7 * 24 * time.Hour),
+				})
+				setAuthCookies(c, token, refreshID)
+			}
+		}
+
 		respondSuccess(c, gin.H{
 			"user": model.User{
 				ID:       user.ID,
@@ -158,6 +171,9 @@ func RevokeToken(blacklist auth.TokenBlacklist) gin.HandlerFunc {
 			respondErrori18n(c, http.StatusInternalServerError, "error.common.internal_error")
 			return
 		}
+
+		// Clear auth cookies on logout
+		clearAuthCookies(c)
 
 		respondSuccess(c, gin.H{"message": "token_revoked"})
 	}
@@ -296,6 +312,19 @@ func Login(db *gorm.DB, bf *bruteforce.Protector) gin.HandlerFunc {
 		if err != nil {
 			respondErrori18n(c, http.StatusInternalServerError, "error.auth.failed_to_generate_token")
 			return
+		}
+
+		// Set auth cookies if refresh store is available
+		if refreshStore != nil {
+			refreshID, rErr := auth.GenerateRefreshTokenID()
+			if rErr == nil {
+				_ = refreshStore.Store(auth.RefreshTokenEntry{
+					TokenID: refreshID, UserID: user.ID, Role: roleName,
+					DeviceInfo: c.GetHeader("User-Agent"), IPAddress: c.ClientIP(),
+					CreatedAt: time.Now(), ExpiresAt: time.Now().Add(7 * 24 * time.Hour),
+				})
+				setAuthCookies(c, token, refreshID)
+			}
 		}
 
 		respondSuccess(c, gin.H{
