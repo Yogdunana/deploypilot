@@ -750,6 +750,26 @@ func Migrate(db *gorm.DB) error {
 				return tx.Exec("DROP TABLE IF EXISTS process_rules").Error
 			},
 		},
+		// 202605010900: Create system_snapshots table
+		{
+			ID: "202605010900",
+			Migrate: func(tx *gorm.DB) error {
+				return tx.Exec(`CREATE TABLE IF NOT EXISTS system_snapshots (
+					id TEXT PRIMARY KEY,
+					tenant_id TEXT,
+					server_id TEXT,
+					name TEXT NOT NULL,
+					description TEXT,
+					file_count INTEGER DEFAULT 0,
+					total_size INTEGER DEFAULT 0,
+					checksum TEXT,
+					created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+				)`).Error
+			},
+			Rollback: func(tx *gorm.DB) error {
+				return tx.Exec("DROP TABLE IF EXISTS system_snapshots").Error
+			},
+		},
 	})
 
 	// Use InitSchema for initial creation (faster than Migrate)
