@@ -703,6 +703,30 @@ func Migrate(db *gorm.DB) error {
 				return tx.Exec("DROP TABLE IF EXISTS alert_silences").Error
 			},
 		},
+		// 202605010700: Create ssh_key_pairs and ssh_authorizations tables
+		{
+			ID: "202605010700",
+			Migrate: func(tx *gorm.DB) error {
+				if err := tx.Exec(`CREATE TABLE IF NOT EXISTS ssh_key_pairs (
+					id TEXT PRIMARY KEY, name TEXT,
+					public_key TEXT, private_key TEXT,
+					fingerprint TEXT, key_type TEXT DEFAULT 'rsa',
+					key_bits INTEGER DEFAULT 4096,
+					created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+				)`).Error; err != nil {
+					return err
+				}
+				return tx.Exec(`CREATE TABLE IF NOT EXISTS ssh_authorizations (
+					id TEXT PRIMARY KEY, key_pair_id TEXT,
+					server_id TEXT, user TEXT DEFAULT 'root',
+					created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+				)`).Error
+			},
+			Rollback: func(tx *gorm.DB) error {
+				tx.Exec("DROP TABLE IF EXISTS ssh_authorizations")
+				return tx.Exec("DROP TABLE IF EXISTS ssh_key_pairs").Error
+			},
+		},
 	})
 
 	// Use InitSchema for initial creation (faster than Migrate)

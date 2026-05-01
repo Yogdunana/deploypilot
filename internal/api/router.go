@@ -134,6 +134,23 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 			servers.POST("/:id/firewall/blocks", fwAPI.BlockIP)
 			servers.DELETE("/:id/firewall/blocks/:ip", fwAPI.UnblockIP)
 			servers.POST("/:id/firewall/common-ports", fwAPI.AllowCommonPorts)
+
+			// SSH management
+			sshAPI := NewSSHAPI(db)
+			servers.GET("/:id/ssh/authorizations", sshAPI.ListServerAuthorizations)
+		}
+
+		// SSH key management (top-level)
+		sshGroup := protected.Group("/ssh")
+		{
+			sshGroup.POST("/keys/generate", sshAPI.GenerateKeyPair)
+			sshGroup.POST("/keys/import", sshAPI.ImportPublicKey)
+			sshGroup.GET("/keys", sshAPI.ListKeyPairs)
+			sshGroup.GET("/keys/:id", sshAPI.GetKeyPair)
+			sshGroup.DELETE("/keys/:id", sshAPI.DeleteKeyPair)
+			sshGroup.GET("/keys/:id/authorizations", sshAPI.ListKeyAuthorizations)
+			sshGroup.POST("/authorize", sshAPI.AuthorizeKey)
+			sshGroup.POST("/revoke", sshAPI.RevokeKey)
 		}
 
 		// Credentials (5 endpoints)
