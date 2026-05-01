@@ -550,6 +550,29 @@ func Migrate(db *gorm.DB) error {
 				return tx.Migrator().DropTable("alert_rules")
 			},
 		},
+		// 202605020002: Add cloud storage columns to backup_records
+		{
+			ID: "202605020002",
+			Migrate: func(tx *gorm.DB) error {
+				if err := ignoreDuplicateColumnError(tx, tx.Exec("ALTER TABLE backup_records ADD COLUMN storage_type TEXT DEFAULT 'local'").Error); err != nil {
+					return err
+				}
+				if err := ignoreDuplicateColumnError(tx, tx.Exec("ALTER TABLE backup_records ADD COLUMN storage_path TEXT DEFAULT ''").Error); err != nil {
+					return err
+				}
+				if err := ignoreDuplicateColumnError(tx, tx.Exec("ALTER TABLE backup_records ADD COLUMN storage_bucket TEXT DEFAULT ''").Error); err != nil {
+					return err
+				}
+				if err := ignoreDuplicateColumnError(tx, tx.Exec("ALTER TABLE backup_records ADD COLUMN file_checksum TEXT DEFAULT ''").Error); err != nil {
+					return err
+				}
+				return ignoreDuplicateColumnError(tx, tx.Exec("ALTER TABLE backup_records ADD COLUMN encrypted INTEGER DEFAULT 0").Error)
+			},
+			Rollback: func(tx *gorm.DB) error {
+				// SQLite doesn't support DROP COLUMN easily; table rebuild needed
+				return nil
+			},
+		},
 	})
 
 	// Use InitSchema for initial creation (faster than Migrate)

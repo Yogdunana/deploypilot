@@ -37,6 +37,7 @@ import (
 	_ "github.com/Yogdunana/deploypilot/docs/swagger"
 	"github.com/Yogdunana/deploypilot/internal/agent"
 	"github.com/Yogdunana/deploypilot/internal/auth"
+	"github.com/Yogdunana/deploypilot/internal/backup"
 	"github.com/Yogdunana/deploypilot/internal/config"
 	"github.com/Yogdunana/deploypilot/internal/crypto"
 	"github.com/Yogdunana/deploypilot/internal/database"
@@ -216,7 +217,46 @@ func run(configFilePath, cliDriver, cliDSN, cliAddr string) error {
 		slog.Info("OAuth service initialized", "providers", len(cfg.Auth.OAuthProviders))
 	}
 
-	srv := server.New(listenAddr, db, bridge, cfg, tokenBlacklist, oauthSvc, rdb)
+	// Initialize backup service with optional cloud storage
+	backupInterval, _ := time.ParseDuration(cfg.Backup.Interval)
+	if backupInterval == 0 {
+		backupInterval = 6 * time.Hour
+	}
+	backupSvc := backup.New(backup.Config{
+		Enabled:        cfg.Backup.Enabled,
+		Interval:       backupInterval,
+		RetentionCount: cfg.Backup.RetentionCount,
+		RetentionDays:  cfg.Backup.RetentionDays,
+		BackupDir:      cfg.Backup.BackupDir,
+	}, db, cfg.Database.Type, cfg.Database.DSN)
+
+	// Configure cloud storage if enabled
+	if cfg.Backup.CloudEnabled {
+		cloudStorage, err := backup.NewS3Storage(backup.StorageConfig{
+			Enabled:   true,
+			Type:      cfg.Backup.CloudType,
+			Endpoint:  cfg.Backup.CloudEndpoint,
+			Region:    cfg.Backup.CloudRegion,
+			Bucket:    cfg.Backup.CloudBucket,
+			Prefix:    cfg.Backup.CloudPrefix,
+			AccessKey: cfg.Backup.CloudAccessKey,
+			SecretKey: cfg.Backup.CloudSecretKey,
+			UseSSL:    cfg.Backup.CloudUseSSL,
+			Encrypt:   cfg.Backup.CloudEncrypt,
+		})
+		if err != nil {
+			slog.Warn("failed to initialize cloud storage, local backup only", "error", err)
+		} else {
+			backupSvc.SetStorage(cloudStorage)
+			if cfg.Backup.CloudEncrypt && encKey != nil {
+				backupSvc.SetEncryptionKey(encKey)
+			}
+			slog.Info("cloud backup storage enabled", "type", cfg.Backup.CloudType, "bucket", cfg.Backup.CloudBucket)
+		}
+	}
+	backupSvc.Start()
+
+	srv := server.New(listenAddr, db, bridge, cfg, tokenBlacklist, oauthSvc, rdb, backupSvc)
 
 	// Initialize and start Prometheus metrics server
 	metrics.Init()
@@ -277,6 +317,9 @@ func run(configFilePath, cliDriver, cliDSN, cliAddr string) error {
 	// 4. Stop monitor if running
 	if bridge.Monitor != nil {
 		bridge.Monitor.Stop()
+	}
+	if backupSvc != nil {
+		backupSvc.Stop()
 	}
 
 	// 5. Close event bus

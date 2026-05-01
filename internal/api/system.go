@@ -317,7 +317,11 @@ func GetBackupStatus(backupSvc *backup.Service) gin.HandlerFunc {
 			c.JSON(http.StatusOK, gin.H{"status": "success", "data": gin.H{"enabled": false}})
 			return
 		}
-		c.JSON(http.StatusOK, gin.H{"status": "success", "data": backupSvc.GetStatus()})
+		status := backupSvc.GetStatus()
+		// Include cloud storage status
+		cloudStatus := backupSvc.GetCloudStatus()
+		status["cloud"] = cloudStatus
+		c.JSON(http.StatusOK, gin.H{"status": "success", "data": status})
 	}
 }
 
@@ -403,6 +407,50 @@ func DeleteBackupRecord(backupSvc *backup.Service) gin.HandlerFunc {
 // @Accept       json
 // @Produce      json
 // @Security     BearerAuth
+
+// DownloadCloudBackup downloads a backup from cloud storage to local.
+// @Summary      Download cloud backup
+// @Description  Download a backup from cloud storage to local filesystem
+// @Tags         System
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id path string true "Backup record ID"
+// @Success      200 {object} map[string]interface{}
+// @Router       /system/backup/cloud/download/{id} [post]
+func DownloadCloudBackup(backupSvc *backup.Service) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if backupSvc == nil {
+			c.JSON(http.StatusBadRequest, gin.H{"status": "error", "message": "backup service not available"})
+			return
+		}
+		id := c.Param("id")
+		localPath, err := backupSvc.DownloadFromCloud(c.Request.Context(), id)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"status": "error", "message": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"status": "success", "message": "backup downloaded", "local_path": localPath})
+	}
+}
+
+// ApplyCloudRetention triggers cloud backup retention cleanup.
+// @Summary      Apply cloud retention
+// @Description  Manually trigger cloud backup retention policy cleanup
+// @Tags         System
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200 {object} map[string]interface{}
+// @Router       /system/backup/cloud/retention [post]
+func ApplyCloudRetention(backupSvc *backup.Service) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if backupSvc == nil {
+			c.JSON(http.StatusBadRequest, gin.H{"status": "error", "message": "backup service not available"})
+			return
+		}
+		backupSvc.ApplyCloudRetention(c.Request.Context())
+		c.JSON(http.StatusOK, gin.H{"status": "success", "message": "cloud retention applied"})
+	}
+}
 // @Param        id path string true "Confirmation ID"
 // @Success      200 {object} map[string]interface{}
 // @Router       /system/confirmations/{id}/reject [post]
