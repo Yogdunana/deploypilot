@@ -139,6 +139,10 @@ type SecurityConfig struct {
 	PasswordRequireDigit bool `mapstructure:"password_require_digit"`  // require digit (default: true)
 	PasswordRequireSpecial bool `mapstructure:"password_require_special"` // require special char (default: false)
 	PasswordMaxAgeDays int `mapstructure:"password_max_age_days"` // password expiry in days, 0 = disabled (default: 0)
+	// 2FA enforcement (Phase 4.1)
+	Force2FA          bool     `mapstructure:"force_2fa"`           // force all users to enable 2FA
+	Force2FARoles     []string `mapstructure:"force_2fa_roles"`     // force specific roles to enable 2FA (e.g. ["owner", "admin"])
+	Force2FAGraceDays int      `mapstructure:"force_2fa_grace_days"` // grace period in days before enforcement (default: 0)
 }
 
 // LogConfig holds logging settings.
@@ -271,6 +275,9 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("security.password_require_digit", true)
 	v.SetDefault("security.password_require_special", false)
 	v.SetDefault("security.password_max_age_days", 0)
+	// 2FA enforcement defaults
+	v.SetDefault("security.force_2fa", false)
+	v.SetDefault("security.force_2fa_grace_days", 0)
 
 	// Log
 	v.SetDefault("log.level", "info")

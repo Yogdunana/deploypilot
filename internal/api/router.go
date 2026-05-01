@@ -66,12 +66,12 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 		}()))
 		authGroup.POST("/ws-ticket", WSTicket(ticketStore, 30*time.Second))
 		authGroup.POST("/revoke", RevokeToken(blacklist))
+		authGroup.POST("/2fa/verify", Check2FARateLimit(), Verify2FA(db, auditSvc))
 		if oauthSvc != nil {
 			stateStore := auth.NewMemoryStateStore()
 			go stateStore.StartCleanup(context.Background(), 5*time.Minute)
 			authGroup.GET("/oauth/:provider", OAuthLogin(oauthSvc, stateStore))
 			authGroup.GET("/oauth/:provider/callback", OAuthCallback(oauthSvc, stateStore))
-			authGroup.POST("/2fa/verify", Verify2FA(db, auditSvc))
 		}
 	}
 
@@ -186,6 +186,7 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 			users.GET("", auth.RoleRequired("owner", "admin"), ListUsers(db))
 			users.DELETE("/:id", auth.RoleRequired("owner"), DeleteUser(db))
 			users.PUT("/:id/role", auth.RoleRequired("owner", "admin"), UpdateUserRole(db))
+			users.POST("/:id/reset-2fa", auth.RoleRequired("owner", "admin"), ResetUser2FA(db, auditSvc))
 		}
 		roles := protected.Group("/roles")
 		{
@@ -290,9 +291,11 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 		// 2FA management (requires authentication)
 		twofa := protected.Group("/2fa")
 		{
+			twofa.GET("/status", Get2FAStatus(db))
 			twofa.POST("/setup", Setup2FA(db, auditSvc))
 			twofa.POST("/confirm", Confirm2FA(db, auditSvc))
 			twofa.POST("/disable", Disable2FA(db, auditSvc))
+			twofa.POST("/regenerate-backup-codes", RegenerateBackupCodes(db, auditSvc))
 		}
 
 		// API Keys (3 endpoints)
