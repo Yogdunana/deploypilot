@@ -59,7 +59,7 @@ func APIKeyMiddleware(keySvc *service.APIKeyService) gin.HandlerFunc {
 		c.Set(string(APIKeyIDKey), apiKey.ID)
 
 		// Parse and set scopes
-		scopes := keySvc.ParseScopes(apiKey.Scopes)
+		scopes := service.ParseScopes(apiKey.Scopes)
 		c.Set(string(APIKeyScopesKey), scopes)
 
 		c.Next()
