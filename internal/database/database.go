@@ -539,8 +539,8 @@ func Migrate(db *gorm.DB) error {
 				return nil
 			},
 			Rollback: func(tx *gorm.DB) error {
-				tx.Migrator().DropColumn("api_keys", "allowed_ips")
-				tx.Migrator().DropColumn("api_keys", "usage_count")
+				_ = tx.Migrator().DropColumn("api_keys", "allowed_ips")
+				_ = tx.Migrator().DropColumn("api_keys", "usage_count")
 				return nil
 			},
 		},
