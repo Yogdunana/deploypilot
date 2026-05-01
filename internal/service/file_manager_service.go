@@ -94,7 +94,7 @@ func (f *FileManagerService) ListFiles(ctx context.Context, serverID, remotePath
 	if err != nil {
 		return nil, err
 	}
-	defer exec.Close()
+	defer func() { _ = exec.Close() }()
 
 	output, err := exec.RunCommand(ctx, cmd)
 	if err != nil {
@@ -124,7 +124,7 @@ func (f *FileManagerService) ReadFile(ctx context.Context, serverID, remotePath 
 	if err != nil {
 		return nil, err
 	}
-	defer exec.Close()
+	defer func() { _ = exec.Close() }()
 
 	content, err := exec.RunCommand(ctx, cmd)
 	if err != nil {
@@ -160,7 +160,7 @@ func (f *FileManagerService) WriteFile(ctx context.Context, serverID, remotePath
 	if err != nil {
 		return err
 	}
-	defer exec.Close()
+	defer func() { _ = exec.Close() }()
 
 	_, err = exec.RunCommand(ctx, cmd)
 	if err != nil {
@@ -184,7 +184,7 @@ func (f *FileManagerService) DeleteFile(ctx context.Context, serverID, remotePat
 	if err != nil {
 		return err
 	}
-	defer exec.Close()
+	defer func() { _ = exec.Close() }()
 
 	_, err = exec.RunCommand(ctx, cmd)
 	if err != nil {
@@ -208,7 +208,7 @@ func (f *FileManagerService) CreateDirectory(ctx context.Context, serverID, remo
 	if err != nil {
 		return err
 	}
-	defer exec.Close()
+	defer func() { _ = exec.Close() }()
 
 	_, err = exec.RunCommand(ctx, cmd)
 	if err != nil {
@@ -232,7 +232,7 @@ func (f *FileManagerService) MoveFile(ctx context.Context, serverID, srcPath, ds
 	if err != nil {
 		return err
 	}
-	defer exec.Close()
+	defer func() { _ = exec.Close() }()
 
 	_, err = exec.RunCommand(ctx, cmd)
 	if err != nil {
@@ -252,7 +252,7 @@ func (f *FileManagerService) GetDiskUsage(ctx context.Context, serverID, remoteP
 	if err != nil {
 		return nil, err
 	}
-	defer exec.Close()
+	defer func() { _ = exec.Close() }()
 
 	output, err := exec.RunCommand(ctx, cmd)
 	if err != nil {
@@ -277,7 +277,7 @@ func (f *FileManagerService) GetFileInfo(ctx context.Context, serverID, remotePa
 	if err != nil {
 		return nil, err
 	}
-	defer exec.Close()
+	defer func() { _ = exec.Close() }()
 
 	output, err := exec.RunCommand(ctx, cmd)
 	if err != nil {
@@ -308,7 +308,7 @@ func (f *FileManagerService) SearchFiles(ctx context.Context, serverID, searchPa
 	if err != nil {
 		return nil, err
 	}
-	defer exec.Close()
+	defer func() { _ = exec.Close() }()
 
 	output, err := exec.RunCommand(ctx, cmd)
 	if err != nil {
