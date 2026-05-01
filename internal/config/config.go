@@ -129,6 +129,16 @@ type SecurityConfig struct {
 	RateLimitAdmin   int `mapstructure:"rate_limit_admin"`
 	RateLimitDev     int `mapstructure:"rate_limit_dev"`
 	RateLimitViewer  int `mapstructure:"rate_limit_viewer"`
+	// Panel security hardening (Phase 4.0)
+	SecurityEntrance string   `mapstructure:"security_entrance"`  // e.g. "/my-secret-panel", empty = disabled
+	AllowedDomains   []string `mapstructure:"allowed_domains"`    // domain binding, empty = disabled
+	AllowedIPs       []string `mapstructure:"allowed_ips"`        // IP whitelist, empty = disabled
+	PasswordMinLen   int      `mapstructure:"password_min_len"`  // minimum password length (default: 8)
+	PasswordRequireUpper bool `mapstructure:"password_require_upper"`  // require uppercase (default: true)
+	PasswordRequireLower bool `mapstructure:"password_require_lower"`  // require lowercase (default: true)
+	PasswordRequireDigit bool `mapstructure:"password_require_digit"`  // require digit (default: true)
+	PasswordRequireSpecial bool `mapstructure:"password_require_special"` // require special char (default: false)
+	PasswordMaxAgeDays int `mapstructure:"password_max_age_days"` // password expiry in days, 0 = disabled (default: 0)
 }
 
 // LogConfig holds logging settings.
@@ -254,6 +264,13 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("security.rate_limit_admin", 150)
 	v.SetDefault("security.rate_limit_dev", 100)
 	v.SetDefault("security.rate_limit_viewer", 50)
+	// Panel security hardening defaults
+	v.SetDefault("security.password_min_len", 8)
+	v.SetDefault("security.password_require_upper", true)
+	v.SetDefault("security.password_require_lower", true)
+	v.SetDefault("security.password_require_digit", true)
+	v.SetDefault("security.password_require_special", false)
+	v.SetDefault("security.password_max_age_days", 0)
 
 	// Log
 	v.SetDefault("log.level", "info")

@@ -10,12 +10,21 @@ import (
 	"github.com/Yogdunana/deploypilot/internal/auth"
 	"github.com/Yogdunana/deploypilot/internal/bruteforce"
 	"github.com/Yogdunana/deploypilot/internal/crypto"
+	"github.com/Yogdunana/deploypilot/internal/middleware"
 	"github.com/Yogdunana/deploypilot/internal/service"
 	"github.com/Yogdunana/deploypilot/internal/model"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
+
+// passwordValidator is the global password validator instance.
+var passwordValidator *middleware.PasswordValidator
+
+// SetPasswordValidator sets the global password validator for registration and password changes.
+func SetPasswordValidator(v *middleware.PasswordValidator) {
+	passwordValidator = v
+}
 
 // Register handles user registration.
 // @Summary      Register a new user
@@ -39,6 +48,18 @@ func Register(db *gorm.DB) gin.HandlerFunc {
 		if err := c.ShouldBindJSON(&input); err != nil {
 			respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request", err.Error())
 			return
+		}
+
+		// Validate password complexity
+		if passwordValidator != nil {
+			if err := passwordValidator.Validate(input.Password); err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{
+					"status":  "error",
+					"message": "password does not meet security requirements",
+					"errors":  err.(*middleware.PasswordValidationError).Errors,
+				})
+				return
+			}
 		}
 
 		// Check if username or email already exists
