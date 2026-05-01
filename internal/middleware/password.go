@@ -2,7 +2,6 @@ package middleware
 
 import (
 	"errors"
-	"regexp"
 	"strings"
 	"unicode"
 
@@ -199,9 +198,13 @@ func isRepeating(s string) bool {
 	if len(s) < 3 {
 		return false
 	}
-	// Check for 3+ repeated characters
-	re := regexp.MustCompile(`(.)\1{2,}`)
-	return re.MatchString(s)
+	runes := []rune(s)
+	for i := 0; i < len(runes)-2; i++ {
+		if runes[i] == runes[i+1] && runes[i+1] == runes[i+2] {
+			return true
+		}
+	}
+	return false
 }
 
 // commonPasswords is a list of commonly used weak passwords.
