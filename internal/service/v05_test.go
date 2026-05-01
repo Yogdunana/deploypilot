@@ -527,12 +527,12 @@ func TestGetNotifiers_DisabledProvider(t *testing.T) {
 
 func TestGetNotifiers_UnknownChannel(t *testing.T) {
 	db := setupTestWithProviders(t) // already has webhook
-	// Add a notifier with unknown channel type
-	ucfg, _ := json.Marshal(map[string]interface{}{"channel": "slack", "webhook_url": "https://slack.example.com"})
+	// Add a notifier with a truly unknown channel type
+	ucfg, _ := json.Marshal(map[string]interface{}{"channel": "unknown_channel_xyz"})
 	db.Create(&model.Provider{
-		ID:      "notify-slack",
+		ID:      "notify-unknown",
 		Type:    "notify",
-		Name:    "slack-test",
+		Name:    "unknown-test",
 		Config:  string(ucfg),
 		Enabled: true,
 	})
