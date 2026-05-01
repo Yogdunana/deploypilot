@@ -158,18 +158,21 @@ func (DeploymentRecord) TableName() string { return "deployments" }
 
 // AuditLog records system actions for compliance and debugging.
 type AuditLog struct {
-	ID            uint      `json:"id" gorm:"primaryKey"`
-	UserID       uint      `json:"user_id" gorm:"index"`
-	Username     string    `json:"username"`
-	Action       string    `json:"action" gorm:"index;size:100"`
-	ResourceType string    `json:"resource_type" gorm:"size:50"`
-	ResourceID   string    `json:"resource_id" gorm:"size:100"`
-	Detail       string    `json:"detail" gorm:"type:text"`
-	IPAddress    string    `json:"ip_address" gorm:"size:45"`
-	UserAgent    string    `json:"user_agent" gorm:"size:500"`
-	RecordHash   string    `json:"record_hash" gorm:"column:record_hash;size:128"`
-	TraceID      string    `json:"trace_id,omitempty" gorm:"size:36;index"`
-	CreatedAt    time.Time `json:"created_at" gorm:"autoCreateTime;index"`
+	ID            uint       `json:"id" gorm:"primaryKey"`
+	UserID       uint       `json:"user_id" gorm:"index"`
+	Username     string     `json:"username"`
+	Action       string     `json:"action" gorm:"index;size:100"`
+	ResourceType string     `json:"resource_type" gorm:"size:50"`
+	ResourceID   string     `json:"resource_id" gorm:"size:100"`
+	Detail       string     `json:"detail" gorm:"type:text"`
+	LogType      string     `json:"log_type" gorm:"size:20;index;default:operation"` // auth, operation, security, system
+	IPAddress    string     `json:"ip_address" gorm:"size:45"`
+	UserAgent    string     `json:"user_agent" gorm:"size:500"`
+	RecordHash   string     `json:"record_hash" gorm:"column:record_hash;size:128"`
+	TraceID      string     `json:"trace_id,omitempty" gorm:"size:36;index"`
+	Archived     bool       `json:"archived" gorm:"index;default:false"`
+	ArchivedAt   *time.Time `json:"archived_at,omitempty"`
+	CreatedAt    time.Time  `json:"created_at" gorm:"autoCreateTime;index"`
 }
 
 func (AuditLog) TableName() string { return "audit_logs" }

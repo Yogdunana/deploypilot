@@ -19,8 +19,11 @@ func setupAuditTestDB(t *testing.T) *gorm.DB {
 	db.Exec(`CREATE TABLE IF NOT EXISTS audit_logs (
 		id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, username TEXT,
 		action TEXT, resource_type TEXT, resource_id TEXT, detail TEXT,
+		log_type TEXT DEFAULT 'operation',
 		ip_address TEXT, user_agent TEXT, record_hash TEXT,
 		trace_id TEXT,
+		archived BOOLEAN DEFAULT false,
+		archived_at DATETIME,
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 	)`)
 	return db
@@ -360,12 +363,15 @@ func TestAuditService_Cleanup(t *testing.T) {
 	db := setupAuditTestDB(t)
 	svc := NewAuditService(db)
 
-	// Record is created "now" — cleanup with 0 days retention should delete it
+	// Record is created "now" — archive then cleanup with 0 days retention should delete it
 	_ = svc.Record(context.TODO(), AuditEntry{Action: "app.create"})
 	_, total, _ := svc.List(context.TODO(), AuditFilter{Page: 1, PageSize: 10})
 	if total != 1 {
 		t.Fatalf("total before cleanup = %d, want 1", total)
 	}
+
+	// Archive first (Cleanup only deletes archived records)
+	_, _ = svc.Archive(context.TODO(), 0)
 
 	deleted, err := svc.Cleanup(context.TODO(), 0)
 	if err != nil {
