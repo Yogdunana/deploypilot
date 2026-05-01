@@ -93,6 +93,11 @@ func New(addr string, db *gorm.DB, bridge *service.Bridge, cfg *config.Config, b
 	// Store security config for API access
 	api.SetSecurityConfig(&cfg.Security)
 
+	// Set audit service for auth event logging
+	if auditSvc != nil {
+		api.SetAuditServiceForAuth(auditSvc)
+	}
+
 	// Initialize refresh token store
 	if rdb != nil {
 		api.SetRefreshTokenStore(auth.NewRedisRefreshTokenStore(rdb))

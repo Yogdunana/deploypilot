@@ -21,9 +21,17 @@ import (
 // passwordValidator is the global password validator instance.
 var passwordValidator *middleware.PasswordValidator
 
+// auditSvcForAuth is the global audit service for auth events.
+var auditSvcForAuth *service.AuditService
+
 // SetPasswordValidator sets the global password validator for registration and password changes.
 func SetPasswordValidator(v *middleware.PasswordValidator) {
 	passwordValidator = v
+}
+
+// SetAuditServiceForAuth sets the global audit service for auth event logging.
+func SetAuditServiceForAuth(svc *service.AuditService) {
+	auditSvcForAuth = svc
 }
 
 // Register handles user registration.
@@ -108,6 +116,19 @@ func Register(db *gorm.DB) gin.HandlerFunc {
 				})
 				setAuthCookies(c, token, refreshID)
 			}
+		}
+
+		// Record register audit event
+		if auditSvcForAuth != nil {
+			_ = auditSvcForAuth.Record(c.Request.Context(), service.AuditEntry{
+				UserID:       parseUserID(user.ID),
+				Username:     user.Username,
+				Action:       "user.register",
+				ResourceType: "user",
+				ResourceID:   user.ID,
+				IPAddress:    c.ClientIP(),
+				UserAgent:    c.GetHeader("User-Agent"),
+			})
 		}
 
 		respondSuccess(c, gin.H{
@@ -325,6 +346,19 @@ func Login(db *gorm.DB, bf *bruteforce.Protector) gin.HandlerFunc {
 				})
 				setAuthCookies(c, token, refreshID)
 			}
+		}
+
+		// Record login audit event
+		if auditSvcForAuth != nil {
+			_ = auditSvcForAuth.Record(c.Request.Context(), service.AuditEntry{
+				UserID:       parseUserID(user.ID),
+				Username:     user.Username,
+				Action:       "user.login",
+				ResourceType: "user",
+				ResourceID:   user.ID,
+				IPAddress:    c.ClientIP(),
+				UserAgent:    c.GetHeader("User-Agent"),
+			})
 		}
 
 		respondSuccess(c, gin.H{

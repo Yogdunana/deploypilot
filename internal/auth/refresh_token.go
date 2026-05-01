@@ -35,6 +35,8 @@ type RefreshTokenStore interface {
 	RevokeAllForUser(userID string) error
 	// Count returns the number of active refresh tokens for a user.
 	Count(userID string) (int, error)
+	// ListForUser returns all active refresh token entries for a user.
+	ListForUser(userID string) ([]RefreshTokenEntry, error)
 }
 
 // GenerateRefreshTokenID generates a cryptographically secure random token ID.
@@ -137,6 +139,32 @@ func (s *RedisRefreshTokenStore) Count(userID string) (int, error) {
 	return int(n), err
 }
 
+func (s *RedisRefreshTokenStore) ListForUser(userID string) ([]RefreshTokenEntry, error) {
+	ctx := context.Background()
+	tokenIDs, err := s.client.SMembers(ctx, fmt.Sprintf("user_refresh:%s", userID)).Result()
+	if err != nil {
+		return nil, err
+	}
+	if len(tokenIDs) == 0 {
+		return nil, nil
+	}
+
+	var entries []RefreshTokenEntry
+	now := time.Now()
+	for _, tid := range tokenIDs {
+		val, err := s.client.Get(ctx, fmt.Sprintf("refresh:%s", tid)).Result()
+		if err != nil {
+			continue // skip expired/missing
+		}
+		entry, err := parseRefreshEntry(tid, val)
+		if err != nil || now.After(entry.ExpiresAt) {
+			continue
+		}
+		entries = append(entries, *entry)
+	}
+	return entries, nil
+}
+
 // --- Memory implementation ---
 
 // MemoryRefreshTokenStore implements RefreshTokenStore using in-memory storage.
@@ -212,6 +240,27 @@ func (s *MemoryRefreshTokenStore) Count(userID string) (int, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return len(s.users[userID]), nil
+}
+
+func (s *MemoryRefreshTokenStore) ListForUser(userID string) ([]RefreshTokenEntry, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	tokenIDs := s.users[userID]
+	if len(tokenIDs) == 0 {
+		return nil, nil
+	}
+
+	now := time.Now()
+	var entries []RefreshTokenEntry
+	for tid := range tokenIDs {
+		entry, ok := s.tokens[tid]
+		if !ok || now.After(entry.ExpiresAt) {
+			continue
+		}
+		entries = append(entries, *entry)
+	}
+	return entries, nil
 }
 
 // StartCleanup starts a background goroutine that removes expired tokens.
