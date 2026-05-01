@@ -395,7 +395,7 @@ func ResetUser2FA(db *gorm.DB, auditSvc *service.AuditService) gin.HandlerFunc {
 				Action:       "auth.2fa_admin_reset",
 				ResourceType: "user",
 				ResourceID:   targetUserID,
-				Details:      "admin reset 2FA for user " + user.Username,
+				Detail:       "admin reset 2FA for user " + user.Username,
 			})
 		}
 
