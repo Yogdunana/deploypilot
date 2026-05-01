@@ -262,7 +262,7 @@ func (s *Scheduler) executeHealthCheck(ctx context.Context, task model.Scheduled
 func (s *Scheduler) executeLogCleanup(ctx context.Context, task model.ScheduledTask) (string, error) {
 	// Default: clean metrics older than 7 days
 	olderThan := 7 * 24 * time.Hour
-	mon := s.bridge.getMonitor()
+	mon := s.bridge.Monitor
 	if mon != nil && mon.GetStore() != nil {
 		if err := mon.GetStore().CleanupOldMetrics(ctx, olderThan); err != nil {
 			return "", fmt.Errorf("failed to cleanup old metrics: %w", err)

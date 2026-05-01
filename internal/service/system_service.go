@@ -158,7 +158,7 @@ func (b *Bridge) PerformSystemUpdate(ctx context.Context) (interface{}, error) {
 // ---------- 40. HealContainer ----------
 
 func (b *Bridge) HealContainer(ctx context.Context, containerName string) (interface{}, error) {
-	h := b.getHealer()
+	h := b.healer
 	result, err := h.CheckAndHeal(ctx, containerName)
 	if err != nil {
 		return nil, fmt.Errorf("heal failed for %s: %w", containerName, err)
