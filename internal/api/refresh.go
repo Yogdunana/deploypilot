@@ -29,7 +29,7 @@ type cookieConfig struct {
 var defaultCookieConfig = cookieConfig{
 	Secure:   true,
 	HTTPOnly: true,
-	SameSite: http.SameSiteLax,
+	SameSite: http.SameSiteLaxMode,
 	Path:     "/",
 	MaxAge:   0,
 }
