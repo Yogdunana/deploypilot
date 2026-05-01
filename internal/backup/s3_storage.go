@@ -26,7 +26,6 @@ type s3Storage struct {
 	prefix    string
 	accessKey string
 	secretKey string
-	useSSL    bool
 	client    *http.Client
 }
 
@@ -112,7 +111,7 @@ func (s *s3Storage) Upload(ctx context.Context, key string, reader io.Reader, si
 		host, contentSHA256, datetime)
 	signedHeaders := "content-type;host;x-amz-content-sha256;x-amz-date"
 
-	canonicalRequest := fmt.Sprintf("PUT\n%s\n\n%s\n%s%s",
+	canonicalRequest := fmt.Sprintf("PUT\n%s\n\n%s\n%s\n%s",
 		canonicalURI, "", canonicalHeaders, signedHeaders, contentSHA256)
 
 	credentialScope := fmt.Sprintf("%s/%s/s3/aws4_request", date, s.region)
@@ -140,7 +139,7 @@ func (s *s3Storage) Upload(ctx context.Context, key string, reader io.Reader, si
 	if err != nil {
 		return fmt.Errorf("s3 upload: request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode >= 300 {
 		body, _ := io.ReadAll(resp.Body)
@@ -166,7 +165,7 @@ func (s *s3Storage) Download(ctx context.Context, key string) (io.ReadCloser, in
 		host, contentSHA256, datetime)
 	signedHeaders := "host;x-amz-content-sha256;x-amz-date"
 
-	canonicalRequest := fmt.Sprintf("GET\n%s\n\n%s\n%s%s",
+	canonicalRequest := fmt.Sprintf("GET\n%s\n\n%s\n%s\n%s",
 		canonicalURI, "", canonicalHeaders, signedHeaders, contentSHA256)
 
 	credentialScope := fmt.Sprintf("%s/%s/s3/aws4_request", date, s.region)
@@ -193,7 +192,7 @@ func (s *s3Storage) Download(ctx context.Context, key string) (io.ReadCloser, in
 	}
 
 	if resp.StatusCode >= 300 {
-		resp.Body.Close()
+		_ = resp.Body.Close()
 		return nil, 0, fmt.Errorf("s3 download failed (HTTP %d)", resp.StatusCode)
 	}
 
@@ -215,7 +214,7 @@ func (s *s3Storage) Delete(ctx context.Context, key string) error {
 		host, contentSHA256, datetime)
 	signedHeaders := "host;x-amz-content-sha256;x-amz-date"
 
-	canonicalRequest := fmt.Sprintf("DELETE\n%s\n\n%s\n%s%s",
+	canonicalRequest := fmt.Sprintf("DELETE\n%s\n\n%s\n%s\n%s",
 		canonicalURI, "", canonicalHeaders, signedHeaders, contentSHA256)
 
 	credentialScope := fmt.Sprintf("%s/%s/s3/aws4_request", date, s.region)
@@ -240,7 +239,7 @@ func (s *s3Storage) Delete(ctx context.Context, key string) error {
 	if err != nil {
 		return fmt.Errorf("s3 delete: request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode >= 300 && resp.StatusCode != 404 {
 		body, _ := io.ReadAll(resp.Body)
@@ -300,7 +299,7 @@ func (s *s3Storage) List(ctx context.Context, prefix string) ([]StorageObject, e
 	if err != nil {
 		return nil, fmt.Errorf("s3 list: request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode >= 300 {
 		body, _ := io.ReadAll(resp.Body)
@@ -372,7 +371,7 @@ func (s *s3Storage) Exists(ctx context.Context, key string) (bool, error) {
 	if err != nil {
 		return false, fmt.Errorf("s3 exists: request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	return resp.StatusCode == 200, nil
 }

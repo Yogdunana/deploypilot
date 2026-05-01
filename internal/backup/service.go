@@ -551,7 +551,7 @@ func (s *Service) uploadToCloud(ctx context.Context, record *Record) {
 		slog.Error("failed to open backup file for cloud upload", "path", record.FilePath, "error", err)
 		return
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	// Compute checksum before upload
 	checksum, err := s.computeFileChecksum(record.FilePath)
@@ -622,7 +622,7 @@ func (s *Service) DownloadFromCloud(ctx context.Context, recordID string) (strin
 	if err != nil {
 		return "", fmt.Errorf("failed to download from cloud: %w", err)
 	}
-	defer reader.Close()
+	defer func() { _ = reader.Close() }()
 
 	data, err := io.ReadAll(reader)
 	if err != nil {
@@ -733,7 +733,7 @@ func (s *Service) computeFileChecksum(path string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	h := sha256.New()
 	if _, err := io.Copy(h, f); err != nil {
