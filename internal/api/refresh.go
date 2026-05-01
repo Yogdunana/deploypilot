@@ -20,7 +20,7 @@ func SetRefreshTokenStore(store auth.RefreshTokenStore) {
 type cookieConfig struct {
 	Secure   bool
 	HTTPOnly bool
-	SameSite string
+	SameSite http.SameSite
 	Path     string
 	Domain   string
 	MaxAge   int // seconds; 0 = session cookie
@@ -29,9 +29,9 @@ type cookieConfig struct {
 var defaultCookieConfig = cookieConfig{
 	Secure:   true,
 	HTTPOnly: true,
-	SameSite: "Lax",
+	SameSite: http.SameSiteLax,
 	Path:     "/",
-	MaxAge:   0, // session cookie by default
+	MaxAge:   0,
 }
 
 // SetCookieConfig updates the cookie configuration.

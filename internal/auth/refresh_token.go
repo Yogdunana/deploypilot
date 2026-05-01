@@ -133,7 +133,8 @@ func (s *RedisRefreshTokenStore) RevokeAllForUser(userID string) error {
 
 func (s *RedisRefreshTokenStore) Count(userID string) (int, error) {
 	ctx := context.Background()
-	return s.client.SCard(ctx, fmt.Sprintf("user_refresh:%s", userID)).Result()
+	n, err := s.client.SCard(ctx, fmt.Sprintf("user_refresh:%s", userID)).Result()
+	return int(n), err
 }
 
 // --- Memory implementation ---

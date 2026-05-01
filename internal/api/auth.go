@@ -102,7 +102,7 @@ func Register(db *gorm.DB) gin.HandlerFunc {
 			refreshID, rErr := auth.GenerateRefreshTokenID()
 			if rErr == nil {
 				_ = refreshStore.Store(auth.RefreshTokenEntry{
-					TokenID: refreshID, UserID: user.ID, Role: roleName,
+					TokenID: refreshID, UserID: user.ID, Role: "viewer",
 					DeviceInfo: c.GetHeader("User-Agent"), IPAddress: c.ClientIP(),
 					CreatedAt: time.Now(), ExpiresAt: time.Now().Add(7 * 24 * time.Hour),
 				})
