@@ -852,4 +852,58 @@ func (b *Bridge) PortForward(ctx context.Context, action, serverID string, local
 	}
 }
 
+// ========== SchedulerService interface (stubs) ==========
+
+// CreateScheduledTask creates a new scheduled task.
+func (b *Bridge) CreateScheduledTask(ctx context.Context, name, cronExpr, taskType, command string, serverID string) (interface{}, error) {
+	return nil, fmt.Errorf("scheduled tasks: use Scheduler directly")
+}
+
+// ListScheduledTasks lists all scheduled tasks.
+func (b *Bridge) ListScheduledTasks(ctx context.Context) (interface{}, error) {
+	return nil, fmt.Errorf("scheduled tasks: use Scheduler directly")
+}
+
+// GetTaskExecutions gets execution history for a task.
+func (b *Bridge) GetTaskExecutions(ctx context.Context, taskID string, limit int) (interface{}, error) {
+	return nil, fmt.Errorf("scheduled tasks: use Scheduler directly")
+}
+
+// ToggleScheduledTask enables or disables a scheduled task.
+func (b *Bridge) ToggleScheduledTask(ctx context.Context, taskID string, enabled bool) (interface{}, error) {
+	return nil, fmt.Errorf("scheduled tasks: use Scheduler directly")
+}
+
+// DeleteScheduledTask deletes a scheduled task.
+func (b *Bridge) DeleteScheduledTask(ctx context.Context, taskID string) (interface{}, error) {
+	return nil, fmt.Errorf("scheduled tasks: use Scheduler directly")
+}
+
+// ========== MonitorService interface (stubs) ==========
+
+// GetSystemMetrics returns system-level metrics (CPU, memory, disk).
+func (b *Bridge) GetSystemMetrics(ctx context.Context) (interface{}, error) {
+	return b.Monitor.GetSystemMetrics(ctx)
+}
+
+// GetContainerMetrics returns resource usage metrics for a specific container.
+func (b *Bridge) GetContainerMetrics(ctx context.Context, name string) (interface{}, error) {
+	return b.Monitor.GetContainerMetrics(ctx, name)
+}
+
+// ListAlerts returns all currently active (firing) alerts.
+func (b *Bridge) ListAlerts(ctx context.Context) (interface{}, error) {
+	return b.Monitor.ListAlerts(ctx)
+}
+
+// ListAlertRules returns all configured alert rules.
+func (b *Bridge) ListAlertRules(ctx context.Context) (interface{}, error) {
+	return b.Monitor.ListAlertRules(ctx)
+}
+
+// HealContainer triggers self-healing for a container.
+func (b *Bridge) HealContainer(ctx context.Context, name string) (interface{}, error) {
+	return b.healer.CheckAndHeal(ctx, name)
+}
+
 

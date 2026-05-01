@@ -168,6 +168,16 @@ func (m *Monitor) GetAlerts() []*Alert {
 	return m.alertManager.GetActiveAlerts()
 }
 
+// ListAlerts returns all currently active alerts (interface{} for Bridge compatibility).
+func (m *Monitor) ListAlerts(ctx context.Context) (interface{}, error) {
+	return m.alertManager.GetActiveAlerts(), nil
+}
+
+// ListAlertRules returns all configured alert rules.
+func (m *Monitor) ListAlertRules(ctx context.Context) (interface{}, error) {
+	return m.alertManager.GetRules(), nil
+}
+
 // GetAlertRules returns all configured alert rules.
 func (m *Monitor) GetAlertRules() []AlertRule {
 	return m.alertManager.GetRules()
