@@ -149,6 +149,7 @@ func run(configFilePath, cliDriver, cliDSN, cliAddr string) error {
 
 	// Initialize event bus, token blacklist, and cache (Redis if available, otherwise in-memory)
 	var eventBus service.EventBus
+	var typedBus service.TypedEventBus
 	var tokenBlacklist auth.TokenBlacklist
 	var cache service.Cache
 	var rdb *redis.Client
@@ -161,16 +162,19 @@ func run(configFilePath, cliDriver, cliDSN, cliAddr string) error {
 		if err := rdb.Ping(context.Background()).Err(); err != nil {
 			slog.Warn("Redis unavailable, falling back to in-memory implementations", "error", err)
 			eventBus = service.NewInMemoryEventBus()
+			typedBus = service.NewInMemoryTypedEventBus()
 			tokenBlacklist = auth.NewMemoryTokenBlacklist()
 			cache = service.NewMemoryCache("dp:")
 		} else {
 			eventBus = service.NewRedisEventBus(rdb)
+			typedBus = service.NewRedisTypedEventBus(rdb, "")
 			tokenBlacklist = auth.NewRedisTokenBlacklist(rdb)
 			cache = service.NewRedisCache(rdb, "dp:")
-			slog.Info("using Redis for event bus, token blacklist, and cache")
+			slog.Info("using Redis for event bus, typed event bus, token blacklist, and cache")
 		}
 	} else {
 		eventBus = service.NewInMemoryEventBus()
+		typedBus = service.NewInMemoryTypedEventBus()
 		tokenBlacklist = auth.NewMemoryTokenBlacklist()
 		cache = service.NewMemoryCache("dp:")
 	}
@@ -181,6 +185,7 @@ func run(configFilePath, cliDriver, cliDSN, cliAddr string) error {
 
 	bridge := service.NewBridge(db, executor, encKey, eventBus)
 	bridge.SetCache(cache)
+	bridge.SetTypedBus(typedBus)
 	bridge.TunnelManager = tunnelManager
 	bridge.UpgradeSvc = service.NewUpgradeService("")
 
@@ -278,6 +283,11 @@ func run(configFilePath, cliDriver, cliDSN, cliAddr string) error {
 	if eventBus != nil {
 		if err := eventBus.Close(); err != nil {
 			slog.Warn("event bus close error", "error", err)
+		}
+	}
+	if typedBus != nil {
+		if err := typedBus.Close(); err != nil {
+			slog.Warn("typed event bus close error", "error", err)
 		}
 	}
 

@@ -229,6 +229,25 @@ type AlertHistory struct {
 
 func (AlertHistory) TableName() string { return "alert_histories" }
 
+// AlertRuleRecord stores persistent alert rule configuration.
+type AlertRuleRecord struct {
+	ID              string    `gorm:"primaryKey" json:"id"`
+	TenantID        string    `gorm:"index" json:"tenant_id,omitempty"`
+	Name            string    `gorm:"not null;size:100" json:"name"`
+	MetricType      string    `gorm:"not null;size:20" json:"metric_type"`
+	Condition       string    `gorm:"not null;size:10" json:"condition"`
+	Threshold       float64   `json:"threshold"`
+	Severity        string    `gorm:"not null;size:20;default:warning" json:"severity"`
+	Enabled         bool      `gorm:"default:true" json:"enabled"`
+	CooldownSeconds int       `gorm:"default:900" json:"cooldown_seconds"`
+	NotifyChannels  string    `gorm:"type:text" json:"notify_channels"` // JSON array string: ["webhook","email"]
+	ServerID        string    `gorm:"index" json:"server_id,omitempty"`
+	CreatedAt       time.Time `gorm:"autoCreateTime" json:"created_at"`
+	UpdatedAt       time.Time `gorm:"autoUpdateTime" json:"updated_at"`
+}
+
+func (AlertRuleRecord) TableName() string { return "alert_rules" }
+
 // ScheduledTask represents a cron-based scheduled task.
 type ScheduledTask struct {
 	ID          string     `gorm:"primaryKey" json:"id"`

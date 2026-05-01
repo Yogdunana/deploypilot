@@ -63,6 +63,16 @@ func (b *Bridge) getMonitor() *monitor.Monitor {
 		if b.DB != nil {
 			b.Monitor.SetStore(monitor.NewMetricStore(b.DB))
 		}
+		// Set up alert handler for event bus + notification integration
+		if b.TypedBus != nil || b.DB != nil {
+			handler := newBridgeAlertHandler(b.DB, b.TypedBus, b)
+			b.Monitor.SetAlertHandler(handler)
+			// Sync alert rules from database
+			if b.DB != nil {
+				ruleSvc := NewAlertRuleService(b.DB)
+				ruleSvc.SyncRulesToAlertManager(b.Monitor.GetAlertManager())
+			}
+		}
 	}
 	return b.Monitor
 }

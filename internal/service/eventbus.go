@@ -3,7 +3,58 @@ package service
 import (
 	"context"
 	"sync"
+	"time"
 )
+
+// EventType defines the type of a bus event.
+type EventType string
+
+const (
+	EventDeploy EventType = "deploy"
+	EventAlert  EventType = "alert"
+	EventNotify EventType = "notify"
+	EventSystem EventType = "system"
+)
+
+// BusEvent is a generic event envelope for the typed event bus.
+// It wraps any event payload with metadata for topic-based routing.
+type BusEvent struct {
+	ID        string      `json:"id"`
+	Type      EventType   `json:"type"`
+	Topic     string      `json:"topic"`               // e.g. "alert:all", "deploy:app-123"
+	Source    string      `json:"source,omitempty"`     // instance ID to prevent loop
+	Payload   interface{} `json:"payload"`
+	Timestamp time.Time   `json:"timestamp"`
+}
+
+// AlertEventPayload is the payload for alert events published on the typed event bus.
+type AlertEventPayload struct {
+	AlertID   string  `json:"alert_id"`
+	RuleID    string  `json:"rule_id"`
+	RuleName  string  `json:"rule_name"`
+	Severity  string  `json:"severity"`
+	Message   string  `json:"message"`
+	Value     float64 `json:"value"`
+	Threshold float64 `json:"threshold"`
+	Status    string  `json:"status"` // firing, resolved
+	ServerID  string  `json:"server_id,omitempty"`
+}
+
+// TypedEventBus defines the interface for multi-type event broadcasting.
+// This runs in parallel with the existing EventBus (deploy-only) for backward compatibility.
+type TypedEventBus interface {
+	// Publish sends a typed event to all subscribers of the given topic.
+	Publish(event BusEvent)
+
+	// Subscribe returns a read-only channel receiving events for the given topic.
+	Subscribe(ctx context.Context, topic string) <-chan BusEvent
+
+	// SubscribeType returns a read-only channel receiving events of the given type.
+	SubscribeType(ctx context.Context, eventType EventType) <-chan BusEvent
+
+	// Close shuts down the typed event bus and releases all resources.
+	Close() error
+}
 
 // EventBus defines the interface for deploy event broadcasting.
 // Implementations can be in-memory (single instance) or Redis-backed (multi-instance).

@@ -526,6 +526,30 @@ func Migrate(db *gorm.DB) error {
 				return tx.Migrator().DropTable("api_keys")
 			},
 		},
+		// 202605020001: Create alert_rules table for persistent alert rule configuration
+		{
+			ID: "202605020001",
+			Migrate: func(tx *gorm.DB) error {
+				return tx.Exec(`CREATE TABLE IF NOT EXISTS alert_rules (
+					id TEXT PRIMARY KEY,
+					tenant_id TEXT,
+					name TEXT NOT NULL,
+					metric_type TEXT NOT NULL,
+					condition TEXT NOT NULL,
+					threshold REAL DEFAULT 0,
+					severity TEXT NOT NULL DEFAULT 'warning',
+					enabled INTEGER DEFAULT 1,
+					cooldown_seconds INTEGER DEFAULT 900,
+					notify_channels TEXT,
+					server_id TEXT,
+					created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+					updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+				)`).Error
+			},
+			Rollback: func(tx *gorm.DB) error {
+				return tx.Migrator().DropTable("alert_rules")
+			},
+		},
 	})
 
 	// Use InitSchema for initial creation (faster than Migrate)

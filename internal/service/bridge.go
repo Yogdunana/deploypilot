@@ -74,6 +74,7 @@ type Bridge struct {
 	Monitor       *monitor.Monitor         // monitoring system (lazy-initialized)
 	healer        *healer.Healer           // self-healing engine (lazy-initialized)
 	EventBus      EventBus                 // pub/sub for deploy progress events
+	TypedBus      TypedEventBus            // typed event bus for alerts, notifications, system events
 	TunnelManager TunnelManager            // agent reverse tunnel manager
 	PluginMgr     *plugin.Manager          // plugin lifecycle manager
 	UpgradeSvc    *UpgradeService          // system upgrade service
@@ -128,6 +129,11 @@ func NewBridge(db *gorm.DB, executor deployer.CommandExecutor, encryptionKey []b
 // SetCache sets the cache on the Bridge.
 func (b *Bridge) SetCache(cache Cache) {
 	b.Cache = cache
+}
+
+// SetTypedBus sets the typed event bus on the Bridge.
+func (b *Bridge) SetTypedBus(bus TypedEventBus) {
+	b.TypedBus = bus
 }
 
 // SetBruteForceConfig replaces the brute-force protector with one using the given config.

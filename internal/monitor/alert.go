@@ -6,6 +6,15 @@ import (
 	"time"
 )
 
+// AlertHandler is the interface for handling fired alerts.
+// Implemented by the service layer (Bridge) to avoid circular imports.
+type AlertHandler interface {
+	// OnAlert is called when a new alert fires.
+	OnAlert(alert *Alert)
+	// OnAlertResolved is called when a previously firing alert is resolved.
+	OnAlertResolved(alert *Alert)
+}
+
 // AlertSeverity defines alert severity levels.
 type AlertSeverity string
 
@@ -17,14 +26,16 @@ const (
 
 // AlertRule defines a monitoring alert rule.
 type AlertRule struct {
-	ID         string        `json:"id"`
-	Name       string        `json:"name"`
-	MetricType MetricType    `json:"metric_type"`
-	Condition  string        `json:"condition"` // gt, lt, eq, neq
-	Threshold  float64       `json:"threshold"`
-	Severity   AlertSeverity `json:"severity"`
-	Enabled    bool          `json:"enabled"`
-	Cooldown   time.Duration `json:"cooldown"`
+	ID             string        `json:"id"`
+	Name           string        `json:"name"`
+	MetricType     MetricType    `json:"metric_type"`
+	Condition      string        `json:"condition"` // gt, lt, eq, neq
+	Threshold      float64       `json:"threshold"`
+	Severity       AlertSeverity `json:"severity"`
+	Enabled        bool          `json:"enabled"`
+	Cooldown       time.Duration `json:"cooldown"`
+	NotifyChannels []string      `json:"notify_channels,omitempty"` // notification channel types (webhook, email, dingtalk, feishu, telegram, wecom, bark)
+	ServerID       string        `json:"server_id,omitempty"`       // optional: scope rule to a specific server
 }
 
 // Alert represents a triggered alert.
@@ -182,6 +193,13 @@ func (am *AlertManager) GetRules() []AlertRule {
 	am.mu.RLock()
 	defer am.mu.RUnlock()
 	return am.rules
+}
+
+// ReplaceRules replaces all alert rules atomically.
+func (am *AlertManager) ReplaceRules(rules []AlertRule) {
+	am.mu.Lock()
+	defer am.mu.Unlock()
+	am.rules = rules
 }
 
 // ResolveAlert marks an alert as resolved.
