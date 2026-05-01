@@ -100,7 +100,7 @@ func NewMonitorService(db *gorm.DB) *MonitorService {
 		logger: slog.Default(),
 		client: &http.Client{
 			Transport: &http.Transport{
-				TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+				TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, //nolint:gosec // monitoring needs to check self-signed certs
 				DialContext: (&net.Dialer{Timeout: 15 * time.Second}).DialContext,
 			},
 			Timeout: 15 * time.Second,
@@ -174,7 +174,7 @@ func (m *MonitorService) CheckMonitor(ctx context.Context, monitorID string) (*M
 
 	switch MonitorType(mon.Type) {
 	case MonitorHTTP:
-		result = m.checkHTTP(*mon, result)
+		result = m.checkHTTP(ctx, *mon, result)
 	case MonitorTCP:
 		result = m.checkTCP(*mon, result)
 	case MonitorPing:
@@ -459,8 +459,8 @@ func (m *MonitorService) GetPrometheusMetrics(ctx context.Context) (string, erro
 
 // ========== Internal check methods ==========
 
-func (m *MonitorService) checkHTTP(mon Monitor, result MonitorCheckResult) MonitorCheckResult {
-	req, err := http.NewRequest("GET", mon.Target, nil)
+func (m *MonitorService) checkHTTP(ctx context.Context, mon Monitor, result MonitorCheckResult) MonitorCheckResult {
+	req, err := http.NewRequestWithContext(ctx, "GET", mon.Target, nil)
 	if err != nil {
 		result.Status = "down"
 		result.Message = fmt.Sprintf("invalid URL: %v", err)
@@ -483,7 +483,7 @@ func (m *MonitorService) checkHTTP(mon Monitor, result MonitorCheckResult) Monit
 		result.Message = fmt.Sprintf("connection failed: %v", err)
 		return result
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	result.StatusCode = resp.StatusCode
 
@@ -513,7 +513,7 @@ func (m *MonitorService) checkTCP(mon Monitor, result MonitorCheckResult) Monito
 		result.Message = fmt.Sprintf("connection refused: %v", err)
 		return result
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	result.Status = "up"
 	result.Message = fmt.Sprintf("TCP connection established to %s", mon.Target)
