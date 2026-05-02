@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"net/http"
 	"os"
 	"time"
 
@@ -49,7 +50,7 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 		wsGroup.GET("/logs/:app_id", LogStreamWS(bridge, wsHub, ticketStore))
 		wsGroup.GET("/terminal/:server_id", TerminalWS(bridge, wsHub, ticketStore))
 		wsGroup.GET("/agent/:server_id", AgentTunnelWS(bridge, ticketStore))
-		wsGroup.GET("/monitor", monAPI.MonitorWS)
+		wsGroup.GET("/monitor", gin.WrapH(http.HandlerFunc(monAPI.MonitorWS)))
 	}
 
 	// SSE routes (requires auth)
