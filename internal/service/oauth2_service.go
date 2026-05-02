@@ -10,11 +10,33 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Yogdunana/deploypilot/internal/auth"
 	"github.com/Yogdunana/deploypilot/internal/config"
 	"github.com/Yogdunana/deploypilot/internal/model"
 	"gorm.io/gorm"
 )
+
+// validOAuth2Scopes is the set of valid scopes for OAuth2 clients.
+// Duplicated from auth package to avoid import cycle (auth → service → auth).
+var validOAuth2Scopes = map[string]bool{
+	"read": true, "write": true, "delete": true, "deploy": true, "admin": true,
+	"monitor:read": true, "monitor:write": true,
+	"server:read": true, "server:exec": true,
+	"credential:read": true, "credential:write": true,
+	"dns:write": true, "ssl:write": true,
+	"backup:read": true, "backup:write": true,
+	"webhook:manage": true, "grafana:manage": true,
+}
+
+// validateScopes filters a list of scopes to only include valid ones.
+func validateScopes(scopes []string) []string {
+	valid := make([]string, 0, len(scopes))
+	for _, s := range scopes {
+		if validOAuth2Scopes[s] {
+			valid = append(valid, s)
+		}
+	}
+	return valid
+}
 
 // OAuth2Service handles OAuth2 client management and token operations.
 type OAuth2Service struct {
@@ -42,7 +64,7 @@ func (s *OAuth2Service) CreateClient(userID, name string, redirectURIs, scopes, 
 	}
 
 	// Validate scopes
-	validScopes := auth.ValidateScopes(scopes)
+	validScopes := validateScopes(scopes)
 
 	// Validate grant types
 	validGrantTypes := validateGrantTypes(grantTypes)
@@ -167,7 +189,7 @@ func (s *OAuth2Service) CreateAuthorization(clientID, userID string, scopes []st
 
 	// Validate scopes against client's registered scopes
 	clientScopes := ParseScopes(client.Scopes)
-	validScopes := auth.ValidateScopes(scopes)
+	validScopes := validateScopes(scopes)
 	requestedScopes := intersectScopes(validScopes, clientScopes)
 	if len(requestedScopes) == 0 {
 		return nil, fmt.Errorf("no valid scopes requested")
@@ -252,7 +274,7 @@ func (s *OAuth2Service) ClientCredentials(clientID, clientSecret string, scopes 
 
 	// Validate scopes against client's registered scopes
 	clientScopes := ParseScopes(client.Scopes)
-	validScopes := auth.ValidateScopes(scopes)
+	validScopes := validateScopes(scopes)
 	requestedScopes := intersectScopes(validScopes, clientScopes)
 	if len(requestedScopes) == 0 {
 		requestedScopes = clientScopes // use client defaults if none requested
