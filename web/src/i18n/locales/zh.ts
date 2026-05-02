@@ -1030,7 +1030,7 @@ export default {
     security: '安全设置',
     clusters: '集群管理',
     registries: '镜像仓库',
-    plugins: '插件管理',
+    plugins: '插件',
     batch: '批量操作',
     activity: '活动流',
     uptimeMonitors: '可用性监控',

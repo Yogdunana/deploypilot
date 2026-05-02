@@ -272,6 +272,12 @@ const router = createRouter({
           meta: { titleKey: 'layout.oauth2_apps' },
         },
         {
+          path: 'settings/plugins',
+          name: 'PluginList',
+          component: () => import('@/views/PluginList.vue'),
+          meta: { titleKey: 'layout.plugins' },
+        },
+        {
           path: 'monitors',
           name: 'UptimeMonitors',
           component: () => import('@/views/UptimeMonitors.vue'),
