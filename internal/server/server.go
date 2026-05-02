@@ -15,6 +15,7 @@ import (
 	"github.com/Yogdunana/deploypilot/internal/config"
 	"github.com/Yogdunana/deploypilot/internal/i18n"
 	"github.com/Yogdunana/deploypilot/internal/middleware"
+	"github.com/Yogdunana/deploypilot/internal/plugin"
 	"github.com/Yogdunana/deploypilot/internal/service"
 	webfs "github.com/Yogdunana/deploypilot/web"
 	"github.com/gin-gonic/gin"
@@ -33,7 +34,7 @@ type Server struct {
 }
 
 // New creates a new API server with the given address, database, bridge, and config.
-func New(addr string, db *gorm.DB, bridge *service.Bridge, cfg *config.Config, blacklist auth.TokenBlacklist, oauthSvc *service.OAuthService, rdb *redis.Client, backupSvc *backup.Service) *Server {
+func New(addr string, db *gorm.DB, bridge *service.Bridge, cfg *config.Config, blacklist auth.TokenBlacklist, oauthSvc *service.OAuthService, rdb *redis.Client, backupSvc *backup.Service, eventPluginMgr *plugin.EventPluginManager) *Server {
 	r := gin.Default()
 
 	// Request tracing — must be first middleware
@@ -129,7 +130,7 @@ func New(addr string, db *gorm.DB, bridge *service.Bridge, cfg *config.Config, b
 		api.SetRefreshTokenStore(memRefreshStore)
 	}
 
-	api.RegisterRoutes(r, db, bridge, wsHub, auditSvc, nil, blacklist, oauthSvc, backupSvc, keySvc, cfg.Monitor.MetricsPublic, &cfg.Grafana, &cfg.APIPlatform)
+	api.RegisterRoutes(r, db, bridge, wsHub, auditSvc, nil, eventPluginMgr, blacklist, oauthSvc, backupSvc, keySvc, cfg.Monitor.MetricsPublic, &cfg.Grafana, &cfg.APIPlatform)
 
 	// Serve embedded frontend static files
 	serveStaticFiles(r)
