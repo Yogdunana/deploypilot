@@ -26,12 +26,6 @@ var globalMonitorAPI *MonitorAPI
 // GetGlobalMonitorAPI returns the global MonitorAPI instance.
 func GetGlobalMonitorAPI() *MonitorAPI { return globalMonitorAPI }
 
-// globalGrafanaAPI is the package-level GrafanaAPI instance, accessible via GetGlobalGrafanaAPI().
-var globalGrafanaAPI *GrafanaAPI
-
-// GetGlobalGrafanaAPI returns the global GrafanaAPI instance.
-func GetGlobalGrafanaAPI() *GrafanaAPI { return globalGrafanaAPI }
-
 // RegisterRoutes registers all API routes on the given Gin engine.
 func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *WSHub, auditSvc *service.AuditService, pluginManager *plugin.Manager, blacklist auth.TokenBlacklist, oauthSvc *service.OAuthService, backupSvc *backup.Service, keySvc *service.APIKeyService, metricsPublic bool, grafanaCfg *config.GrafanaConfig) {
 	// Swagger documentation — only accessible in development mode.
