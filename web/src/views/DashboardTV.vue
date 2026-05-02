@@ -19,7 +19,7 @@ let rotateTimer: ReturnType<typeof setInterval> | null = null
 let ws: WebSocket | null = null
 let pollTimer: ReturnType<typeof setInterval> | null = null
 
-const uptimeDistData = ref<Array<{ name: string; value: number }>>([])
+const uptimeDistData = ref<Array<{ name: string; value: number; color?: string }>>([])
 
 function connectWS() {
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
