@@ -46,7 +46,7 @@ func ExportMonitorData(db *gorm.DB) gin.HandlerFunc {
 		case "json":
 			c.Header("Content-Type", "application/json")
 			c.Header("Content-Disposition", fmt.Sprintf(`attachment; filename="%s.json"`, filename))
-			json.NewEncoder(c.Writer).Encode(gin.H{
+			_ = json.NewEncoder(c.Writer).Encode(gin.H{
 				"monitor_id": id,
 				"start":      startStr,
 				"end":        endStr,
@@ -58,9 +58,9 @@ func ExportMonitorData(db *gorm.DB) gin.HandlerFunc {
 			c.Header("Content-Disposition", fmt.Sprintf(`attachment; filename="%s.csv"`, filename))
 			writer := csv.NewWriter(c.Writer)
 			defer writer.Flush()
-			writer.Write([]string{"ID", "Monitor ID", "Status", "Status Code", "Latency (ms)", "Message", "Created At"})
+			_ = writer.Write([]string{"ID", "Monitor ID", "Status", "Status Code", "Latency (ms)", "Message", "Created At"})
 			for _, r := range results {
-				writer.Write([]string{
+				_ = writer.Write([]string{
 					fmt.Sprint(r["id"]),
 					fmt.Sprint(r["monitor_id"]),
 					fmt.Sprint(r["status"]),
@@ -108,15 +108,15 @@ func ExportAlertHistory(db *gorm.DB) gin.HandlerFunc {
 		case "json":
 			c.Header("Content-Type", "application/json")
 			c.Header("Content-Disposition", fmt.Sprintf(`attachment; filename="%s.json"`, filename))
-			json.NewEncoder(c.Writer).Encode(gin.H{"total": len(alerts), "data": alerts})
+			_ = json.NewEncoder(c.Writer).Encode(gin.H{"total": len(alerts), "data": alerts})
 		default:
 			c.Header("Content-Type", "text/csv")
 			c.Header("Content-Disposition", fmt.Sprintf(`attachment; filename="%s.csv"`, filename))
 			writer := csv.NewWriter(c.Writer)
 			defer writer.Flush()
-			writer.Write([]string{"ID", "Rule ID", "Rule Name", "Severity", "Message", "Value", "Threshold", "Status", "Fired At", "Resolved At"})
+			_ = writer.Write([]string{"ID", "Rule ID", "Rule Name", "Severity", "Message", "Value", "Threshold", "Status", "Fired At", "Resolved At"})
 			for _, a := range alerts {
-				writer.Write([]string{
+				_ = writer.Write([]string{
 					fmt.Sprint(a["id"]),
 					fmt.Sprint(a["rule_id"]),
 					fmt.Sprint(a["rule_name"]),
