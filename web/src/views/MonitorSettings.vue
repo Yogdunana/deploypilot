@@ -8,6 +8,7 @@ const defaultTimeout = ref(10)
 const defaultRetries = ref(3)
 const heartbeatDefaultTimeout = ref(120)
 const schedulerEnabled = ref(true)
+const metricsPublic = ref(false)
 const saving = ref(false)
 const saved = ref(false)
 
@@ -26,6 +27,7 @@ function resetDefaults() {
   defaultRetries.value = 3
   heartbeatDefaultTimeout.value = 120
   schedulerEnabled.value = true
+  metricsPublic.value = false
 }
 </script>
 
@@ -79,6 +81,18 @@ function resetDefaults() {
         </div>
         <button class="relative w-11 h-6 rounded-full transition-colors" :class="schedulerEnabled ? 'bg-blue-600' : 'bg-gray-300'" @click="schedulerEnabled = !schedulerEnabled">
           <span class="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform" :class="schedulerEnabled ? 'translate-x-5' : ''"></span>
+        </button>
+      </div>
+    </div>
+    <div class="p-6 bg-white border border-gray-200 rounded-xl shadow-sm">
+      <h3 class="text-base font-semibold mb-4">Prometheus Metrics</h3>
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="text-sm font-medium">Public Metrics Endpoint</p>
+          <p class="text-xs text-gray-500 mt-0.5">Allow unauthenticated access to /metrics for Prometheus scraping. When disabled, JWT authentication is required.</p>
+        </div>
+        <button class="relative w-11 h-6 rounded-full transition-colors" :class="metricsPublic ? 'bg-blue-600' : 'bg-gray-300'" @click="metricsPublic = !metricsPublic">
+          <span class="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform" :class="metricsPublic ? 'translate-x-5' : ''"></span>
         </button>
       </div>
     </div>

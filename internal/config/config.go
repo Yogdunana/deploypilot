@@ -167,8 +167,8 @@ type NotifyConfig struct {
 
 // MonitorConfig holds monitoring settings.
 type MonitorConfig struct {
-	Enabled     bool `mapstructure:"enabled"`
-	MetricsPort int  `mapstructure:"metrics_port"`
+	Enabled       bool `mapstructure:"enabled"`
+	MetricsPublic bool `mapstructure:"metrics_public"`
 }
 
 // KubernetesConfig holds Kubernetes cluster settings.
@@ -302,7 +302,7 @@ func setDefaults(v *viper.Viper) {
 
 	// Monitor
 	v.SetDefault("monitor.enabled", true)
-	v.SetDefault("monitor.metrics_port", 9091)
+	v.SetDefault("monitor.metrics_public", false)
 
 	// Redis
 	v.SetDefault("redis.addr", "localhost:6379")

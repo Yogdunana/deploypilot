@@ -435,42 +435,6 @@ func (m *MonitorService) CheckHeartbeats(ctx context.Context) ([]Heartbeat, erro
 	return timedOut, nil
 }
 
-// ========== Prometheus Metrics ==========
-
-// GetPrometheusMetrics returns metrics in Prometheus exposition format.
-func (m *MonitorService) GetPrometheusMetrics(ctx context.Context) (string, error) {
-	var monitors []Monitor
-	if err := m.db.WithContext(ctx).Where("enabled = ?", true).Find(&monitors).Error; err != nil {
-		return "", err
-	}
-
-	var sb strings.Builder
-
-	for _, mon := range monitors {
-		labels := fmt.Sprintf(`name="%s",type="%s",target="%s"`, mon.Name, mon.Type, mon.Target)
-		sb.WriteString(fmt.Sprintf(`deploypilot_monitor_up{%s} %d`, labels, boolToInt(mon.Status == "up")))
-		sb.WriteString("\n")
-		sb.WriteString(fmt.Sprintf(`deploypilot_monitor_latency_ms{%s} %.2f`, labels, mon.AvgLatency))
-		sb.WriteString("\n")
-		sb.WriteString(fmt.Sprintf(`deploypilot_monitor_uptime_pct{%s} %.4f`, labels, mon.Uptime))
-		sb.WriteString("\n")
-		sb.WriteString(fmt.Sprintf(`deploypilot_monitor_total_checks{%s} %d`, labels, mon.TotalChecks))
-		sb.WriteString("\n")
-	}
-
-	// Heartbeat metrics
-	var heartbeats []Heartbeat
-	if err := m.db.WithContext(ctx).Where("enabled = ?", true).Find(&heartbeats).Error; err == nil {
-		for _, hb := range heartbeats {
-			labels := fmt.Sprintf(`name="%s"`, hb.Name)
-			sb.WriteString(fmt.Sprintf(`deploypilot_heartbeat_up{%s} %d`, labels, boolToInt(hb.Status == "up")))
-			sb.WriteString("\n")
-		}
-	}
-
-	return sb.String(), nil
-}
-
 // ========== Internal check methods ==========
 
 func (m *MonitorService) checkHTTP(ctx context.Context, mon Monitor, result MonitorCheckResult) MonitorCheckResult {
@@ -581,11 +545,4 @@ func (m *MonitorService) updateMonitorStats(ctx context.Context, mon *Monitor, r
 	mon.LastStatus = result.Status
 
 	m.db.WithContext(ctx).Save(mon)
-}
-
-func boolToInt(b bool) int {
-	if b {
-		return 1
-	}
-	return 0
 }

@@ -3,11 +3,17 @@ package metrics
 import (
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/testutil"
 )
+
+func TestMain(m *testing.M) {
+	Init()
+	os.Exit(m.Run())
+}
 
 // newRegistry creates a fresh prometheus.Registry and registers all metrics
 // into it so that tests do not interfere with the global default registry.
@@ -143,4 +149,46 @@ func TestCredentialExpiryDays(t *testing.T) {
 	}
 
 	_ = reg
+}
+
+func TestUpdateMonitorGauges(t *testing.T) {
+	monitors := []MonitorMetric{
+		{Name: "google", Type: "http", Target: "https://google.com", Status: "up", AvgLatency: 45.5, Uptime: 99.99},
+		{Name: "db", Type: "tcp", Target: "db:5432", Status: "down", AvgLatency: 0, Uptime: 95.5},
+	}
+
+	UpdateMonitorGauges(monitors)
+
+	if n := testutil.CollectAndCount(MonitorUp); n != 2 {
+		t.Errorf("expected 2 MonitorUp metrics, got %d", n)
+	}
+	if n := testutil.CollectAndCount(MonitorLatencyMs); n != 2 {
+		t.Errorf("expected 2 MonitorLatencyMs metrics, got %d", n)
+	}
+	if n := testutil.CollectAndCount(MonitorUptimePct); n != 2 {
+		t.Errorf("expected 2 MonitorUptimePct metrics, got %d", n)
+	}
+}
+
+func TestUpdateHeartbeatGauges(t *testing.T) {
+	heartbeats := []HeartbeatMetric{
+		{Name: "app-1", Status: "up"},
+		{Name: "app-2", Status: "down"},
+	}
+
+	UpdateHeartbeatGauges(heartbeats)
+
+	if n := testutil.CollectAndCount(HeartbeatUp); n != 2 {
+		t.Errorf("expected 2 HeartbeatUp metrics, got %d", n)
+	}
+}
+
+func TestUpdateMonitorGaugesEmpty(t *testing.T) {
+	UpdateMonitorGauges([]MonitorMetric{})
+	// Should not panic
+}
+
+func TestUpdateHeartbeatGaugesEmpty(t *testing.T) {
+	UpdateHeartbeatGauges([]HeartbeatMetric{})
+	// Should not panic
 }

@@ -57,7 +57,7 @@ deploy:
 
 monitor:
   enabled: true
-  metrics_port: 9091
+  metrics_public: false
 
 # 备份配置
 backup:
