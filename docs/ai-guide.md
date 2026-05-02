@@ -19,6 +19,7 @@ scope: AI 助手操作本项目时的参考指南，避免重复踩坑
 
 - 仓库：`Yogdunana/deploypilot`
 - 身份：所有 commits/PRs 使用 `Yogdunana` 身份
+- **Git 配置**：提交前必须确认 `git config user.name` 为 `Yogdunana`，`git config user.email` 为 `Yogdunana@users.noreply.github.com`。禁止使用其他身份（如 `DeployPilot Dev`）提交
 - PAT Token：通过环境变量 `GH_TOKEN` 或 `GITHUB_TOKEN` 提供，也可配置在 `~/.config/gh/hosts.yml` 中
 - 主要通过 MCP GitHub 工具操作，PAT 用于 MCP 无法处理的场景
 
