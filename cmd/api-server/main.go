@@ -208,6 +208,11 @@ func run(configFilePath, cliDriver, cliDSN, cliAddr string) error {
 		}
 	})
 
+	// Initialize Outbound Webhook Service
+	webhookSvc := service.NewOutboundWebhookService(db, typedBus)
+	webhookSvc.Start()
+	go webhookSvc.StartCleanupLoop(context.Background())
+
 	// Apply brute-force config from configuration file
 	bf := cfg.BruteForce
 	bridge.SetBruteForceConfig(service.BruteForceConfigFromMap(
