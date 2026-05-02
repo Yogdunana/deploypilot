@@ -14,7 +14,7 @@ import (
 // The signature format is "sha256=<hex>" where the HMAC input is "timestamp.body".
 func SignWebhook(secret string, timestamp int64, body []byte) string {
 	mac := hmac.New(sha256.New, []byte(secret))
-	mac.Write([]byte(fmt.Sprintf("%d.%s", timestamp, string(body))))
+	_, _ = fmt.Fprintf(mac, "%d.%s", timestamp, string(body))
 	return fmt.Sprintf("sha256=%s", hex.EncodeToString(mac.Sum(nil)))
 }
 

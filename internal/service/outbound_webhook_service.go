@@ -166,7 +166,7 @@ func (s *OutboundWebhookService) Deliver(ctx context.Context, webhook *model.Out
 	} else {
 		webhook.LastStatus = "failed"
 	}
-	s.db.WithContext(ctx).Save(webhook)
+	_ = s.db.WithContext(ctx).Save(webhook)
 
 	// Log result
 	if delivery.Success {
@@ -252,7 +252,7 @@ func (s *OutboundWebhookService) retryDelivery(webhook *model.OutboundWebhook, d
 		delivery.LatencyMs = int(latency.Milliseconds())
 		delivery.Success = success
 		delivery.ErrorResponse = respBody
-		s.db.Save(delivery)
+		_ = s.db.Save(delivery)
 
 		// Update webhook last delivery info
 		now := time.Now()
@@ -262,7 +262,7 @@ func (s *OutboundWebhookService) retryDelivery(webhook *model.OutboundWebhook, d
 		} else {
 			webhook.LastStatus = "failed"
 		}
-		s.db.Save(webhook)
+		_ = s.db.Save(webhook)
 
 		if success {
 			slog.Info("webhook retry succeeded",
@@ -425,7 +425,9 @@ func (s *OutboundWebhookService) handleEvent(event BusEvent) {
 	for i := range webhooks {
 		wh := &webhooks[i]
 		if s.matchesFilters(wh, event) {
-			go s.Deliver(s.ctx, wh, event)
+			go func() {
+				_ = s.Deliver(s.ctx, wh, event)
+			}()
 		}
 	}
 }
