@@ -182,3 +182,18 @@ This eliminates the need for AI IDEs to directly connect to internal servers.
 | `get_template` | Get template details | viewer |
 
 See the full tool specification in [docs/mcp-tools.md](https://github.com/Yogdunana/deploypilot/blob/main/docs/mcp-tools.md).
+
+### Uptime Monitoring & Heartbeats (8 tools)
+| Tool | Description | RBAC |
+|------|-------------|------|
+| `create_uptime_monitor` | Create uptime monitor (HTTP/TCP/Ping) | dev |
+| `list_uptime_monitors` | List all uptime monitors | viewer |
+| `check_uptime_monitor` | Trigger immediate check on a monitor | dev |
+| `get_monitor_sla` | Get SLA metrics for a monitor | viewer |
+| `delete_uptime_monitor` | Delete an uptime monitor | admin |
+| `create_heartbeat` | Create heartbeat monitor (returns ping URL) | dev |
+| `list_heartbeats` | List all heartbeat monitors | viewer |
+| `delete_heartbeat` | Delete a heartbeat monitor | admin |
+
+See the full tool specification in [docs/mcp-tools.md](../mcp-tools.md).
+}
