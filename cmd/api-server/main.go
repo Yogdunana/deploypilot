@@ -220,6 +220,11 @@ func run(configFilePath, cliDriver, cliDSN, cliAddr string) error {
 		slog.Info("Grafana integration enabled", "url", cfg.Grafana.URL)
 	}
 
+	// OAuth2 service is initialized lazily via API handlers (no background goroutine needed)
+	if cfg.APIPlatform.Enabled {
+		slog.Info("API open platform enabled")
+	}
+
 	// Apply brute-force config from configuration file
 	bf := cfg.BruteForce
 	bridge.SetBruteForceConfig(service.BruteForceConfigFromMap(
