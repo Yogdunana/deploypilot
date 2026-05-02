@@ -36,6 +36,7 @@ import (
 
 	_ "github.com/Yogdunana/deploypilot/docs/swagger"
 	"github.com/Yogdunana/deploypilot/internal/agent"
+	"github.com/Yogdunana/deploypilot/internal/api"
 	"github.com/Yogdunana/deploypilot/internal/auth"
 	"github.com/Yogdunana/deploypilot/internal/backup"
 	"github.com/Yogdunana/deploypilot/internal/config"
@@ -198,6 +199,16 @@ func run(configFilePath, cliDriver, cliDSN, cliAddr string) error {
 	monitorSvc := service.NewMonitorService(db)
 	monitorScheduler := service.NewMonitorScheduler(monitorSvc)
 	monitorScheduler.Start(context.Background())
+
+	// Connect monitor scheduler to WebSocket hub for real-time broadcasting
+	monitorScheduler.SetUpdateCallback(func(checkType string, data interface{}) {
+		if hub := api.GetGlobalMonitorAPI(); hub != nil {
+			hub.GetMonitorHub().Broadcast(map[string]interface{}{
+				"type": checkType,
+				"data": data,
+			})
+		}
+	})
 
 	// Apply brute-force config from configuration file
 	bf := cfg.BruteForce

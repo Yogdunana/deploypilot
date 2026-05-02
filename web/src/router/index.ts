@@ -22,6 +22,12 @@ const router = createRouter({
       meta: { guest: true, titleKey: 'routes.statusPage' },
     },
     {
+      path: '/dashboard-tv',
+      name: 'DashboardTV',
+      component: () => import('@/views/DashboardTV.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
       path: '/',
       component: () => import('@/layout/MainLayout.vue'),
       meta: { requiresAuth: true },
@@ -182,6 +188,44 @@ const router = createRouter({
           name: 'MonitorAlertRules',
           component: () => import('@/views/MonitorAlertRules.vue'),
           meta: { titleKey: 'routes.monitorAlertRules' },
+        },
+        {
+          path: 'monitor/uptime',
+          name: 'UptimeMonitorsList',
+          component: () => import('@/views/UptimeMonitors.vue'),
+          meta: { titleKey: 'routes.uptimeMonitors' },
+        },
+        {
+          path: 'monitor/heartbeats',
+          name: 'HeartbeatsList',
+          component: () => import('@/views/Heartbeats.vue'),
+          meta: { titleKey: 'routes.heartbeats' },
+        },
+        {
+          path: 'monitor/server/:id',
+          name: 'MonitorServerDetail',
+          component: () => import('@/views/MonitorServerDetail.vue'),
+          props: true,
+          meta: { titleKey: 'routes.monitorServerDetail' },
+        },
+        {
+          path: 'monitor/alerts/:id',
+          name: 'MonitorAlertDetail',
+          component: () => import('@/views/MonitorAlertDetail.vue'),
+          props: true,
+          meta: { titleKey: 'routes.monitorAlertDetail' },
+        },
+        {
+          path: 'monitor/settings',
+          name: 'MonitorSettings',
+          component: () => import('@/views/MonitorSettings.vue'),
+          meta: { titleKey: 'routes.monitorSettings' },
+        },
+        {
+          path: 'monitor/export',
+          name: 'MonitorDataExport',
+          component: () => import('@/views/MonitorDataExport.vue'),
+          meta: { titleKey: 'routes.monitorExport' },
         },
         {
           path: 'monitors',

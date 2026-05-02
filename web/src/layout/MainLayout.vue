@@ -40,6 +40,7 @@ import {
   ChevronRight,
   Languages,
   Tv,
+  Download,
   Menu,
   X,
 } from 'lucide-vue-next'
@@ -109,8 +110,10 @@ const navGroups = computed(() => [
     items: [
       { path: '/cicd', label: t('layout.cicd'), icon: FileCode },
       { path: '/monitor', label: t('layout.monitor'), icon: Activity },
-      { path: '/monitors', label: t('layout.uptimeMonitors'), icon: HeartPulse },
-      { path: '/heartbeats', label: t('layout.heartbeats'), icon: Activity },
+      { path: '/monitor/uptime', label: t('layout.uptimeMonitors'), icon: HeartPulse },
+      { path: '/monitor/heartbeats', label: t('layout.heartbeats'), icon: Activity },
+      { path: '/monitor/settings', label: t('layout.monitorSettings'), icon: Settings },
+      { path: '/monitor/export', label: t('layout.monitorExport'), icon: Download },
       { path: '/dashboard-tv', label: t('layout.dashboardTV'), icon: Tv },
       { path: '/notifications', label: t('layout.notifications'), icon: Bell },
       { path: '/templates', label: t('layout.templates'), icon: FileCode },

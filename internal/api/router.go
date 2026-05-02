@@ -18,6 +18,12 @@ import (
 	"gorm.io/gorm"
 )
 
+// globalMonitorAPI is the package-level MonitorAPI instance, accessible via GetGlobalMonitorAPI().
+var globalMonitorAPI *MonitorAPI
+
+// GetGlobalMonitorAPI returns the global MonitorAPI instance.
+func GetGlobalMonitorAPI() *MonitorAPI { return globalMonitorAPI }
+
 // RegisterRoutes registers all API routes on the given Gin engine.
 func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *WSHub, auditSvc *service.AuditService, pluginManager *plugin.Manager, blacklist auth.TokenBlacklist, oauthSvc *service.OAuthService, backupSvc *backup.Service, keySvc *service.APIKeyService) {
 	// Swagger documentation — only accessible in development mode.
@@ -42,15 +48,15 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 	go ticketStore.StartCleanup(context.Background(), 1*time.Minute)
 
 	// Monitor API (created early for WebSocket hub)
-	monAPI := NewMonitorAPI(db)
-	go monAPI.GetMonitorHub().Run()
+	globalMonitorAPI = NewMonitorAPI(db)
+	go globalMonitorAPI.GetMonitorHub().Run()
 
 	wsGroup := r.Group("/ws")
 	{
 		wsGroup.GET("/logs/:app_id", LogStreamWS(bridge, wsHub, ticketStore))
 		wsGroup.GET("/terminal/:server_id", TerminalWS(bridge, wsHub, ticketStore))
 		wsGroup.GET("/agent/:server_id", AgentTunnelWS(bridge, ticketStore))
-		wsGroup.GET("/monitor", gin.WrapH(http.HandlerFunc(monAPI.MonitorWS)))
+		wsGroup.GET("/monitor", gin.WrapH(http.HandlerFunc(globalMonitorAPI.MonitorWS)))
 	}
 
 	// SSE routes (requires auth)
@@ -206,29 +212,32 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 		// Monitoring & Observability
 		monGroup := protected.Group("/monitors")
 		{
-			monGroup.GET("", monAPI.ListMonitors)
-			monGroup.POST("", monAPI.CreateMonitor)
-			monGroup.GET("/:id", monAPI.GetMonitor)
-			monGroup.PUT("/:id", monAPI.UpdateMonitor)
-			monGroup.DELETE("/:id", monAPI.DeleteMonitor)
-			monGroup.POST("/:id/check", monAPI.CheckMonitor)
-			monGroup.GET("/:id/results", monAPI.GetMonitorResults)
-			monGroup.GET("/:id/sla", monAPI.GetMonitorSLA)
-			monGroup.POST("/check-all", monAPI.CheckAllMonitors)
+			monGroup.GET("", globalMonitorAPI.ListMonitors)
+			monGroup.GET("/overview", globalMonitorAPI.QueryMonitorOverview)
+			monGroup.POST("", globalMonitorAPI.CreateMonitor)
+			monGroup.GET("/:id", globalMonitorAPI.GetMonitor)
+			monGroup.PUT("/:id", globalMonitorAPI.UpdateMonitor)
+			monGroup.DELETE("/:id", globalMonitorAPI.DeleteMonitor)
+			monGroup.POST("/:id/check", globalMonitorAPI.CheckMonitor)
+			monGroup.GET("/:id/results", globalMonitorAPI.GetMonitorResults)
+			monGroup.GET("/:id/sla", globalMonitorAPI.GetMonitorSLA)
+			monGroup.GET("/:id/history", globalMonitorAPI.QueryMonitorHistory)
+			monGroup.GET("/:id/export", ExportMonitorData(db))
+			monGroup.POST("/check-all", globalMonitorAPI.CheckAllMonitors)
 		}
 
 		// Heartbeat
 		hbGroup := protected.Group("/heartbeats")
 		{
-			hbGroup.GET("", monAPI.ListHeartbeats)
-			hbGroup.POST("", monAPI.CreateHeartbeat)
-			hbGroup.DELETE("/:id", monAPI.DeleteHeartbeat)
+			hbGroup.GET("", globalMonitorAPI.ListHeartbeats)
+			hbGroup.POST("", globalMonitorAPI.CreateHeartbeat)
+			hbGroup.DELETE("/:id", globalMonitorAPI.DeleteHeartbeat)
 		}
 
 		// Public endpoints (no auth required for heartbeat ping and status page)
-		r.GET("/api/v1/heartbeat/ping/:token", monAPI.PingHeartbeat)
-		r.GET("/api/v1/status", monAPI.GetStatusPage)
-		r.GET("/api/v1/metrics", monAPI.GetPrometheusMetrics)
+		r.GET("/api/v1/heartbeat/ping/:token", globalMonitorAPI.PingHeartbeat)
+		r.GET("/api/v1/status", globalMonitorAPI.GetStatusPage)
+		r.GET("/api/v1/metrics", globalMonitorAPI.GetPrometheusMetrics)
 
 		// Credentials (5 endpoints)
 		creds := protected.Group("/credentials")
@@ -334,6 +343,10 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 			alerts.GET("/escalations", ListAlertEscalations(db))
 			alerts.DELETE("/escalations/:id", DeleteAlertEscalation(db))
 			alerts.GET("/groups", ListAlertGroups(db))
+			alerts.GET("/history", ListAlertHistory(db))
+			alerts.GET("/history/:id", GetAlertHistory(db))
+			alerts.GET("/stats", GetAlertStats(db))
+			alerts.GET("/export", ExportAlertHistory(db))
 		}
 
 		// System (4 endpoints)
