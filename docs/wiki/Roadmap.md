@@ -139,7 +139,7 @@
 |-------|------|------|
 | 7.1 | OpenClaw（小龙虾）对接 |
 | 7.2 | Grafana 集成（Prometheus 数据源 + Dashboard JSON + Annotations） |
-| 7.3 | Webhook 出站（事件过滤 + HMAC 签名 + Slack/Discord/Teams） |
+| 7.3 | Webhook 出站（事件过滤 + HMAC 签名 + Slack/Discord/Teams） | ✅ 已完成 (PR #226) |
 | 7.4 | API 开放平台（OAuth2 应用注册 + Swagger 增强 + Rate Limiting） |
 | 7.5 | 插件系统（Plugin Interface + 生命周期管理 + 前端页面） |
 
