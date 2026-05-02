@@ -228,6 +228,32 @@ const router = createRouter({
           meta: { titleKey: 'routes.monitorExport' },
         },
         {
+          path: 'webhooks',
+          name: 'WebhookList',
+          component: () => import('@/views/WebhookList.vue'),
+          meta: { titleKey: 'routes.webhooks' },
+        },
+        {
+          path: 'webhooks/new',
+          name: 'WebhookCreate',
+          component: () => import('@/views/WebhookForm.vue'),
+          meta: { titleKey: 'routes.webhookCreate' },
+        },
+        {
+          path: 'webhooks/:id/edit',
+          name: 'WebhookEdit',
+          component: () => import('@/views/WebhookForm.vue'),
+          props: true,
+          meta: { titleKey: 'routes.webhookEdit' },
+        },
+        {
+          path: 'webhooks/:id/deliveries',
+          name: 'WebhookDeliveries',
+          component: () => import('@/views/WebhookDeliveries.vue'),
+          props: true,
+          meta: { titleKey: 'routes.webhookDeliveries' },
+        },
+        {
           path: 'monitors',
           name: 'UptimeMonitors',
           component: () => import('@/views/UptimeMonitors.vue'),

@@ -52,6 +52,9 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 	globalMonitorAPI = NewMonitorAPI(db)
 	go globalMonitorAPI.GetMonitorHub().Run()
 
+	// Outbound Webhook API
+	globalWebhookAPI = NewOutboundWebhookAPI(db)
+
 	wsGroup := r.Group("/ws")
 	{
 		wsGroup.GET("/logs/:app_id", LogStreamWS(bridge, wsHub, ticketStore))
@@ -238,6 +241,19 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 		// Public endpoints (no auth required for heartbeat ping and status page)
 		r.GET("/api/v1/heartbeat/ping/:token", globalMonitorAPI.PingHeartbeat)
 		r.GET("/api/v1/status", globalMonitorAPI.GetStatusPage)
+
+		// Outbound Webhooks
+		whGroup := protected.Group("/webhooks")
+		{
+			whGroup.GET("", globalWebhookAPI.ListWebhooks)
+			whGroup.POST("", globalWebhookAPI.CreateWebhook)
+			whGroup.GET("/:id", globalWebhookAPI.GetWebhook)
+			whGroup.PUT("/:id", globalWebhookAPI.UpdateWebhook)
+			whGroup.DELETE("/:id", globalWebhookAPI.DeleteWebhook)
+			whGroup.POST("/:id/test", globalWebhookAPI.TestWebhook)
+			whGroup.GET("/:id/deliveries", globalWebhookAPI.ListDeliveries)
+			whGroup.GET("/:id/deliveries/:did", globalWebhookAPI.GetDelivery)
+		}
 
 		// Credentials (5 endpoints)
 		creds := protected.Group("/credentials")

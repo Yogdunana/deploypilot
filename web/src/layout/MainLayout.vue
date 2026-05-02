@@ -41,6 +41,7 @@ import {
   Languages,
   Tv,
   Download,
+  Webhook,
   Menu,
   X,
 } from 'lucide-vue-next'
@@ -114,6 +115,7 @@ const navGroups = computed(() => [
       { path: '/monitor/heartbeats', label: t('layout.heartbeats'), icon: Activity },
       { path: '/monitor/settings', label: t('layout.monitorSettings'), icon: Settings },
       { path: '/monitor/export', label: t('layout.monitorExport'), icon: Download },
+      { path: '/webhooks', label: t('layout.webhooks'), icon: Webhook },
       { path: '/dashboard-tv', label: t('layout.dashboardTV'), icon: Tv },
       { path: '/notifications', label: t('layout.notifications'), icon: Bell },
       { path: '/templates', label: t('layout.templates'), icon: FileCode },
