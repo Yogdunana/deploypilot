@@ -231,6 +231,20 @@ func (m *MonitorService) GetMonitorResults(ctx context.Context, monitorID string
 	return results, nil
 }
 
+// QueryMonitorHistory returns check results for a monitor within a time range.
+func (s *MonitorService) QueryMonitorHistory(ctx context.Context, monitorID string, start, end time.Time, limit int) ([]MonitorCheckResult, error) {
+	var results []MonitorCheckResult
+	query := s.db.Where("monitor_id = ? AND created_at >= ? AND created_at <= ?", monitorID, start, end).
+		Order("created_at ASC")
+	if limit > 0 {
+		query = query.Limit(limit)
+	}
+	if err := query.Find(&results).Error; err != nil {
+		return nil, err
+	}
+	return results, nil
+}
+
 // GetMonitorSLA returns the SLA (uptime percentage) for a monitor.
 func (m *MonitorService) GetMonitorSLA(ctx context.Context, monitorID string, days int) (map[string]interface{}, error) {
 	if days <= 0 {
