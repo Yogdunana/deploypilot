@@ -266,6 +266,12 @@ const router = createRouter({
           meta: { titleKey: 'layout.grafana_dashboards' },
         },
         {
+          path: 'settings/oauth2',
+          name: 'OAuth2Apps',
+          component: () => import('@/views/OAuth2Apps.vue'),
+          meta: { titleKey: 'layout.oauth2_apps' },
+        },
+        {
           path: 'monitors',
           name: 'UptimeMonitors',
           component: () => import('@/views/UptimeMonitors.vue'),

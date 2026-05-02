@@ -1040,6 +1040,9 @@ export default {
     uptimeMonitors: 'Uptime Monitors',
     heartbeats: 'Heartbeats',
     dashboardTV: 'Dashboard TV',
+    oauth2_apps: 'OAuth2 Apps',
+    grafana_settings: 'Grafana Settings',
+    grafana_dashboards: 'Grafana Dashboards',
   },
 
   clusters: {

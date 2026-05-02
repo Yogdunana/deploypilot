@@ -119,6 +119,7 @@ const navGroups = computed(() => [
       { path: '/webhooks', label: t('layout.webhooks'), icon: Webhook },
       { path: '/settings/grafana', label: t('layout.grafana_settings'), icon: BarChart3 },
       { path: '/grafana/dashboards', label: t('layout.grafana_dashboards'), icon: LayoutDashboard },
+      { path: '/settings/oauth2', label: t('layout.oauth2_apps'), icon: KeyRound },
       { path: '/dashboard-tv', label: t('layout.dashboardTV'), icon: Tv },
       { path: '/notifications', label: t('layout.notifications'), icon: Bell },
       { path: '/templates', label: t('layout.templates'), icon: FileCode },

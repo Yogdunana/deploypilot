@@ -27,7 +27,7 @@ var globalMonitorAPI *MonitorAPI
 func GetGlobalMonitorAPI() *MonitorAPI { return globalMonitorAPI }
 
 // RegisterRoutes registers all API routes on the given Gin engine.
-func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *WSHub, auditSvc *service.AuditService, pluginManager *plugin.Manager, blacklist auth.TokenBlacklist, oauthSvc *service.OAuthService, backupSvc *backup.Service, keySvc *service.APIKeyService, metricsPublic bool, grafanaCfg *config.GrafanaConfig) {
+func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *WSHub, auditSvc *service.AuditService, pluginManager *plugin.Manager, blacklist auth.TokenBlacklist, oauthSvc *service.OAuthService, backupSvc *backup.Service, keySvc *service.APIKeyService, metricsPublic bool, grafanaCfg *config.GrafanaConfig, apiPlatformCfg *config.APIPlatformConfig) {
 	// Swagger documentation — only accessible in development mode.
 	// In production, the endpoint is disabled to prevent information leakage.
 	if os.Getenv("DEPLOYPILOT_ENV") == "development" || os.Getenv("GIN_MODE") == "debug" {
@@ -58,6 +58,11 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 
 	// Grafana API
 	globalGrafanaAPI = NewGrafanaAPI(db, grafanaCfg)
+
+	// OAuth2 API (API Open Platform)
+	if apiPlatformCfg != nil {
+		globalOAuth2API = NewOAuth2API(db, apiPlatformCfg)
+	}
 
 	wsGroup := r.Group("/ws")
 	{
@@ -271,6 +276,20 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 			grafanaGroup.PUT("/dashboards/:id", globalGrafanaAPI.UpdateDashboard)
 			grafanaGroup.DELETE("/dashboards/:id", globalGrafanaAPI.DeleteDashboard)
 			grafanaGroup.GET("/export", globalGrafanaAPI.ExportAll)
+		}
+
+		// OAuth2 client management (protected)
+		if globalOAuth2API != nil {
+			oauth2 := protected.Group("/oauth")
+			{
+				oauth2.GET("/clients", globalOAuth2API.ListClients)
+				oauth2.POST("/clients", globalOAuth2API.CreateClient)
+				oauth2.GET("/clients/:id", globalOAuth2API.GetClient)
+				oauth2.PUT("/clients/:id", globalOAuth2API.UpdateClient)
+				oauth2.DELETE("/clients/:id", globalOAuth2API.DeleteClient)
+				oauth2.POST("/clients/:id/secret", globalOAuth2API.RegenerateSecret)
+				oauth2.POST("/authorize", globalOAuth2API.Authorize)
+			}
 		}
 
 		// Credentials (5 endpoints)
@@ -508,5 +527,15 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 	// Public metrics endpoint (when enabled in config)
 	if metricsPublic {
 		r.GET("/metrics", gin.WrapH(metrics.Handler()))
+	}
+
+	// OAuth2 token endpoint (public — uses client credentials)
+	if globalOAuth2API != nil {
+		oauth2Public := api.Group("/oauth")
+		{
+			oauth2Public.POST("/token", globalOAuth2API.Token)
+			oauth2Public.POST("/token/refresh", globalOAuth2API.RefreshToken)
+			oauth2Public.POST("/token/revoke", globalOAuth2API.RevokeToken)
+		}
 	}
 }
