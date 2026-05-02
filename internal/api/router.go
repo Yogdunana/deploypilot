@@ -9,6 +9,7 @@ import (
 	"github.com/Yogdunana/deploypilot/internal/auth"
 	"github.com/Yogdunana/deploypilot/internal/backup"
 	"github.com/Yogdunana/deploypilot/internal/bruteforce"
+	"github.com/Yogdunana/deploypilot/internal/config"
 	"github.com/Yogdunana/deploypilot/internal/metrics"
 	"github.com/Yogdunana/deploypilot/internal/plugin"
 	"github.com/Yogdunana/deploypilot/internal/sandbox"
@@ -26,7 +27,7 @@ var globalMonitorAPI *MonitorAPI
 func GetGlobalMonitorAPI() *MonitorAPI { return globalMonitorAPI }
 
 // RegisterRoutes registers all API routes on the given Gin engine.
-func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *WSHub, auditSvc *service.AuditService, pluginManager *plugin.Manager, blacklist auth.TokenBlacklist, oauthSvc *service.OAuthService, backupSvc *backup.Service, keySvc *service.APIKeyService, metricsPublic bool) {
+func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *WSHub, auditSvc *service.AuditService, pluginManager *plugin.Manager, blacklist auth.TokenBlacklist, oauthSvc *service.OAuthService, backupSvc *backup.Service, keySvc *service.APIKeyService, metricsPublic bool, grafanaCfg *config.GrafanaConfig) {
 	// Swagger documentation — only accessible in development mode.
 	// In production, the endpoint is disabled to prevent information leakage.
 	if os.Getenv("DEPLOYPILOT_ENV") == "development" || os.Getenv("GIN_MODE") == "debug" {
@@ -54,6 +55,9 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 
 	// Outbound Webhook API
 	globalWebhookAPI = NewOutboundWebhookAPI(db)
+
+	// Grafana API
+	globalGrafanaAPI = NewGrafanaAPI(db, grafanaCfg)
 
 	wsGroup := r.Group("/ws")
 	{
@@ -253,6 +257,20 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 			whGroup.POST("/:id/test", globalWebhookAPI.TestWebhook)
 			whGroup.GET("/:id/deliveries", globalWebhookAPI.ListDeliveries)
 			whGroup.GET("/:id/deliveries/:did", globalWebhookAPI.GetDelivery)
+		}
+
+		// Grafana Integration
+		grafanaGroup := protected.Group("/grafana")
+		{
+			grafanaGroup.GET("/status", globalGrafanaAPI.GetStatus)
+			grafanaGroup.POST("/test", globalGrafanaAPI.TestConnection)
+			grafanaGroup.POST("/sync", globalGrafanaAPI.SyncAll)
+			grafanaGroup.GET("/dashboards", globalGrafanaAPI.ListDashboards)
+			grafanaGroup.GET("/dashboards/:id", globalGrafanaAPI.GetDashboard)
+			grafanaGroup.POST("/dashboards", globalGrafanaAPI.CreateDashboard)
+			grafanaGroup.PUT("/dashboards/:id", globalGrafanaAPI.UpdateDashboard)
+			grafanaGroup.DELETE("/dashboards/:id", globalGrafanaAPI.DeleteDashboard)
+			grafanaGroup.GET("/export", globalGrafanaAPI.ExportAll)
 		}
 
 		// Credentials (5 endpoints)

@@ -23,6 +23,7 @@ type Config struct {
 	Audit      AuditConfig      `mapstructure:"audit"`
 	Backup     BackupConfig     `mapstructure:"backup"`
 	BruteForce BruteForceConfig `mapstructure:"bruteforce"`
+	Grafana    GrafanaConfig    `mapstructure:"grafana"`
 }
 
 // BackupConfig holds database auto-backup settings.
@@ -55,6 +56,17 @@ type BruteForceConfig struct {
 	MaxDelay          string `mapstructure:"max_delay"`
 	IPMaxAttempts     int    `mapstructure:"ip_max_attempts"`
 	IPLockoutDuration string `mapstructure:"ip_lockout_duration"`
+}
+
+// GrafanaConfig holds Grafana integration settings.
+type GrafanaConfig struct {
+	Enabled            bool   `mapstructure:"enabled"`
+	URL                string `mapstructure:"url"`
+	APIKey             string `mapstructure:"api_key"`
+	AdminUser          string `mapstructure:"admin_user"`
+	AdminPassword      string `mapstructure:"admin_password"`
+	AnnotationsEnabled bool   `mapstructure:"annotations_enabled"`
+	SyncInterval       int    `mapstructure:"sync_interval"`
 }
 
 // AuditConfig holds configuration for audit logging.
@@ -332,4 +344,10 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("bruteforce.max_delay", "30s")
 	v.SetDefault("bruteforce.ip_max_attempts", 20)
 	v.SetDefault("bruteforce.ip_lockout_duration", "30m")
+
+	// Grafana
+	v.SetDefault("grafana.enabled", false)
+	v.SetDefault("grafana.url", "http://localhost:3000")
+	v.SetDefault("grafana.annotations_enabled", true)
+	v.SetDefault("grafana.sync_interval", 60)
 }

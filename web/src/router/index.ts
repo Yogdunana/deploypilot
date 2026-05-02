@@ -254,6 +254,18 @@ const router = createRouter({
           meta: { titleKey: 'routes.webhookDeliveries' },
         },
         {
+          path: 'settings/grafana',
+          name: 'GrafanaSettings',
+          component: () => import('@/views/GrafanaSettings.vue'),
+          meta: { titleKey: 'layout.grafana_settings' },
+        },
+        {
+          path: 'grafana/dashboards',
+          name: 'GrafanaDashboards',
+          component: () => import('@/views/GrafanaDashboards.vue'),
+          meta: { titleKey: 'layout.grafana_dashboards' },
+        },
+        {
           path: 'monitors',
           name: 'UptimeMonitors',
           component: () => import('@/views/UptimeMonitors.vue'),

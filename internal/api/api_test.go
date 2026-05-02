@@ -182,7 +182,7 @@ func setupFullTestRouter(db *gorm.DB, bridge *service.Bridge) *gin.Engine {
 	go wsHub.Run()
 	auditSvc := service.NewAuditService(db)
 	backupSvc := backup.New(backup.Config{BackupDir: os.TempDir()}, db, "sqlite", "")
-	RegisterRoutes(r, db, bridge, wsHub, auditSvc, nil, nil, nil, backupSvc, nil, false)
+	RegisterRoutes(r, db, bridge, wsHub, auditSvc, nil, nil, nil, backupSvc, nil, false, nil)
 	return r
 }
 

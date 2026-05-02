@@ -77,3 +77,13 @@ bruteforce:
   max_delay: "30s"
   ip_max_attempts: 20
   ip_lockout_duration: "30m"
+
+# Grafana 集成
+grafana:
+  enabled: false
+  url: "http://localhost:3000"
+  api_key: ""
+  admin_user: ""
+  admin_password: ""
+  annotations_enabled: true
+  sync_interval: 60

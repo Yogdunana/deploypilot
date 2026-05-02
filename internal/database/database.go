@@ -848,6 +848,16 @@ func Migrate(db *gorm.DB) error {
 				return tx.Exec("DROP TABLE IF EXISTS heartbeats").Error
 			},
 		},
+		// 202605020100: Create grafana_custom_dashboards and grafana_sync_logs tables
+		{
+			ID: "202605020100",
+			Migrate: func(tx *gorm.DB) error {
+				return tx.AutoMigrate(&model.GrafanaCustomDashboard{}, &model.GrafanaSyncLog{})
+			},
+			Rollback: func(tx *gorm.DB) error {
+				return tx.Migrator().DropTable("grafana_sync_logs", "grafana_custom_dashboards")
+			},
+		},
 	})
 
 	// Use InitSchema for initial creation (faster than Migrate)
