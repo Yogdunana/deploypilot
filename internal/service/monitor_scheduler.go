@@ -82,19 +82,22 @@ func (s *MonitorScheduler) runMonitorChecks(ctx context.Context) {
 				"results": results,
 				"count":   len(results),
 			})
-			// Update Prometheus gauges
-			metricMonitors := make([]metrics.MonitorMetric, len(results))
-			for i, r := range results {
-				metricMonitors[i] = metrics.MonitorMetric{
-					Name:       r.Name,
-					Type:       r.Type,
-					Target:     r.Target,
-					Status:     r.Status,
-					AvgLatency: r.AvgLatency,
-					Uptime:     r.Uptime,
+			// Update Prometheus gauges from Monitor records (post-check state)
+			monitors, err := s.svc.ListMonitors(ctx, "")
+			if err == nil {
+				metricMonitors := make([]metrics.MonitorMetric, len(monitors))
+				for i, mon := range monitors {
+					metricMonitors[i] = metrics.MonitorMetric{
+						Name:       mon.Name,
+						Type:       mon.Type,
+						Target:     mon.Target,
+						Status:     mon.Status,
+						AvgLatency: mon.AvgLatency,
+						Uptime:     mon.Uptime,
+					}
 				}
+				metrics.UpdateMonitorGauges(metricMonitors)
 			}
-			metrics.UpdateMonitorGauges(metricMonitors)
 		}
 	}
 }
