@@ -2,6 +2,7 @@ package service
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -54,7 +55,7 @@ func (c *GrafanaClient) doRequest(method, path string, body interface{}) ([]byte
 	}
 
 	reqURL := c.baseURL + path
-	req, err := http.NewRequest(method, reqURL, reqBody)
+	req, err := http.NewRequestWithContext(context.Background(), method, reqURL, reqBody)
 	if err != nil {
 		return nil, 0, fmt.Errorf("create request %s %s: %w", method, reqURL, err)
 	}
