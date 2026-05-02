@@ -15,7 +15,8 @@ type WSMonitorHub struct {
 	mu        sync.RWMutex
 	broadcast chan []byte
 	register   chan *websocket.Conn
-	unregister chan *websocket.Conn	done       chan struct{}
+	unregister chan *websocket.Conn
+	done       chan struct{}
 	closeOnce  sync.Once
 }
 
