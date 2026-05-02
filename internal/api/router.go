@@ -40,11 +40,16 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 	ticketStore := auth.NewWSTicketStore()
 	go ticketStore.StartCleanup(context.Background(), 1*time.Minute)
 
+	// Monitor API (created early for WebSocket hub)
+	monAPI := NewMonitorAPI(db)
+	go monAPI.GetMonitorHub().Run()
+
 	wsGroup := r.Group("/ws")
 	{
 		wsGroup.GET("/logs/:app_id", LogStreamWS(bridge, wsHub, ticketStore))
 		wsGroup.GET("/terminal/:server_id", TerminalWS(bridge, wsHub, ticketStore))
 		wsGroup.GET("/agent/:server_id", AgentTunnelWS(bridge, ticketStore))
+		wsGroup.GET("/monitor", monAPI.MonitorWS)
 	}
 
 	// SSE routes (requires auth)
@@ -198,7 +203,6 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 		}
 
 		// Monitoring & Observability
-		monAPI := NewMonitorAPI(db)
 		monGroup := protected.Group("/monitors")
 		{
 			monGroup.GET("", monAPI.ListMonitors)
