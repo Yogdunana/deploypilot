@@ -90,7 +90,6 @@ func run(configFilePath, cliDriver, cliDSN, cliAddr string) error {
 	}
 
 	// Inject JWT secret from config into environment for jwt.go's os.Getenv("JWT_SECRET")
-	// This bridges config.yaml / DEPLOYPILOT_AUTH_JWT_SECRET → JWT_SECRET
 	if cfg.Auth.JWTSecret != "" && os.Getenv("JWT_SECRET") == "" {
 		if len(cfg.Auth.JWTSecret) < 16 {
 			return fmt.Errorf("auth.jwt_secret in config must be at least 16 characters, current length: %d", len(cfg.Auth.JWTSecret))
@@ -194,6 +193,11 @@ func run(configFilePath, cliDriver, cliDSN, cliAddr string) error {
 	scheduler := service.NewScheduler(db, bridge)
 	bridge.Scheduler = scheduler
 	scheduler.Start(context.Background())
+
+	// Initialize monitor scheduler for uptime/heartbeat checks (Phase 6.1-6.2)
+	monitorSvc := service.NewMonitorService(db)
+	monitorScheduler := service.NewMonitorScheduler(monitorSvc)
+	monitorScheduler.Start(context.Background())
 
 	// Apply brute-force config from configuration file
 	bf := cfg.BruteForce
@@ -309,12 +313,15 @@ func run(configFilePath, cliDriver, cliDSN, cliAddr string) error {
 		slog.Warn("API server shutdown error", "error", err)
 	}
 
-	// 3. Stop scheduler
+	// 3. Stop monitor scheduler
+	monitorScheduler.Stop()
+
+	// 4. Stop scheduler
 	if bridge.Scheduler != nil {
 		bridge.Scheduler.Stop()
 	}
 
-	// 4. Stop monitor if running
+	// 5. Stop monitor if running
 	if bridge.Monitor != nil {
 		bridge.Monitor.Stop()
 	}
@@ -322,7 +329,7 @@ func run(configFilePath, cliDriver, cliDSN, cliAddr string) error {
 		backupSvc.Stop()
 	}
 
-	// 5. Close event bus
+	// 6. Close event bus
 	if eventBus != nil {
 		if err := eventBus.Close(); err != nil {
 			slog.Warn("event bus close error", "error", err)
@@ -334,14 +341,14 @@ func run(configFilePath, cliDriver, cliDSN, cliAddr string) error {
 		}
 	}
 
-	// 6. Close cache (in-memory cache only; Redis cache is closed via rdb)
+	// 7. Close cache (in-memory cache only; Redis cache is closed via rdb)
 	if cache != nil && rdb == nil {
 		if err := cache.Close(); err != nil {
 			slog.Warn("cache close error", "error", err)
 		}
 	}
 
-	// 7. Close database connection
+	// 8. Close database connection
 	if sqlDB, err := db.DB(); err == nil {
 		if err := sqlDB.Close(); err != nil {
 			slog.Warn("database close error", "error", err)
