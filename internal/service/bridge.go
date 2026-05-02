@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log/slog"
@@ -19,6 +20,7 @@ import (
 	"github.com/Yogdunana/deploypilot/internal/crypto"
 	"github.com/Yogdunana/deploypilot/internal/engine/deployer"
 	"github.com/Yogdunana/deploypilot/internal/engine/healer"
+	"github.com/Yogdunana/deploypilot/internal/model"
 	"github.com/Yogdunana/deploypilot/internal/monitor"
 	"github.com/Yogdunana/deploypilot/internal/plugin"
 	"github.com/Yogdunana/deploypilot/internal/provider/server"
@@ -56,9 +58,9 @@ func (e *PreflightError) PreflightChecks() interface{} {
 type DeployEvent struct {
 	TaskID    string `json:"task_id"`
 	AppID     string `json:"app_id"`
-	Step      string `json:"step"`
-	Status    string `json:"status"`
-	Progress  int    `json:"progress"`
+	Step      string `json:"step"`     // preflight, pull, stop, run, health_check, done
+	Status    string `json:"status"`   // running, success, failed
+	Progress  int    `json:"progress"` // 0-100
 	Message   string `json:"message"`
 	Timestamp string `json:"timestamp"`
 	TraceID   string `json:"trace_id,omitempty"`
@@ -67,20 +69,19 @@ type DeployEvent struct {
 // Bridge implements mcp.Deployer by wiring DB + Docker executor.
 type Bridge struct {
 	DB            *gorm.DB
-	Executor      deployer.CommandExecutor
-	EncryptionKey []byte
-	Monitor       *monitor.Monitor
-	healer        *healer.Healer
-	EventBus      EventBus
-	TypedBus      TypedEventBus
-	TunnelManager TunnelManager
-	PluginMgr     *plugin.Manager
-	UpgradeSvc    *UpgradeService
+	Executor      deployer.CommandExecutor // can be SSH client or local shell
+	EncryptionKey []byte                   // AES-256 key for credential encryption
+	Monitor       *monitor.Monitor         // monitoring system (lazy-initialized)
+	healer        *healer.Healer           // self-healing engine (lazy-initialized)
+	EventBus      EventBus                 // pub/sub for deploy progress events
+	TypedBus      TypedEventBus            // typed event bus for alerts, notifications, system events
+	TunnelManager TunnelManager            // agent reverse tunnel manager
+	PluginMgr     *plugin.Manager          // plugin lifecycle manager
+	UpgradeSvc    *UpgradeService          // system upgrade service
 	ConfirmStore  *confirm.Store
 	BFProtector   *bruteforce.Protector
-	Cache         Cache
-	Scheduler     *Scheduler
-	uptimeSvc     *MonitorService
+	Cache         Cache                    // general-purpose cache (Redis or in-memory)
+	Scheduler     *Scheduler               // scheduled task system
 
 	// Task tracking (moved from package-level globals, Issue #117)
 	taskMu      sync.RWMutex
@@ -89,7 +90,7 @@ type Bridge struct {
 
 	// Backup tracking (moved from package-level globals, Issue #117)
 	backupMu   sync.RWMutex
-	backupApps map[string]string
+	backupApps map[string]string // backupID -> appID
 
 	// Port forwarding (moved from package-level globals, Issue #117)
 	portForwardMu sync.RWMutex
@@ -141,6 +142,7 @@ func (b *Bridge) SetBruteForceConfig(cfg bruteforce.Config) {
 }
 
 // BruteForceConfigFromMap creates a bruteforce.Config from raw config values.
+// Durations are parsed from strings; invalid values fall back to defaults.
 func BruteForceConfigFromMap(maxAttempts, ipMaxAttempts int, lockoutDuration, windowDuration, baseDelay, maxDelay, ipLockoutDuration string, progressiveDelay bool) bruteforce.Config {
 	return bruteforce.Config{
 		MaxAttempts:       maxAttempts,
@@ -191,7 +193,11 @@ func (b *Bridge) GetConfirmationStore() *confirm.Store {
 	return b.ConfirmStore
 }
 
+// getDNSProvider loads the first enabled DNS provider from DB and returns a DNSProvider interface.
+
 // getRemoteExecutor creates an SSH executor for the given server.
+// It looks up the server record, finds its credential, decrypts the password/key,
+// and returns an SSH client that satisfies deployer.CommandExecutor.
 func (b *Bridge) getRemoteExecutor(ctx context.Context, serverID string) (*sshClientExecutor, error) {
 	row := make(map[string]interface{})
 	if err := b.DB.Table("servers").Where("id = ?", serverID).Take(&row).Error; err != nil {
@@ -201,6 +207,7 @@ func (b *Bridge) getRemoteExecutor(ctx context.Context, serverID string) (*sshCl
 	host := toString(row["host"])
 	port := toInt(row["port"])
 
+	// Look up credential if associated
 	var password, keyStr string
 	if credID := toString(row["credential_id"]); credID != "" {
 		credRow := make(map[string]interface{})
@@ -214,12 +221,13 @@ func (b *Bridge) getRemoteExecutor(ctx context.Context, serverID string) (*sshCl
 		}
 	}
 
+	// SSH username: prefer server record field, fall back to env var, then "root"
 	username := toString(row["username"])
 	if username == "" {
 		username = os.Getenv("DEPLOYPILOT_SSH_DEFAULT_USER")
 	}
 	if username == "" {
-		slog.Warn("SSH username not configured, falling back to root", "serverID", serverID)
+		slog.Warn("SSH username not configured, falling back to root (configure DEPLOYPILOT_SSH_DEFAULT_USER or set server username)", "serverID", serverID)
 		username = "root"
 	}
 	cfg := server.Config{
@@ -233,13 +241,16 @@ func (b *Bridge) getRemoteExecutor(ctx context.Context, serverID string) (*sshCl
 
 	client, err := server.Connect(ctx, cfg)
 	if err != nil {
-		return nil, fmt.Errorf("SSH connection failed to %s:%d: %w", host, port, err)
+		return nil, fmt.Errorf("SSH connection failed to %s:%d: %w. "+
+			"Suggestions: check host/port, verify security group allows TCP/%d, "+
+			"confirm sshd is running, and ensure credentials are correct",
+			host, port, err, port)
 	}
 
 	return &sshClientExecutor{Client: client}, nil
 }
 
-// RemoteExecutor is the interface for remote command execution.
+// RemoteExecutor is the interface for remote command execution (used by WebSocket terminal).
 type RemoteExecutor interface {
 	RunCommand(ctx context.Context, cmd string) (string, error)
 	CreateInteractiveSession(ctx context.Context, termType string, rows, cols int) (InteractiveSession, error)
@@ -248,12 +259,18 @@ type RemoteExecutor interface {
 
 // InteractiveSession represents a persistent interactive SSH session with PTY.
 type InteractiveSession interface {
+	// StdinPipe returns a writer connected to the session's stdin.
 	StdinPipe() io.Writer
+	// SetWindowSize resizes the PTY.
 	SetWindowSize(rows, cols int) error
+	// Output returns a channel that receives stdout+stderr output.
 	Output() <-chan []byte
+	// Done returns a channel that is closed when the session exits.
 	Done() <-chan struct{}
+	// Close terminates the session.
 	Close() error
 }
+
 
 // sshClientExecutor wraps server.Client to implement deployer.CommandExecutor.
 type sshClientExecutor struct {
@@ -290,6 +307,7 @@ func newInteractiveSession(session *ssh.Session) *interactiveSession {
 		output:  make(chan []byte, 256),
 		done:    make(chan struct{}),
 	}
+	// Get stdin pipe
 	stdinPipe, err := session.StdinPipe()
 	if err != nil {
 		close(is.done)
@@ -297,6 +315,7 @@ func newInteractiveSession(session *ssh.Session) *interactiveSession {
 	}
 	is.stdin = stdinPipe
 
+	// Pipe stdout and stderr to output channel
 	stdoutPipe, err := session.StdoutPipe()
 	if err != nil {
 		close(is.done)
@@ -308,11 +327,13 @@ func newInteractiveSession(session *ssh.Session) *interactiveSession {
 		return is
 	}
 
+	// Start shell
 	if err := session.Shell(); err != nil {
 		close(is.done)
 		return is
 	}
 
+	// Read stdout in goroutine
 	go func() {
 		buf := make([]byte, 4096)
 		for {
@@ -328,6 +349,7 @@ func newInteractiveSession(session *ssh.Session) *interactiveSession {
 		}
 	}()
 
+	// Read stderr in goroutine
 	go func() {
 		buf := make([]byte, 4096)
 		for {
@@ -343,6 +365,7 @@ func newInteractiveSession(session *ssh.Session) *interactiveSession {
 		}
 	}()
 
+	// Wait for session to exit
 	go func() {
 		_ = session.Wait()
 		close(is.done)
@@ -372,6 +395,19 @@ func (is *interactiveSession) Close() error {
 	return is.session.Close()
 }
 
+
+// ---------- 3. ListApps ----------
+
+
+// GetAppDeploymentHistory returns the deployment history for an app by app ID.
+
+
+// ---------- 16. CreateCredential ----------
+
+
+// ---------- 38. BatchDNS ----------
+
+
 // generateID returns a unique deployment record ID.
 func generateID() string {
 	return fmt.Sprintf("dep-%d", time.Now().UnixNano())
@@ -384,6 +420,7 @@ func logPreflightResult(containerName string, result *PreflightResult) {
 		slog.Info("preflight check", "name", c.Name, "passed", c.Passed, "message", c.Message, "suggestion", c.Suggestion)
 	}
 }
+
 
 func toString(v interface{}) string {
 	if v == nil {
@@ -430,93 +467,261 @@ func defaultVal(val, def string) string {
 	return val
 }
 
-// ========== SchedulerService interface (stubs) ==========
 
-func (b *Bridge) CreateScheduledTask(ctx context.Context, name, cronExpr, taskType, command string, serverID string) (interface{}, error) {
-	return nil, fmt.Errorf("scheduled tasks: use Scheduler directly")
-}
+// ---------- GetServersByTags ----------
 
-func (b *Bridge) ListScheduledTasks(ctx context.Context) (interface{}, error) {
-	return nil, fmt.Errorf("scheduled tasks: use Scheduler directly")
-}
+// ---------- Phase 3.1: Compose Operations ----------
 
-func (b *Bridge) GetTaskExecutions(ctx context.Context, taskID string, limit int) (interface{}, error) {
-	return nil, fmt.Errorf("scheduled tasks: use Scheduler directly")
-}
-
-func (b *Bridge) ToggleScheduledTask(ctx context.Context, taskID string, enabled bool) (interface{}, error) {
-	return nil, fmt.Errorf("scheduled tasks: use Scheduler directly")
-}
-
-func (b *Bridge) DeleteScheduledTask(ctx context.Context, taskID string) (interface{}, error) {
-	return nil, fmt.Errorf("scheduled tasks: use Scheduler directly")
-}
-
-// ========== MonitorService interface (stubs) ==========
-
-func (b *Bridge) GetSystemMetrics(ctx context.Context) (interface{}, error) {
-	if b.Monitor != nil {
-		return b.Monitor.GetSystemMetrics(ctx)
+// ComposeDeploy deploys an app using docker-compose.
+func (b *Bridge) ComposeDeploy(ctx context.Context, appID string) (string, error) {
+	var app model.App
+	if err := b.DB.First(&app, "id = ?", appID).Error; err != nil {
+		return "", fmt.Errorf("app not found: %w", err)
 	}
-	return map[string]interface{}{
-		"cpu": "0%", "memory": "0MB", "disk": "0MB", "load": "0.0 0.0 0.0",
-	}, nil
-}
 
-func (b *Bridge) GetContainerMetrics(ctx context.Context, name string) (interface{}, error) {
-	if b.Monitor != nil {
-		return b.Monitor.GetContainerMetrics(ctx, name)
-	}
-	return map[string]interface{}{
-		"name": name, "cpu": "0%", "memory": "0MB",
-	}, nil
-}
-
-func (b *Bridge) ListAlerts(ctx context.Context) (interface{}, error) {
-	if b.Monitor != nil {
-		return b.Monitor.ListAlerts(ctx)
-	}
-	return []interface{}{}, nil
-}
-
-func (b *Bridge) ListAlertRules(ctx context.Context) (interface{}, error) {
-	if b.Monitor != nil {
-		return b.Monitor.ListAlertRules(ctx)
-	}
-	return []interface{}{}, nil
-}
-
-func (b *Bridge) GetRemoteSystemMetrics(ctx context.Context, serverID string) (interface{}, error) {
-	exec, err := b.getRemoteExecutor(ctx, serverID)
+	executor, err := b.getRemoteExecutor(ctx, app.ServerID)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
-	defer func() { _ = exec.Close() }()
+	defer func() {
+		if cerr := executor.Close(); cerr != nil {
+			slog.Warn("failed to close remote executor", "error", cerr)
+		}
+	}()
 
-	result := make(map[string]interface{})
-	if output, err := exec.RunCommand(ctx, "free -m 2>/dev/null"); err == nil {
-		result["memory"] = strings.TrimSpace(output)
+	workDir := fmt.Sprintf("/opt/deploypilot/apps/%s", app.Name)
+	projectName := app.ComposeProjectName
+	if projectName == "" {
+		projectName = app.Name
 	}
-	if output, err := exec.RunCommand(ctx, "df -h --total 2>/dev/null | tail -1"); err == nil {
-		result["disk"] = strings.TrimSpace(output)
+
+	// Prepend project name to compose content if not present
+	composeContent := app.ComposeContent
+	if !strings.Contains(composeContent, "name:") && !strings.Contains(composeContent, "version:") {
+		// Wrap with project name
+		composeContent = fmt.Sprintf("name: %s\n\n%s", projectName, composeContent)
 	}
-	if output, err := exec.RunCommand(ctx, "cat /proc/loadavg 2>/dev/null"); err == nil {
-		result["load_average"] = strings.TrimSpace(output)
+
+	// Parse env vars from JSON string
+	var envVars map[string]string
+	if app.EnvVars != "" {
+		_ = json.Unmarshal([]byte(app.EnvVars), &envVars)
 	}
-	if output, err := exec.RunCommand(ctx, "uptime -p 2>/dev/null || uptime 2>/dev/null"); err == nil {
-		result["uptime"] = strings.TrimSpace(output)
+
+	deployer := deployer.NewComposeDeployer(executor)
+	out, err := deployer.ComposeUp(ctx, workDir, composeContent, envVars)
+	if err != nil {
+		return out, err
 	}
+
+	// Save deployment record
+	if b.DB != nil {
+		snapshotJSON, _ := json.Marshal(map[string]interface{}{
+			"compose_content":     composeContent,
+			"compose_project_name": projectName,
+			"env_vars":            envVars,
+		})
+		record := &model.DeploymentRecord{
+			ID:             generateID(),
+			TenantID:       app.TenantID,
+			ServerID:       app.ServerID,
+			AppName:        app.Name,
+			AppID:          app.ID,
+			DeployType:     "compose_up",
+			ConfigSnapshot: string(snapshotJSON),
+			Status:         "success",
+			CreatedAt:      time.Now(),
+			UpdatedAt:      time.Now(),
+		}
+		if err := b.DB.Create(record).Error; err != nil {
+			slog.Error("failed to save compose deployment record", "error", err)
+		}
+	}
+
+	return out, nil
+}
+
+// ComposeStop stops a compose deployment.
+func (b *Bridge) ComposeStop(ctx context.Context, appID string) (string, error) {
+	var app model.App
+	if err := b.DB.First(&app, "id = ?", appID).Error; err != nil {
+		return "", fmt.Errorf("app not found: %w", err)
+	}
+
+	executor, err := b.getRemoteExecutor(ctx, app.ServerID)
+	if err != nil {
+		return "", err
+	}
+	defer func() {
+		if cerr := executor.Close(); cerr != nil {
+			slog.Warn("failed to close remote executor", "error", cerr)
+		}
+	}()
+
+	workDir := fmt.Sprintf("/opt/deploypilot/apps/%s", app.Name)
+	deployer := deployer.NewComposeDeployer(executor)
+	return deployer.ComposeDown(ctx, workDir)
+}
+
+// ComposePs lists compose containers.
+func (b *Bridge) ComposePs(ctx context.Context, appID string) (string, error) {
+	var app model.App
+	if err := b.DB.First(&app, "id = ?", appID).Error; err != nil {
+		return "", fmt.Errorf("app not found: %w", err)
+	}
+
+	executor, err := b.getRemoteExecutor(ctx, app.ServerID)
+	if err != nil {
+		return "", err
+	}
+	defer func() {
+		if cerr := executor.Close(); cerr != nil {
+			slog.Warn("failed to close remote executor", "error", cerr)
+		}
+	}()
+
+	workDir := fmt.Sprintf("/opt/deploypilot/apps/%s", app.Name)
+	deployer := deployer.NewComposeDeployer(executor)
+	return deployer.ComposePs(ctx, workDir)
+}
+
+// ComposeLogs gets compose service logs.
+func (b *Bridge) ComposeLogs(ctx context.Context, appID, service, tail string) (string, error) {
+	var app model.App
+	if err := b.DB.First(&app, "id = ?", appID).Error; err != nil {
+		return "", fmt.Errorf("app not found: %w", err)
+	}
+
+	executor, err := b.getRemoteExecutor(ctx, app.ServerID)
+	if err != nil {
+		return "", err
+	}
+	defer func() {
+		if cerr := executor.Close(); cerr != nil {
+			slog.Warn("failed to close remote executor", "error", cerr)
+		}
+	}()
+
+	workDir := fmt.Sprintf("/opt/deploypilot/apps/%s", app.Name)
+	deployer := deployer.NewComposeDeployer(executor)
+	return deployer.ComposeLogs(ctx, workDir, service, tail)
+}
+
+// ComposeRestart restarts compose services.
+func (b *Bridge) ComposeRestart(ctx context.Context, appID, service string) (string, error) {
+	var app model.App
+	if err := b.DB.First(&app, "id = ?", appID).Error; err != nil {
+		return "", fmt.Errorf("app not found: %w", err)
+	}
+
+	executor, err := b.getRemoteExecutor(ctx, app.ServerID)
+	if err != nil {
+		return "", err
+	}
+	defer func() {
+		if cerr := executor.Close(); cerr != nil {
+			slog.Warn("failed to close remote executor", "error", cerr)
+		}
+	}()
+
+	workDir := fmt.Sprintf("/opt/deploypilot/apps/%s", app.Name)
+	deployer := deployer.NewComposeDeployer(executor)
+	return deployer.ComposeRestart(ctx, workDir, service)
+}
+
+// ---------- Phase 3.5: Preflight Visualization ----------
+
+// RunPreflightFull runs all preflight checks without short-circuiting and returns a full report.
+func (b *Bridge) RunPreflightFull(ctx context.Context, serverID string, portMappings string) (interface{}, error) {
+	var executor CommandExecutor
+	var host string
+	var port int
+
+	if serverID != "" {
+		remoteExec, err := b.getRemoteExecutor(ctx, serverID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get remote executor for server %s: %w", serverID, err)
+		}
+		defer func() {
+			if cerr := remoteExec.Close(); cerr != nil {
+				slog.Warn("failed to close remote executor", "error", cerr)
+			}
+		}()
+		executor = remoteExec
+
+		// Look up server host/port for TCP check
+		row := make(map[string]interface{})
+		if err := b.DB.Table("servers").Where("id = ?", serverID).Take(&row).Error; err == nil {
+			host = toString(row["host"])
+			port = toInt(row["port"])
+		}
+	} else {
+		executor = b.Executor
+	}
+
+	cfg := PreflightConfig{
+		Host:         host,
+		Port:         port,
+		Executor:     executor,
+		PortMappings: portMappings,
+	}
+
+	result := RunPreflightFull(ctx, cfg)
 	return result, nil
 }
 
-func (b *Bridge) QueryMetricHistory(ctx context.Context, metricType string, duration string) (interface{}, error) {
-	return b.Monitor.QueryMetricHistory(ctx, metricType, duration)
+// ---------- Phase 3.3: ExecCommand ----------
+
+func (b *Bridge) ExecCommand(ctx context.Context, serverID, command string, timeout int) (string, error) {
+	execCtx, cancel := context.WithTimeout(ctx, time.Duration(timeout)*time.Second)
+	defer cancel()
+
+	if serverID == "" {
+		// Local execution
+		return b.Executor.RunCommand(execCtx, command)
+	}
+
+	// Remote execution via SSH
+	remoteExec, err := b.getRemoteExecutor(ctx, serverID)
+	if err != nil {
+		return "", fmt.Errorf("failed to get remote executor for server %s: %w", serverID, err)
+	}
+	defer func() {
+		if cerr := remoteExec.Close(); cerr != nil {
+			slog.Warn("failed to close remote executor", "error", cerr)
+		}
+	}()
+
+	return remoteExec.RunCommand(execCtx, command)
 }
 
-func (b *Bridge) QueryAlertHistory(ctx context.Context, status string, limit int) (interface{}, error) {
-	return b.Monitor.QueryAlertHistory(ctx, status, limit)
-}
+// ---------- Phase 3.3: ListImages ----------
 
+func (b *Bridge) ListImages(ctx context.Context, serverID, filter string) (string, error) {
+	dockerCmd := `docker images --format "{{.Repository}}:{{.Tag}}\t{{.Size}}\t{{.CreatedSince}}"`
+	if filter != "" {
+		dockerCmd += " | grep " + shellQuote(filter)
+	}
+
+	execCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+
+	if serverID == "" {
+		return b.Executor.RunCommand(execCtx, dockerCmd)
+	}
+
+	remoteExec, err := b.getRemoteExecutor(ctx, serverID)
+	if err != nil {
+		return "", fmt.Errorf("failed to get remote executor for server %s: %w", serverID, err)
+	}
+	defer func() {
+		if cerr := remoteExec.Close(); cerr != nil {
+			slog.Warn("failed to close remote executor", "error", cerr)
+		}
+	}()
+
+	return remoteExec.RunCommand(execCtx, dockerCmd)
+}
 
 // ---------- Phase 3.3: PortForward ----------
 
@@ -584,6 +789,8 @@ func (b *Bridge) PortForward(ctx context.Context, action, serverID string, local
 
 		// Execute SSH tunnel in background
 		execCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+		// We run the SSH command and let it run in the background
+		// Since CommandExecutor.RunCommand is blocking, we launch it in a goroutine
 		go func() {
 			remoteExec, err := b.getRemoteExecutor(ctx, serverID)
 			if err != nil {
@@ -644,3 +851,5 @@ func (b *Bridge) PortForward(ctx context.Context, action, serverID string, local
 		return "", fmt.Errorf("invalid action: %s (must be 'create', 'delete', or 'list')", action)
 	}
 }
+
+
