@@ -42,6 +42,8 @@ import (
 	"github.com/Yogdunana/deploypilot/internal/database"
 	"github.com/Yogdunana/deploypilot/internal/engine/deployer"
 	"github.com/Yogdunana/deploypilot/internal/metrics"
+	"github.com/Yogdunana/deploypilot/internal/plugin"
+	"github.com/Yogdunana/deploypilot/internal/plugin/builtin"
 	"github.com/Yogdunana/deploypilot/internal/server"
 	"github.com/Yogdunana/deploypilot/internal/service"
 	appversion "github.com/Yogdunana/deploypilot/internal/version"
@@ -286,7 +288,47 @@ func run(configFilePath, cliDriver, cliDSN, cliAddr string) error {
 	}
 	backupSvc.Start()
 
-	srv := server.New(listenAddr, db, bridge, cfg, tokenBlacklist, oauthSvc, rdb, backupSvc)
+	// Initialize event-driven plugin system (Phase 7.5)
+	eventPluginMgr := plugin.NewEventPluginManager()
+	eventPluginMgr.Register(builtin.NewHelloWorldPlugin())
+	eventPluginMgr.Register(builtin.NewSlackNotifyPlugin())
+	eventPluginMgr.Register(builtin.NewDeployGatePlugin())
+
+	if err := eventPluginMgr.InitAll(context.Background()); err != nil {
+		slog.Warn("event plugin system init error", "error", err)
+	}
+	if err := eventPluginMgr.StartAll(); err != nil {
+		slog.Warn("event plugin system start error", "error", err)
+	}
+
+	// Connect event plugin system to typed event bus
+	// Subscribe to all event types and dispatch to plugins
+	if typedBus != nil {
+		allEventTypes := []service.EventType{
+			service.EventDeploy,
+			service.EventAlert,
+			service.EventNotify,
+			service.EventSystem,
+		}
+		for _, et := range allEventTypes {
+			go func(eventType service.EventType) {
+				ch := typedBus.SubscribeType(context.Background(), eventType)
+				for event := range ch {
+					eventPluginMgr.DispatchEvent(plugin.BusEvent{
+						ID:        event.ID,
+						Type:      string(event.Type),
+						Topic:     event.Topic,
+						Source:    event.Source,
+						Payload:   event.Payload,
+						Timestamp: event.Timestamp,
+					})
+				}
+			}(et)
+		}
+		slog.Info("event plugin system connected to typed event bus")
+	}
+
+	srv := server.New(listenAddr, db, bridge, cfg, tokenBlacklist, oauthSvc, rdb, backupSvc, eventPluginMgr)
 
 	// Initialize Prometheus metrics (served via /metrics on the main API server)
 	metrics.Init()
@@ -321,6 +363,9 @@ func run(configFilePath, cliDriver, cliDSN, cliAddr string) error {
 	if err := srv.Shutdown(shutdownCtx); err != nil {
 		slog.Warn("API server shutdown error", "error", err)
 	}
+
+	// 1.5 Stop event plugins
+	eventPluginMgr.StopAll()
 
 	// 2. Stop monitor scheduler
 	monitorScheduler.Stop()
