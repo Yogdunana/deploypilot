@@ -135,7 +135,7 @@ func (s *OutboundWebhookService) Deliver(ctx context.Context, webhook *model.Out
 	} else {
 		statusCode = resp.StatusCode
 		respBytes, _ := io.ReadAll(resp.Body)
-		resp.Body.Close()
+		_ = resp.Body.Close()
 		respBody = string(respBytes)
 	}
 
@@ -240,7 +240,7 @@ func (s *OutboundWebhookService) retryDelivery(webhook *model.OutboundWebhook, d
 		} else {
 			statusCode = resp.StatusCode
 			respBytes, _ := io.ReadAll(resp.Body)
-			resp.Body.Close()
+			_ = resp.Body.Close()
 			respBody = string(respBytes)
 		}
 
@@ -348,7 +348,7 @@ func (s *OutboundWebhookService) TestDelivery(ctx context.Context, webhookID str
 	} else {
 		statusCode = resp.StatusCode
 		respBytes, _ := io.ReadAll(resp.Body)
-		resp.Body.Close()
+		_ = resp.Body.Close()
 		respBody = string(respBytes)
 	}
 
