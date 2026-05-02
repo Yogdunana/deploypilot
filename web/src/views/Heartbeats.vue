@@ -31,6 +31,10 @@ function getPingURL(token: string): string {
   return `${window.location.origin}/api/v1/heartbeat/ping/${token}`
 }
 
+function openPingURL(token: string) {
+  window.open(getPingURL(token), '_blank')
+}
+
 async function fetchHeartbeats() {
   loading.value = true
   try {
@@ -138,7 +142,7 @@ onMounted(fetchHeartbeats)
                 <button class="p-1 hover:bg-gray-100 rounded" title="Copy URL" @click="copyToken(getPingURL(hb.token))">
                   <Copy class="w-4 h-4" />
                 </button>
-                <button class="p-1 hover:bg-gray-100 rounded" title="Open URL" @click="window.open(getPingURL(hb.token), '_blank')">
+                <button class="p-1 hover:bg-gray-100 rounded" title="Open URL" @click="openPingURL(hb.token)">
                   <ExternalLink class="w-4 h-4" />
                 </button>
                 <button class="p-1 hover:bg-red-50 text-red-600 rounded" title="Delete" @click="openDeleteDialog(hb)">
