@@ -143,6 +143,7 @@ onUnmounted(() => {
               :class="m.uptime >= 99 ? 'bg-green-500' : m.uptime >= 95 ? 'bg-yellow-500' : 'bg-red-500'"
               :style="{ width: `${Math.min(m.uptime, 100)}%` }"
             ></div>
+          </div>
           <div class="flex justify-between text-xs">
             <span class="text-gray-500">Latency</span>
             <span class="text-gray-300">{{ formatLatency(m.avg_latency) }}</span>
