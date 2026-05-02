@@ -1036,6 +1036,9 @@ export default {
     uptimeMonitors: '可用性监控',
     heartbeats: '心跳检测',
     dashboardTV: '监控大屏',
+    oauth2_apps: 'OAuth2 应用',
+    grafana_settings: 'Grafana 设置',
+    grafana_dashboards: 'Grafana 仪表盘',
   },
 
   clusters: {
