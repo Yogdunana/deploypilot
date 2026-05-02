@@ -301,10 +301,6 @@ func (s *GrafanaService) PushAnnotation(event BusEvent) {
 		return
 	}
 
-	s.mu.RLock()
-	dsUID := s.dsUID
-	s.mu.RUnlock()
-
 	timestamp := event.Timestamp.UnixMilli()
 	var tags []string
 	var text string
