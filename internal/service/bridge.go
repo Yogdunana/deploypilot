@@ -644,7 +644,3 @@ func (b *Bridge) PortForward(ctx context.Context, action, serverID string, local
 		return "", fmt.Errorf("invalid action: %s (must be 'create', 'delete', or 'list')", action)
 	}
 }
-
-func shellQuote(s string) string {
-	return fmt.Sprintf("'%s'", strings.ReplaceAll(s, "'", "'\''"))
-}
