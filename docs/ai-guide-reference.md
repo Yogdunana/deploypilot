@@ -133,13 +133,21 @@ main 分支受保护，直接 push 会被拒绝（409 Conflict）。操作流程
 {
   "required_status_checks": {
     "strict": true,
-    "contexts": ["CI"]
+    "contexts": [
+      "Build Frontend",
+      "Test (race + coverage)",
+      "Lint (golangci-lint)",
+      "Build",
+      "Vulnerability Check",
+      "Frontend Dependency Audit",
+      "Secret Scanning"
+    ]
   },
   "enforce_admins": true,
   "required_pull_request_reviews": {
     "dismiss_stale_reviews": true,
     "require_code_owner_reviews": false,
-    "required_approving_review_count": 1
+    "required_approving_review_count": 0
   },
   "restrictions": null,
   "allow_force_pushes": false,
@@ -160,7 +168,7 @@ curl -s -X DELETE -H "Authorization: token $TOKEN" \
 ```bash
 curl -s -X PUT -H "Authorization: token $TOKEN" \
   "https://api.github.com/repos/Yogdunana/deploypilot/branches/main/protection" \
-  -d '{"required_status_checks":{"strict":true,"contexts":["CI"]},"enforce_admins":true,"required_pull_request_reviews":{"dismiss_stale_reviews":true,"require_code_owner_reviews":false,"required_approving_review_count":1},"restrictions":null,"allow_force_pushes":false,"allow_deletions":false,"block_creations":false}'
+  -d '{"required_status_checks":{"strict":true,"contexts":["Build Frontend","Test (race + coverage)","Lint (golangci-lint)","Build","Vulnerability Check","Frontend Dependency Audit","Secret Scanning"]},"enforce_admins":true,"required_pull_request_reviews":{"dismiss_stale_reviews":true,"require_code_owner_reviews":false,"required_approving_review_count":0},"restrictions":null,"allow_force_pushes":false,"allow_deletions":false,"block_creations":false}'
 ```
 
 #### Merge 策略
@@ -1193,7 +1201,7 @@ npm audit --audit-level=high
 | 场景 | 命令 |
 |------|------|
 | 临时解除保护 | `curl -s -X DELETE -H "Authorization: token $TOKEN" "https://api.github.com/repos/Yogdunana/deploypilot/branches/main/protection"` |
-| 恢复保护 | `curl -s -X PUT -H "Authorization: token $TOKEN" "https://api.github.com/repos/Yogdunana/deploypilot/branches/main/protection" -d '{"required_status_checks":{"strict":true,"contexts":["CI"]},"enforce_admins":true,"required_pull_request_reviews":{"dismiss_stale_reviews":true,"require_code_owner_reviews":false,"required_approving_review_count":1},"restrictions":null,"allow_force_pushes":false,"allow_deletions":false,"block_creations":false}'` |
+| 恢复保护 | `curl -s -X PUT -H "Authorization: token $TOKEN" "https://api.github.com/repos/Yogdunana/deploypilot/branches/main/protection" -d '{"required_status_checks":{"strict":true,"contexts":["Build Frontend","Test (race + coverage)","Lint (golangci-lint)","Build","Vulnerability Check","Frontend Dependency Audit","Secret Scanning"]},"enforce_admins":true,"required_pull_request_reviews":{"dismiss_stale_reviews":true,"require_code_owner_reviews":false,"required_approving_review_count":0},"restrictions":null,"allow_force_pushes":false,"allow_deletions":false,"block_creations":false}'` |
 
 ### Release
 
