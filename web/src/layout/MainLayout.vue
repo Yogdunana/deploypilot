@@ -42,6 +42,7 @@ import {
   Tv,
   Download,
   Webhook,
+  BarChart3,
   Menu,
   X,
 } from 'lucide-vue-next'
@@ -116,6 +117,8 @@ const navGroups = computed(() => [
       { path: '/monitor/settings', label: t('layout.monitorSettings'), icon: Settings },
       { path: '/monitor/export', label: t('layout.monitorExport'), icon: Download },
       { path: '/webhooks', label: t('layout.webhooks'), icon: Webhook },
+      { path: '/settings/grafana', label: t('layout.grafana_settings'), icon: BarChart3 },
+      { path: '/grafana/dashboards', label: t('layout.grafana_dashboards'), icon: LayoutDashboard },
       { path: '/dashboard-tv', label: t('layout.dashboardTV'), icon: Tv },
       { path: '/notifications', label: t('layout.notifications'), icon: Bell },
       { path: '/templates', label: t('layout.templates'), icon: FileCode },
