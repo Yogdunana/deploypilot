@@ -74,7 +74,7 @@ func (s *GrafanaService) GetStatus() map[string]interface{} {
 // TestConnection verifies connectivity to the Grafana server.
 func (s *GrafanaService) TestConnection() (map[string]interface{}, error) {
 	if s.client == nil {
-		return nil, fmt.Errorf("Grafana client not initialized")
+		return nil, fmt.Errorf("grafana client not initialized")
 	}
 	return s.client.TestConnection()
 }
@@ -83,7 +83,7 @@ func (s *GrafanaService) TestConnection() (map[string]interface{}, error) {
 // It returns the count of synced dashboards.
 func (s *GrafanaService) SyncAll() (int, error) {
 	if s.client == nil {
-		return 0, fmt.Errorf("Grafana client not initialized")
+		return 0, fmt.Errorf("grafana client not initialized")
 	}
 
 	// 1. Ensure datasource
