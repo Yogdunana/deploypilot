@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"net/http"
 	"os"
 	"time"
 
@@ -40,11 +41,16 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 	ticketStore := auth.NewWSTicketStore()
 	go ticketStore.StartCleanup(context.Background(), 1*time.Minute)
 
+	// Monitor API (created early for WebSocket hub)
+	monAPI := NewMonitorAPI(db)
+	go monAPI.GetMonitorHub().Run()
+
 	wsGroup := r.Group("/ws")
 	{
 		wsGroup.GET("/logs/:app_id", LogStreamWS(bridge, wsHub, ticketStore))
 		wsGroup.GET("/terminal/:server_id", TerminalWS(bridge, wsHub, ticketStore))
 		wsGroup.GET("/agent/:server_id", AgentTunnelWS(bridge, ticketStore))
+		wsGroup.GET("/monitor", gin.WrapH(http.HandlerFunc(monAPI.MonitorWS)))
 	}
 
 	// SSE routes (requires auth)
@@ -196,6 +202,33 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 			tbGroup.PUT("/scripts/:id", tbAPI.UpdateScript)
 			tbGroup.DELETE("/scripts/:id", tbAPI.DeleteScript)
 		}
+
+		// Monitoring & Observability
+		monGroup := protected.Group("/monitors")
+		{
+			monGroup.GET("", monAPI.ListMonitors)
+			monGroup.POST("", monAPI.CreateMonitor)
+			monGroup.GET("/:id", monAPI.GetMonitor)
+			monGroup.PUT("/:id", monAPI.UpdateMonitor)
+			monGroup.DELETE("/:id", monAPI.DeleteMonitor)
+			monGroup.POST("/:id/check", monAPI.CheckMonitor)
+			monGroup.GET("/:id/results", monAPI.GetMonitorResults)
+			monGroup.GET("/:id/sla", monAPI.GetMonitorSLA)
+			monGroup.POST("/check-all", monAPI.CheckAllMonitors)
+		}
+
+		// Heartbeat
+		hbGroup := protected.Group("/heartbeats")
+		{
+			hbGroup.GET("", monAPI.ListHeartbeats)
+			hbGroup.POST("", monAPI.CreateHeartbeat)
+			hbGroup.DELETE("/:id", monAPI.DeleteHeartbeat)
+		}
+
+		// Public endpoints (no auth required for heartbeat ping and status page)
+		r.GET("/api/v1/heartbeat/ping/:token", monAPI.PingHeartbeat)
+		r.GET("/api/v1/status", monAPI.GetStatusPage)
+		r.GET("/api/v1/metrics", monAPI.GetPrometheusMetrics)
 
 		// Credentials (5 endpoints)
 		creds := protected.Group("/credentials")

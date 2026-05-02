@@ -137,6 +137,7 @@ func NewServer(deployer Deployer) *server.MCPServer {
 	registerSystemTools(s, deployer)
 	registerPortForwardTools(s, deployer)
 	registerSchedulerTools(s, deployer)
+	registerUptimeTools(s, deployer)
 	registerContextTools(s)
 
 	return s

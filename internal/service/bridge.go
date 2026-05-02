@@ -82,6 +82,7 @@ type Bridge struct {
 	BFProtector   *bruteforce.Protector
 	Cache         Cache                    // general-purpose cache (Redis or in-memory)
 	Scheduler     *Scheduler               // scheduled task system
+	uptimeSvc     *MonitorService          // uptime monitoring service
 
 	// Task tracking (moved from package-level globals, Issue #117)
 	taskMu      sync.RWMutex
@@ -853,3 +854,89 @@ func (b *Bridge) PortForward(ctx context.Context, action, serverID string, local
 }
 
 
+// ========== SchedulerService interface (stubs) ==========
+
+func (b *Bridge) CreateScheduledTask(ctx context.Context, name, cronExpr, taskType, command string, serverID string) (interface{}, error) {
+	return nil, fmt.Errorf("scheduled tasks: use Scheduler directly")
+}
+
+func (b *Bridge) ListScheduledTasks(ctx context.Context) (interface{}, error) {
+	return nil, fmt.Errorf("scheduled tasks: use Scheduler directly")
+}
+
+func (b *Bridge) GetTaskExecutions(ctx context.Context, taskID string, limit int) (interface{}, error) {
+	return nil, fmt.Errorf("scheduled tasks: use Scheduler directly")
+}
+
+func (b *Bridge) ToggleScheduledTask(ctx context.Context, taskID string, enabled bool) (interface{}, error) {
+	return nil, fmt.Errorf("scheduled tasks: use Scheduler directly")
+}
+
+func (b *Bridge) DeleteScheduledTask(ctx context.Context, taskID string) (interface{}, error) {
+	return nil, fmt.Errorf("scheduled tasks: use Scheduler directly")
+}
+
+// ========== MonitorService interface (stubs) ==========
+
+func (b *Bridge) GetSystemMetrics(ctx context.Context) (interface{}, error) {
+	if b.Monitor != nil {
+		return b.Monitor.GetSystemMetrics(ctx)
+	}
+	return map[string]interface{}{
+		"cpu": "0%", "memory": "0MB", "disk": "0MB", "load": "0.0 0.0 0.0",
+	}, nil
+}
+
+func (b *Bridge) GetContainerMetrics(ctx context.Context, name string) (interface{}, error) {
+	if b.Monitor != nil {
+		return b.Monitor.GetContainerMetrics(ctx, name)
+	}
+	return map[string]interface{}{
+		"name": name, "cpu": "0%", "memory": "0MB",
+	}, nil
+}
+
+func (b *Bridge) ListAlerts(ctx context.Context) (interface{}, error) {
+	if b.Monitor != nil {
+		return b.Monitor.ListAlerts(ctx)
+	}
+	return []interface{}{}, nil
+}
+
+func (b *Bridge) ListAlertRules(ctx context.Context) (interface{}, error) {
+	if b.Monitor != nil {
+		return b.Monitor.ListAlertRules(ctx)
+	}
+	return []interface{}{}, nil
+}
+
+func (b *Bridge) GetRemoteSystemMetrics(ctx context.Context, serverID string) (interface{}, error) {
+	exec, err := b.getRemoteExecutor(ctx, serverID)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = exec.Close() }()
+
+	result := make(map[string]interface{})
+	if output, err := exec.RunCommand(ctx, "free -m 2>/dev/null"); err == nil {
+		result["memory"] = strings.TrimSpace(output)
+	}
+	if output, err := exec.RunCommand(ctx, "df -h --total 2>/dev/null | tail -1"); err == nil {
+		result["disk"] = strings.TrimSpace(output)
+	}
+	if output, err := exec.RunCommand(ctx, "cat /proc/loadavg 2>/dev/null"); err == nil {
+		result["load_average"] = strings.TrimSpace(output)
+	}
+	if output, err := exec.RunCommand(ctx, "uptime -p 2>/dev/null || uptime 2>/dev/null"); err == nil {
+		result["uptime"] = strings.TrimSpace(output)
+	}
+	return result, nil
+}
+
+func (b *Bridge) QueryMetricHistory(ctx context.Context, metricType string, duration string) (interface{}, error) {
+	return b.Monitor.QueryMetricHistory(ctx, metricType, duration)
+}
+
+func (b *Bridge) QueryAlertHistory(ctx context.Context, status string, limit int) (interface{}, error) {
+	return b.Monitor.QueryAlertHistory(ctx, status, limit)
+}

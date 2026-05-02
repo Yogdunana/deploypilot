@@ -50,6 +50,14 @@
 | 35 | send_notification | 发送通知 | dev | 部署/回滚事件通知 |
 | 36 | list_templates | 列出应用模板 | viewer | 9 种技术栈模板 |
 | 37 | get_template | 获取模板详情 | viewer | 单个模板配置 |
+| 38 | create_uptime_monitor | 创建可用性监控器（HTTP/TCP/Ping） | dev | 支持 SLA 计算、状态页面展示 |
+| 39 | list_uptime_monitors | 列出所有可用性监控器 | viewer | 含状态、可用率、延迟 |
+| 40 | check_uptime_monitor | 立即检查指定监控器 | dev | 返回检查结果（状态/延迟/状态码） |
+| 41 | get_monitor_sla | 获取监控器 SLA 指标 | viewer | 可用率、平均延迟、检查次数 |
+| 42 | delete_uptime_monitor | 删除可用性监控器 | admin | 同时删除关联的检查历史 |
+| 43 | create_heartbeat | 创建心跳监控 | dev | 返回唯一 Ping URL |
+| 44 | list_heartbeats | 列出所有心跳监控 | viewer | 含状态、最后心跳时间 |
+| 45 | delete_heartbeat | 删除心跳监控 | admin | 同时删除心跳记录 |
 
 ## §6.1.4 get_context() 说明
 

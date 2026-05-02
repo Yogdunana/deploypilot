@@ -420,6 +420,14 @@ GitHub Wiki 是一个独立的 git 仓库（`<repo>.wiki.git`），修改 `docs/
 | `.github/workflows/release.yml` | Release 发布 |
 | `internal/version/version.go` | 版本号（默认 "dev"） |
 | `web/` | 前端项目根目录（Vue 3 + TypeScript + Vite 6） |
+| `internal/service/uptime_service.go` | Uptime 监控服务（MonitorService + 模型 + 检查逻辑） |
+| `internal/service/uptime_bridge.go` | UptimeService Bridge 适配层 |
+| `internal/service/monitor_scheduler.go` | 后台监控调度器 |
+| `internal/api/ws_monitor.go` | WebSocket 监控推送 Hub |
+| `web/src/views/UptimeMonitors.vue` | 可用性监控管理页面 |
+| `web/src/views/Heartbeats.vue` | 心跳检测管理页面 |
+| `web/src/views/StatusPage.vue` | 公共状态页面 |
+| `web/src/views/DashboardTV.vue` | 监控大屏页面 |
 | `web/vitest.config.ts` | Vitest 测试配置 |
 | `web/src/lib/utils.ts` | 前端工具函数（cn, formatDate, formatRelativeTime） |
 

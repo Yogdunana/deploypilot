@@ -49,6 +49,15 @@ var ToolPermissions = map[string]int{
 	"get_task_executions": 1,
 	"toggle_scheduled_task": 3,
 	"delete_scheduled_task": 3,
+	// Phase 6.1-6.2: Uptime monitoring & heartbeat
+	"create_uptime_monitor": 2,
+	"list_uptime_monitors": 1,
+	"check_uptime_monitor": 2,
+	"get_monitor_sla": 1,
+	"delete_uptime_monitor": 3,
+	"create_heartbeat": 2,
+	"list_heartbeats": 1,
+	"delete_heartbeat": 3,
 	// Owner-level (system)
 	"update_user_role": 4, "delete_user": 4,
 	"clear_context": 2,

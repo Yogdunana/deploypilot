@@ -181,6 +181,18 @@ type SchedulerService interface {
 	DeleteScheduledTask(ctx context.Context, taskID string) (interface{}, error)
 }
 
+// UptimeService handles uptime monitoring and heartbeat detection.
+type UptimeService interface {
+	CreateUptimeMonitor(ctx context.Context, name, monType, target string, interval, timeout int) (interface{}, error)
+	ListUptimeMonitors(ctx context.Context) (interface{}, error)
+	CheckUptimeMonitor(ctx context.Context, monitorID string) (interface{}, error)
+	GetMonitorSLA(ctx context.Context, monitorID string, days int) (interface{}, error)
+	DeleteUptimeMonitor(ctx context.Context, monitorID string) error
+	CreateHeartbeat(ctx context.Context, name string, interval, timeout int) (interface{}, error)
+	ListHeartbeats(ctx context.Context) (interface{}, error)
+	DeleteHeartbeat(ctx context.Context, heartbeatID string) error
+}
+
 // ============================================================================
 // Deployer — composed interface for backward compatibility (fixes #116)
 // Embeds all sub-interfaces. Existing code using Deployer continues to work.
@@ -208,6 +220,7 @@ type Deployer interface {
 	SystemService
 	PortForwardService
 	SchedulerService
+	UptimeService
 }
 
 // ============================================================================
