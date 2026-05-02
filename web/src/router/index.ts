@@ -16,6 +16,12 @@ const router = createRouter({
       meta: { guest: true },
     },
     {
+      path: '/status',
+      name: 'StatusPage',
+      component: () => import('@/views/StatusPage.vue'),
+      meta: { guest: true, titleKey: 'routes.statusPage' },
+    },
+    {
       path: '/',
       component: () => import('@/layout/MainLayout.vue'),
       meta: { requiresAuth: true },
@@ -176,6 +182,24 @@ const router = createRouter({
           name: 'MonitorAlertRules',
           component: () => import('@/views/MonitorAlertRules.vue'),
           meta: { titleKey: 'routes.monitorAlertRules' },
+        },
+        {
+          path: 'monitors',
+          name: 'UptimeMonitors',
+          component: () => import('@/views/UptimeMonitors.vue'),
+          meta: { titleKey: 'routes.uptimeMonitors' },
+        },
+        {
+          path: 'heartbeats',
+          name: 'Heartbeats',
+          component: () => import('@/views/Heartbeats.vue'),
+          meta: { titleKey: 'routes.heartbeats' },
+        },
+        {
+          path: 'dashboard-tv',
+          name: 'DashboardTV',
+          component: () => import('@/views/DashboardTV.vue'),
+          meta: { titleKey: 'routes.dashboardTV' },
         },
         {
           path: 'notifications',
