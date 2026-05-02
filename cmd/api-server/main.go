@@ -213,6 +213,13 @@ func run(configFilePath, cliDriver, cliDSN, cliAddr string) error {
 	webhookSvc.Start()
 	go webhookSvc.StartCleanupLoop(context.Background())
 
+	// Initialize Grafana integration (Phase 7.2)
+	if cfg.Grafana.Enabled {
+		grafanaSvc := service.NewGrafanaService(db, &cfg.Grafana, typedBus)
+		grafanaSvc.StartAnnotationListener()
+		slog.Info("Grafana integration enabled", "url", cfg.Grafana.URL)
+	}
+
 	// Apply brute-force config from configuration file
 	bf := cfg.BruteForce
 	bridge.SetBruteForceConfig(service.BruteForceConfigFromMap(
