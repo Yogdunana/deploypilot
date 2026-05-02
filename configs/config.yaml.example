@@ -87,3 +87,10 @@ grafana:
   admin_password: ""
   annotations_enabled: true
   sync_interval: 60
+
+# API 开放平台 (OAuth2)
+api_platform:
+  enabled: true
+  max_clients_per_user: 10
+  token_expire_hours: 24
+  code_expire_minutes: 10

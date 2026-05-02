@@ -858,6 +858,16 @@ func Migrate(db *gorm.DB) error {
 				return tx.Migrator().DropTable("grafana_sync_logs", "grafana_custom_dashboards")
 			},
 		},
+		// 202605020200: Create OAuth2 tables for API Open Platform
+		{
+			ID: "202605020200",
+			Migrate: func(tx *gorm.DB) error {
+				return tx.AutoMigrate(&model.OAuth2Client{}, &model.OAuth2Authorization{}, &model.OAuth2Token{})
+			},
+			Rollback: func(tx *gorm.DB) error {
+				return tx.Migrator().DropTable("oauth2_tokens", "oauth2_authorizations", "oauth2_clients")
+			},
+		},
 	})
 
 	// Use InitSchema for initial creation (faster than Migrate)

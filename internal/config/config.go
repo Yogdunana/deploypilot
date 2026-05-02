@@ -24,6 +24,7 @@ type Config struct {
 	Backup     BackupConfig     `mapstructure:"backup"`
 	BruteForce BruteForceConfig `mapstructure:"bruteforce"`
 	Grafana    GrafanaConfig    `mapstructure:"grafana"`
+	APIPlatform APIPlatformConfig `mapstructure:"api_platform"`
 }
 
 // BackupConfig holds database auto-backup settings.
@@ -56,6 +57,14 @@ type BruteForceConfig struct {
 	MaxDelay          string `mapstructure:"max_delay"`
 	IPMaxAttempts     int    `mapstructure:"ip_max_attempts"`
 	IPLockoutDuration string `mapstructure:"ip_lockout_duration"`
+}
+
+// APIPlatformConfig holds API Open Platform (OAuth2) settings.
+type APIPlatformConfig struct {
+	Enabled           bool `mapstructure:"enabled"`
+	MaxClientsPerUser int  `mapstructure:"max_clients_per_user"` // default: 10
+	TokenExpireHours  int  `mapstructure:"token_expire_hours"`   // default: 24
+	CodeExpireMinutes int  `mapstructure:"code_expire_minutes"`  // default: 10
 }
 
 // GrafanaConfig holds Grafana integration settings.
@@ -350,4 +359,10 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("grafana.url", "http://localhost:3000")
 	v.SetDefault("grafana.annotations_enabled", true)
 	v.SetDefault("grafana.sync_interval", 60)
+
+	// API Platform
+	v.SetDefault("api_platform.enabled", true)
+	v.SetDefault("api_platform.max_clients_per_user", 10)
+	v.SetDefault("api_platform.token_expire_hours", 24)
+	v.SetDefault("api_platform.code_expire_minutes", 10)
 }
