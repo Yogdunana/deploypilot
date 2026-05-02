@@ -129,7 +129,7 @@ func New(addr string, db *gorm.DB, bridge *service.Bridge, cfg *config.Config, b
 		api.SetRefreshTokenStore(memRefreshStore)
 	}
 
-	api.RegisterRoutes(r, db, bridge, wsHub, auditSvc, nil, blacklist, oauthSvc, backupSvc, keySvc)
+	api.RegisterRoutes(r, db, bridge, wsHub, auditSvc, nil, blacklist, oauthSvc, backupSvc, keySvc, cfg.Monitor.MetricsPublic)
 
 	// Serve embedded frontend static files
 	serveStaticFiles(r)

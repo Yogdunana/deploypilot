@@ -9,6 +9,7 @@ import (
 	"github.com/Yogdunana/deploypilot/internal/auth"
 	"github.com/Yogdunana/deploypilot/internal/backup"
 	"github.com/Yogdunana/deploypilot/internal/bruteforce"
+	"github.com/Yogdunana/deploypilot/internal/metrics"
 	"github.com/Yogdunana/deploypilot/internal/plugin"
 	"github.com/Yogdunana/deploypilot/internal/sandbox"
 	"github.com/Yogdunana/deploypilot/internal/service"
@@ -25,7 +26,7 @@ var globalMonitorAPI *MonitorAPI
 func GetGlobalMonitorAPI() *MonitorAPI { return globalMonitorAPI }
 
 // RegisterRoutes registers all API routes on the given Gin engine.
-func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *WSHub, auditSvc *service.AuditService, pluginManager *plugin.Manager, blacklist auth.TokenBlacklist, oauthSvc *service.OAuthService, backupSvc *backup.Service, keySvc *service.APIKeyService) {
+func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *WSHub, auditSvc *service.AuditService, pluginManager *plugin.Manager, blacklist auth.TokenBlacklist, oauthSvc *service.OAuthService, backupSvc *backup.Service, keySvc *service.APIKeyService, metricsPublic bool) {
 	// Swagger documentation — only accessible in development mode.
 	// In production, the endpoint is disabled to prevent information leakage.
 	if os.Getenv("DEPLOYPILOT_ENV") == "development" || os.Getenv("GIN_MODE") == "debug" {
@@ -237,7 +238,6 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 		// Public endpoints (no auth required for heartbeat ping and status page)
 		r.GET("/api/v1/heartbeat/ping/:token", globalMonitorAPI.PingHeartbeat)
 		r.GET("/api/v1/status", globalMonitorAPI.GetStatusPage)
-		r.GET("/api/v1/metrics", globalMonitorAPI.GetPrometheusMetrics)
 
 		// Credentials (5 endpoints)
 		creds := protected.Group("/credentials")
@@ -466,5 +466,13 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 		apiKeys.DELETE("/:id", DeleteAPIKey(keySvc, auditSvc))
 		apiKeys.GET("/:id/stats", GetAPIKeyStats(keySvc))
 		}
+
+		// Prometheus metrics (JWT authenticated by default)
+		protected.GET("/metrics", gin.WrapH(metrics.Handler()))
+	}
+
+	// Public metrics endpoint (when enabled in config)
+	if metricsPublic {
+		r.GET("/metrics", gin.WrapH(metrics.Handler()))
 	}
 }

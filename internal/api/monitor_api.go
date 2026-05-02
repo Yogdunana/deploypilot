@@ -241,18 +241,3 @@ func (m *MonitorAPI) PingHeartbeat(c *gin.Context) {
 
 	respondSuccess(c, gin.H{"status": "ok"})
 }
-
-// ========== Prometheus Metrics ==========
-
-// GetPrometheusMetrics exports metrics in Prometheus format.
-// GET /api/v1/metrics
-func (m *MonitorAPI) GetPrometheusMetrics(c *gin.Context) {
-	metrics, err := m.monSvc.GetPrometheusMetrics(c.Request.Context())
-	if err != nil {
-		respondErrori18n(c, http.StatusInternalServerError, "error.common.internal_error")
-		return
-	}
-
-	c.Header("Content-Type", "text/plain; version=0.0.4; charset=utf-8")
-	c.String(http.StatusOK, metrics)
-}
