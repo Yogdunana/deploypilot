@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"log/slog"
@@ -20,7 +19,6 @@ import (
 	"github.com/Yogdunana/deploypilot/internal/crypto"
 	"github.com/Yogdunana/deploypilot/internal/engine/deployer"
 	"github.com/Yogdunana/deploypilot/internal/engine/healer"
-	"github.com/Yogdunana/deploypilot/internal/model"
 	"github.com/Yogdunana/deploypilot/internal/monitor"
 	"github.com/Yogdunana/deploypilot/internal/plugin"
 	"github.com/Yogdunana/deploypilot/internal/provider/server"
@@ -517,4 +515,136 @@ func (b *Bridge) QueryMetricHistory(ctx context.Context, metricType string, dura
 
 func (b *Bridge) QueryAlertHistory(ctx context.Context, status string, limit int) (interface{}, error) {
 	return b.Monitor.QueryAlertHistory(ctx, status, limit)
+}
+
+
+// ---------- Phase 3.3: PortForward ----------
+
+// portForwardEntry tracks an active SSH port forward.
+type portForwardEntry struct {
+	ServerID   string
+	LocalPort  int
+	RemotePort int
+	RemoteHost string
+	Command    string
+}
+
+func (b *Bridge) PortForward(ctx context.Context, action, serverID string, localPort, remotePort int, remoteHost string) (string, error) {
+	switch action {
+	case "list":
+		b.portForwardMu.RLock()
+		defer b.portForwardMu.RUnlock()
+		if len(b.portForwards) == 0 {
+			return "No active port forwards.", nil
+		}
+		var lines []string
+		for key, pf := range b.portForwards {
+			lines = append(lines, fmt.Sprintf("  %s -> server=%s remote=%s:%d (key=%s)", pf.Command, pf.ServerID, pf.RemoteHost, pf.RemotePort, key))
+		}
+		return fmt.Sprintf("Active port forwards (%d):\n%s", len(b.portForwards), strings.Join(lines, "\n")), nil
+
+	case "create":
+		if serverID == "" {
+			return "", fmt.Errorf("server_id is required for create action")
+		}
+		if localPort <= 0 || remotePort <= 0 {
+			return "", fmt.Errorf("local_port and remote_port must be positive integers")
+		}
+		if remoteHost == "" {
+			remoteHost = "127.0.0.1"
+		}
+
+		key := fmt.Sprintf("%s:%d", serverID, localPort)
+		b.portForwardMu.Lock()
+		defer b.portForwardMu.Unlock()
+
+		if _, exists := b.portForwards[key]; exists {
+			return "", fmt.Errorf("port forward already exists for %s (local port %d is already in use)", key, localPort)
+		}
+
+		// Get server info for SSH connection
+		row := make(map[string]interface{})
+		if err := b.DB.Table("servers").Where("id = ?", serverID).Take(&row).Error; err != nil {
+			return "", fmt.Errorf("server not found: %w", err)
+		}
+
+		host := toString(row["host"])
+		port := toInt(row["port"])
+		username := toString(row["username"])
+		if username == "" {
+			username = os.Getenv("DEPLOYPILOT_SSH_DEFAULT_USER")
+		}
+		if username == "" {
+			slog.Warn("SSH username not configured for port forward, falling back to root", "serverID", serverID)
+			username = "root"
+		}
+
+		sshCmd := fmt.Sprintf("ssh -N -L %d:%s:%d -p %d %s@%s",
+			localPort, remoteHost, remotePort, port, username, host)
+
+		// Execute SSH tunnel in background
+		execCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+		go func() {
+			remoteExec, err := b.getRemoteExecutor(ctx, serverID)
+			if err != nil {
+				slog.Error("failed to create SSH tunnel", "error", err)
+				return
+			}
+			defer func() {
+				if cerr := remoteExec.Close(); cerr != nil {
+					slog.Warn("failed to close remote executor", "error", cerr)
+				}
+			}()
+
+			tunnelCmd := fmt.Sprintf("ssh -f -N -L %d:%s:%d -p %d %s@%s",
+				localPort, remoteHost, remotePort, port, username, host)
+			if _, err := remoteExec.RunCommand(execCtx, tunnelCmd); err != nil {
+				slog.Error("SSH tunnel command failed", "error", err)
+			}
+			cancel()
+		}()
+
+		b.portForwards[key] = &portForwardEntry{
+			ServerID:   serverID,
+			LocalPort:  localPort,
+			RemotePort: remotePort,
+			RemoteHost: remoteHost,
+			Command:    sshCmd,
+		}
+
+		return fmt.Sprintf("Port forward created: localhost:%d -> %s:%d:%d (server: %s)", localPort, remoteHost, remotePort, port, serverID), nil
+
+	case "delete":
+		if serverID == "" {
+			return "", fmt.Errorf("server_id is required for delete action")
+		}
+		if localPort <= 0 {
+			return "", fmt.Errorf("local_port must be a positive integer")
+		}
+
+		key := fmt.Sprintf("%s:%d", serverID, localPort)
+		b.portForwardMu.Lock()
+		defer b.portForwardMu.Unlock()
+
+		entry, exists := b.portForwards[key]
+		if !exists {
+			return "", fmt.Errorf("port forward not found for %s", key)
+		}
+
+		// Kill the SSH tunnel process
+		killCmd := fmt.Sprintf("pkill -f 'ssh.*-L %d:%s:%d'", localPort, shellQuote(entry.RemoteHost), entry.RemotePort)
+		if _, err := b.Executor.RunCommand(ctx, killCmd); err != nil {
+			slog.Warn("failed to kill SSH tunnel process", "error", err)
+		}
+
+		delete(b.portForwards, key)
+		return fmt.Sprintf("Port forward deleted: %s", key), nil
+
+	default:
+		return "", fmt.Errorf("invalid action: %s (must be 'create', 'delete', or 'list')", action)
+	}
+}
+
+func shellQuote(s string) string {
+	return fmt.Sprintf("'%s'", strings.ReplaceAll(s, "'", "'\''"))
 }
