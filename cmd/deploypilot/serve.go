@@ -5,11 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strconv"
 	"time"
 
 	"github.com/Yogdunana/deploypilot/internal/config"
@@ -96,21 +94,8 @@ var serveCmd = &cobra.Command{
 		// Create MCP server
 		mcpServer := mcp.NewServer(bridge)
 
-		// Initialize and start Prometheus metrics server
+		// Initialize Prometheus metrics (served via /metrics on the main API server)
 		metrics.Init()
-		go func() {
-			metricsPort := strconv.Itoa(cfg.Monitor.MetricsPort)
-			slog.Info("starting metrics server", "port", metricsPort)
-			metricsServer := &http.Server{
-				Addr:         ":" + metricsPort,
-				Handler:      metrics.Handler(),
-				ReadTimeout:  10 * time.Second,
-				WriteTimeout: 10 * time.Second,
-			}
-			if err := metricsServer.ListenAndServe(); err != nil {
-				slog.Error("metrics server failed", "error", err)
-			}
-		}()
 
 		slog.Info("DeployPilot MCP server starting", "version", version, "transport", "stdio")
 		return server.ServeStdio(mcpServer)

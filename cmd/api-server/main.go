@@ -25,12 +25,10 @@ import (
 	"flag"
 	"fmt"
 	"log/slog"
-	"net/http"
 	"os"
 	"os/exec"
 	"os/signal"
 	"path/filepath"
-	"strconv"
 	"syscall"
 	"time"
 
@@ -273,20 +271,8 @@ func run(configFilePath, cliDriver, cliDSN, cliAddr string) error {
 
 	srv := server.New(listenAddr, db, bridge, cfg, tokenBlacklist, oauthSvc, rdb, backupSvc)
 
-	// Initialize and start Prometheus metrics server
+	// Initialize Prometheus metrics (served via /metrics on the main API server)
 	metrics.Init()
-	metricsServer := &http.Server{
-		Addr:         ":" + strconv.Itoa(cfg.Monitor.MetricsPort),
-		Handler:      metrics.Handler(),
-		ReadTimeout:  10 * time.Second,
-		WriteTimeout: 10 * time.Second,
-	}
-	go func() {
-		slog.Info("starting metrics server", "port", cfg.Monitor.MetricsPort)
-		if err := metricsServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			slog.Error("metrics server failed", "error", err)
-		}
-	}()
 
 	// Start the API server in a goroutine so we can handle shutdown signals
 	serverErr := make(chan error, 1)
@@ -314,25 +300,20 @@ func run(configFilePath, cliDriver, cliDSN, cliAddr string) error {
 
 	slog.Info("starting graceful shutdown (timeout: 15s)...")
 
-	// 1. Shutdown metrics server
-	if err := metricsServer.Shutdown(shutdownCtx); err != nil {
-		slog.Warn("metrics server shutdown error", "error", err)
-	}
-
-	// 2. Shutdown main API server (includes WebSocket hub closure)
+	// 1. Shutdown main API server (includes WebSocket hub closure)
 	if err := srv.Shutdown(shutdownCtx); err != nil {
 		slog.Warn("API server shutdown error", "error", err)
 	}
 
-	// 3. Stop monitor scheduler
+	// 2. Stop monitor scheduler
 	monitorScheduler.Stop()
 
-	// 4. Stop scheduler
+	// 3. Stop scheduler
 	if bridge.Scheduler != nil {
 		bridge.Scheduler.Stop()
 	}
 
-	// 5. Stop monitor if running
+	// 4. Stop monitor if running
 	if bridge.Monitor != nil {
 		bridge.Monitor.Stop()
 	}
@@ -340,7 +321,7 @@ func run(configFilePath, cliDriver, cliDSN, cliAddr string) error {
 		backupSvc.Stop()
 	}
 
-	// 6. Close event bus
+	// 5. Close event bus
 	if eventBus != nil {
 		if err := eventBus.Close(); err != nil {
 			slog.Warn("event bus close error", "error", err)
@@ -352,14 +333,14 @@ func run(configFilePath, cliDriver, cliDSN, cliAddr string) error {
 		}
 	}
 
-	// 7. Close cache (in-memory cache only; Redis cache is closed via rdb)
+	// 6. Close cache (in-memory cache only; Redis cache is closed via rdb)
 	if cache != nil && rdb == nil {
 		if err := cache.Close(); err != nil {
 			slog.Warn("cache close error", "error", err)
 		}
 	}
 
-	// 8. Close database connection
+	// 7. Close database connection
 	if sqlDB, err := db.DB(); err == nil {
 		if err := sqlDB.Close(); err != nil {
 			slog.Warn("database close error", "error", err)
