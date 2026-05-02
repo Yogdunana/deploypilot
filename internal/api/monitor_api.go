@@ -10,14 +10,21 @@ import (
 
 // MonitorAPI provides HTTP handlers for monitoring and observability.
 type MonitorAPI struct {
-	monSvc *service.MonitorService
+	monSvc     *service.MonitorService
+	monitorHub *WSMonitorHub
 }
 
 // NewMonitorAPI creates a new MonitorAPI.
 func NewMonitorAPI(db *gorm.DB) *MonitorAPI {
 	return &MonitorAPI{
-		monSvc: service.NewMonitorService(db),
+		monSvc:     service.NewMonitorService(db),
+		monitorHub: NewWSMonitorHub(),
 	}
+}
+
+// GetMonitorHub returns the WebSocket monitor hub for external integration.
+func (m *MonitorAPI) GetMonitorHub() *WSMonitorHub {
+	return m.monitorHub
 }
 
 // ========== Uptime Monitor CRUD ==========
