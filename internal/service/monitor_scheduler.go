@@ -5,6 +5,8 @@ import (
 	"log/slog"
 	"sync"
 	"time"
+
+	"github.com/Yogdunana/deploypilot/internal/metrics"
 )
 
 // MonitorUpdateCallback is called when a monitor check completes.
@@ -80,6 +82,19 @@ func (s *MonitorScheduler) runMonitorChecks(ctx context.Context) {
 				"results": results,
 				"count":   len(results),
 			})
+			// Update Prometheus gauges
+			metricMonitors := make([]metrics.MonitorMetric, len(results))
+			for i, r := range results {
+				metricMonitors[i] = metrics.MonitorMetric{
+					Name:       r.Name,
+					Type:       r.Type,
+					Target:     r.Target,
+					Status:     r.Status,
+					AvgLatency: r.AvgLatency,
+					Uptime:     r.Uptime,
+				}
+			}
+			metrics.UpdateMonitorGauges(metricMonitors)
 		}
 	}
 }
@@ -104,6 +119,18 @@ func (s *MonitorScheduler) runHeartbeatChecks(ctx context.Context) {
 					"timed_out": timedOut,
 					"count":     len(timedOut),
 				})
+			}
+			// Update Prometheus gauges for all heartbeats
+			allHB, err := s.svc.ListHeartbeats(ctx, "")
+			if err == nil {
+				metricHBs := make([]metrics.HeartbeatMetric, len(allHB))
+				for i, hb := range allHB {
+					metricHBs[i] = metrics.HeartbeatMetric{
+						Name:   hb.Name,
+						Status: hb.Status,
+					}
+				}
+				metrics.UpdateHeartbeatGauges(metricHBs)
 			}
 		}
 	}
