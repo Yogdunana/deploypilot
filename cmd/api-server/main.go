@@ -340,6 +340,11 @@ func run(configFilePath, cliDriver, cliDSN, cliAddr string, migrateOnly, migrate
 		slog.Warn("failed to initialize feature flags", "error", err)
 	}
 
+	// Initialize trial period system (auto-activate on first run)
+	if err := bridge.InitTrialPeriod(context.Background()); err != nil {
+		slog.Warn("failed to initialize trial period", "error", err)
+	}
+
 	// Initialize event-driven plugin system (Phase 7.5)
 	eventPluginMgr := plugin.NewEventPluginManager()
 	eventPluginMgr.Register(builtin.NewHelloWorldPlugin())

@@ -976,6 +976,16 @@ func MigrateLegacy(db *gorm.DB) error {
 				return tx.Migrator().DropTable("feature_flag_overrides")
 			},
 		},
+		// 202605030009: Create trial_periods table
+		{
+			ID: "202605030009",
+			Migrate: func(tx *gorm.DB) error {
+				return tx.AutoMigrate(&model.TrialPeriod{})
+			},
+			Rollback: func(tx *gorm.DB) error {
+				return tx.Migrator().DropTable("trial_periods")
+			},
+		},
 	})
 
 	// Use InitSchema for initial creation (faster than Migrate)

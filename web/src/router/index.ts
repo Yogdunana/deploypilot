@@ -349,6 +349,12 @@ const router = createRouter({
           component: () => import('@/views/FeatureFlags.vue'),
           meta: { titleKey: 'routes.featureFlags' },
         },
+        {
+          path: 'trial',
+          name: 'Trial',
+          component: () => import('@/views/Trial.vue'),
+          meta: { titleKey: 'routes.trial' },
+        },
       ],
     },
   ],
