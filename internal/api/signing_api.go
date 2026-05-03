@@ -95,7 +95,7 @@ func VerifySignature(c *gin.Context) {
 		return
 	}
 
-	verified, err := signing.VerifySelf("", signer.PublicKey())
+	verified, err := signing.VerifySelf("", ed25519.PublicKey(signer.PublicKeyBytes()))
 	if err != nil {
 		respondError(c, http.StatusInternalServerError, "failed to verify binary: "+err.Error())
 		return
