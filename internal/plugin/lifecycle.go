@@ -5,8 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"strings"
 	"sync"
 
+	"github.com/Yogdunana/deploypilot/internal/crypto"
 	"gorm.io/gorm"
 )
 
@@ -105,7 +107,11 @@ func (m *Manager) loadPlugin(ctx context.Context, pluginID, provider, pluginType
 
 	// Decrypt config values if encryption key is available
 	if m.encKey != "" {
-		config, _ = decryptPluginConfig(m.encKey, config)
+		var decErr error
+		config, decErr = decryptPluginConfig(m.encKey, config)
+		if decErr != nil {
+			slog.Warn("failed to decrypt plugin config", "error", decErr)
+		}
 	}
 
 	instance, err := m.registry.CreateInstance(pluginID, desc, config)
@@ -274,10 +280,34 @@ func (m *Manager) GetPluginStatus(tenantID string) ([]map[string]interface{}, er
 }
 
 // decryptPluginConfig decrypts sensitive values in plugin config.
-// This is a placeholder that returns the config as-is for now;
-// actual decryption depends on the crypto package.
+// Values prefixed with "enc:" are treated as encrypted and decrypted using AES-256-GCM.
 func decryptPluginConfig(encKey string, config map[string]interface{}) (map[string]interface{}, error) {
-	// TODO: implement config value decryption using crypto.Decrypt
-	// For now, return config unchanged
-	return config, nil
+	if encKey == "" || config == nil {
+		return config, nil
+	}
+
+	key := []byte(encKey)
+	result := make(map[string]interface{}, len(config))
+
+	for k, v := range config {
+		strVal, ok := v.(string)
+		if !ok {
+			result[k] = v
+			continue
+		}
+		if strings.HasPrefix(strVal, "enc:") {
+			decoded, err := crypto.Decrypt(key, strings.TrimPrefix(strVal, "enc:"))
+			if err != nil {
+				// Log but don't fail — return original value
+				slog.Warn("failed to decrypt plugin config value", "key", k, "error", err)
+				result[k] = v
+				continue
+			}
+			result[k] = decoded
+		} else {
+			result[k] = v
+		}
+	}
+
+	return result, nil
 }
