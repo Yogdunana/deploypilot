@@ -141,7 +141,7 @@
 | 7.2 | Grafana 集成（Prometheus 数据源 + Dashboard JSON + Annotations） | ✅ 已完成 (PR #228) |
 | 7.3 | Webhook 出站（事件过滤 + HMAC 签名 + Slack/Discord/Teams） | ✅ 已完成 (PR #226) |
 | 7.4 | API 开放平台（OAuth2 应用注册 + Swagger 增强 + Rate Limiting） | ✅ 已完成 (PR #230) |
-| 7.5 | 插件系统（Plugin Interface + 生命周期管理 + 前端页面） |
+| 7.5 | 插件系统（Plugin Interface + 生命周期管理 + 前端页面） | ✅ 已完成 (PR #232) |
 
 **相关 Issue**: #142, #143, #144, #145, #146
 
