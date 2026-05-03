@@ -11,6 +11,7 @@ import (
 	"github.com/Yogdunana/deploypilot/internal/bruteforce"
 	"github.com/Yogdunana/deploypilot/internal/config"
 	"github.com/Yogdunana/deploypilot/internal/metrics"
+	"github.com/Yogdunana/deploypilot/internal/middleware"
 	"github.com/Yogdunana/deploypilot/internal/plugin"
 	"github.com/Yogdunana/deploypilot/internal/sandbox"
 	"github.com/Yogdunana/deploypilot/internal/service"
@@ -38,6 +39,10 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 	}
 
 	api := r.Group("/api/v1")
+	api.Use(middleware.APIVersionMiddleware())
+
+	// Public version endpoint (no auth required)
+	api.GET("/version", APIVersionHandler)
 
 	// Store db in gin context for handlers that need it via context
 	r.Use(func(c *gin.Context) {
