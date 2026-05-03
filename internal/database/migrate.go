@@ -21,7 +21,7 @@ func RunMigrations(dsn, driver string) error {
 		return fmt.Errorf("failed to create migrate instance: %w", err)
 	}
 	defer func() {
-		if closeErr := m.Close(); closeErr != nil {
+		if _, closeErr := m.Close(); closeErr != nil {
 			slog.Warn("failed to close migrate instance", "error", closeErr)
 		}
 	}()
@@ -49,7 +49,7 @@ func RunMigrationsDown(dsn, driver string) error {
 		return fmt.Errorf("failed to create migrate instance: %w", err)
 	}
 	defer func() {
-		if closeErr := m.Close(); closeErr != nil {
+		if _, closeErr := m.Close(); closeErr != nil {
 			slog.Warn("failed to close migrate instance", "error", closeErr)
 		}
 	}()
@@ -77,7 +77,7 @@ func MigrationStatus(dsn, driver string) (uint, bool, error) {
 		return 0, false, fmt.Errorf("failed to create migrate instance: %w", err)
 	}
 	defer func() {
-		if closeErr := m.Close(); closeErr != nil {
+		if _, closeErr := m.Close(); closeErr != nil {
 			slog.Warn("failed to close migrate instance", "error", closeErr)
 		}
 	}()
