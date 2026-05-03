@@ -127,6 +127,9 @@ func (b *Bridge) activateWithKey(ctx context.Context, licenseKey string) (interf
 
 	slog.Info("license activated", "id", lic.ID, "tier", lic.Tier, "use_type", lic.UseType)
 
+	// Convert trial period to licensed status
+	_ = b.ConvertTrial(ctx)
+
 	return map[string]interface{}{
 		"id":         lic.ID,
 		"tier":       lic.Tier,

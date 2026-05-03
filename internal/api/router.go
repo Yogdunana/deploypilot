@@ -613,6 +613,14 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 			ff.GET("/tenant/:tenant_id", GetFeatureFlagsForTenantHandler(bridge))
 		}
 
+		// Trial period management (3 endpoints)
+		trial := protected.Group("/trial")
+		{
+			trial.GET("/status", GetTrialStatusHandler(bridge))
+			trial.POST("/extend", auth.RoleRequired("owner"), ExtendTrialHandler(bridge))
+			trial.GET("/list", auth.RoleRequired("owner"), ListTrialPeriodsHandler(bridge))
+		}
+
 		// Prometheus metrics (JWT authenticated by default)
 		protected.GET("/metrics", gin.WrapH(metrics.Handler()))
 	}
