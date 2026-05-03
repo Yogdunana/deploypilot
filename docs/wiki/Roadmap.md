@@ -153,12 +153,12 @@
 
 | Phase | 内容 | 状态 |
 |-------|------|------|
-| 8.1 | License 基础设施（RSA JWT + 验证中间件 + FeatureRegistry） |
-| 8.2 | License 管理页面（激活/续费/解绑 + 功能状态展示） |
-| 8.3 | 功能开关集成（API 402 + MCP license_required + 🔒 UI） |
-| 8.4 | 试用期系统（30 天 + 机器指纹 + 不可重置） |
-| 8.5 | 降级策略（Pro → Free 只读保留 + 数据导出） |
-| 8.6 | 商务功能（在线购买 + License 分发 API + 续费提醒） |
+| 8.1 | License 基础设施（RSA JWT + 验证中间件 + FeatureRegistry） | ✅ 已完成 (PR #244) |
+| 8.2 | License 管理页面（激活/续费/解绑 + 功能状态展示） | ✅ 已完成 (PR #245, #246) |
+| 8.3 | 功能开关集成（API 402 + MCP license_required + 🔒 UI） | ✅ 已完成 (PR #247) |
+| 8.4 | 试用期系统（30 天 + 机器指纹 + 不可重置） | ✅ 已完成 (PR #248) |
+| 8.5 | 降级策略（Pro → Free 只读保留 + 数据导出） | ✅ 已完成 (PR #249) |
+| 8.6 | 前端补全（Clusters/Registries/Plugins/Activity/Batch） | ✅ 已完成 (PR #250) |
 
 **相关 Issue**: #147, #148, #149, #150, #204, #205
 
@@ -174,7 +174,7 @@
 | 9.2 | IP 白名单（登录 + API 访问） | ✅ 已完成 (PR #235) |
 | 9.3 | 设备绑定（Token 绑定 User-Agent + IP + 指纹） | ✅ 已完成 (PR #235) |
 | 9.4 | 代码签名（二进制签名验证 + 防篡改） | ✅ 已完成 (PR #235) |
-| 9.5 | 密钥轮换（License RSA 密钥定期轮换 + Shamir's Secret Sharing） | ⏳ 依赖 v1.8 License 系统 |
+| 9.5 | 密钥轮换（License RSA 密钥定期轮换 + Shamir's Secret Sharing） | ⏳ 待开发 |
 
 **相关 Issue**: #155, #206, #207, #208, #209
 

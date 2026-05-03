@@ -7,7 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [1.10.0] - 2026-05-03
+## [1.8.0] - 2026-05-03
+
+### Added
+- **License Engine v2**: 4-tier system (Free/Pro/Enterprise/Custom) with UseType and Addon licensing
+- **License pause/resume**: Suspend license with configurable resume date
+- **License API**: 5 REST endpoints for license management (activate, status, list, revoke, validate)
+- **CLI keygen tool**: `deploypilot license keygen --tier pro --days 365` with RSA-2048 key generation
+- **License Frontend**: Management page with activation, status display, and license list
+- **Feature Flags**: Dynamic feature gating with 5-min cache, per-tenant overrides, and tier-based evaluation
+- **Feature Flags API**: 7 REST endpoints (CRUD + override + evaluate + categorize)
+- **Feature Flags Frontend**: Management page with toggle, override dialog, and category filter
+- **Trial Period**: 30-day auto-activation with SHA256 machine fingerprint (hostname|os|arch|cpu)
+- **Trial conversion**: Auto-convert to licensed status when a license is activated
+- **Trial extension**: Admin can extend trial by 1-365 days with reason
+- **Degradation strategy**: 3-level system (none/partial/readonly) with audit trail
+- **Read-only middleware**: Blocks POST/PUT/DELETE/PATCH when license/trial expired
+- **Degradation audit**: Compliance logging for all access denials
+- **Batch deploy API**: REST endpoint for sequential/parallel/rolling batch deployments
+- **Clusters page**: Full management UI with create/edit dialogs and connection testing
+- **Registries page**: Container registry management with provider badges
+- **Plugins page**: Plugin lifecycle management with enable/disable/reload and provider filter
+- **Activity Feed page**: Event log viewer with type filter, pagination, and stats
+- **Batch Operations page**: Batch deploy form with strategy selection and results panel
+
+### Changed
+- Replaced 5 stub "coming soon" pages with fully functional management pages
+- Updated i18n with 160+ new translations (English + Chinese)
+
+### Security
+- License RSA key pair generation and JWT signing
+- Machine fingerprint prevents casual trial resets
+- Audit trail for degradation events (action, feature, reason, tenant, user, IP)
+
+## [1.10.0]
 
 ### Added
 - Database migration system with golang-migrate (SQL files, up/down support, legacy compatibility)
@@ -17,7 +50,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Seed data script for demo environments
 - VS Code launch configuration
 
-## [1.9.0] - 2026-05-03
+## [1.9.0]
 
 ### Added
 - Audit log hash chain verification (HMAC-SHA256 tamper detection)
@@ -26,11 +59,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Per-user IP whitelist with CIDR support and enforcement middleware
 - Device binding with trust management and new device detection
 - Ed25519 code signing with key generation, rotation, and CLI tool
-
-## [1.8.0] - 2026-04-30
-
-### Added
-- (Reserved for commercial licensing — not yet implemented)
 
 ## [1.7.0] - 2026-04-30
 
