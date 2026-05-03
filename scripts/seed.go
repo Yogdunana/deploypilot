@@ -12,7 +12,6 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"os"
 
 	"github.com/Yogdunana/deploypilot/internal/crypto"
 	"github.com/Yogdunana/deploypilot/internal/database"
