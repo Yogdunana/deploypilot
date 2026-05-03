@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Yogdunana/deploypilot/internal/license"
 	"github.com/Yogdunana/deploypilot/internal/model"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
@@ -321,17 +322,17 @@ func TestFeatureFlagCache_TTL(t *testing.T) {
 
 func TestCategorizeFeature(t *testing.T) {
 	tests := []struct {
-		feature  string
+		feature  license.Feature
 		expected string
 	}{
-		{"ssl", "infrastructure"},
-		{"monitoring", "monitoring"},
-		{"plugins", "integration"},
-		{"oauth2", "security"},
-		{"api_keys", "management"},
-		{"cluster", "infrastructure"},
-		{"toolbox", "tools"},
-		{"custom_branding", "commercial"},
+		{license.FeatureSSL, "infrastructure"},
+		{license.FeatureMonitoring, "monitoring"},
+		{license.FeaturePlugins, "integration"},
+		{license.FeatureOAuth2, "security"},
+		{license.FeatureAPIKeys, "management"},
+		{license.FeatureCluster, "infrastructure"},
+		{license.FeatureToolbox, "tools"},
+		{license.FeatureCustomBranding, "commercial"},
 		{"unknown_feature", "general"},
 	}
 	for _, tt := range tests {
