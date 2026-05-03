@@ -1,0 +1,21 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Launch API Server",
+      "type": "go",
+      "request": "launch",
+      "mode": "debug",
+      "program": "${workspaceFolder}/cmd/api-server",
+      "env": {
+        "DB_HOST": "localhost",
+        "DB_PORT": "5432",
+        "DB_USER": "deploypilot",
+        "DB_PASSWORD": "deploypilot_dev",
+        "DB_NAME": "deploypilot",
+        "REDIS_ADDR": "localhost:6379",
+        "GIN_MODE": "debug"
+      }
+    }
+  ]
+}
