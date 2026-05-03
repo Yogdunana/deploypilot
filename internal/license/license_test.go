@@ -457,7 +457,7 @@ func TestEngineExpiredLicense(t *testing.T) {
 }
 
 func TestEngineNoLicense(t *testing.T) {
-	pub, _ := ed25519.GenerateKey(nil)
+	pub, _, _ := ed25519.GenerateKey(nil)
 	engine := NewEngine(pub, 7)
 
 	t.Run("validate without license", func(t *testing.T) {
@@ -618,7 +618,7 @@ func TestEngineGracePeriod(t *testing.T) {
 }
 
 func TestGenerateLicenseKey(t *testing.T) {
-	_, priv, err := ed25519.GenerateKey(nil)
+	_, priv, _ := ed25519.GenerateKey(nil)
 	if err != nil {
 		t.Fatalf("failed to generate key pair: %v", err)
 	}
