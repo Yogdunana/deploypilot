@@ -14,7 +14,7 @@ type IPWhitelist struct {
 	TenantID    string    `gorm:"index" json:"tenant_id"`
 	UserID      string    `gorm:"index;not null" json:"user_id"`
 	Description string    `gorm:"size:200" json:"description"`
-	CIDR        string    `gorm:"size:45;not null" json:"cidr"`
+	CIDR        string    `gorm:"column:cidr;size:45;not null" json:"cidr"`
 	CreatedBy   string    `gorm:"size:100" json:"created_by"`
 	CreatedAt   time.Time `gorm:"autoCreateTime" json:"created_at"`
 	UpdatedAt   time.Time `gorm:"autoUpdateTime" json:"updated_at"`

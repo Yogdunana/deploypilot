@@ -22,7 +22,7 @@ func main() {
 		generateCmd := flag.NewFlagSet("generate", flag.ExitOnError)
 		pubKeyPath := generateCmd.String("public-key", "", "output path for public key PEM")
 		privKeyPath := generateCmd.String("private-key", "", "output path for private key PEM")
-		generateCmd.Parse(os.Args[2:])
+		if err := generateCmd.Parse(os.Args[2:]); err != nil { fmt.Fprintf(os.Stderr, "error: %v\n", err); os.Exit(1) }
 
 		if *pubKeyPath == "" || *privKeyPath == "" {
 			fmt.Fprintln(os.Stderr, "error: --public-key and --private-key are required")
@@ -39,7 +39,7 @@ func main() {
 		binaryPath := signCmd.String("binary", "", "path to binary file to sign")
 		signaturePath := signCmd.String("signature", "", "output path for signature")
 		privKeyPath := signCmd.String("private-key", "", "path to private key PEM")
-		signCmd.Parse(os.Args[2:])
+		if err := signCmd.Parse(os.Args[2:]); err != nil { fmt.Fprintf(os.Stderr, "error: %v\n", err); os.Exit(1) }
 
 		if *binaryPath == "" || *signaturePath == "" || *privKeyPath == "" {
 			fmt.Fprintln(os.Stderr, "error: --binary, --signature, and --private-key are required")
@@ -56,7 +56,7 @@ func main() {
 		binaryPath := verifyCmd.String("binary", "", "path to binary file")
 		signaturePath := verifyCmd.String("signature", "", "path to signature file")
 		pubKeyPath := verifyCmd.String("public-key", "", "path to public key PEM")
-		verifyCmd.Parse(os.Args[2:])
+		if err := verifyCmd.Parse(os.Args[2:]); err != nil { fmt.Fprintf(os.Stderr, "error: %v\n", err); os.Exit(1) }
 
 		if *binaryPath == "" || *signaturePath == "" || *pubKeyPath == "" {
 			fmt.Fprintln(os.Stderr, "error: --binary, --signature, and --public-key are required")
