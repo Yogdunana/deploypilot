@@ -89,6 +89,9 @@ type Bridge struct {
 	LicenseEngine *license.Engine          // license validation and feature evaluation engine
 	LicensePrivKey ed25519.PrivateKey      // only set for developer instances (license issuance)
 
+	// Feature flag system
+	featureFlagCache *FeatureFlagCache
+
 	// Task tracking (moved from package-level globals, Issue #117)
 	taskMu      sync.RWMutex
 	tasks       map[string]*taskInfo
@@ -120,15 +123,16 @@ func NewBridge(db *gorm.DB, executor deployer.CommandExecutor, encryptionKey []b
 		eventBus = NewInMemoryEventBus()
 	}
 	return &Bridge{
-		DB:            db,
-		Executor:      executor,
-		EncryptionKey: encryptionKey,
-		EventBus:      eventBus,
-		ConfirmStore:  confirm.NewStore(),
-		BFProtector:   bruteforce.New(bruteforce.DefaultConfig()),
-		tasks:         make(map[string]*taskInfo),
-		backupApps:    make(map[string]string),
-		portForwards:  make(map[string]*portForwardEntry),
+		DB:               db,
+		Executor:         executor,
+		EncryptionKey:    encryptionKey,
+		EventBus:         eventBus,
+		ConfirmStore:     confirm.NewStore(),
+		BFProtector:      bruteforce.New(bruteforce.DefaultConfig()),
+		featureFlagCache: NewFeatureFlagCache(5 * time.Minute),
+		tasks:            make(map[string]*taskInfo),
+		backupApps:       make(map[string]string),
+		portForwards:     make(map[string]*portForwardEntry),
 	}
 }
 

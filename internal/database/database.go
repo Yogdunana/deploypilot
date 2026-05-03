@@ -956,6 +956,26 @@ func MigrateLegacy(db *gorm.DB) error {
 				return tx.Migrator().DropTable("licenses")
 			},
 		},
+		// 202605030007: Create feature_flags table
+		{
+			ID: "202605030007",
+			Migrate: func(tx *gorm.DB) error {
+				return tx.AutoMigrate(&model.FeatureFlag{})
+			},
+			Rollback: func(tx *gorm.DB) error {
+				return tx.Migrator().DropTable("feature_flags")
+			},
+		},
+		// 202605030008: Create feature_flag_overrides table
+		{
+			ID: "202605030008",
+			Migrate: func(tx *gorm.DB) error {
+				return tx.AutoMigrate(&model.FeatureFlagOverride{})
+			},
+			Rollback: func(tx *gorm.DB) error {
+				return tx.Migrator().DropTable("feature_flag_overrides")
+			},
+		},
 	})
 
 	// Use InitSchema for initial creation (faster than Migrate)

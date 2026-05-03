@@ -335,6 +335,11 @@ func run(configFilePath, cliDriver, cliDSN, cliAddr string, migrateOnly, migrate
 		slog.Info("no license public key configured, license engine disabled (community mode)")
 	}
 
+	// Initialize feature flags system (seed defaults from license engine)
+	if err := bridge.InitFeatureFlags(context.Background()); err != nil {
+		slog.Warn("failed to initialize feature flags", "error", err)
+	}
+
 	// Initialize event-driven plugin system (Phase 7.5)
 	eventPluginMgr := plugin.NewEventPluginManager()
 	eventPluginMgr.Register(builtin.NewHelloWorldPlugin())
