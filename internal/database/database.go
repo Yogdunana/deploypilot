@@ -888,6 +888,16 @@ func Migrate(db *gorm.DB) error {
 				return tx.Migrator().DropTable("audit_hashes")
 			},
 		},
+		// 202605030002: Create ip_whitelists table for per-user IP whitelist
+		{
+			ID: "202605030002",
+			Migrate: func(tx *gorm.DB) error {
+				return tx.AutoMigrate(&model.IPWhitelist{})
+			},
+			Rollback: func(tx *gorm.DB) error {
+				return tx.Migrator().DropTable("ip_whitelists")
+			},
+		},
 	})
 
 	// Use InitSchema for initial creation (faster than Migrate)

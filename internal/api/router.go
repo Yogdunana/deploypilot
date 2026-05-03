@@ -552,6 +552,17 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 		apiKeys.GET("/:id/stats", GetAPIKeyStats(keySvc))
 		}
 
+		// Per-user IP whitelist (3 endpoints)
+		ipWhitelistSvc := service.NewIPWhitelistService(db)
+		SetIPWhitelistAPI(NewIPWhitelistAPI(ipWhitelistSvc))
+		ipWhitelist := protected.Group("/settings/ip-whitelist")
+		{
+			ipWhitelist.GET("", ListIPWhitelist)
+			ipWhitelist.POST("", AddIPWhitelist)
+			ipWhitelist.DELETE("/:id", DeleteIPWhitelist)
+			ipWhitelist.GET("/check", CheckIPAccess)
+		}
+
 		// Prometheus metrics (JWT authenticated by default)
 		protected.GET("/metrics", gin.WrapH(metrics.Handler()))
 	}

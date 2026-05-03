@@ -107,6 +107,10 @@ func New(addr string, db *gorm.DB, bridge *service.Bridge, cfg *config.Config, b
 	// API Key service
 	keySvc := service.NewAPIKeyService(db)
 
+	// Per-user IP whitelist service and middleware
+	ipWhitelistSvc := service.NewIPWhitelistService(db)
+	r.Use(middleware.UserIPWhitelistMiddleware(ipWhitelistSvc))
+
 	// Audit verification & compliance (Issue #155)
 	auditSecretKey := []byte("deploypilot-audit-chain-secret")
 	if cfg.Auth.JWTSecret != "" {
