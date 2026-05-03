@@ -956,14 +956,21 @@ func tableExists(db *gorm.DB, tableName string) (bool, error) {
 //   - If schema_migrations table exists: database uses golang-migrate, run it.
 //   - If migrations table exists: database uses gormigrate, run legacy migrations.
 //   - If neither exists: fresh install, use golang-migrate.
-func Migrate(db *gorm.DB, driver, dsn string) error {
+func Migrate(db *gorm.DB, optionalDriverAndDSN ...string) error {
+	// Extract optional driver and dsn for golang-migrate
+	var driver, dsn string
+	if len(optionalDriverAndDSN) >= 2 {
+		driver = optionalDriverAndDSN[0]
+		dsn = optionalDriverAndDSN[1]
+	}
+
 	// Check if golang-migrate's tracking table exists
 	golangMigrateExists, err := tableExists(db, "schema_migrations")
 	if err != nil {
 		return fmt.Errorf("failed to check for golang-migrate table: %w", err)
 	}
 
-	if golangMigrateExists {
+	if golangMigrateExists && driver != "" && dsn != "" {
 		slog.Info("detected golang-migrate schema, running golang-migrate migrations")
 		return RunMigrations(dsn, driver)
 	}
@@ -983,9 +990,15 @@ func Migrate(db *gorm.DB, driver, dsn string) error {
 		return nil
 	}
 
-	// Fresh install — use golang-migrate
-	slog.Info("fresh database detected, running golang-migrate migrations")
-	return RunMigrations(dsn, driver)
+	// Fresh install — use golang-migrate if driver/dsn provided, otherwise gormigrate
+	if driver != "" && dsn != "" {
+		slog.Info("fresh database detected, running golang-migrate migrations")
+		return RunMigrations(dsn, driver)
+	}
+
+	// Fallback to gormigrate for backward compatibility
+	slog.Info("running gormigrate migrations (no driver/dsn provided)")
+	return MigrateLegacy(db)
 }
 
 // Seed inserts default data required for the application to function.
