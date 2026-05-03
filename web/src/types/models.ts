@@ -263,3 +263,25 @@ export interface TwoFASetupResponse {
   qr_code_url: string
   backup_codes: string[]
 }
+
+export interface LicenseInfo {
+  tier: string
+  use_type: string
+  status: string
+  features: string[]
+  limits: {
+    max_servers: number
+    max_apps: number
+    max_users: number
+  }
+  addons: Array<{
+    key: string
+    amount: number
+    purchased_at: string
+    expires_at: string
+  }>
+  expires_at: string | null
+  issued_at: string
+  machine_id: string
+  grace_days: number
+}
