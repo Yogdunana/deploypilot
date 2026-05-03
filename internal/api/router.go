@@ -383,6 +383,16 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 		protected.POST("/audit-logs/archive", ArchiveAuditLogs(auditSvc))
 		protected.POST("/audit-logs/verify", VerifyAuditLogs(auditSvc))
 		protected.GET("/audit-logs/trace/:trace_id", GetAuditLogsByTraceID(auditSvc))
+
+		// Audit verification & compliance (Issue #155)
+		auditVerGroup := protected.Group("/audit")
+		{
+			auditVerGroup.GET("/verify", VerifyAuditChain)
+			auditVerGroup.GET("/export", ExportAuditLogsV2)
+			auditVerGroup.GET("/gdpr/export", GDPRExportUserData)
+			auditVerGroup.DELETE("/gdpr/delete", auth.RoleRequired("owner", "admin"), GDPRDeleteUserData)
+			auditVerGroup.GET("/compliance", ComplianceReport)
+		}
 		protected.GET("/events", ListEventLogs(db))
 		protected.GET("/events/stats", GetEventStats(db))
 

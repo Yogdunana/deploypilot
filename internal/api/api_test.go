@@ -98,6 +98,11 @@ func setupTestDB(t *testing.T) *gorm.DB {
 		trace_id TEXT,
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 	)`)
+	db.Exec(`CREATE TABLE IF NOT EXISTS audit_hashes (
+		id INTEGER PRIMARY KEY AUTOINCREMENT, audit_id INTEGER UNIQUE NOT NULL,
+		hash TEXT NOT NULL, previous_hash TEXT,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+	)`)
 	db.Exec(`CREATE TABLE IF NOT EXISTS backup_records (
 		id TEXT PRIMARY KEY, app_id TEXT, filename TEXT, file_path TEXT,
 		file_size INTEGER, db_type TEXT, status TEXT DEFAULT 'completed',
@@ -182,6 +187,7 @@ func setupFullTestRouter(db *gorm.DB, bridge *service.Bridge) *gin.Engine {
 	go wsHub.Run()
 	auditSvc := service.NewAuditService(db)
 	backupSvc := backup.New(backup.Config{BackupDir: os.TempDir()}, db, "sqlite", "")
+	SetAuditVerificationAPI(NewAuditVerificationAPI(db, nil, []byte("test-audit-chain-key")))
 	RegisterRoutes(r, db, bridge, wsHub, auditSvc, nil, nil, nil, nil, backupSvc, nil, false, nil, nil)
 	return r
 }

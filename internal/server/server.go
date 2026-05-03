@@ -107,6 +107,14 @@ func New(addr string, db *gorm.DB, bridge *service.Bridge, cfg *config.Config, b
 	// API Key service
 	keySvc := service.NewAPIKeyService(db)
 
+	// Audit verification & compliance (Issue #155)
+	auditSecretKey := []byte("deploypilot-audit-chain-secret")
+	if cfg.Auth.JWTSecret != "" {
+		// Derive audit chain key from JWT secret for persistence
+		auditSecretKey = []byte(cfg.Auth.JWTSecret + "-audit-chain")
+	}
+	api.SetAuditVerificationAPI(api.NewAuditVerificationAPI(db, &cfg.Audit, auditSecretKey))
+
 	// Set encryption key for 2FA TOTP secret encryption
 	api.SetEncryptionKey(bridge.EncryptionKey)
 
