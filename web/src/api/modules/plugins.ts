@@ -1,40 +1,33 @@
 import api from '@/api'
-import type { ApiResponse, PaginatedResponse, PaginationParams } from '@/types/api'
 
-export interface Plugin {
-  id: number
-  name: string
-  display_name: string
-  version: string
-  description: string
-  author: string
-  status: 'installed' | 'available' | 'error'
-  enabled: boolean
-  config: Record<string, any>
-  created_at: string
-  updated_at: string
+export function listPlugins(tenantId?: string, provider?: string) {
+  return api.get('/api/v1/plugins', { params: { tenant_id: tenantId, provider } })
 }
 
-export function list(params?: PaginationParams) {
-  return api.get<PaginatedResponse<Plugin[]>>('/api/plugins', { params })
+export function getPlugin(id: string) {
+  return api.get(`/api/v1/plugins/${id}`)
 }
 
-export function get(id: number) {
-  return api.get<ApiResponse<Plugin>>(`/api/plugins/${id}`)
+export function createPlugin(data: Record<string, unknown>) {
+  return api.post('/api/v1/plugins', data)
 }
 
-export function install(id: number) {
-  return api.post<ApiResponse<Plugin>>(`/api/plugins/${id}/install`)
+export function updatePlugin(id: string, data: Record<string, unknown>) {
+  return api.put(`/api/v1/plugins/${id}`, data)
 }
 
-export function uninstall(id: number) {
-  return api.post<ApiResponse<void>>(`/api/plugins/${id}/uninstall`)
+export function deletePlugin(id: string) {
+  return api.delete(`/api/v1/plugins/${id}`)
 }
 
-export function toggle(id: number, enabled: boolean) {
-  return api.put<ApiResponse<Plugin>>(`/api/plugins/${id}`, { enabled })
+export function enablePlugin(id: string) {
+  return api.post(`/api/v1/plugins/${id}/enable`)
 }
 
-export function updateConfig(id: number, config: Record<string, any>) {
-  return api.put<ApiResponse<Plugin>>(`/api/plugins/${id}/config`, { config })
+export function disablePlugin(id: string) {
+  return api.post(`/api/v1/plugins/${id}/disable`)
+}
+
+export function reloadPlugin(id: string) {
+  return api.post(`/api/v1/plugins/${id}/reload`)
 }
