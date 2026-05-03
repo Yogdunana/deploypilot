@@ -89,13 +89,13 @@ func VerifySignature(c *gin.Context) {
 		return
 	}
 
-	_, err := globalSigningAPI.loadSignerFromModel(&activeKey)
+	signer, err := globalSigningAPI.loadSignerFromModel(&activeKey)
 	if err != nil {
 		respondError(c, http.StatusInternalServerError, "failed to load signing key: "+err.Error())
 		return
 	}
 
-	verified, err := signing.VerifySelf("")
+	verified, err := signing.VerifySelf("", signer.PublicKey())
 	if err != nil {
 		respondError(c, http.StatusInternalServerError, "failed to verify binary: "+err.Error())
 		return

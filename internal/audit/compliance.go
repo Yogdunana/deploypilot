@@ -52,7 +52,7 @@ func ExportUserData(db *gorm.DB, userID uint) (map[string]interface{}, error) {
 	} else {
 		// Anonymize key values
 		type safeAPIKey struct {
-			ID          uint   `json:"id"`
+			ID          string `json:"id"`
 			Name        string `json:"name"`
 			LastUsedAt  string `json:"last_used_at,omitempty"`
 			ExpiresAt   string `json:"expires_at,omitempty"`

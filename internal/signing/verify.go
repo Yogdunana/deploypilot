@@ -7,7 +7,7 @@ import (
 )
 
 // VerifyBinary reads a binary file and its signature file, then verifies the signature.
-func VerifyBinary(binaryPath, signaturePath string) (bool, error) {
+func VerifyBinary(binaryPath, signaturePath string, publicKey ed25519.PublicKey) (bool, error) {
 	data, err := os.ReadFile(binaryPath)
 	if err != nil {
 		return false, fmt.Errorf("failed to read binary file: %w", err)
@@ -22,7 +22,7 @@ func VerifyBinary(binaryPath, signaturePath string) (bool, error) {
 		return false, fmt.Errorf("invalid signature size: got %d, want %d", len(sig), ed25519.SignatureSize)
 	}
 
-	return ed25519.Verify(data, sig), nil
+	return ed25519.Verify(publicKey, data, sig), nil
 }
 
 // VerifyBinaryWithKey reads a binary file and its signature file, then verifies
@@ -47,12 +47,12 @@ func VerifyBinaryWithKey(binaryPath, signaturePath string, publicKey ed25519.Pub
 
 // VerifySelf verifies the currently running binary against a signature file.
 // The signature file is expected to be at binaryPath + ".sig".
-func VerifySelf(signaturePath string) (bool, error) {
+func VerifySelf(signaturePath string, publicKey ed25519.PublicKey) (bool, error) {
 	execPath, err := os.Executable()
 	if err != nil {
 		return false, fmt.Errorf("failed to get executable path: %w", err)
 	}
-	return VerifyBinary(execPath, signaturePath)
+	return VerifyBinary(execPath, signaturePath, publicKey)
 }
 
 // SignBinary reads a binary file and writes its Ed25519 signature to signaturePath.
