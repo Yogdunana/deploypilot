@@ -986,6 +986,16 @@ func MigrateLegacy(db *gorm.DB) error {
 				return tx.Migrator().DropTable("trial_periods")
 			},
 		},
+		// 202605030010: Create degradation_audits table
+		{
+			ID: "202605030010",
+			Migrate: func(tx *gorm.DB) error {
+				return tx.AutoMigrate(&model.DegradationAudit{})
+			},
+			Rollback: func(tx *gorm.DB) error {
+				return tx.Migrator().DropTable("degradation_audits")
+			},
+		},
 	})
 
 	// Use InitSchema for initial creation (faster than Migrate)

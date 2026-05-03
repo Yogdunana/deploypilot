@@ -621,6 +621,14 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 			trial.GET("/list", auth.RoleRequired("owner"), ListTrialPeriodsHandler(bridge))
 		}
 
+		// Degradation management (3 endpoints)
+		degradation := protected.Group("/degradation")
+		{
+			degradation.GET("/status", GetDegradationStatusHandler(bridge))
+			degradation.GET("/audits", auth.RoleRequired("owner"), ListDegradationAuditsHandler(bridge))
+			degradation.GET("/export-summary", auth.RoleRequired("owner"), ExportDegradationSummaryHandler(bridge))
+		}
+
 		// Prometheus metrics (JWT authenticated by default)
 		protected.GET("/metrics", gin.WrapH(metrics.Handler()))
 	}

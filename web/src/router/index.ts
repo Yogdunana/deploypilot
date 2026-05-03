@@ -355,6 +355,12 @@ const router = createRouter({
           component: () => import('@/views/Trial.vue'),
           meta: { titleKey: 'routes.trial' },
         },
+        {
+          path: 'degradation',
+          name: 'Degradation',
+          component: () => import('@/views/Degradation.vue'),
+          meta: { titleKey: 'routes.degradation' },
+        },
       ],
     },
   ],
