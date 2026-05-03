@@ -222,14 +222,13 @@ func (b *Bridge) getRemoteExecutor(ctx context.Context, serverID string) (*sshCl
 		}
 	}
 
-	// SSH username: prefer server record field, fall back to env var, then "root"
+	// SSH username: prefer server record field, fall back to env var
 	username := toString(row["username"])
 	if username == "" {
 		username = os.Getenv("DEPLOYPILOT_SSH_DEFAULT_USER")
 	}
 	if username == "" {
-		slog.Warn("SSH username not configured, falling back to root (configure DEPLOYPILOT_SSH_DEFAULT_USER or set server username)", "serverID", serverID)
-		username = "root"
+		return nil, fmt.Errorf("SSH username not configured for server %s (configure DEPLOYPILOT_SSH_DEFAULT_USER or set server username)", serverID)
 	}
 	cfg := server.Config{
 		Host:     host,
@@ -781,8 +780,7 @@ func (b *Bridge) PortForward(ctx context.Context, action, serverID string, local
 			username = os.Getenv("DEPLOYPILOT_SSH_DEFAULT_USER")
 		}
 		if username == "" {
-			slog.Warn("SSH username not configured for port forward, falling back to root", "serverID", serverID)
-			username = "root"
+			return "", fmt.Errorf("SSH username not configured for server %s (configure DEPLOYPILOT_SSH_DEFAULT_USER or set server username)", serverID)
 		}
 
 		sshCmd := fmt.Sprintf("ssh -N -L %d:%s:%d -p %d %s@%s",
