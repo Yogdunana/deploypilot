@@ -23,8 +23,9 @@ type Config struct {
 	Audit      AuditConfig      `mapstructure:"audit"`
 	Backup     BackupConfig     `mapstructure:"backup"`
 	BruteForce BruteForceConfig `mapstructure:"bruteforce"`
-	Grafana    GrafanaConfig    `mapstructure:"grafana"`
-	APIPlatform APIPlatformConfig `mapstructure:"api_platform"`
+	Grafana      GrafanaConfig      `mapstructure:"grafana"`
+	APIPlatform  APIPlatformConfig  `mapstructure:"api_platform"`
+	APIVersion   APIVersionConfig   `mapstructure:"api_version"`
 }
 
 // BackupConfig holds database auto-backup settings.
@@ -65,6 +66,13 @@ type APIPlatformConfig struct {
 	MaxClientsPerUser int  `mapstructure:"max_clients_per_user"` // default: 10
 	TokenExpireHours  int  `mapstructure:"token_expire_hours"`   // default: 24
 	CodeExpireMinutes int  `mapstructure:"code_expire_minutes"`  // default: 10
+}
+
+// APIVersionConfig holds API versioning configuration.
+type APIVersionConfig struct {
+	CurrentVersion     string            `mapstructure:"current_version"`      // default: "v1"
+	SupportedVersions  []string          `mapstructure:"supported_versions"`   // default: ["v1"]
+	DeprecatedVersions map[string]string `mapstructure:"deprecated_versions"`  // version -> sunset date
 }
 
 // GrafanaConfig holds Grafana integration settings.
@@ -365,4 +373,8 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("api_platform.max_clients_per_user", 10)
 	v.SetDefault("api_platform.token_expire_hours", 24)
 	v.SetDefault("api_platform.code_expire_minutes", 10)
+
+	// API Versioning
+	v.SetDefault("api_version.current_version", "v1")
+	v.SetDefault("api_version.supported_versions", []string{"v1"})
 }
