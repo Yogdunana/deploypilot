@@ -14,7 +14,6 @@ coverage.out
 
 # IDE
 .idea/
-.vscode/
 *.swp
 *.swo
 *~
@@ -37,7 +36,7 @@ web/dist/
 # Prevent ANSI escape code pollution from script output
 *\033*
 *\x1b*
-*[*
+*\[*
 
 # Build artifacts
 /api-server

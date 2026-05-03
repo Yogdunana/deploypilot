@@ -1,4 +1,4 @@
-.PHONY: build build-mcp build-api build-all test lint coverage clean docker-build run swagger
+.PHONY: build build-mcp build-api build-all test lint coverage clean docker-build run swagger dev dev-up dev-down dev-logs dev-clean dev-backend dev-frontend
 
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
 GIT_COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
@@ -61,6 +61,36 @@ clean: ## Remove build artifacts
 # Swagger targets
 swagger: ## Generate Swagger documentation
 	swag init -g cmd/api-server/main.go -o docs/swagger
+
+# ─── Development targets ────────────────────────────────────────────────
+
+# Start all dev dependencies (postgres, redis)
+dev-up:
+	docker compose -f docker-compose.dev.yml up -d
+
+# Stop dev dependencies
+dev-down:
+	docker compose -f docker-compose.dev.yml down
+
+# View dev logs
+dev-logs:
+	docker compose -f docker-compose.dev.yml logs -f
+
+# Clean dev volumes
+dev-clean:
+	docker compose -f docker-compose.dev.yml down -v
+
+# Run backend with hot reload (requires air)
+dev-backend:
+	air -c .air.toml
+
+# Run frontend dev server
+dev-frontend:
+	cd web && npm run dev
+
+# Full dev: start deps + backend + frontend
+dev: dev-up
+	@echo "Dependencies started. Run 'make dev-backend' and 'make dev-frontend' in separate terminals."
 
 # Help target
 help: ## Show this help
