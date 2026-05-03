@@ -18,9 +18,10 @@ const (
 
 	// APICurrentVersion is the current stable API version.
 	APICurrentVersion = "v1"
-	// APISupportedVersions lists all currently supported API versions.
-	APISupportedVersions = []string{"v1"}
 )
+
+// APISupportedVersions lists all currently supported API versions.
+var APISupportedVersions = []string{"v1"}
 
 // APIVersionMiddleware validates the API version from the URL path and sets response headers.
 // It does not block unsupported versions -- the URL routing already handles 404 for unknown paths.
