@@ -1,4 +1,4 @@
-.PHONY: build build-mcp build-api build-all test lint coverage clean docker-build run swagger dev dev-up dev-down dev-logs dev-clean dev-backend dev-frontend
+.PHONY: build build-mcp build-api build-all test lint coverage clean docker-build run swagger dev dev-up dev-down dev-logs dev-clean dev-backend dev-frontend migrate-up migrate-down migrate-status
 
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
 GIT_COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
@@ -91,6 +91,21 @@ dev-frontend:
 # Full dev: start deps + backend + frontend
 dev: dev-up
 	@echo "Dependencies started. Run 'make dev-backend' and 'make dev-frontend' in separate terminals."
+
+# Run database migrations
+migrate-up: ## Run database migrations
+	@echo "Running migrations..."
+	go run ./cmd/api-server --migrate-only
+
+# Rollback last migration
+migrate-down: ## Rollback last migration
+	@echo "Rollback last migration..."
+	go run ./cmd/api-server --migrate-down
+
+# Show migration status
+migrate-status: ## Show migration status
+	@echo "Migration status..."
+	go run ./cmd/api-server --migrate-status
 
 # Help target
 help: ## Show this help

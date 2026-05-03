@@ -1,0 +1,1 @@
+-- No-op: audit enhancement columns are part of the audit_logs table

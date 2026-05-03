@@ -1,0 +1,1 @@
+-- No-op: deployment enhancement columns are part of the deployments table

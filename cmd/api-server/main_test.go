@@ -80,7 +80,7 @@ func TestDefaultConfig(t *testing.T) {
 
 func TestRunWithPostgresNoDSN(t *testing.T) {
 	// Using postgres driver with empty DSN should fail at DB connect
-	err := run("", "postgres", "", "")
+	err := run("", "postgres", "", "", false, false, false)
 	if err == nil {
 		t.Error("expected error for postgres with no DSN")
 	}

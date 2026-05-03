@@ -1,0 +1,1 @@
+-- No-op: credential lifecycle columns are part of the initial schema

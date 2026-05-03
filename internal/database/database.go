@@ -3,6 +3,7 @@ package database
 import (
 	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
 
 	"github.com/go-gormigrate/gormigrate/v2"
@@ -81,9 +82,10 @@ func ignoreDuplicateColumnError(tx *gorm.DB, err error) error {
 	return err
 }
 
-// Migrate runs all database migrations using gormigrate.
-// Migrations are idempotent — running them multiple times is safe.
-func Migrate(db *gorm.DB) error {
+// MigrateLegacy runs all database migrations using gormigrate.
+// This is the fallback migration system for existing databases that were
+// already set up with gormigrate. Migrations are idempotent.
+func MigrateLegacy(db *gorm.DB) error {
 	m := gormigrate.New(db, gormigrate.DefaultOptions, []*gormigrate.Migration{
 		// 202604060001: Create core tables
 		{
@@ -926,6 +928,77 @@ func Migrate(db *gorm.DB) error {
 	}
 
 	return nil
+}
+
+// tableExists checks if a table exists in the database.
+func tableExists(db *gorm.DB, tableName string) (bool, error) {
+	var count int64
+	err := db.Raw(
+		"SELECT count(*) FROM sqlite_master WHERE type='table' AND name=?",
+		tableName,
+	).Scan(&count).Error
+	if err != nil {
+		// Try PostgreSQL syntax if SQLite syntax fails
+		err = db.Raw(
+			"SELECT count(*) FROM information_schema.tables WHERE table_name=?",
+			tableName,
+		).Scan(&count).Error
+		if err != nil {
+			return false, fmt.Errorf("failed to check table existence: %w", err)
+		}
+	}
+	return count > 0, nil
+}
+
+// Migrate is the primary migration entry point. It detects which migration
+// system was previously used (golang-migrate or gormigrate) and applies
+// migrations accordingly:
+//   - If schema_migrations table exists: database uses golang-migrate, run it.
+//   - If migrations table exists: database uses gormigrate, run legacy migrations.
+//   - If neither exists: fresh install, use golang-migrate.
+func Migrate(db *gorm.DB, optionalDriverAndDSN ...string) error {
+	// Extract optional driver and dsn for golang-migrate
+	var driver, dsn string
+	if len(optionalDriverAndDSN) >= 2 {
+		driver = optionalDriverAndDSN[0]
+		dsn = optionalDriverAndDSN[1]
+	}
+
+	// Check if golang-migrate's tracking table exists
+	golangMigrateExists, err := tableExists(db, "schema_migrations")
+	if err != nil {
+		return fmt.Errorf("failed to check for golang-migrate table: %w", err)
+	}
+
+	if golangMigrateExists && driver != "" && dsn != "" {
+		slog.Info("detected golang-migrate schema, running golang-migrate migrations")
+		return RunMigrations(dsn, driver)
+	}
+
+	// Check if gormigrate's tracking table exists
+	gormigrateExists, err := tableExists(db, "migrations")
+	if err != nil {
+		return fmt.Errorf("failed to check for gormigrate table: %w", err)
+	}
+
+	if gormigrateExists {
+		slog.Info("detected gormigrate schema, running legacy migrations")
+		if err := MigrateLegacy(db); err != nil {
+			return fmt.Errorf("legacy migration failed: %w", err)
+		}
+		slog.Info("legacy migrations completed successfully")
+		return nil
+	}
+
+	// Fresh install — use golang-migrate if driver/dsn provided, otherwise gormigrate
+	if driver != "" && dsn != "" {
+		slog.Info("fresh database detected, running golang-migrate migrations")
+		return RunMigrations(dsn, driver)
+	}
+
+	// Fallback to gormigrate for backward compatibility
+	slog.Info("running gormigrate migrations (no driver/dsn provided)")
+	return MigrateLegacy(db)
 }
 
 // Seed inserts default data required for the application to function.
