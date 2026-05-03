@@ -868,6 +868,16 @@ func Migrate(db *gorm.DB) error {
 				return tx.Migrator().DropTable("oauth2_tokens", "oauth2_authorizations", "oauth2_clients")
 			},
 		},
+		// 202605020300: Create plugin_configs table for event-driven plugin system
+		{
+			ID: "202605020300",
+			Migrate: func(tx *gorm.DB) error {
+				return tx.AutoMigrate(&model.PluginConfig{})
+			},
+			Rollback: func(tx *gorm.DB) error {
+				return tx.Migrator().DropTable("plugin_configs")
+			},
+		},
 	})
 
 	// Use InitSchema for initial creation (faster than Migrate)

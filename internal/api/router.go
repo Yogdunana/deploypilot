@@ -27,7 +27,7 @@ var globalMonitorAPI *MonitorAPI
 func GetGlobalMonitorAPI() *MonitorAPI { return globalMonitorAPI }
 
 // RegisterRoutes registers all API routes on the given Gin engine.
-func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *WSHub, auditSvc *service.AuditService, pluginManager *plugin.Manager, blacklist auth.TokenBlacklist, oauthSvc *service.OAuthService, backupSvc *backup.Service, keySvc *service.APIKeyService, metricsPublic bool, grafanaCfg *config.GrafanaConfig, apiPlatformCfg *config.APIPlatformConfig) {
+func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *WSHub, auditSvc *service.AuditService, pluginManager *plugin.Manager, eventPluginMgr *plugin.EventPluginManager, blacklist auth.TokenBlacklist, oauthSvc *service.OAuthService, backupSvc *backup.Service, keySvc *service.APIKeyService, metricsPublic bool, grafanaCfg *config.GrafanaConfig, apiPlatformCfg *config.APIPlatformConfig) {
 	// Swagger documentation — only accessible in development mode.
 	// In production, the endpoint is disabled to prevent information leakage.
 	if os.Getenv("DEPLOYPILOT_ENV") == "development" || os.Getenv("GIN_MODE") == "debug" {
@@ -491,6 +491,28 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 			plugins.POST("/:id/enable", pluginHandler.EnablePlugin())
 			plugins.POST("/:id/disable", pluginHandler.DisablePlugin())
 			plugins.POST("/:id/reload", pluginHandler.ReloadPlugin())
+		}
+
+		// Event Plugins (5 endpoints) — event-driven plugin system
+		if eventPluginMgr != nil {
+			globalEventPluginAPI = NewEventPluginAPI(eventPluginMgr)
+			eventPlugins := protected.Group("/event-plugins")
+			{
+				eventPlugins.GET("", globalEventPluginAPI.ListEventPlugins)
+				eventPlugins.GET("/:name", globalEventPluginAPI.GetEventPlugin)
+				eventPlugins.PUT("/:name", globalEventPluginAPI.UpdateEventPlugin)
+				eventPlugins.POST("/:name/start", globalEventPluginAPI.StartEventPlugin)
+				eventPlugins.POST("/:name/stop", globalEventPluginAPI.StopEventPlugin)
+			}
+			// Register plugin-specific API routes for each plugin
+			for _, p := range eventPluginMgr.ListPlugins() {
+				pl, ok := eventPluginMgr.GetPlugin(p.Name)
+				if !ok {
+					continue
+				}
+				pluginGroup := eventPlugins.Group("/" + p.Name)
+				pl.RegisterAPIRoutes(pluginGroup)
+			}
 		}
 
 		// 2FA management (requires authentication)
