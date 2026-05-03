@@ -601,6 +601,18 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 			license.POST("/addon", PurchaseAddonHandler(bridge))
 		}
 
+		// Feature flags management (7 endpoints)
+		ff := protected.Group("/feature-flags")
+		{
+			ff.GET("", ListFeatureFlagsHandler(bridge))
+			ff.GET("/:key", GetFeatureFlagHandler(bridge))
+			ff.PUT("/:key", auth.RoleRequired("owner"), UpdateFeatureFlagHandler(bridge))
+			ff.POST("/:key/override", auth.RoleRequired("owner"), SetFeatureFlagOverrideHandler(bridge))
+			ff.DELETE("/:key/override", auth.RoleRequired("owner"), DeleteFeatureFlagOverrideHandler(bridge))
+			ff.GET("/:key/overrides", auth.RoleRequired("owner"), ListFeatureFlagOverridesHandler(bridge))
+			ff.GET("/tenant/:tenant_id", GetFeatureFlagsForTenantHandler(bridge))
+		}
+
 		// Prometheus metrics (JWT authenticated by default)
 		protected.GET("/metrics", gin.WrapH(metrics.Handler()))
 	}

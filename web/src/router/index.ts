@@ -343,6 +343,12 @@ const router = createRouter({
           component: () => import('@/views/License.vue'),
           meta: { titleKey: 'routes.license' },
         },
+        {
+          path: 'feature-flags',
+          name: 'FeatureFlags',
+          component: () => import('@/views/FeatureFlags.vue'),
+          meta: { titleKey: 'routes.featureFlags' },
+        },
       ],
     },
   ],
