@@ -878,6 +878,16 @@ func Migrate(db *gorm.DB) error {
 				return tx.Migrator().DropTable("plugin_configs")
 			},
 		},
+		// 202605030001: Create audit_hashes table for hash chain verification
+		{
+			ID: "202605030001",
+			Migrate: func(tx *gorm.DB) error {
+				return tx.AutoMigrate(&model.AuditHash{})
+			},
+			Rollback: func(tx *gorm.DB) error {
+				return tx.Migrator().DropTable("audit_hashes")
+			},
+		},
 	})
 
 	// Use InitSchema for initial creation (faster than Migrate)
