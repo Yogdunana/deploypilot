@@ -177,6 +177,9 @@ type SecurityConfig struct {
 	Force2FA          bool     `mapstructure:"force_2fa"`           // force all users to enable 2FA
 	Force2FARoles     []string `mapstructure:"force_2fa_roles"`     // force specific roles to enable 2FA (e.g. ["owner", "admin"])
 	Force2FAGraceDays int      `mapstructure:"force_2fa_grace_days"` // grace period in days before enforcement (default: 0)
+	// SSH known_hosts support
+	SSHKnownHostsPath       string `mapstructure:"ssh_known_hosts_path"`        // path to SSH known_hosts file, empty = insecure mode
+	SSHStrictHostKeyChecking bool  `mapstructure:"ssh_strict_host_key_checking"` // strict mode for host key verification (default: true)
 }
 
 // LogConfig holds logging settings.

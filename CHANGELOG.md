@@ -7,6 +7,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.10.0] - 2026-05-03
+
+### Added
+- Database migration system with golang-migrate (SQL files, up/down support, legacy compatibility)
+- API versioning middleware with X-API-Version, Deprecation, Sunset headers
+- Local development environment (docker-compose.dev.yml, Makefile targets, Air hot reload)
+- Community documentation (CONTRIBUTING.md, CODE_OF_CONDUCT.md, ADR templates, CLAUDE.md)
+- Seed data script for demo environments
+- VS Code launch configuration
+
+## [1.9.0] - 2026-05-03
+
+### Added
+- Audit log hash chain verification (HMAC-SHA256 tamper detection)
+- GDPR data export/deletion and compliance report generation
+- Audit log export (CSV/JSON formats)
+- Per-user IP whitelist with CIDR support and enforcement middleware
+- Device binding with trust management and new device detection
+- Ed25519 code signing with key generation, rotation, and CLI tool
+
+## [1.8.0] - 2026-04-30
+
+### Added
+- (Reserved for commercial licensing — not yet implemented)
+
+## [1.7.0] - 2026-04-30
+
+### Added
+- SSH known_hosts support with strict/non-strict host key checking modes
+- Plugin config decryption using AES-256-GCM (values prefixed with "enc:")
+- Changelog automation workflow (GitHub Actions)
+
+## [1.6.0] - 2026-04-30
+
+### Added
+- Panel security hardening (security entrance, domain binding, IP whitelist)
+- Password policy enforcement (min length, complexity requirements, expiry)
+- 2FA/TOTP enforcement with role-based grace periods
+
+## [1.5.0] - 2026-04-30
+
+### Added
+- Grafana integration (annotations sync, dashboard management)
+- API Open Platform (OAuth2 client credentials flow)
+- API versioning configuration
+
 ## [1.4.0] - 2026-04-30
 
 ### Added
@@ -120,3 +166,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [1.2.0]: https://github.com/Yogdunana/deploypilot/releases/tag/v1.2.0
 [1.1.0]: https://github.com/Yogdunana/deploypilot/releases/tag/v1.1.0
 [1.0.0]: https://github.com/Yogdunana/deploypilot/releases/tag/v1.0.0
+[1.5.0]: https://github.com/Yogdunana/deploypilot/releases/tag/v1.5.0
+[1.6.0]: https://github.com/Yogdunana/deploypilot/releases/tag/v1.6.0
+[1.7.0]: https://github.com/Yogdunana/deploypilot/releases/tag/v1.7.0
+[1.8.0]: https://github.com/Yogdunana/deploypilot/releases/tag/v1.8.0
+[1.9.0]: https://github.com/Yogdunana/deploypilot/releases/tag/v1.9.0
+[1.10.0]: https://github.com/Yogdunana/deploypilot/releases/tag/v1.10.0
