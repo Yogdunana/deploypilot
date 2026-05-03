@@ -33,55 +33,96 @@ const (
 	FeatureBatchOperations  Feature = "batch_operations"
 	FeatureToolbox          Feature = "toolbox"
 	FeatureSSHKeyManagement Feature = "ssh_key_management"
-	// Pro features
-	FeatureCustomBranding  Feature = "custom_branding"
-	FeaturePrioritySupport Feature = "priority_support"
-	FeatureSLA             Feature = "sla"
-	// Enterprise features
-	FeatureSSO         Feature = "sso"
-	FeatureLDAP        Feature = "ldap"
-	FeatureMultiTenant Feature = "multi_tenant"
-	FeatureFederation  Feature = "federation"
+	FeatureDashboardTV      Feature = "dashboard_tv"
+	FeatureCustomBranding   Feature = "custom_branding"
+	FeaturePrioritySupport  Feature = "priority_support"
+	FeatureSLA              Feature = "sla"
+	FeatureSSO              Feature = "sso"
+	FeatureLDAP             Feature = "ldap"
+	FeatureMultiTenant      Feature = "multi_tenant"
+	FeatureFederation       Feature = "federation"
 )
 
-// CommunityFeatures are features available in the free Community edition.
-var CommunityFeatures = []Feature{
-	FeatureSSL, FeatureMonitoring, FeatureAlerting, FeatureWebhooks,
-	FeaturePlugins, FeatureAuditExport, FeatureAPIKeys, Feature2FA,
-	FeatureBackup, FeatureToolbox,
-}
+// Tier represents a license tier level.
+type Tier string
 
-// ProFeatures includes all Community features plus Pro-only features.
-var ProFeatures = []Feature{
+const (
+	TierCommunity  Tier = "community"
+	TierTeam       Tier = "team"
+	TierPro        Tier = "pro"
+	TierEnterprise Tier = "enterprise"
+)
+
+// UseType represents the license usage type.
+type UseType string
+
+const (
+	UseTypeNonCommercial UseType = "non_commercial"
+	UseTypeCommercial     UseType = "commercial"
+)
+
+// AllFeatures is the complete set of all features.
+var AllFeatures = []Feature{
 	FeatureSSL, FeatureMonitoring, FeatureAlerting, FeatureWebhooks,
 	FeaturePlugins, FeatureOAuth2, FeatureGrafana, FeatureAuditExport,
 	FeatureAPIKeys, Feature2FA, FeatureIPWhitelist, FeatureDeviceBinding,
 	FeatureCodeSigning, FeatureBackup, FeatureCluster, FeatureRegistry,
 	FeatureBatchOperations, FeatureToolbox, FeatureSSHKeyManagement,
-	FeatureCustomBranding, FeaturePrioritySupport, FeatureSLA,
+	FeatureDashboardTV, FeatureCustomBranding, FeaturePrioritySupport,
+	FeatureSLA, FeatureSSO, FeatureLDAP, FeatureMultiTenant, FeatureFederation,
 }
 
-// EnterpriseFeatures includes all Pro features plus Enterprise-only features.
-var EnterpriseFeatures = []Feature{
-	FeatureSSL, FeatureMonitoring, FeatureAlerting, FeatureWebhooks,
-	FeaturePlugins, FeatureOAuth2, FeatureGrafana, FeatureAuditExport,
-	FeatureAPIKeys, Feature2FA, FeatureIPWhitelist, FeatureDeviceBinding,
-	FeatureCodeSigning, FeatureBackup, FeatureCluster, FeatureRegistry,
-	FeatureBatchOperations, FeatureToolbox, FeatureSSHKeyManagement,
-	FeatureCustomBranding, FeaturePrioritySupport, FeatureSLA,
-	FeatureSSO, FeatureLDAP, FeatureMultiTenant, FeatureFederation,
+// TeamExcludedFeatures are features NOT available in Team tier (but available in Community).
+var TeamExcludedFeatures = map[Feature]bool{
+	FeatureDashboardTV: true,
+	FeatureSSO:         true,
+	FeatureLDAP:        true,
+	FeatureMultiTenant: true,
+	FeatureFederation:  true,
+}
+
+// ProExcludedFeatures are features NOT available in Pro tier.
+var ProExcludedFeatures = map[Feature]bool{
+	FeatureSLA: true,
+}
+
+// TierLimits defines default resource limits per tier.
+var TierLimits = map[Tier]struct {
+	MaxServers int
+	MaxApps    int
+	MaxUsers   int
+}{
+	TierCommunity:  {3, 10, 5},
+	TierTeam:       {10, 30, 15},
+	TierPro:        {50, 100, 50},
+	TierEnterprise: {0, 0, 0}, // 0 = unlimited
+}
+
+// Addon represents a license add-on (feature unlock or resource boost).
+type Addon struct {
+	Key         string `json:"key"`                    // "feature:dashboard_tv" / "resource:servers:10"
+	Amount      int    `json:"amount"`                 // for resource addons: quantity; for features: 0
+	PurchasedAt int64  `json:"purchased_at"`
+	ExpiresAt   int64  `json:"expires_at"`
+	PausedAt    int64  `json:"paused_at,omitempty"`
+	PausedDays  int64  `json:"paused_days,omitempty"`
 }
 
 // LicenseData is the JSON payload that gets signed.
 type LicenseData struct {
 	TenantID    string    `json:"tenant_id"`
-	LicenseType string    `json:"license_type"`
-	Features    []Feature `json:"features"`
+	UseType     string    `json:"use_type"`                // "non_commercial" / "commercial"
+	Tier        string    `json:"tier"`                     // "community" / "team" / "pro" / "enterprise"
+	IssuerRole  string    `json:"issuer_role"`              // "developer" / "distributor" / "user"
+	IssuedTo    string    `json:"issued_to,omitempty"`      // distributor's tenant_id (when developer issues)
+	MaxIssued   int       `json:"max_issued,omitempty"`     // max sub-licenses a distributor can issue
+	IssuedCount int       `json:"issued_count,omitempty"`
+	Addons      []Addon   `json:"addons,omitempty"`
 	MaxServers  int       `json:"max_servers"`
 	MaxApps     int       `json:"max_apps"`
 	MaxUsers    int       `json:"max_users"`
 	IssuedAt    int64     `json:"issued_at"`
-	ExpiresAt   int64     `json:"expires_at,omitempty"` // 0 = never expires
+	ExpiresAt   int64     `json:"expires_at,omitempty"` // 0 = never expires (community)
 	MachineID   string    `json:"machine_id,omitempty"`
 }
 
@@ -92,6 +133,9 @@ type LicenseInfo struct {
 	ValidFrom time.Time
 	ValidTo   time.Time
 	Features  map[Feature]bool
+	UseType   UseType
+	Tier      Tier
+	Addons    []Addon
 }
 
 // Engine is the license validation and feature evaluation engine.
@@ -140,25 +184,17 @@ func (e *Engine) LoadLicense(licenseKey string) error {
 		return fmt.Errorf("failed to decode license payload: %w", err)
 	}
 
-	// Build feature map
-	features := make(map[Feature]bool, len(data.Features))
-	for _, f := range data.Features {
-		features[f] = true
-	}
-
-	// If no features specified, use defaults based on license type
-	if len(data.Features) == 0 {
-		defaults := getDefaultFeatures(data.LicenseType)
-		for _, f := range defaults {
-			features[f] = true
-		}
-	}
+	// Resolve features based on tier
+	features := resolveTierFeatures(data.Tier)
 
 	info := &LicenseInfo{
 		Data:      data,
 		Signature: signature,
 		ValidFrom: time.Unix(data.IssuedAt, 0),
 		Features:  features,
+		UseType:   UseType(data.UseType),
+		Tier:      Tier(data.Tier),
+		Addons:    data.Addons,
 	}
 
 	if data.ExpiresAt > 0 {
@@ -166,8 +202,8 @@ func (e *Engine) LoadLicense(licenseKey string) error {
 	}
 
 	e.info = info
-	slog.Info("license loaded", "type", data.LicenseType, "tenant", data.TenantID,
-		"expires", info.ValidTo, "features", len(features))
+	slog.Info("license loaded", "tier", data.Tier, "use_type", data.UseType, "tenant", data.TenantID,
+		"expires", info.ValidTo, "features", len(features), "addons", len(data.Addons))
 	return nil
 }
 
@@ -203,7 +239,26 @@ func (e *Engine) IsFeatureEnabled(feature Feature) bool {
 	if e.info == nil {
 		return false
 	}
-	return e.info.Features[feature]
+
+	// 1. Check if current tier includes this feature
+	if e.info.Features[feature] {
+		return true
+	}
+
+	// 2. Check addons (non-paused, non-expired)
+	now := time.Now()
+	for _, addon := range e.info.Addons {
+		if addon.PausedAt > 0 {
+			continue // paused by higher tier
+		}
+		if addon.ExpiresAt > 0 && now.After(time.Unix(addon.ExpiresAt, 0)) {
+			continue // expired
+		}
+		if addon.Key == "feature:"+string(feature) {
+			return true
+		}
+	}
+	return false
 }
 
 // RequireFeature checks if a feature is enabled; if not, calls the onViolation callback.
@@ -217,24 +272,70 @@ func (e *Engine) RequireFeature(feature Feature) error {
 	return fmt.Errorf("feature '%s' requires a higher license tier", feature)
 }
 
-// GetLicenseType returns the current license type.
+// GetUseType returns the current license use type.
+func (e *Engine) GetUseType() UseType {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+	if e.info == nil {
+		return UseTypeNonCommercial
+	}
+	return e.info.UseType
+}
+
+// GetTier returns the current license tier.
+func (e *Engine) GetTier() Tier {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+	if e.info == nil {
+		return TierCommunity
+	}
+	return e.info.Tier
+}
+
+// IsCommercial returns true if the license is for commercial use.
+func (e *Engine) IsCommercial() bool {
+	return e.GetUseType() == UseTypeCommercial
+}
+
+// GetLicenseType returns the current license type (backward compatible, returns tier).
 func (e *Engine) GetLicenseType() string {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
 	if e.info == nil {
 		return "none"
 	}
-	return e.info.Data.LicenseType
+	return e.info.Data.Tier
 }
 
-// GetLimits returns the current license limits.
+// GetLimits returns the current license limits including addon resources.
 func (e *Engine) GetLimits() (maxServers, maxApps, maxUsers int) {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
 	if e.info == nil {
-		return 3, 10, 3 // community defaults
+		return 3, 10, 5 // community defaults
 	}
-	return e.info.Data.MaxServers, e.info.Data.MaxApps, e.info.Data.MaxUsers
+	maxServers = e.info.Data.MaxServers
+	maxApps = e.info.Data.MaxApps
+	maxUsers = e.info.Data.MaxUsers
+
+	now := time.Now()
+	for _, addon := range e.info.Addons {
+		if addon.PausedAt > 0 {
+			continue
+		}
+		if addon.ExpiresAt > 0 && now.After(time.Unix(addon.ExpiresAt, 0)) {
+			continue
+		}
+		switch addon.Key {
+		case "resource:servers":
+			maxServers += addon.Amount
+		case "resource:apps":
+			maxApps += addon.Amount
+		case "resource:users":
+			maxUsers += addon.Amount
+		}
+	}
+	return
 }
 
 // CheckLimit checks if a usage count is within the license limit.
@@ -254,28 +355,59 @@ func (e *Engine) CheckLimit(resource string, current int) error {
 				return fmt.Errorf("app limit reached (10/10), upgrade to Pro for more")
 			}
 		case "users":
-			if current >= 3 {
-				return fmt.Errorf("user limit reached (3/3), upgrade to Pro for more")
+			if current >= 5 {
+				return fmt.Errorf("user limit reached (5/5), upgrade to Pro for more")
 			}
 		}
 		return nil
 	}
 
+	maxServers, maxApps, maxUsers := e.getLimitsUnlocked()
+
 	switch resource {
 	case "servers":
-		if current >= e.info.Data.MaxServers {
-			return fmt.Errorf("server limit reached (%d/%d)", current, e.info.Data.MaxServers)
+		if maxServers > 0 && current >= maxServers {
+			return fmt.Errorf("server limit reached (%d/%d)", current, maxServers)
 		}
 	case "apps":
-		if current >= e.info.Data.MaxApps {
-			return fmt.Errorf("app limit reached (%d/%d)", current, e.info.Data.MaxApps)
+		if maxApps > 0 && current >= maxApps {
+			return fmt.Errorf("app limit reached (%d/%d)", current, maxApps)
 		}
 	case "users":
-		if current >= e.info.Data.MaxUsers {
-			return fmt.Errorf("user limit reached (%d/%d)", current, e.info.Data.MaxUsers)
+		if maxUsers > 0 && current >= maxUsers {
+			return fmt.Errorf("user limit reached (%d/%d)", current, maxUsers)
 		}
 	}
 	return nil
+}
+
+// getLimitsUnlocked returns limits without locking (caller must hold lock).
+func (e *Engine) getLimitsUnlocked() (maxServers, maxApps, maxUsers int) {
+	if e.info == nil {
+		return 3, 10, 5
+	}
+	maxServers = e.info.Data.MaxServers
+	maxApps = e.info.Data.MaxApps
+	maxUsers = e.info.Data.MaxUsers
+
+	now := time.Now()
+	for _, addon := range e.info.Addons {
+		if addon.PausedAt > 0 {
+			continue
+		}
+		if addon.ExpiresAt > 0 && now.After(time.Unix(addon.ExpiresAt, 0)) {
+			continue
+		}
+		switch addon.Key {
+		case "resource:servers":
+			maxServers += addon.Amount
+		case "resource:apps":
+			maxApps += addon.Amount
+		case "resource:users":
+			maxUsers += addon.Amount
+		}
+	}
+	return
 }
 
 // GetInfo returns a copy of the current license info.
@@ -334,16 +466,37 @@ func parseLicenseKey(key string) (payload []byte, signature []byte, err error) {
 	return payload, signature, nil
 }
 
-// getDefaultFeatures returns default features for a license type.
-func getDefaultFeatures(licenseType string) []Feature {
-	switch licenseType {
-	case "pro":
-		return ProFeatures
-	case "enterprise":
-		return EnterpriseFeatures
+// resolveTierFeatures returns the feature set for a given tier.
+func resolveTierFeatures(tier string) map[Feature]bool {
+	features := make(map[Feature]bool, len(AllFeatures))
+
+	switch Tier(tier) {
+	case TierCommunity, TierEnterprise:
+		// All features
+		for _, f := range AllFeatures {
+			features[f] = true
+		}
+	case TierTeam:
+		// All except TeamExcludedFeatures
+		for _, f := range AllFeatures {
+			if !TeamExcludedFeatures[f] {
+				features[f] = true
+			}
+		}
+	case TierPro:
+		// All except ProExcludedFeatures
+		for _, f := range AllFeatures {
+			if !ProExcludedFeatures[f] {
+				features[f] = true
+			}
+		}
 	default:
-		return CommunityFeatures
+		// Unknown tier = community features
+		for _, f := range AllFeatures {
+			features[f] = true
+		}
 	}
+	return features
 }
 
 // GenerateLicenseKey creates a signed license key string.

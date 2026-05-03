@@ -17,13 +17,14 @@ func TestParseLicenseKey(t *testing.T) {
 	}
 
 	data := LicenseData{
-		TenantID:    "tenant-test",
-		LicenseType: "community",
-		MaxServers:  3,
-		MaxApps:     10,
-		MaxUsers:    3,
-		IssuedAt:    time.Now().Unix(),
-		ExpiresAt:   time.Now().Add(24 * time.Hour).Unix(),
+		TenantID:   "tenant-test",
+		Tier:       "community",
+		UseType:    "non_commercial",
+		MaxServers: 3,
+		MaxApps:    10,
+		MaxUsers:   5,
+		IssuedAt:   time.Now().Unix(),
+		ExpiresAt:  time.Now().Add(24 * time.Hour).Unix(),
 	}
 
 	key, err := GenerateLicenseKey(priv, data)
@@ -88,14 +89,14 @@ func TestEngineLoadAndValidate(t *testing.T) {
 	engine := NewEngine(pub, 7)
 
 	data := LicenseData{
-		TenantID:    "tenant-test",
-		LicenseType: "pro",
-		Features:    ProFeatures,
-		MaxServers:  10,
-		MaxApps:     50,
-		MaxUsers:    20,
-		IssuedAt:    time.Now().Add(-1 * time.Hour).Unix(),
-		ExpiresAt:   time.Now().Add(365 * 24 * time.Hour).Unix(),
+		TenantID:   "tenant-test",
+		Tier:       "pro",
+		UseType:    "commercial",
+		MaxServers: 10,
+		MaxApps:    50,
+		MaxUsers:   20,
+		IssuedAt:   time.Now().Add(-1 * time.Hour).Unix(),
+		ExpiresAt:  time.Now().Add(365 * 24 * time.Hour).Unix(),
 	}
 
 	key, err := GenerateLicenseKey(priv, data)
@@ -116,6 +117,12 @@ func TestEngineLoadAndValidate(t *testing.T) {
 
 		if engine.GetLicenseType() != "pro" {
 			t.Errorf("expected license type 'pro', got '%s'", engine.GetLicenseType())
+		}
+		if engine.GetTier() != TierPro {
+			t.Errorf("expected tier 'pro', got '%s'", engine.GetTier())
+		}
+		if engine.GetUseType() != UseTypeCommercial {
+			t.Errorf("expected use type 'commercial', got '%s'", engine.GetUseType())
 		}
 	})
 
@@ -170,16 +177,16 @@ func TestEngineFeatureCheck(t *testing.T) {
 		t.Fatalf("failed to generate key pair: %v", err)
 	}
 
-	t.Run("community features", func(t *testing.T) {
+	t.Run("community features - all features available", func(t *testing.T) {
 		engine := NewEngine(pub, 7)
 		data := LicenseData{
-			TenantID:    "tenant-community",
-			LicenseType: "community",
-			Features:    CommunityFeatures,
-			MaxServers:  3,
-			MaxApps:     10,
-			MaxUsers:    3,
-			IssuedAt:    time.Now().Unix(),
+			TenantID:   "tenant-community",
+			Tier:       "community",
+			UseType:    "non_commercial",
+			MaxServers: 3,
+			MaxApps:    10,
+			MaxUsers:   5,
+			IssuedAt:   time.Now().Unix(),
 		}
 		key, err := GenerateLicenseKey(priv, data)
 		if err != nil {
@@ -189,7 +196,7 @@ func TestEngineFeatureCheck(t *testing.T) {
 			t.Fatalf("failed to load license: %v", err)
 		}
 
-		// Community should have basic features
+		// Community should have ALL features (including enterprise ones)
 		if !engine.IsFeatureEnabled(FeatureSSL) {
 			t.Error("community license should have ssl feature")
 		}
@@ -199,29 +206,33 @@ func TestEngineFeatureCheck(t *testing.T) {
 		if !engine.IsFeatureEnabled(FeatureBackup) {
 			t.Error("community license should have backup feature")
 		}
-
-		// Community should NOT have pro/enterprise features
-		if engine.IsFeatureEnabled(FeatureOAuth2) {
-			t.Error("community license should not have oauth2 feature")
+		if !engine.IsFeatureEnabled(FeatureOAuth2) {
+			t.Error("community license should have oauth2 feature")
 		}
-		if engine.IsFeatureEnabled(FeatureSSO) {
-			t.Error("community license should not have sso feature")
+		if !engine.IsFeatureEnabled(FeatureSSO) {
+			t.Error("community license should have sso feature")
 		}
-		if engine.IsFeatureEnabled(FeatureLDAP) {
-			t.Error("community license should not have ldap feature")
+		if !engine.IsFeatureEnabled(FeatureLDAP) {
+			t.Error("community license should have ldap feature")
+		}
+		if !engine.IsFeatureEnabled(FeatureDashboardTV) {
+			t.Error("community license should have dashboard_tv feature")
+		}
+		if !engine.IsFeatureEnabled(FeatureSLA) {
+			t.Error("community license should have sla feature")
 		}
 	})
 
-	t.Run("pro features", func(t *testing.T) {
+	t.Run("team features - excludes dashboard_tv, sso, ldap, multi_tenant, federation", func(t *testing.T) {
 		engine := NewEngine(pub, 7)
 		data := LicenseData{
-			TenantID:    "tenant-pro",
-			LicenseType: "pro",
-			Features:    ProFeatures,
-			MaxServers:  10,
-			MaxApps:     50,
-			MaxUsers:    20,
-			IssuedAt:    time.Now().Unix(),
+			TenantID:   "tenant-team",
+			Tier:       "team",
+			UseType:    "commercial",
+			MaxServers: 10,
+			MaxApps:    30,
+			MaxUsers:   15,
+			IssuedAt:   time.Now().Unix(),
 		}
 		key, err := GenerateLicenseKey(priv, data)
 		if err != nil {
@@ -231,7 +242,58 @@ func TestEngineFeatureCheck(t *testing.T) {
 			t.Fatalf("failed to load license: %v", err)
 		}
 
-		// Pro should have community + pro features
+		// Team should have basic features
+		if !engine.IsFeatureEnabled(FeatureSSL) {
+			t.Error("team license should have ssl feature")
+		}
+		if !engine.IsFeatureEnabled(FeatureOAuth2) {
+			t.Error("team license should have oauth2 feature")
+		}
+		if !engine.IsFeatureEnabled(FeatureCustomBranding) {
+			t.Error("team license should have custom_branding feature")
+		}
+		if !engine.IsFeatureEnabled(FeaturePrioritySupport) {
+			t.Error("team license should have priority_support feature")
+		}
+
+		// Team should NOT have excluded features
+		if engine.IsFeatureEnabled(FeatureDashboardTV) {
+			t.Error("team license should not have dashboard_tv feature")
+		}
+		if engine.IsFeatureEnabled(FeatureSSO) {
+			t.Error("team license should not have sso feature")
+		}
+		if engine.IsFeatureEnabled(FeatureLDAP) {
+			t.Error("team license should not have ldap feature")
+		}
+		if engine.IsFeatureEnabled(FeatureMultiTenant) {
+			t.Error("team license should not have multi_tenant feature")
+		}
+		if engine.IsFeatureEnabled(FeatureFederation) {
+			t.Error("team license should not have federation feature")
+		}
+	})
+
+	t.Run("pro features - excludes only sla", func(t *testing.T) {
+		engine := NewEngine(pub, 7)
+		data := LicenseData{
+			TenantID:   "tenant-pro",
+			Tier:       "pro",
+			UseType:    "commercial",
+			MaxServers: 50,
+			MaxApps:    100,
+			MaxUsers:   50,
+			IssuedAt:   time.Now().Unix(),
+		}
+		key, err := GenerateLicenseKey(priv, data)
+		if err != nil {
+			t.Fatalf("failed to generate key: %v", err)
+		}
+		if err := engine.LoadLicense(key); err != nil {
+			t.Fatalf("failed to load license: %v", err)
+		}
+
+		// Pro should have most features
 		if !engine.IsFeatureEnabled(FeatureSSL) {
 			t.Error("pro license should have ssl feature")
 		}
@@ -241,26 +303,29 @@ func TestEngineFeatureCheck(t *testing.T) {
 		if !engine.IsFeatureEnabled(FeatureCluster) {
 			t.Error("pro license should have cluster feature")
 		}
-
-		// Pro should NOT have enterprise features
-		if engine.IsFeatureEnabled(FeatureSSO) {
-			t.Error("pro license should not have sso feature")
+		if !engine.IsFeatureEnabled(FeatureSSO) {
+			t.Error("pro license should have sso feature")
 		}
-		if engine.IsFeatureEnabled(FeatureLDAP) {
-			t.Error("pro license should not have ldap feature")
+		if !engine.IsFeatureEnabled(FeatureDashboardTV) {
+			t.Error("pro license should have dashboard_tv feature")
+		}
+
+		// Pro should NOT have SLA
+		if engine.IsFeatureEnabled(FeatureSLA) {
+			t.Error("pro license should not have sla feature")
 		}
 	})
 
-	t.Run("enterprise features", func(t *testing.T) {
+	t.Run("enterprise features - all features", func(t *testing.T) {
 		engine := NewEngine(pub, 7)
 		data := LicenseData{
-			TenantID:    "tenant-enterprise",
-			LicenseType: "enterprise",
-			Features:    EnterpriseFeatures,
-			MaxServers:  100,
-			MaxApps:     500,
-			MaxUsers:    100,
-			IssuedAt:    time.Now().Unix(),
+			TenantID:   "tenant-enterprise",
+			Tier:       "enterprise",
+			UseType:    "commercial",
+			MaxServers: 100,
+			MaxApps:    500,
+			MaxUsers:   100,
+			IssuedAt:   time.Now().Unix(),
 		}
 		key, err := GenerateLicenseKey(priv, data)
 		if err != nil {
@@ -289,18 +354,32 @@ func TestEngineFeatureCheck(t *testing.T) {
 		if !engine.IsFeatureEnabled(FeatureFederation) {
 			t.Error("enterprise license should have federation feature")
 		}
+		if !engine.IsFeatureEnabled(FeatureSLA) {
+			t.Error("enterprise license should have sla feature")
+		}
+		if !engine.IsFeatureEnabled(FeatureDashboardTV) {
+			t.Error("enterprise license should have dashboard_tv feature")
+		}
 	})
 
-	t.Run("default features when empty", func(t *testing.T) {
+	t.Run("addon features work", func(t *testing.T) {
 		engine := NewEngine(pub, 7)
 		data := LicenseData{
-			TenantID:    "tenant-default",
-			LicenseType: "pro",
-			Features:    nil, // empty - should use defaults
-			MaxServers:  10,
-			MaxApps:     50,
-			MaxUsers:    20,
-			IssuedAt:    time.Now().Unix(),
+			TenantID:   "tenant-addon",
+			Tier:       "team",
+			UseType:    "commercial",
+			MaxServers: 10,
+			MaxApps:    30,
+			MaxUsers:   15,
+			IssuedAt:   time.Now().Unix(),
+			Addons: []Addon{
+				{
+					Key:         "feature:sso",
+					Amount:      0,
+					PurchasedAt: time.Now().Unix(),
+					ExpiresAt:   time.Now().Add(30 * 24 * time.Hour).Unix(),
+				},
+			},
 		}
 		key, err := GenerateLicenseKey(priv, data)
 		if err != nil {
@@ -310,22 +389,26 @@ func TestEngineFeatureCheck(t *testing.T) {
 			t.Fatalf("failed to load license: %v", err)
 		}
 
-		// Should get pro defaults
-		if !engine.IsFeatureEnabled(FeatureOAuth2) {
-			t.Error("pro default features should include oauth2")
+		// SSO should be available via addon
+		if !engine.IsFeatureEnabled(FeatureSSO) {
+			t.Error("team license with sso addon should have sso feature")
+		}
+		// Other excluded features should still be unavailable
+		if engine.IsFeatureEnabled(FeatureLDAP) {
+			t.Error("team license without ldap addon should not have ldap feature")
 		}
 	})
 
 	t.Run("require feature callback", func(t *testing.T) {
 		engine := NewEngine(pub, 7)
 		data := LicenseData{
-			TenantID:    "tenant-cb",
-			LicenseType: "community",
-			Features:    CommunityFeatures,
-			MaxServers:  3,
-			MaxApps:     10,
-			MaxUsers:    3,
-			IssuedAt:    time.Now().Unix(),
+			TenantID:   "tenant-cb",
+			Tier:       "team",
+			UseType:    "non_commercial",
+			MaxServers: 10,
+			MaxApps:    30,
+			MaxUsers:   15,
+			IssuedAt:   time.Now().Unix(),
 		}
 		key, err := GenerateLicenseKey(priv, data)
 		if err != nil {
@@ -342,7 +425,7 @@ func TestEngineFeatureCheck(t *testing.T) {
 
 		err = engine.RequireFeature(FeatureSSO)
 		if err == nil {
-			t.Fatal("expected error for requiring SSO with community license")
+			t.Fatal("expected error for requiring SSO with team license (no addon)")
 		}
 		if violatedFeature != FeatureSSO {
 			t.Errorf("expected violated feature SSO, got %s", violatedFeature)
@@ -358,17 +441,17 @@ func TestEngineLimitCheck(t *testing.T) {
 
 	engine := NewEngine(pub, 7)
 	data := LicenseData{
-		TenantID:    "tenant-limits",
-		LicenseType: "pro",
-		Features:    ProFeatures,
-		MaxServers:  5,
-		MaxApps:     20,
-		MaxUsers:    10,
-		IssuedAt:    time.Now().Unix(),
+		TenantID:   "tenant-limits",
+		Tier:       "pro",
+		UseType:    "commercial",
+		MaxServers: 5,
+		MaxApps:    20,
+		MaxUsers:   10,
+		IssuedAt:   time.Now().Unix(),
 	}
 	key, err := GenerateLicenseKey(priv, data)
 	if err != nil {
-		t.Fatalf("failed to generate key: %v", err)
+		t.Fatalf("failed to generate license key: %v", err)
 	}
 	if err := engine.LoadLicense(key); err != nil {
 		t.Fatalf("failed to load license: %v", err)
@@ -417,6 +500,284 @@ func TestEngineLimitCheck(t *testing.T) {
 			t.Errorf("expected limits (5, 20, 10), got (%d, %d, %d)", s, a, u)
 		}
 	})
+
+	t.Run("addon resources are added", func(t *testing.T) {
+		engine2 := NewEngine(pub, 7)
+		data2 := LicenseData{
+			TenantID:   "tenant-addon-limits",
+			Tier:       "team",
+			UseType:    "commercial",
+			MaxServers: 10,
+			MaxApps:    30,
+			MaxUsers:   15,
+			IssuedAt:   time.Now().Unix(),
+			Addons: []Addon{
+				{
+					Key:         "resource:servers",
+					Amount:      5,
+					PurchasedAt: time.Now().Unix(),
+					ExpiresAt:   time.Now().Add(30 * 24 * time.Hour).Unix(),
+				},
+				{
+					Key:         "resource:apps",
+					Amount:      20,
+					PurchasedAt: time.Now().Unix(),
+					ExpiresAt:   time.Now().Add(30 * 24 * time.Hour).Unix(),
+				},
+			},
+		}
+		key2, err := GenerateLicenseKey(priv, data2)
+		if err != nil {
+			t.Fatalf("failed to generate key: %v", err)
+		}
+		if err := engine2.LoadLicense(key2); err != nil {
+			t.Fatalf("failed to load license: %v", err)
+		}
+
+		s, a, u := engine2.GetLimits()
+		if s != 15 || a != 50 || u != 15 {
+			t.Errorf("expected limits (15, 50, 15), got (%d, %d, %d)", s, a, u)
+		}
+	})
+}
+
+func TestAddonPausedByTier(t *testing.T) {
+	pub, priv, err := ed25519.GenerateKey(nil)
+	if err != nil {
+		t.Fatalf("failed to generate key pair: %v", err)
+	}
+
+	engine := NewEngine(pub, 7)
+	data := LicenseData{
+		TenantID:   "tenant-paused",
+		Tier:       "team",
+		UseType:    "commercial",
+		MaxServers: 10,
+		MaxApps:    30,
+		MaxUsers:   15,
+		IssuedAt:   time.Now().Unix(),
+		Addons: []Addon{
+			{
+				Key:         "feature:sso",
+				Amount:      0,
+				PurchasedAt: time.Now().Add(-60 * 24 * time.Hour).Unix(),
+				ExpiresAt:   time.Now().Add(30 * 24 * time.Hour).Unix(),
+				PausedAt:    time.Now().Add(-10 * 24 * time.Hour).Unix(),
+				PausedDays:  10,
+			},
+			{
+				Key:         "resource:servers",
+				Amount:      5,
+				PurchasedAt: time.Now().Unix(),
+				ExpiresAt:   time.Now().Add(30 * 24 * time.Hour).Unix(),
+				PausedAt:    time.Now().Unix(),
+				PausedDays:  0,
+			},
+		},
+	}
+	key, err := GenerateLicenseKey(priv, data)
+	if err != nil {
+		t.Fatalf("failed to generate key: %v", err)
+	}
+	if err := engine.LoadLicense(key); err != nil {
+		t.Fatalf("failed to load license: %v", err)
+	}
+
+	// Paused addon feature should NOT be available
+	if engine.IsFeatureEnabled(FeatureSSO) {
+		t.Error("paused addon should not provide sso feature")
+	}
+
+	// Paused addon resource should NOT be counted
+	s, _, _ := engine.GetLimits()
+	if s != 10 {
+		t.Errorf("paused resource addon should not count, expected 10, got %d", s)
+	}
+}
+
+func TestAddonExpired(t *testing.T) {
+	pub, priv, err := ed25519.GenerateKey(nil)
+	if err != nil {
+		t.Fatalf("failed to generate key pair: %v", err)
+	}
+
+	engine := NewEngine(pub, 7)
+	data := LicenseData{
+		TenantID:   "tenant-expired-addon",
+		Tier:       "team",
+		UseType:    "commercial",
+		MaxServers: 10,
+		MaxApps:    30,
+		MaxUsers:   15,
+		IssuedAt:   time.Now().Unix(),
+		Addons: []Addon{
+			{
+				Key:         "feature:sso",
+				Amount:      0,
+				PurchasedAt: time.Now().Add(-60 * 24 * time.Hour).Unix(),
+				ExpiresAt:   time.Now().Add(-1 * 24 * time.Hour).Unix(), // expired yesterday
+			},
+			{
+				Key:         "resource:servers",
+				Amount:      5,
+				PurchasedAt: time.Now().Add(-60 * 24 * time.Hour).Unix(),
+				ExpiresAt:   time.Now().Add(-1 * 24 * time.Hour).Unix(), // expired yesterday
+			},
+		},
+	}
+	key, err := GenerateLicenseKey(priv, data)
+	if err != nil {
+		t.Fatalf("failed to generate key: %v", err)
+	}
+	if err := engine.LoadLicense(key); err != nil {
+		t.Fatalf("failed to load license: %v", err)
+	}
+
+	// Expired addon feature should NOT be available
+	if engine.IsFeatureEnabled(FeatureSSO) {
+		t.Error("expired addon should not provide sso feature")
+	}
+
+	// Expired addon resource should NOT be counted
+	s, _, _ := engine.GetLimits()
+	if s != 10 {
+		t.Errorf("expired resource addon should not count, expected 10, got %d", s)
+	}
+}
+
+func TestUseType(t *testing.T) {
+	pub, priv, err := ed25519.GenerateKey(nil)
+	if err != nil {
+		t.Fatalf("failed to generate key pair: %v", err)
+	}
+
+	t.Run("commercial license", func(t *testing.T) {
+		engine := NewEngine(pub, 7)
+		data := LicenseData{
+			TenantID:   "tenant-commercial",
+			Tier:       "pro",
+			UseType:    "commercial",
+			MaxServers: 50,
+			MaxApps:    100,
+			MaxUsers:   50,
+			IssuedAt:   time.Now().Unix(),
+		}
+		key, err := GenerateLicenseKey(priv, data)
+		if err != nil {
+			t.Fatalf("failed to generate key: %v", err)
+		}
+		if err := engine.LoadLicense(key); err != nil {
+			t.Fatalf("failed to load license: %v", err)
+		}
+
+		if engine.GetUseType() != UseTypeCommercial {
+			t.Errorf("expected use type 'commercial', got '%s'", engine.GetUseType())
+		}
+		if !engine.IsCommercial() {
+			t.Error("expected IsCommercial() to return true")
+		}
+	})
+
+	t.Run("non-commercial license", func(t *testing.T) {
+		engine := NewEngine(pub, 7)
+		data := LicenseData{
+			TenantID:   "tenant-noncommercial",
+			Tier:       "community",
+			UseType:    "non_commercial",
+			MaxServers: 3,
+			MaxApps:    10,
+			MaxUsers:   5,
+			IssuedAt:   time.Now().Unix(),
+		}
+		key, err := GenerateLicenseKey(priv, data)
+		if err != nil {
+			t.Fatalf("failed to generate key: %v", err)
+		}
+		if err := engine.LoadLicense(key); err != nil {
+			t.Fatalf("failed to load license: %v", err)
+		}
+
+		if engine.GetUseType() != UseTypeNonCommercial {
+			t.Errorf("expected use type 'non_commercial', got '%s'", engine.GetUseType())
+		}
+		if engine.IsCommercial() {
+			t.Error("expected IsCommercial() to return false")
+		}
+	})
+
+	t.Run("no license defaults to non-commercial", func(t *testing.T) {
+		engine := NewEngine(pub, 7)
+		if engine.GetUseType() != UseTypeNonCommercial {
+			t.Errorf("expected default use type 'non_commercial', got '%s'", engine.GetUseType())
+		}
+		if engine.IsCommercial() {
+			t.Error("expected IsCommercial() to return false for no license")
+		}
+	})
+}
+
+func TestTierResolution(t *testing.T) {
+	// Test resolveTierFeatures directly
+	t.Run("community tier has all features", func(t *testing.T) {
+		features := resolveTierFeatures("community")
+		if len(features) != len(AllFeatures) {
+			t.Errorf("expected %d features, got %d", len(AllFeatures), len(features))
+		}
+		for _, f := range AllFeatures {
+			if !features[f] {
+				t.Errorf("community tier should have feature %s", f)
+			}
+		}
+	})
+
+	t.Run("team tier excludes correct features", func(t *testing.T) {
+		features := resolveTierFeatures("team")
+		for f := range TeamExcludedFeatures {
+			if features[f] {
+				t.Errorf("team tier should not have feature %s", f)
+			}
+		}
+		// Should have features not in excluded list
+		if !features[FeatureSSL] {
+			t.Error("team tier should have ssl feature")
+		}
+		if !features[FeatureCustomBranding] {
+			t.Error("team tier should have custom_branding feature")
+		}
+	})
+
+	t.Run("pro tier excludes only sla", func(t *testing.T) {
+		features := resolveTierFeatures("pro")
+		if features[FeatureSLA] {
+			t.Error("pro tier should not have sla feature")
+		}
+		// Should have everything else
+		if !features[FeatureSSO] {
+			t.Error("pro tier should have sso feature")
+		}
+		if !features[FeatureDashboardTV] {
+			t.Error("pro tier should have dashboard_tv feature")
+		}
+	})
+
+	t.Run("enterprise tier has all features", func(t *testing.T) {
+		features := resolveTierFeatures("enterprise")
+		if len(features) != len(AllFeatures) {
+			t.Errorf("expected %d features, got %d", len(AllFeatures), len(features))
+		}
+		for _, f := range AllFeatures {
+			if !features[f] {
+				t.Errorf("enterprise tier should have feature %s", f)
+			}
+		}
+	})
+
+	t.Run("unknown tier defaults to community features", func(t *testing.T) {
+		features := resolveTierFeatures("unknown")
+		if len(features) != len(AllFeatures) {
+			t.Errorf("expected %d features for unknown tier, got %d", len(AllFeatures), len(features))
+		}
+	})
 }
 
 func TestEngineExpiredLicense(t *testing.T) {
@@ -429,19 +790,19 @@ func TestEngineExpiredLicense(t *testing.T) {
 
 	// License that expired 10 days ago
 	data := LicenseData{
-		TenantID:    "tenant-expired",
-		LicenseType: "pro",
-		Features:    ProFeatures,
-		MaxServers:  10,
-		MaxApps:     50,
-		MaxUsers:    20,
-		IssuedAt:    time.Now().Add(-30 * 24 * time.Hour).Unix(),
-		ExpiresAt:   time.Now().Add(-10 * 24 * time.Hour).Unix(),
+		TenantID:   "tenant-expired",
+		Tier:       "pro",
+		UseType:    "commercial",
+		MaxServers: 10,
+		MaxApps:    50,
+		MaxUsers:   20,
+		IssuedAt:   time.Now().Add(-30 * 24 * time.Hour).Unix(),
+		ExpiresAt:  time.Now().Add(-10 * 24 * time.Hour).Unix(),
 	}
 
 	key, err := GenerateLicenseKey(priv, data)
 	if err != nil {
-		t.Fatalf("failed to generate key: %v", err)
+		t.Fatalf("failed to generate license key: %v", err)
 	}
 	if err := engine.LoadLicense(key); err != nil {
 		t.Fatalf("failed to load license: %v", err)
@@ -482,10 +843,16 @@ func TestEngineNoLicense(t *testing.T) {
 		}
 	})
 
+	t.Run("get tier without license", func(t *testing.T) {
+		if tier := engine.GetTier(); tier != TierCommunity {
+			t.Errorf("expected TierCommunity, got '%s'", tier)
+		}
+	})
+
 	t.Run("get limits without license", func(t *testing.T) {
 		s, a, u := engine.GetLimits()
-		if s != 3 || a != 10 || u != 3 {
-			t.Errorf("expected community defaults (3, 10, 3), got (%d, %d, %d)", s, a, u)
+		if s != 3 || a != 10 || u != 5 {
+			t.Errorf("expected community defaults (3, 10, 5), got (%d, %d, %d)", s, a, u)
 		}
 	})
 
@@ -516,14 +883,14 @@ func TestEngineGracePeriod(t *testing.T) {
 		engine := NewEngine(pub, 7)
 		// License expired 3 days ago, grace period is 7 days
 		data := LicenseData{
-			TenantID:    "tenant-grace",
-			LicenseType: "pro",
-			Features:    ProFeatures,
-			MaxServers:  10,
-			MaxApps:     50,
-			MaxUsers:    20,
-			IssuedAt:    time.Now().Add(-30 * 24 * time.Hour).Unix(),
-			ExpiresAt:   time.Now().Add(-3 * 24 * time.Hour).Unix(),
+			TenantID:   "tenant-grace",
+			Tier:       "pro",
+			UseType:    "commercial",
+			MaxServers: 10,
+			MaxApps:    50,
+			MaxUsers:   20,
+			IssuedAt:   time.Now().Add(-30 * 24 * time.Hour).Unix(),
+			ExpiresAt:  time.Now().Add(-3 * 24 * time.Hour).Unix(),
 		}
 		key, err := GenerateLicenseKey(priv, data)
 		if err != nil {
@@ -543,14 +910,14 @@ func TestEngineGracePeriod(t *testing.T) {
 		engine := NewEngine(pub, 7)
 		// License expired 10 days ago, grace period is 7 days
 		data := LicenseData{
-			TenantID:    "tenant-grace-expired",
-			LicenseType: "pro",
-			Features:    ProFeatures,
-			MaxServers:  10,
-			MaxApps:     50,
-			MaxUsers:    20,
-			IssuedAt:    time.Now().Add(-30 * 24 * time.Hour).Unix(),
-			ExpiresAt:   time.Now().Add(-10 * 24 * time.Hour).Unix(),
+			TenantID:   "tenant-grace-expired",
+			Tier:       "pro",
+			UseType:    "commercial",
+			MaxServers: 10,
+			MaxApps:    50,
+			MaxUsers:   20,
+			IssuedAt:   time.Now().Add(-30 * 24 * time.Hour).Unix(),
+			ExpiresAt:  time.Now().Add(-10 * 24 * time.Hour).Unix(),
 		}
 		key, err := GenerateLicenseKey(priv, data)
 		if err != nil {
@@ -569,14 +936,14 @@ func TestEngineGracePeriod(t *testing.T) {
 		engine := NewEngine(pub, 0)
 		// License expired 1 day ago, no grace period
 		data := LicenseData{
-			TenantID:    "tenant-no-grace",
-			LicenseType: "pro",
-			Features:    ProFeatures,
-			MaxServers:  10,
-			MaxApps:     50,
-			MaxUsers:    20,
-			IssuedAt:    time.Now().Add(-30 * 24 * time.Hour).Unix(),
-			ExpiresAt:   time.Now().Add(-1 * 24 * time.Hour).Unix(),
+			TenantID:   "tenant-no-grace",
+			Tier:       "pro",
+			UseType:    "commercial",
+			MaxServers: 10,
+			MaxApps:    50,
+			MaxUsers:   20,
+			IssuedAt:   time.Now().Add(-30 * 24 * time.Hour).Unix(),
+			ExpiresAt:  time.Now().Add(-1 * 24 * time.Hour).Unix(),
 		}
 		key, err := GenerateLicenseKey(priv, data)
 		if err != nil {
@@ -594,14 +961,14 @@ func TestEngineGracePeriod(t *testing.T) {
 	t.Run("never expires", func(t *testing.T) {
 		engine := NewEngine(pub, 7)
 		data := LicenseData{
-			TenantID:    "tenant-perpetual",
-			LicenseType: "enterprise",
-			Features:    EnterpriseFeatures,
-			MaxServers:  100,
-			MaxApps:     500,
-			MaxUsers:    100,
-			IssuedAt:    time.Now().Add(-1 * 24 * time.Hour).Unix(),
-			ExpiresAt:   0, // never expires
+			TenantID:   "tenant-perpetual",
+			Tier:       "enterprise",
+			UseType:    "commercial",
+			MaxServers: 100,
+			MaxApps:    500,
+			MaxUsers:   100,
+			IssuedAt:   time.Now().Add(-1 * 24 * time.Hour).Unix(),
+			ExpiresAt:  0, // never expires
 		}
 		key, err := GenerateLicenseKey(priv, data)
 		if err != nil {
@@ -625,9 +992,10 @@ func TestGenerateLicenseKey(t *testing.T) {
 
 	t.Run("auto-set issued at", func(t *testing.T) {
 		data := LicenseData{
-			TenantID:    "tenant-auto",
-			LicenseType: "community",
-			IssuedAt:    0, // should be auto-set
+			TenantID: "tenant-auto",
+			Tier:     "community",
+			UseType:  "non_commercial",
+			IssuedAt: 0, // should be auto-set
 		}
 		key, err := GenerateLicenseKey(priv, data)
 		if err != nil {
@@ -650,9 +1018,10 @@ func TestGenerateLicenseKey(t *testing.T) {
 
 	t.Run("key format is base64.base64", func(t *testing.T) {
 		data := LicenseData{
-			TenantID:    "tenant-format",
-			LicenseType: "pro",
-			IssuedAt:    time.Now().Unix(),
+			TenantID: "tenant-format",
+			Tier:     "pro",
+			UseType:  "commercial",
+			IssuedAt: time.Now().Unix(),
 		}
 		key, err := GenerateLicenseKey(priv, data)
 		if err != nil {
@@ -680,17 +1049,17 @@ func TestGetInfo(t *testing.T) {
 
 	engine := NewEngine(pub, 7)
 	data := LicenseData{
-		TenantID:    "tenant-info",
-		LicenseType: "enterprise",
-		Features:    EnterpriseFeatures,
-		MaxServers:  100,
-		MaxApps:     500,
-		MaxUsers:    100,
-		IssuedAt:    time.Now().Unix(),
+		TenantID:   "tenant-info",
+		Tier:       "enterprise",
+		UseType:    "commercial",
+		MaxServers: 100,
+		MaxApps:    500,
+		MaxUsers:   100,
+		IssuedAt:   time.Now().Unix(),
 	}
 	key, err := GenerateLicenseKey(priv, data)
 	if err != nil {
-		t.Fatalf("failed to generate key: %v", err)
+		t.Fatalf("failed to generate license key: %v", err)
 	}
 	if err := engine.LoadLicense(key); err != nil {
 		t.Fatalf("failed to load license: %v", err)
@@ -705,6 +1074,12 @@ func TestGetInfo(t *testing.T) {
 	}
 	if len(info.Features) == 0 {
 		t.Error("expected non-empty features map")
+	}
+	if info.Tier != TierEnterprise {
+		t.Errorf("expected tier 'enterprise', got '%s'", info.Tier)
+	}
+	if info.UseType != UseTypeCommercial {
+		t.Errorf("expected use type 'commercial', got '%s'", info.UseType)
 	}
 
 	// Verify it's a copy (modifying original should not affect the copy)

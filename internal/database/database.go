@@ -930,6 +930,32 @@ func MigrateLegacy(db *gorm.DB) error {
 				return tx.Migrator().DropTable("licenses")
 			},
 		},
+		// 202605030006: Add license v2 fields (use_type, tier, addons, issuer fields)
+		{
+			ID: "202605030006",
+			Migrate: func(tx *gorm.DB) error {
+				cols := []string{
+					"ALTER TABLE licenses ADD COLUMN use_type VARCHAR(20) NOT NULL DEFAULT 'non_commercial'",
+					"ALTER TABLE licenses ADD COLUMN tier VARCHAR(20) NOT NULL DEFAULT 'community'",
+					"ALTER TABLE licenses ADD COLUMN addons TEXT",
+					"ALTER TABLE licenses ADD COLUMN issuer_role VARCHAR(20) NOT NULL DEFAULT 'user'",
+					"ALTER TABLE licenses ADD COLUMN issued_to VARCHAR(64)",
+					"ALTER TABLE licenses ADD COLUMN max_issued INTEGER DEFAULT 0",
+					"ALTER TABLE licenses ADD COLUMN issued_count INTEGER DEFAULT 0",
+				}
+				for _, col := range cols {
+					if err := tx.Exec(col).Error; err != nil {
+						if !strings.Contains(err.Error(), "duplicate column") {
+							return err
+						}
+					}
+				}
+				return nil
+			},
+			Rollback: func(tx *gorm.DB) error {
+				return tx.Migrator().DropTable("licenses")
+			},
+		},
 	})
 
 	// Use InitSchema for initial creation (faster than Migrate)
