@@ -878,6 +878,46 @@ func Migrate(db *gorm.DB) error {
 				return tx.Migrator().DropTable("plugin_configs")
 			},
 		},
+		// 202605030001: Create audit_hashes table for hash chain verification
+		{
+			ID: "202605030001",
+			Migrate: func(tx *gorm.DB) error {
+				return tx.AutoMigrate(&model.AuditHash{})
+			},
+			Rollback: func(tx *gorm.DB) error {
+				return tx.Migrator().DropTable("audit_hashes")
+			},
+		},
+		// 202605030002: Create ip_whitelists table for per-user IP whitelist
+		{
+			ID: "202605030002",
+			Migrate: func(tx *gorm.DB) error {
+				return tx.AutoMigrate(&model.IPWhitelist{})
+			},
+			Rollback: func(tx *gorm.DB) error {
+				return tx.Migrator().DropTable("ip_whitelists")
+			},
+		},
+		// 202605030003: Create devices table for device binding
+		{
+			ID: "202605030003",
+			Migrate: func(tx *gorm.DB) error {
+				return tx.AutoMigrate(&model.Device{})
+			},
+			Rollback: func(tx *gorm.DB) error {
+				return tx.Migrator().DropTable("devices")
+			},
+		},
+		// 202605030004: Create signing_keys table for Ed25519 code signing
+		{
+			ID: "202605030004",
+			Migrate: func(tx *gorm.DB) error {
+				return tx.AutoMigrate(&model.SigningKey{})
+			},
+			Rollback: func(tx *gorm.DB) error {
+				return tx.Migrator().DropTable("signing_keys")
+			},
+		},
 	})
 
 	// Use InitSchema for initial creation (faster than Migrate)

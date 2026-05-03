@@ -98,6 +98,31 @@ func setupTestDB(t *testing.T) *gorm.DB {
 		trace_id TEXT,
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 	)`)
+	db.Exec(`CREATE TABLE IF NOT EXISTS audit_hashes (
+		id INTEGER PRIMARY KEY AUTOINCREMENT, audit_id INTEGER UNIQUE NOT NULL,
+		hash TEXT NOT NULL, previous_hash TEXT,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+	)`)
+	db.Exec(`CREATE TABLE IF NOT EXISTS ip_whitelists (
+		id TEXT PRIMARY KEY, tenant_id TEXT, user_id TEXT NOT NULL,
+		description TEXT, cidr TEXT NOT NULL, created_by TEXT,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+	)`)
+	db.Exec(`CREATE TABLE IF NOT EXISTS devices (
+		id TEXT PRIMARY KEY, tenant_id TEXT, user_id TEXT,
+		device_id TEXT UNIQUE NOT NULL, device_name TEXT,
+		user_agent TEXT, ip TEXT, last_ip TEXT,
+		trusted INTEGER DEFAULT 0, trust_expires_at DATETIME,
+		last_seen_at DATETIME,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+	)`)
+	db.Exec(`CREATE TABLE IF NOT EXISTS signing_keys (
+		id TEXT PRIMARY KEY, key_version INTEGER UNIQUE NOT NULL,
+		public_key TEXT NOT NULL, private_key TEXT NOT NULL,
+		fingerprint TEXT, is_active INTEGER DEFAULT 1,
+		created_by TEXT,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+	)`)
 	db.Exec(`CREATE TABLE IF NOT EXISTS backup_records (
 		id TEXT PRIMARY KEY, app_id TEXT, filename TEXT, file_path TEXT,
 		file_size INTEGER, db_type TEXT, status TEXT DEFAULT 'completed',
@@ -169,6 +194,27 @@ func setupTestRouter(db *gorm.DB) *gin.Engine {
 			deployments.GET("", ListDeployments(db))
 			deployments.GET("/:id", GetDeployment(db))
 		}
+
+		// Device binding routes
+		deviceSvc := service.NewDeviceService(db)
+		SetDeviceAPI(NewDeviceAPI(deviceSvc))
+		devices := protected.Group("/devices")
+		{
+			devices.GET("", ListDevices)
+			devices.GET("/current", CurrentDevice)
+			devices.DELETE("/:id", RevokeDevice)
+			devices.POST("/:id/trust", TrustDevice)
+		}
+
+		// Code signing routes
+		SetSigningAPI(NewSigningAPI(db))
+		signingGroup := protected.Group("/security/signing")
+		{
+			signingGroup.GET("/status", GetSigningStatus)
+			signingGroup.POST("/verify", VerifySignature)
+			signingGroup.POST("/keys/generate", auth.RoleRequired("owner", "admin"), GenerateKeys)
+			signingGroup.POST("/keys/rotate", auth.RoleRequired("owner", "admin"), RotateKeys)
+		}
 	}
 
 	return r
@@ -182,6 +228,7 @@ func setupFullTestRouter(db *gorm.DB, bridge *service.Bridge) *gin.Engine {
 	go wsHub.Run()
 	auditSvc := service.NewAuditService(db)
 	backupSvc := backup.New(backup.Config{BackupDir: os.TempDir()}, db, "sqlite", "")
+	SetAuditVerificationAPI(NewAuditVerificationAPI(db, nil, []byte("test-audit-chain-key")))
 	RegisterRoutes(r, db, bridge, wsHub, auditSvc, nil, nil, nil, nil, backupSvc, nil, false, nil, nil)
 	return r
 }
@@ -2680,6 +2727,101 @@ func TestListUsers_Empty(t *testing.T) {
 	token := getTestToken(t, "user-1", "owner")
 
 	w := makeRequest(r, "GET", "/api/v1/users", nil, token)
+	if w.Code != 200 {
+		t.Errorf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+// --- IP Whitelist Tests ---
+
+func TestIPWhitelist_ListEmpty(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Exec("VACUUM")
+	r := setupFullTestRouter(db, nil)
+	token := getTestToken(t, "user-wl-1", "owner")
+
+	w := makeRequest(r, "GET", "/api/v1/settings/ip-whitelist", nil, token)
+	if w.Code != 200 {
+		t.Errorf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestIPWhitelist_AddAndList(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Exec("VACUUM")
+	r := setupFullTestRouter(db, nil)
+	token := getTestToken(t, "user-wl-2", "owner")
+
+	// Add a whitelist entry
+	w := makeRequest(r, "POST", "/api/v1/settings/ip-whitelist", map[string]string{
+		"description": "office network",
+		"cidr":        "192.168.1.0/24",
+	}, token)
+	if w.Code != 200 {
+		t.Errorf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	// List entries
+	w = makeRequest(r, "GET", "/api/v1/settings/ip-whitelist", nil, token)
+	if w.Code != 200 {
+		t.Errorf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestIPWhitelist_AddInvalidCIDR(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Exec("VACUUM")
+	r := setupFullTestRouter(db, nil)
+	token := getTestToken(t, "user-wl-3", "owner")
+
+	w := makeRequest(r, "POST", "/api/v1/settings/ip-whitelist", map[string]string{
+		"description": "invalid",
+		"cidr":        "not-a-cidr",
+	}, token)
+	if w.Code != 400 {
+		t.Errorf("expected 400, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestIPWhitelist_Delete(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Exec("VACUUM")
+	r := setupFullTestRouter(db, nil)
+	token := getTestToken(t, "user-wl-4", "owner")
+
+	// Add entry
+	w := makeRequest(r, "POST", "/api/v1/settings/ip-whitelist", map[string]string{
+		"description": "to-delete",
+		"cidr":        "10.0.0.0/8",
+	}, token)
+	if w.Code != 200 {
+		t.Fatalf("expected 200 on add, got %d: %s", w.Code, w.Body.String())
+	}
+
+	// Parse the response to get the ID
+	var resp struct {
+		Data struct {
+			ID string `json:"id"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("failed to parse response: %v", err)
+	}
+
+	// Delete entry
+	w = makeRequest(r, "DELETE", "/api/v1/settings/ip-whitelist/"+resp.Data.ID, nil, token)
+	if w.Code != 200 {
+		t.Errorf("expected 200 on delete, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestIPWhitelist_CheckAccess(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Exec("VACUUM")
+	r := setupFullTestRouter(db, nil)
+	token := getTestToken(t, "user-wl-5", "owner")
+
+	w := makeRequest(r, "GET", "/api/v1/settings/ip-whitelist/check", nil, token)
 	if w.Code != 200 {
 		t.Errorf("expected 200, got %d: %s", w.Code, w.Body.String())
 	}

@@ -383,6 +383,16 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 		protected.POST("/audit-logs/archive", ArchiveAuditLogs(auditSvc))
 		protected.POST("/audit-logs/verify", VerifyAuditLogs(auditSvc))
 		protected.GET("/audit-logs/trace/:trace_id", GetAuditLogsByTraceID(auditSvc))
+
+		// Audit verification & compliance (Issue #155)
+		auditVerGroup := protected.Group("/audit")
+		{
+			auditVerGroup.GET("/verify", VerifyAuditChain)
+			auditVerGroup.GET("/export", ExportAuditLogsV2)
+			auditVerGroup.GET("/gdpr/export", GDPRExportUserData)
+			auditVerGroup.DELETE("/gdpr/delete", auth.RoleRequired("owner", "admin"), GDPRDeleteUserData)
+			auditVerGroup.GET("/compliance", ComplianceReport)
+		}
 		protected.GET("/events", ListEventLogs(db))
 		protected.GET("/events/stats", GetEventStats(db))
 
@@ -540,6 +550,38 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 		apiKeys.PATCH("/:id", UpdateAPIKey(keySvc, auditSvc))
 		apiKeys.DELETE("/:id", DeleteAPIKey(keySvc, auditSvc))
 		apiKeys.GET("/:id/stats", GetAPIKeyStats(keySvc))
+		}
+
+		// Per-user IP whitelist (3 endpoints)
+		ipWhitelistSvc := service.NewIPWhitelistService(db)
+		SetIPWhitelistAPI(NewIPWhitelistAPI(ipWhitelistSvc))
+		ipWhitelist := protected.Group("/settings/ip-whitelist")
+		{
+			ipWhitelist.GET("", ListIPWhitelist)
+			ipWhitelist.POST("", AddIPWhitelist)
+			ipWhitelist.DELETE("/:id", DeleteIPWhitelist)
+			ipWhitelist.GET("/check", CheckIPAccess)
+		}
+
+		// Device binding (4 endpoints)
+		deviceSvc := service.NewDeviceService(db)
+		SetDeviceAPI(NewDeviceAPI(deviceSvc))
+		devices := protected.Group("/devices")
+		{
+			devices.GET("", ListDevices)
+			devices.GET("/current", CurrentDevice)
+			devices.DELETE("/:id", RevokeDevice)
+			devices.POST("/:id/trust", TrustDevice)
+		}
+
+		// Code signing (4 endpoints)
+		globalSigningAPI = NewSigningAPI(db)
+		signingGroup := protected.Group("/security/signing")
+		{
+			signingGroup.GET("/status", GetSigningStatus)
+			signingGroup.POST("/verify", VerifySignature)
+			signingGroup.POST("/keys/generate", auth.RoleRequired("owner", "admin"), GenerateKeys)
+			signingGroup.POST("/keys/rotate", auth.RoleRequired("owner", "admin"), RotateKeys)
 		}
 
 		// Prometheus metrics (JWT authenticated by default)
