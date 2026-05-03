@@ -1,0 +1,1 @@
+-- No-op: user OAuth and 2FA columns are part of the users table

@@ -1,0 +1,3 @@
+-- Deployment enhancements (app_id, previous_image, deploy_type, config_snapshot)
+-- are already included in 000002_deployments for new installations using golang-migrate
+-- This migration is a no-op for version numbering consistency

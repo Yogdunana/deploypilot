@@ -1,0 +1,3 @@
+-- User OAuth and 2FA fields are already included in 000001_init_schema
+-- for new installations using golang-migrate
+-- This migration is a no-op for version numbering consistency
