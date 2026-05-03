@@ -69,6 +69,9 @@ func main() {
 	dbDriver := flag.String("db-driver", "", "database driver: sqlite, postgres")
 	dbDSN := flag.String("db-dsn", "", "database DSN")
 	addr := flag.String("addr", "", "listen address (e.g. 0.0.0.0:8080)")
+	migrateOnly := flag.Bool("migrate-only", false, "run migrations and exit")
+	migrateDown := flag.Bool("migrate-down", false, "rollback last migration and exit")
+	migrateStatus := flag.Bool("migrate-status", false, "show migration status and exit")
 	flag.Parse()
 
 	if *showVersion {
@@ -76,13 +79,13 @@ func main() {
 		os.Exit(0)
 	}
 
-	if err := run(*configPath, *dbDriver, *dbDSN, *addr); err != nil {
+	if err := run(*configPath, *dbDriver, *dbDSN, *addr, *migrateOnly, *migrateDown, *migrateStatus); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		os.Exit(1)
 	}
 }
 
-func run(configFilePath, cliDriver, cliDSN, cliAddr string) error {
+func run(configFilePath, cliDriver, cliDSN, cliAddr string, migrateOnly, migrateDown, migrateStatus bool) error {
 	// Load config
 	cfg, err := config.Load(configFilePath)
 	if err != nil {
@@ -124,8 +127,29 @@ func run(configFilePath, cliDriver, cliDSN, cliAddr string) error {
 	}
 
 	// Migrate
-	if err := database.Migrate(db); err != nil {
+	if err := database.Migrate(db, cfg.Database.Type, cfg.Database.DSN); err != nil {
 		return fmt.Errorf("database migrate: %w", err)
+	}
+
+	// Handle migration-only flags (exit after migration operation)
+	if migrateOnly {
+		slog.Info("migrations completed, exiting (--migrate-only)")
+		return nil
+	}
+	if migrateDown {
+		if err := database.RunMigrationsDown(cfg.Database.DSN, cfg.Database.Type); err != nil {
+			return fmt.Errorf("migration rollback: %w", err)
+		}
+		slog.Info("migration rollback completed, exiting (--migrate-down)")
+		return nil
+	}
+	if migrateStatus {
+		version, dirty, err := database.MigrationStatus(cfg.Database.DSN, cfg.Database.Type)
+		if err != nil {
+			return fmt.Errorf("migration status: %w", err)
+		}
+		fmt.Printf("migration version: %d, dirty: %v\n", version, dirty)
+		return nil
 	}
 
 	// Seed
