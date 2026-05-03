@@ -75,7 +75,11 @@ func hostKeyCallback(knownHostsPath string, strict bool) (ssh.HostKeyCallback, e
 			if fErr != nil {
 				return fmt.Errorf("failed to open known_hosts for writing: %w", fErr)
 			}
-			defer f.Close()
+			defer func() {
+				if cerr := f.Close(); cerr != nil {
+					slog.Warn("failed to close known_hosts file", "error", cerr)
+				}
+			}()
 			line := knownhosts.Line([]string{knownhosts.Normalize(hostname)}, key)
 			if _, fErr = fmt.Fprintln(f, line); fErr != nil {
 				return fmt.Errorf("failed to write to known_hosts: %w", fErr)
