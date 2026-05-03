@@ -164,6 +164,13 @@ func (b *Bridge) EvaluateFeature(ctx context.Context, featureKey string, tenantI
 	// 1. Check admin override first (highest priority)
 	if tenantID != "" {
 		override := b.featureFlagCache.GetOverride(featureKey, tenantID)
+		if override == nil {
+			// Cache miss: try loading from DB
+			var dbOverride model.FeatureFlagOverride
+			if err := b.DB.Where("flag_key = ? AND tenant_id = ?", featureKey, tenantID).First(&dbOverride).Error; err == nil {
+				override = &dbOverride
+			}
+		}
 		if override != nil {
 			return override.Enabled, nil
 		}
@@ -171,6 +178,13 @@ func (b *Bridge) EvaluateFeature(ctx context.Context, featureKey string, tenantI
 
 	// 2. Check dynamic feature flag from DB
 	flag := b.featureFlagCache.Get(featureKey)
+	if flag == nil {
+		// Cache miss: try loading from DB
+		var dbFlag model.FeatureFlag
+		if err := b.DB.Where("key = ?", featureKey).First(&dbFlag).Error; err == nil {
+			flag = &dbFlag
+		}
+	}
 	if flag != nil {
 		if flag.Status != model.FeatureFlagEnabled {
 			return false, nil
