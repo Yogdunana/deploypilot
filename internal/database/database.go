@@ -920,6 +920,16 @@ func MigrateLegacy(db *gorm.DB) error {
 				return tx.Migrator().DropTable("signing_keys")
 			},
 		},
+		// 202605030005: Create licenses table for license management
+		{
+			ID: "202605030005",
+			Migrate: func(tx *gorm.DB) error {
+				return tx.AutoMigrate(&model.License{})
+			},
+			Rollback: func(tx *gorm.DB) error {
+				return tx.Migrator().DropTable("licenses")
+			},
+		},
 	})
 
 	// Use InitSchema for initial creation (faster than Migrate)
