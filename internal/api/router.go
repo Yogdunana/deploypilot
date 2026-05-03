@@ -589,13 +589,16 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 			signingGroup.POST("/keys/rotate", auth.RoleRequired("owner", "admin"), RotateKeys)
 		}
 
-		// License management (3 endpoints)
-		SetLicenseAPI(&LicenseAPI{})
+		// License management (7 endpoints)
 		license := protected.Group("/license")
 		{
-			license.GET("/status", GetLicenseAPI().GetLicenseStatus)
-			license.POST("/activate", GetLicenseAPI().ActivateLicense)
-			license.POST("/deactivate", GetLicenseAPI().DeactivateLicense)
+			license.GET("/status", GetLicenseStatusHandler(bridge))
+			license.POST("/activate", ActivateLicenseHandler(bridge))
+			license.POST("/deactivate", DeactivateLicenseHandler(bridge))
+			license.POST("/issue", auth.RoleRequired("owner"), IssueLicenseHandler(bridge))
+			license.GET("/list", auth.RoleRequired("owner"), ListLicensesHandler(bridge))
+			license.POST("/:id/revoke", auth.RoleRequired("owner"), RevokeLicenseHandler(bridge))
+			license.POST("/addon", PurchaseAddonHandler(bridge))
 		}
 
 		// Prometheus metrics (JWT authenticated by default)

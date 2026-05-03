@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"crypto/ed25519"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -12,19 +13,19 @@ import (
 	"sync"
 	"time"
 
-	"golang.org/x/crypto/ssh"
-
 	"github.com/Yogdunana/deploypilot/internal/agent"
 	"github.com/Yogdunana/deploypilot/internal/bruteforce"
 	"github.com/Yogdunana/deploypilot/internal/confirm"
 	"github.com/Yogdunana/deploypilot/internal/crypto"
 	"github.com/Yogdunana/deploypilot/internal/engine/deployer"
 	"github.com/Yogdunana/deploypilot/internal/engine/healer"
+	"github.com/Yogdunana/deploypilot/internal/license"
 	"github.com/Yogdunana/deploypilot/internal/model"
 	"github.com/Yogdunana/deploypilot/internal/monitor"
 	"github.com/Yogdunana/deploypilot/internal/plugin"
 	"github.com/Yogdunana/deploypilot/internal/provider/server"
 	"github.com/Yogdunana/deploypilot/internal/sandbox"
+	"golang.org/x/crypto/ssh"
 	"gorm.io/gorm"
 )
 
@@ -83,6 +84,10 @@ type Bridge struct {
 	Cache         Cache                    // general-purpose cache (Redis or in-memory)
 	Scheduler     *Scheduler               // scheduled task system
 	uptimeSvc     *MonitorService          // uptime monitoring service
+
+	// License engine (v2)
+	LicenseEngine *license.Engine          // license validation and feature evaluation engine
+	LicensePrivKey ed25519.PrivateKey      // only set for developer instances (license issuance)
 
 	// Task tracking (moved from package-level globals, Issue #117)
 	taskMu      sync.RWMutex
