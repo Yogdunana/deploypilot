@@ -36,7 +36,7 @@ func main() {
 		issuerRole := issueCmd.String("issuer-role", "developer", "issuer role: developer, distributor")
 		issuedTo := issueCmd.String("issued-to", "", "distributor tenant ID (when developer issues)")
 		maxIssued := issueCmd.Int("max-issued", 0, "max sub-licenses a distributor can issue")
-		issueCmd.Parse(os.Args[2:])
+		_, err := issueCmd.Parse(os.Args[2:]); if err != nil { fmt.Fprintf(os.Stderr, "error: %v\n", err); os.Exit(1) }
 
 		if *tenant == "" {
 			fmt.Fprintln(os.Stderr, "error: --tenant is required")
@@ -149,7 +149,7 @@ func main() {
 		verifyCmd := flag.NewFlagSet("verify", flag.ExitOnError)
 		key := verifyCmd.String("key", "", "license key to verify (required)")
 		publicKeyFile := verifyCmd.String("public-key", "", "path to Ed25519 public key file (required)")
-		verifyCmd.Parse(os.Args[2:])
+		_, err := verifyCmd.Parse(os.Args[2:]); if err != nil { fmt.Fprintf(os.Stderr, "error: %v\n", err); os.Exit(1) }
 
 		if *key == "" {
 			fmt.Fprintln(os.Stderr, "error: --key is required")
@@ -211,7 +211,7 @@ func main() {
 	case "generate-keys":
 		genCmd := flag.NewFlagSet("generate-keys", flag.ExitOnError)
 		outputDir := genCmd.String("output-dir", ".", "output directory for key files")
-		genCmd.Parse(os.Args[2:])
+		_, err := genCmd.Parse(os.Args[2:]); if err != nil { fmt.Fprintf(os.Stderr, "error: %v\n", err); os.Exit(1) }
 
 		pubKey, privKey, err := ed25519.GenerateKey(nil)
 		if err != nil {
