@@ -312,6 +312,29 @@ func run(configFilePath, cliDriver, cliDSN, cliAddr string, migrateOnly, migrate
 	}
 	backupSvc.Start()
 
+	// Initialize license engine (v2)
+	if cfg.License.PublicKeyFile != "" || cfg.License.PublicKeyBase64 != "" {
+		pubKey, err := service.LoadPublicKeyFromFileOrBase64(cfg.License.PublicKeyFile, cfg.License.PublicKeyBase64)
+		if err != nil {
+			slog.Warn("failed to load license public key, license engine disabled", "error", err)
+		} else {
+			graceDays := cfg.License.GraceDays
+			if graceDays <= 0 {
+				graceDays = 7
+			}
+			bridge.InitLicenseEngine(pubKey, graceDays)
+
+			// Load existing license from DB if any
+			if err := bridge.LoadLicenseFromDB(context.Background()); err != nil {
+				slog.Warn("failed to load license from database", "error", err)
+			}
+
+			slog.Info("license engine initialized", "grace_days", graceDays)
+		}
+	} else {
+		slog.Info("no license public key configured, license engine disabled (community mode)")
+	}
+
 	// Initialize event-driven plugin system (Phase 7.5)
 	eventPluginMgr := plugin.NewEventPluginManager()
 	eventPluginMgr.Register(builtin.NewHelloWorldPlugin())
