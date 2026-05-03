@@ -1213,7 +1213,7 @@ export default {
     revokeTitle: 'Revoke License',
     revokeDesc: 'Are you sure you want to revoke this license? This action cannot be undone.',
     revokeReason: 'Reason for revocation',
-    revoked: 'License revoked',
+    revokeSuccess: 'License revoked',
     tenant: 'Tenant',
     issuedAt: 'Issued At',
     noLicenses: 'No licenses issued',

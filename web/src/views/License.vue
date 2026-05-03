@@ -222,7 +222,7 @@ async function confirmRevoke() {
   revoking.value = true
   try {
     await licenseApi.revokeLicense(revokeForm.value.id, revokeForm.value.reason.trim())
-    toast(t('license.revoked'), 'success')
+    toast(t('license.revokeSuccess'), 'success')
     revokeDialogOpen.value = false
     fetchIssuedLicenses()
   } catch (err: any) {

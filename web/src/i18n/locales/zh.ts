@@ -1209,7 +1209,7 @@ export default {
     revokeTitle: '撤销许可证',
     revokeDesc: '确定要撤销此许可证吗？此操作不可撤销。',
     revokeReason: '撤销原因',
-    revoked: '许可证已撤销',
+    revokeSuccess: '许可证已撤销',
     tenant: '租户',
     issuedAt: '签发时间',
     noLicenses: '暂无已签发的许可证',
