@@ -116,6 +116,13 @@ func setupTestDB(t *testing.T) *gorm.DB {
 		last_seen_at DATETIME,
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 	)`)
+	db.Exec(`CREATE TABLE IF NOT EXISTS signing_keys (
+		id TEXT PRIMARY KEY, key_version INTEGER UNIQUE NOT NULL,
+		public_key TEXT NOT NULL, private_key TEXT NOT NULL,
+		fingerprint TEXT, is_active INTEGER DEFAULT 1,
+		created_by TEXT,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+	)`)
 	db.Exec(`CREATE TABLE IF NOT EXISTS backup_records (
 		id TEXT PRIMARY KEY, app_id TEXT, filename TEXT, file_path TEXT,
 		file_size INTEGER, db_type TEXT, status TEXT DEFAULT 'completed',
@@ -197,6 +204,16 @@ func setupTestRouter(db *gorm.DB) *gin.Engine {
 			devices.GET("/current", CurrentDevice)
 			devices.DELETE("/:id", RevokeDevice)
 			devices.POST("/:id/trust", TrustDevice)
+		}
+
+		// Code signing routes
+		SetSigningAPI(NewSigningAPI(db))
+		signingGroup := protected.Group("/security/signing")
+		{
+			signingGroup.GET("/status", GetSigningStatus)
+			signingGroup.POST("/verify", VerifySignature)
+			signingGroup.POST("/keys/generate", auth.RoleRequired("owner", "admin"), GenerateKeys)
+			signingGroup.POST("/keys/rotate", auth.RoleRequired("owner", "admin"), RotateKeys)
 		}
 	}
 

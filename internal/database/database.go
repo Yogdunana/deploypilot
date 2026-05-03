@@ -908,6 +908,16 @@ func Migrate(db *gorm.DB) error {
 				return tx.Migrator().DropTable("devices")
 			},
 		},
+		// 202605030004: Create signing_keys table for Ed25519 code signing
+		{
+			ID: "202605030004",
+			Migrate: func(tx *gorm.DB) error {
+				return tx.AutoMigrate(&model.SigningKey{})
+			},
+			Rollback: func(tx *gorm.DB) error {
+				return tx.Migrator().DropTable("signing_keys")
+			},
+		},
 	})
 
 	// Use InitSchema for initial creation (faster than Migrate)

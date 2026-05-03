@@ -574,6 +574,16 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 			devices.POST("/:id/trust", TrustDevice)
 		}
 
+		// Code signing (4 endpoints)
+		globalSigningAPI = NewSigningAPI(db)
+		signingGroup := protected.Group("/security/signing")
+		{
+			signingGroup.GET("/status", GetSigningStatus)
+			signingGroup.POST("/verify", VerifySignature)
+			signingGroup.POST("/keys/generate", auth.RoleRequired("owner", "admin"), GenerateKeys)
+			signingGroup.POST("/keys/rotate", auth.RoleRequired("owner", "admin"), RotateKeys)
+		}
+
 		// Prometheus metrics (JWT authenticated by default)
 		protected.GET("/metrics", gin.WrapH(metrics.Handler()))
 	}
