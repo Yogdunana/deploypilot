@@ -618,7 +618,7 @@ func TestEngineGracePeriod(t *testing.T) {
 }
 
 func TestGenerateLicenseKey(t *testing.T) {
-	_, priv, _ := ed25519.GenerateKey(nil)
+	_, priv, err := ed25519.GenerateKey(nil)
 	if err != nil {
 		t.Fatalf("failed to generate key pair: %v", err)
 	}
