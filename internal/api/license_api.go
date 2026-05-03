@@ -1,7 +1,6 @@
 package api
 
 import (
-
 	"github.com/gin-gonic/gin"
 )
 
@@ -25,13 +24,15 @@ func GetLicenseAPI() *LicenseAPI {
 func (api *LicenseAPI) GetLicenseStatus(c *gin.Context) {
 	// Will be wired up with the license engine
 	respondSuccess(c, gin.H{
-		"status":   "active",
-		"type":     "community",
-		"features": []string{},
+		"status":    "active",
+		"tier":      "community",
+		"use_type":  "non_commercial",
+		"features":  []string{},
+		"addons":    []interface{}{},
 		"limits": gin.H{
 			"servers": 3,
 			"apps":    10,
-			"users":   3,
+			"users":   5,
 		},
 	})
 }
