@@ -635,7 +635,7 @@ func TestGenerateLicenseKey(t *testing.T) {
 		}
 
 		// Parse and verify issued_at was set
-		_, payload, err := parseLicenseKey(key)
+		payload, _, err := parseLicenseKey(key)
 		if err != nil {
 			t.Fatalf("failed to parse key: %v", err)
 		}
