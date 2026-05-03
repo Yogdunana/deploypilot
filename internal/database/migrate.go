@@ -8,38 +8,15 @@ import (
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/database/sqlite3"
-	"github.com/golang-migrate/migrate/v4/source/file"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
 )
 
 // RunMigrations runs golang-migrate SQL migrations from the migrations/ directory.
 // This is the primary migration system for new installations.
 func RunMigrations(dsn, driver string) error {
-	// Determine database driver for golang-migrate
-	var dbDriver string
-	switch driver {
-	case "postgres":
-		dbDriver = "postgres"
-	case "sqlite":
-		dbDriver = "sqlite3"
-	default:
-		return fmt.Errorf("unsupported database driver: %s", driver)
-	}
+	dsnURL := buildMigrateURL(dsn, driver)
 
-	// Adjust DSN format for golang-migrate if needed
-	migrateDSN := dsn
-	if driver == "postgres" {
-		migrateDSN = convertPostgresDSN(dsn)
-	}
-
-	// Create file source
-	sourceDriver, err := file.New("migrations")
-	if err != nil {
-		return fmt.Errorf("failed to create migration source: %w", err)
-	}
-
-	// Create database instance
-	dsnURL := fmt.Sprintf("%s://%s", dbDriver, migrateDSN)
-	m, err := migrate.NewWithSourceInstance("file", sourceDriver, dsnURL)
+	m, err := migrate.New("file://migrations", dsnURL)
 	if err != nil {
 		return fmt.Errorf("failed to create migrate instance: %w", err)
 	}
@@ -49,7 +26,6 @@ func RunMigrations(dsn, driver string) error {
 		}
 	}()
 
-	// Run migrations
 	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
 		return fmt.Errorf("migration failed: %w", err)
 	}
@@ -66,28 +42,9 @@ func RunMigrations(dsn, driver string) error {
 
 // RunMigrationsDown rolls back the last migration.
 func RunMigrationsDown(dsn, driver string) error {
-	var dbDriver string
-	switch driver {
-	case "postgres":
-		dbDriver = "postgres"
-	case "sqlite":
-		dbDriver = "sqlite3"
-	default:
-		return fmt.Errorf("unsupported database driver: %s", driver)
-	}
+	dsnURL := buildMigrateURL(dsn, driver)
 
-	migrateDSN := dsn
-	if driver == "postgres" {
-		migrateDSN = convertPostgresDSN(dsn)
-	}
-
-	sourceDriver, err := file.New("migrations")
-	if err != nil {
-		return fmt.Errorf("failed to create migration source: %w", err)
-	}
-
-	dsnURL := fmt.Sprintf("%s://%s", dbDriver, migrateDSN)
-	m, err := migrate.NewWithSourceInstance("file", sourceDriver, dsnURL)
+	m, err := migrate.New("file://migrations", dsnURL)
 	if err != nil {
 		return fmt.Errorf("failed to create migrate instance: %w", err)
 	}
@@ -113,28 +70,9 @@ func RunMigrationsDown(dsn, driver string) error {
 
 // MigrationStatus returns the current migration version and dirty state.
 func MigrationStatus(dsn, driver string) (uint, bool, error) {
-	var dbDriver string
-	switch driver {
-	case "postgres":
-		dbDriver = "postgres"
-	case "sqlite":
-		dbDriver = "sqlite3"
-	default:
-		return 0, false, fmt.Errorf("unsupported database driver: %s", driver)
-	}
+	dsnURL := buildMigrateURL(dsn, driver)
 
-	migrateDSN := dsn
-	if driver == "postgres" {
-		migrateDSN = convertPostgresDSN(dsn)
-	}
-
-	sourceDriver, err := file.New("migrations")
-	if err != nil {
-		return 0, false, fmt.Errorf("failed to create migration source: %w", err)
-	}
-
-	dsnURL := fmt.Sprintf("%s://%s", dbDriver, migrateDSN)
-	m, err := migrate.NewWithSourceInstance("file", sourceDriver, dsnURL)
+	m, err := migrate.New("file://migrations", dsnURL)
 	if err != nil {
 		return 0, false, fmt.Errorf("failed to create migrate instance: %w", err)
 	}
@@ -152,15 +90,24 @@ func MigrationStatus(dsn, driver string) (uint, bool, error) {
 	return version, dirty, nil
 }
 
+// buildMigrateURL constructs the database URL for golang-migrate.
+func buildMigrateURL(dsn, driver string) string {
+	switch driver {
+	case "postgres":
+		return convertPostgresDSN(dsn)
+	case "sqlite":
+		return fmt.Sprintf("sqlite3://%s", dsn)
+	default:
+		return dsn
+	}
+}
+
 // convertPostgresDSN converts a key=value format DSN to a postgres:// URL format
 // required by golang-migrate. If the DSN is already a URL, it is returned as-is.
 func convertPostgresDSN(dsn string) string {
 	if strings.HasPrefix(dsn, "postgres://") || strings.HasPrefix(dsn, "postgresql://") {
 		return dsn
 	}
-	// Convert key=value format to URL
-	// host=localhost port=5432 user=deploypilot password=xxx dbname=deploypilot sslmode=disable
-	// -> postgres://deploypilot:xxx@localhost:5432/deploypilot?sslmode=disable
 	params := make(map[string]string)
 	for _, part := range strings.Fields(dsn) {
 		kv := strings.SplitN(part, "=", 2)
