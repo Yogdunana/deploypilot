@@ -629,6 +629,9 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 			degradation.GET("/export-summary", auth.RoleRequired("owner"), ExportDegradationSummaryHandler(bridge))
 		}
 
+		// Batch operations (1 endpoint)
+		protected.POST("/batch-deploy", BatchDeployHandler(bridge))
+
 		// Prometheus metrics (JWT authenticated by default)
 		protected.GET("/metrics", gin.WrapH(metrics.Handler()))
 	}
