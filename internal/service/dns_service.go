@@ -193,6 +193,7 @@ func (b *Bridge) BatchDNS(ctx context.Context, records []map[string]interface{})
 		if err != nil {
 			status = "error"
 			res = map[string]interface{}{"message": err.Error()}
+			slog.Error("batch DNS record creation failed", "index", i, "domain", domain, "type", recordType, "error", err)
 		}
 		results = append(results, map[string]interface{}{
 			"index":  i,
