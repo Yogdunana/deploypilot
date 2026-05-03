@@ -2,14 +2,18 @@ package server
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
 	"net"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
 	"golang.org/x/crypto/ssh"
+	"golang.org/x/crypto/ssh/knownhosts"
 )
 
 // Client wraps an SSH connection to a remote server.
@@ -19,18 +23,78 @@ type Client struct {
 
 // Config holds SSH connection parameters.
 type Config struct {
-	Host     string
-	Port     int
-	Username string
-	Password string // optional, use KeyBytes instead
-	KeyBytes []byte // SSH private key bytes
-	Timeout  time.Duration
+	Host              string
+	Port              int
+	Username          string
+	Password          string // optional, use KeyBytes instead
+	KeyBytes          []byte // SSH private key bytes
+	Timeout           time.Duration
+	KnownHostsPath    string // path to known_hosts file
+	StrictHostChecking bool  // strict mode for host key verification
+}
+
+// hostKeyCallback returns an appropriate HostKeyCallback based on the configuration.
+// If knownHostsPath is empty, it falls back to InsecureIgnoreHostKey with a warning.
+func hostKeyCallback(knownHostsPath string, strict bool) (ssh.HostKeyCallback, error) {
+	if knownHostsPath == "" {
+		// No known_hosts file configured — use insecure mode with warning
+		slog.Warn("no SSH known_hosts file configured, host key verification is disabled")
+		return ssh.InsecureIgnoreHostKey(), nil
+	}
+
+	// Ensure known_hosts file exists
+	if _, err := os.Stat(knownHostsPath); os.IsNotExist(err) {
+		if err := os.MkdirAll(filepath.Dir(knownHostsPath), 0700); err != nil {
+			return nil, fmt.Errorf("failed to create known_hosts directory: %w", err)
+		}
+		if err := os.WriteFile(knownHostsPath, nil, 0600); err != nil {
+			return nil, fmt.Errorf("failed to create known_hosts file: %w", err)
+		}
+	}
+
+	callback, err := knownhosts.New(knownHostsPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load known_hosts: %w", err)
+	}
+
+	if strict {
+		return callback, nil
+	}
+
+	// Non-strict mode: warn on unknown hosts but allow the connection
+	return func(hostname string, remote net.Addr, key ssh.PublicKey) error {
+		err := callback(hostname, remote, key)
+		if err == nil {
+			return nil
+		}
+		var keyErr *knownhosts.KeyError
+		if errors.As(err, &keyErr) && len(keyErr.Want) == 0 {
+			// New host — append to known_hosts
+			slog.Warn("new SSH host, adding to known_hosts", "host", hostname, "key_type", key.Type())
+			f, fErr := os.OpenFile(knownHostsPath, os.O_APPEND|os.O_WRONLY, 0600)
+			if fErr != nil {
+				return fmt.Errorf("failed to open known_hosts for writing: %w", fErr)
+			}
+			defer f.Close()
+			line := knownhosts.Line([]string{knownhosts.Normalize(hostname)}, key)
+			if _, fErr = fmt.Fprintln(f, line); fErr != nil {
+				return fmt.Errorf("failed to write to known_hosts: %w", fErr)
+			}
+			return nil
+		}
+		return err // Host key mismatch — reject
+	}, nil
 }
 
 // Connect establishes an SSH connection to the server.
 func Connect(ctx context.Context, cfg Config) (*Client, error) {
 	if cfg.Timeout == 0 {
 		cfg.Timeout = 30 * time.Second
+	}
+
+	cb, err := hostKeyCallback(cfg.KnownHostsPath, cfg.StrictHostChecking)
+	if err != nil {
+		return nil, fmt.Errorf("failed to set up host key callback: %w", err)
 	}
 
 	var authMethods []ssh.AuthMethod
@@ -56,7 +120,7 @@ func Connect(ctx context.Context, cfg Config) (*Client, error) {
 	sshConfig := &ssh.ClientConfig{
 		User:            cfg.Username,
 		Auth:            authMethods,
-		HostKeyCallback: ssh.InsecureIgnoreHostKey(), // TODO: add known_hosts support in production
+		HostKeyCallback: cb,
 		Timeout:         cfg.Timeout,
 	}
 
