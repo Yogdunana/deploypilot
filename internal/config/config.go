@@ -26,6 +26,7 @@ type Config struct {
 	Grafana      GrafanaConfig      `mapstructure:"grafana"`
 	APIPlatform  APIPlatformConfig  `mapstructure:"api_platform"`
 	APIVersion   APIVersionConfig   `mapstructure:"api_version"`
+	License      LicenseConfig      `mapstructure:"license"`
 }
 
 // BackupConfig holds database auto-backup settings.
@@ -73,6 +74,18 @@ type APIVersionConfig struct {
 	CurrentVersion     string            `mapstructure:"current_version"`      // default: "v1"
 	SupportedVersions  []string          `mapstructure:"supported_versions"`   // default: ["v1"]
 	DeprecatedVersions map[string]string `mapstructure:"deprecated_versions"`  // version -> sunset date
+}
+
+// LicenseConfig holds license configuration.
+type LicenseConfig struct {
+	// PublicKeyFile is the path to the Ed25519 public key for license verification.
+	PublicKeyFile string `mapstructure:"public_key_file"`
+	// PublicKeyBase64 is the base64-encoded Ed25519 public key (alternative to file).
+	PublicKeyBase64 string `mapstructure:"public_key_base64"`
+	// GraceDays is the number of grace days after license expiration.
+	GraceDays int `mapstructure:"grace_days" default:"7"`
+	// LicenseKey is the license key to activate (can also be set via env DEPLOYPILOT_LICENSE_KEY).
+	LicenseKey string `mapstructure:"license_key"`
 }
 
 // GrafanaConfig holds Grafana integration settings.
@@ -380,4 +393,7 @@ func setDefaults(v *viper.Viper) {
 	// API Versioning
 	v.SetDefault("api_version.current_version", "v1")
 	v.SetDefault("api_version.supported_versions", []string{"v1"})
+
+	// License
+	v.SetDefault("license.grace_days", 7)
 }
