@@ -337,6 +337,12 @@ const router = createRouter({
           component: () => import('@/views/SecuritySettings.vue'),
           meta: { titleKey: 'routes.security' },
         },
+        {
+          path: 'license',
+          name: 'License',
+          component: () => import('@/views/License.vue'),
+          meta: { titleKey: 'routes.license' },
+        },
       ],
     },
   ],
