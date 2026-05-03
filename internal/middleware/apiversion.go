@@ -38,13 +38,10 @@ func APIVersionMiddleware() gin.HandlerFunc {
 			c.Header("Accept-Version", strings.Join(APISupportedVersions, ", "))
 		}
 
-		// Set deprecation headers for old versions (future: when v2 exists).
-		if version != APICurrentVersion {
-			// When v2 is released, v1 will get:
-			// c.Header(APIDeprecationHeader, "true")
-			// c.Header(APISunsetHeader, "2027-01-01")
-			// c.Header(APILinkHeader, "</api/v2>; rel=\"successor-version\"")
-		}
+		// TODO: When v2 is released, set deprecation headers for v1:
+		// c.Header(APIDeprecationHeader, "true")
+		// c.Header(APISunsetHeader, "2027-01-01")
+		// c.Header(APILinkHeader, "</api/v2>; rel=\"successor-version\"")
 
 		c.Next()
 	}
