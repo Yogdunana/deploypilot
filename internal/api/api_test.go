@@ -108,6 +108,14 @@ func setupTestDB(t *testing.T) *gorm.DB {
 		description TEXT, cidr TEXT NOT NULL, created_by TEXT,
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 	)`)
+	db.Exec(`CREATE TABLE IF NOT EXISTS devices (
+		id TEXT PRIMARY KEY, tenant_id TEXT, user_id TEXT,
+		device_id TEXT UNIQUE NOT NULL, device_name TEXT,
+		user_agent TEXT, ip TEXT, last_ip TEXT,
+		trusted INTEGER DEFAULT 0, trust_expires_at DATETIME,
+		last_seen_at DATETIME,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+	)`)
 	db.Exec(`CREATE TABLE IF NOT EXISTS backup_records (
 		id TEXT PRIMARY KEY, app_id TEXT, filename TEXT, file_path TEXT,
 		file_size INTEGER, db_type TEXT, status TEXT DEFAULT 'completed',
@@ -178,6 +186,17 @@ func setupTestRouter(db *gorm.DB) *gin.Engine {
 		{
 			deployments.GET("", ListDeployments(db))
 			deployments.GET("/:id", GetDeployment(db))
+		}
+
+		// Device binding routes
+		deviceSvc := service.NewDeviceService(db)
+		SetDeviceAPI(NewDeviceAPI(deviceSvc))
+		devices := protected.Group("/devices")
+		{
+			devices.GET("", ListDevices)
+			devices.GET("/current", CurrentDevice)
+			devices.DELETE("/:id", RevokeDevice)
+			devices.POST("/:id/trust", TrustDevice)
 		}
 	}
 

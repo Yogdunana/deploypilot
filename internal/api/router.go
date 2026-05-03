@@ -563,6 +563,17 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 			ipWhitelist.GET("/check", CheckIPAccess)
 		}
 
+		// Device binding (4 endpoints)
+		deviceSvc := service.NewDeviceService(db)
+		SetDeviceAPI(NewDeviceAPI(deviceSvc))
+		devices := protected.Group("/devices")
+		{
+			devices.GET("", ListDevices)
+			devices.GET("/current", CurrentDevice)
+			devices.DELETE("/:id", RevokeDevice)
+			devices.POST("/:id/trust", TrustDevice)
+		}
+
 		// Prometheus metrics (JWT authenticated by default)
 		protected.GET("/metrics", gin.WrapH(metrics.Handler()))
 	}

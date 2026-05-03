@@ -111,6 +111,10 @@ func New(addr string, db *gorm.DB, bridge *service.Bridge, cfg *config.Config, b
 	ipWhitelistSvc := service.NewIPWhitelistService(db)
 	r.Use(middleware.UserIPWhitelistMiddleware(ipWhitelistSvc))
 
+	// Device binding middleware (flags new devices, does not block)
+	deviceSvc := service.NewDeviceService(db)
+	r.Use(middleware.DeviceCheckMiddleware(deviceSvc))
+
 	// Audit verification & compliance (Issue #155)
 	auditSecretKey := []byte("deploypilot-audit-chain-secret")
 	if cfg.Auth.JWTSecret != "" {

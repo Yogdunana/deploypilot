@@ -898,6 +898,16 @@ func Migrate(db *gorm.DB) error {
 				return tx.Migrator().DropTable("ip_whitelists")
 			},
 		},
+		// 202605030003: Create devices table for device binding
+		{
+			ID: "202605030003",
+			Migrate: func(tx *gorm.DB) error {
+				return tx.AutoMigrate(&model.Device{})
+			},
+			Rollback: func(tx *gorm.DB) error {
+				return tx.Migrator().DropTable("devices")
+			},
+		},
 	})
 
 	// Use InitSchema for initial creation (faster than Migrate)
