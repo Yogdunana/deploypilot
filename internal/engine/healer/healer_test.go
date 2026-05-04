@@ -26,6 +26,16 @@ func (m *mockExecutor) RunCommand(_ context.Context, cmd string) (string, error)
 			return output, nil
 		}
 	}
+	// Fallback: try with quotes stripped (util.ShellQuote wraps args in single quotes)
+	normalized := strings.ReplaceAll(cmd, "'", "")
+	if err, ok := m.errs[normalized]; ok {
+		return "", err
+	}
+	for pattern, output := range m.responses {
+		if strings.Contains(normalized, pattern) {
+			return output, nil
+		}
+	}
 	return "", fmt.Errorf("no matching command: %s", cmd)
 }
 

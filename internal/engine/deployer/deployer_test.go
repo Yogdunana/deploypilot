@@ -30,9 +30,32 @@ func (m *mockExecutor) RunCommand(_ context.Context, cmd string) (string, error)
 
 	m.calls = append(m.calls, cmd)
 
+	// Check for exact error match
+	if m.errors != nil {
+		if err, ok := m.errors[cmd]; ok {
+			return "", err
+		}
+	}
+
 	// Check for prefix matches
 	for pattern, output := range m.responses {
 		if strings.Contains(cmd, pattern) {
+			if err, ok := m.errors[pattern]; ok {
+				return output, err
+			}
+			return output, nil
+		}
+	}
+
+	// Fallback: try with quotes stripped (util.ShellQuote wraps args in single quotes)
+	normalized := strings.ReplaceAll(cmd, "'", "")
+	if m.errors != nil {
+		if err, ok := m.errors[normalized]; ok {
+			return "", err
+		}
+	}
+	for pattern, output := range m.responses {
+		if strings.Contains(normalized, pattern) {
 			if err, ok := m.errors[pattern]; ok {
 				return output, err
 			}
@@ -168,10 +191,10 @@ func TestDeployWithEnvVars(t *testing.T) {
 
 	// Verify env vars are in the run command
 	runCmd := mock.getCall(2) // 0=pull, 1=rm, 2=run
-	if !strings.Contains(runCmd, "-e DB_HOST=localhost") {
+	if !strings.Contains(runCmd, "-e 'DB_HOST'='localhost'") {
 		t.Errorf("run command missing env var, got: %s", runCmd)
 	}
-	if !strings.Contains(runCmd, "-e DB_PORT=5432") {
+	if !strings.Contains(runCmd, "-e 'DB_PORT'='5432'") {
 		t.Errorf("run command missing env var, got: %s", runCmd)
 	}
 }
@@ -196,7 +219,7 @@ func TestDeployWithLabels(t *testing.T) {
 	}
 
 	runCmd := mock.getCall(2)
-	if !strings.Contains(runCmd, "-l app=myapp") {
+	if !strings.Contains(runCmd, "-l 'app'='myapp'") {
 		t.Errorf("run command missing label, got: %s", runCmd)
 	}
 }
@@ -221,10 +244,10 @@ func TestDeployWithResourceLimits(t *testing.T) {
 	}
 
 	runCmd := mock.getCall(2)
-	if !strings.Contains(runCmd, "--cpus 2") {
+	if !strings.Contains(runCmd, "--cpus '2'") {
 		t.Errorf("run command missing CPU limit, got: %s", runCmd)
 	}
-	if !strings.Contains(runCmd, "--memory 4GB") {
+	if !strings.Contains(runCmd, "--memory '4GB'") {
 		t.Errorf("run command missing memory limit, got: %s", runCmd)
 	}
 }
@@ -411,7 +434,7 @@ func TestBuildRunCommandBasic(t *testing.T) {
 
 	cmd := d.buildRunCommand(cfg)
 
-	expected := []string{"docker run -d", "--name my-app", "--restart unless-stopped", "-p 8080:80", "nginx:latest"}
+	expected := []string{"docker run -d", "--name 'my-app'", "--restart 'unless-stopped'", "-p '8080:80'", "'nginx:latest'"}
 	for _, exp := range expected {
 		if !strings.Contains(cmd, exp) {
 			t.Errorf("buildRunCommand() missing %q, got: %s", exp, cmd)
@@ -430,7 +453,7 @@ func TestBuildRunCommandWithNetwork(t *testing.T) {
 	}
 
 	cmd := d.buildRunCommand(cfg)
-	if !strings.Contains(cmd, "--network my-network") {
+	if !strings.Contains(cmd, "--network 'my-network'") {
 		t.Errorf("buildRunCommand() missing network, got: %s", cmd)
 	}
 }
@@ -509,7 +532,7 @@ func TestBuildRunCommand_DefaultRestartPolicy(t *testing.T) {
 	}
 
 	cmd := d.buildRunCommand(cfg)
-	if !strings.Contains(cmd, "--restart unless-stopped") {
+	if !strings.Contains(cmd, "--restart 'unless-stopped'") {
 		t.Errorf("expected default restart policy, got: %s", cmd)
 	}
 }
@@ -525,7 +548,7 @@ func TestBuildRunCommand_WithVolumes(t *testing.T) {
 	}
 
 	cmd := d.buildRunCommand(cfg)
-	if !strings.Contains(cmd, "-v /host/data:/container/data") {
+	if !strings.Contains(cmd, "-v '/host/data:/container/data'") {
 		t.Errorf("expected volume mapping, got: %s", cmd)
 	}
 }
@@ -644,11 +667,11 @@ func TestStop_Error(t *testing.T) {
 
 func TestGetContainerDetail_Success(t *testing.T) {
 	mock := newMockExecutor()
-	inspectCmd := `docker inspect --format '{{.State.OOMKilled}}|{{.State.ExitCode}}|{{.State.Restarting}}|{{.State.Pid}}|{{.State.StartedAt}}|{{.State.FinishedAt}}|{{.State.Health.Status}}' my-app 2>/dev/null`
+	inspectCmd := `docker inspect --format '{{.State.OOMKilled}}|{{.State.ExitCode}}|{{.State.Restarting}}|{{.State.Pid}}|{{.State.StartedAt}}|{{.State.FinishedAt}}|{{.State.Health.Status}}' 'my-app' 2>/dev/null`
 	mock.responses[inspectCmd] = "true|1|false|1234|2024-01-01T00:00:00Z|2024-01-01T01:00:00Z|healthy"
-	restartCmd := "docker inspect --format '{{.RestartCount}}' my-app 2>/dev/null"
+	restartCmd := "docker inspect --format '{{.RestartCount}}' 'my-app' 2>/dev/null"
 	mock.responses[restartCmd] = "3"
-	statusCmd := "docker inspect --format '{{.Id}}|{{.Name}}|{{.Config.Image}}|{{.State.Status}}|{{.Created}}' my-app 2>/dev/null"
+	statusCmd := "docker inspect --format '{{.Id}}|{{.Name}}|{{.Config.Image}}|{{.State.Status}}|{{.Created}}' 'my-app' 2>/dev/null"
 	mock.responses[statusCmd] = "abc123|my-app|nginx:latest|running|2024-01-01T00:00:00Z"
 
 	d := New(mock)
@@ -686,9 +709,9 @@ func TestGetContainerDetail_NotFound(t *testing.T) {
 
 func TestGetContainerDetail_InvalidFormat(t *testing.T) {
 	mock := newMockExecutor()
-	inspectCmd := `docker inspect --format '{{.State.OOMKilled}}|{{.State.ExitCode}}|{{.State.Restarting}}|{{.State.Pid}}|{{.State.StartedAt}}|{{.State.FinishedAt}}|{{.State.Health.Status}}' bad-format 2>/dev/null`
+	inspectCmd := `docker inspect --format '{{.State.OOMKilled}}|{{.State.ExitCode}}|{{.State.Restarting}}|{{.State.Pid}}|{{.State.StartedAt}}|{{.State.FinishedAt}}|{{.State.Health.Status}}' 'bad-format' 2>/dev/null`
 	mock.responses[inspectCmd] = "only-two-parts"
-	statusCmd := "docker inspect --format '{{.Id}}|{{.Name}}|{{.Config.Image}}|{{.State.Status}}|{{.Created}}' bad-format 2>/dev/null"
+	statusCmd := "docker inspect --format '{{.Id}}|{{.Name}}|{{.Config.Image}}|{{.State.Status}}|{{.Created}}' 'bad-format' 2>/dev/null"
 	mock.responses[statusCmd] = "running|abc123|my-app|nginx:latest|2024-01-01T00:00:00Z"
 
 	d := New(mock)
@@ -700,11 +723,11 @@ func TestGetContainerDetail_InvalidFormat(t *testing.T) {
 
 func TestGetContainerDetail_NilHealth(t *testing.T) {
 	mock := newMockExecutor()
-	inspectCmd := `docker inspect --format '{{.State.OOMKilled}}|{{.State.ExitCode}}|{{.State.Restarting}}|{{.State.Pid}}|{{.State.StartedAt}}|{{.State.FinishedAt}}|{{.State.Health.Status}}' my-app 2>/dev/null`
+	inspectCmd := `docker inspect --format '{{.State.OOMKilled}}|{{.State.ExitCode}}|{{.State.Restarting}}|{{.State.Pid}}|{{.State.StartedAt}}|{{.State.FinishedAt}}|{{.State.Health.Status}}' 'my-app' 2>/dev/null`
 	mock.responses[inspectCmd] = "false|0|false|1234|2024-01-01T00:00:00Z|2024-01-01T00:00:00Z|<nil>"
-	restartCmd := "docker inspect --format '{{.RestartCount}}' my-app 2>/dev/null"
+	restartCmd := "docker inspect --format '{{.RestartCount}}' 'my-app' 2>/dev/null"
 	mock.responses[restartCmd] = "0"
-	statusCmd := "docker inspect --format '{{.Id}}|{{.Name}}|{{.Config.Image}}|{{.State.Status}}|{{.Created}}' my-app 2>/dev/null"
+	statusCmd := "docker inspect --format '{{.Id}}|{{.Name}}|{{.Config.Image}}|{{.State.Status}}|{{.Created}}' 'my-app' 2>/dev/null"
 	mock.responses[statusCmd] = "abc123|my-app|nginx:latest|running|2024-01-01T00:00:00Z"
 
 	d := New(mock)
@@ -719,9 +742,9 @@ func TestGetContainerDetail_NilHealth(t *testing.T) {
 
 func TestGetContainerDetail_StatusError(t *testing.T) {
 	mock := newMockExecutor()
-	inspectCmd := `docker inspect --format '{{.State.OOMKilled}}|{{.State.ExitCode}}|{{.State.Restarting}}|{{.State.Pid}}|{{.State.StartedAt}}|{{.State.FinishedAt}}|{{.State.Health.Status}}' status-fail 2>/dev/null`
+	inspectCmd := `docker inspect --format '{{.State.OOMKilled}}|{{.State.ExitCode}}|{{.State.Restarting}}|{{.State.Pid}}|{{.State.StartedAt}}|{{.State.FinishedAt}}|{{.State.Health.Status}}' 'status-fail' 2>/dev/null`
 	mock.responses[inspectCmd] = "false|0|false|1234|2024-01-01T00:00:00Z|2024-01-01T00:00:00Z|none"
-	statusCmd := "docker inspect --format '{{.Id}}|{{.Name}}|{{.Config.Image}}|{{.State.Status}}|{{.Created}}' status-fail 2>/dev/null"
+	statusCmd := "docker inspect --format '{{.Id}}|{{.Name}}|{{.Config.Image}}|{{.State.Status}}|{{.Created}}' 'status-fail' 2>/dev/null"
 	mock.errors[statusCmd] = fmt.Errorf("status error")
 
 	d := New(mock)
