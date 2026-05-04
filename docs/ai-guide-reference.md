@@ -422,6 +422,7 @@ Dependabot PR **必须**经过 `make check` 验证后再合并。
 | 8 | v1.8: Commercial & Licensing | License Key、OpenCore、Feature Flags、Pro/Free | Closed | 0 | 7 |
 | 9 | v1.9: Security Hardening | 审计验证、IP 白名单、设备绑定、代码签名、密钥轮换 | Closed | 0 | 11 |
 | 10 | v1.10: Engineering Quality | 迁移策略、测试体系、开发环境、社区建设、Changelog 自动化 | Closed | 0 | 9 |
+| 11 | v1.1 — 安全与稳定性 | 安全与稳定性（旧版 Milestone） | Closed | 0 | 4 |
 | 12 | v1.11: Security Hardening & DevEx | CI 安全扫描、SSH root fallback、Changelog 自动化、性能基准 | Closed | 0 | 3 |
 
 #### 管理规则
