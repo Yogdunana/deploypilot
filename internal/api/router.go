@@ -107,6 +107,9 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 		}
 	}
 
+	// Public health check endpoint (no auth required for Docker healthcheck)
+	api.GET("/system/health", SystemHealth(db))
+
 	// Protected routes (JWT or API Key)
 	protected := api.Group("")
 	protected.Use(auth.APIKeyMiddleware(keySvc))
@@ -446,10 +449,7 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 			system.PUT("/security/config", auth.RoleRequired("owner", "admin"), UpdateSecurityConfig())
 		}
 
-	// Public health check endpoint (no auth required for Docker healthcheck)
-	api.GET("/system/health", SystemHealth(db))
-
-		// Deployments (2 endpoints)
+	// Deployments (2 endpoints)
 		deployments := protected.Group("/deployments")
 		{
 			deployments.GET("", ListDeployments(db))

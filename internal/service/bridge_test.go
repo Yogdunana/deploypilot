@@ -20,13 +20,41 @@ type mockExecutor struct {
 	err    map[string]error  // exact cmd → error
 }
 
+// normalizeCmd removes single quotes added by util.ShellQuote so that
+// mock expectations written without quotes still match.
+func normalizeCmd(cmd string) string {
+	return strings.ReplaceAll(cmd, "'", "")
+}
+
 func (m *mockExecutor) RunCommand(_ context.Context, cmd string) (string, error) {
-	if m.err != nil && m.err[cmd] != nil {
-		return "", m.err[cmd]
+	// util.ShellQuote wraps args in single quotes, e.g. "docker inspect 'name'"
+	// Strip quotes from cmd for matching against keys that don't have quotes.
+	nc := normalizeCmd(cmd)
+	if m.err != nil {
+		// Try exact match, then normalized cmd, then normalized key
+		if m.err[cmd] != nil {
+			return "", m.err[cmd]
+		}
+		if m.err[nc] != nil {
+			return "", m.err[nc]
+		}
+		for k, v := range m.err {
+			if normalizeCmd(k) == nc {
+				return "", v
+			}
+		}
 	}
 	if m.output != nil {
 		if out, ok := m.output[cmd]; ok {
 			return out, nil
+		}
+		if out, ok := m.output[nc]; ok {
+			return out, nil
+		}
+		for k, v := range m.output {
+			if normalizeCmd(k) == nc {
+				return v, nil
+			}
 		}
 	}
 	return "", nil

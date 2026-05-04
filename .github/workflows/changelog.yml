@@ -3,11 +3,14 @@ on:
   release:
     types: [published]
 
+permissions:
+  contents: write
+
 jobs:
   update-changelog:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
       - name: Update CHANGELOG.md

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/Yogdunana/deploypilot/internal/engine/deployer"
+	"github.com/Yogdunana/deploypilot/internal/util"
 )
 
 // HealingConfig configures the self-healing behavior.
@@ -242,7 +243,7 @@ func (h *Healer) CheckAndHeal(ctx context.Context, containerName string) (*Heali
 
 // RestartContainer restarts a container.
 func (h *Healer) RestartContainer(ctx context.Context, name string) error {
-	_, err := h.executor.RunCommand(ctx, fmt.Sprintf("docker restart %s", name))
+	_, err := h.executor.RunCommand(ctx, fmt.Sprintf("docker restart %s", util.ShellQuote(name)))
 	if err != nil {
 		return fmt.Errorf("failed to restart container %s: %w", name, err)
 	}

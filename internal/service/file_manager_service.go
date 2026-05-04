@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/Yogdunana/deploypilot/internal/sandbox"
+	"github.com/Yogdunana/deploypilot/internal/util"
 	"gorm.io/gorm"
 )
 
@@ -85,7 +86,7 @@ func (f *FileManagerService) ListFiles(ctx context.Context, serverID, remotePath
 		return nil, fmt.Errorf("access denied: path %s is in a restricted system directory", remotePath)
 	}
 
-	cmd := fmt.Sprintf("ls -la --time-style=long-iso %s 2>/dev/null || ls -la %s 2>/dev/null", shellQuote(remotePath), shellQuote(remotePath))
+	cmd := fmt.Sprintf("ls -la --time-style=long-iso %s 2>/dev/null || ls -la %s 2>/dev/null", util.ShellQuote(remotePath), util.ShellQuote(remotePath))
 	if err := f.sb.Validate(cmd); err != nil {
 		return nil, fmt.Errorf("sandbox blocked: %w", err)
 	}
@@ -115,7 +116,7 @@ func (f *FileManagerService) ReadFile(ctx context.Context, serverID, remotePath 
 		limit = fmt.Sprintf(" | head -c %d", maxBytes)
 	}
 
-	cmd := fmt.Sprintf("cat %s%s", shellQuote(remotePath), limit)
+	cmd := fmt.Sprintf("cat %s%s", util.ShellQuote(remotePath), limit)
 	if err := f.sb.Validate(cmd); err != nil {
 		return nil, fmt.Errorf("sandbox blocked: %w", err)
 	}
@@ -132,7 +133,7 @@ func (f *FileManagerService) ReadFile(ctx context.Context, serverID, remotePath 
 	}
 
 	// Get file size
-	sizeCmd := fmt.Sprintf("stat -c %%s %s 2>/dev/null || wc -c < %s", shellQuote(remotePath), shellQuote(remotePath))
+	sizeCmd := fmt.Sprintf("stat -c %%s %s 2>/dev/null || wc -c < %s", util.ShellQuote(remotePath), util.ShellQuote(remotePath))
 	sizeOutput, _ := exec.RunCommand(ctx, sizeCmd)
 	size, _ := strconv.ParseInt(strings.TrimSpace(sizeOutput), 10, 64)
 
@@ -151,7 +152,7 @@ func (f *FileManagerService) WriteFile(ctx context.Context, serverID, remotePath
 
 	// Use base64 encoding to safely transfer content via SSH
 	encoded := base64Encode(content)
-	cmd := fmt.Sprintf("echo '%s' | base64 -d > %s", encoded, shellQuote(remotePath))
+	cmd := fmt.Sprintf("echo '%s' | base64 -d > %s", encoded, util.ShellQuote(remotePath))
 	if err := f.sb.Validate(cmd); err != nil {
 		return fmt.Errorf("sandbox blocked: %w", err)
 	}
@@ -175,7 +176,7 @@ func (f *FileManagerService) DeleteFile(ctx context.Context, serverID, remotePat
 		return fmt.Errorf("access denied: path %s is in a restricted system directory", remotePath)
 	}
 
-	cmd := fmt.Sprintf("rm -rf %s", shellQuote(remotePath))
+	cmd := fmt.Sprintf("rm -rf %s", util.ShellQuote(remotePath))
 	if err := f.sb.Validate(cmd); err != nil {
 		return fmt.Errorf("sandbox blocked: %w", err)
 	}
@@ -199,7 +200,7 @@ func (f *FileManagerService) CreateDirectory(ctx context.Context, serverID, remo
 		return fmt.Errorf("access denied: path %s is in a restricted system directory", remotePath)
 	}
 
-	cmd := fmt.Sprintf("mkdir -p %s", shellQuote(remotePath))
+	cmd := fmt.Sprintf("mkdir -p %s", util.ShellQuote(remotePath))
 	if err := f.sb.Validate(cmd); err != nil {
 		return fmt.Errorf("sandbox blocked: %w", err)
 	}
@@ -223,7 +224,7 @@ func (f *FileManagerService) MoveFile(ctx context.Context, serverID, srcPath, ds
 		return fmt.Errorf("access denied: path is in a restricted system directory")
 	}
 
-	cmd := fmt.Sprintf("mv %s %s", shellQuote(srcPath), shellQuote(dstPath))
+	cmd := fmt.Sprintf("mv %s %s", util.ShellQuote(srcPath), util.ShellQuote(dstPath))
 	if err := f.sb.Validate(cmd); err != nil {
 		return fmt.Errorf("sandbox blocked: %w", err)
 	}
@@ -243,7 +244,7 @@ func (f *FileManagerService) MoveFile(ctx context.Context, serverID, srcPath, ds
 
 // GetDiskUsage returns disk usage information for a remote path.
 func (f *FileManagerService) GetDiskUsage(ctx context.Context, serverID, remotePath string) (*DiskUsage, error) {
-	cmd := fmt.Sprintf("df -B1 --output=size,used,avail,pcent %s 2>/dev/null | tail -1", shellQuote(remotePath))
+	cmd := fmt.Sprintf("df -B1 --output=size,used,avail,pcent %s 2>/dev/null | tail -1", util.ShellQuote(remotePath))
 	if err := f.sb.Validate(cmd); err != nil {
 		return nil, fmt.Errorf("sandbox blocked: %w", err)
 	}
@@ -268,7 +269,7 @@ func (f *FileManagerService) GetFileInfo(ctx context.Context, serverID, remotePa
 		return nil, fmt.Errorf("access denied: path %s is in a restricted system directory", remotePath)
 	}
 
-	cmd := fmt.Sprintf("stat -c '%%A %%U %%G %%s %%Y' %s 2>/dev/null", shellQuote(remotePath))
+	cmd := fmt.Sprintf("stat -c '%%A %%U %%G %%s %%Y' %s 2>/dev/null", util.ShellQuote(remotePath))
 	if err := f.sb.Validate(cmd); err != nil {
 		return nil, fmt.Errorf("sandbox blocked: %w", err)
 	}
@@ -299,7 +300,7 @@ func (f *FileManagerService) SearchFiles(ctx context.Context, serverID, searchPa
 	}
 
 	cmd := fmt.Sprintf("find %s -name '*%s*' -type f%s 2>/dev/null",
-		shellQuote(searchPath), pattern, limit)
+		util.ShellQuote(searchPath), pattern, limit)
 	if err := f.sb.Validate(cmd); err != nil {
 		return nil, fmt.Errorf("sandbox blocked: %w", err)
 	}

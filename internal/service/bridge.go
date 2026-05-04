@@ -25,6 +25,7 @@ import (
 	"github.com/Yogdunana/deploypilot/internal/plugin"
 	"github.com/Yogdunana/deploypilot/internal/provider/server"
 	"github.com/Yogdunana/deploypilot/internal/sandbox"
+	"github.com/Yogdunana/deploypilot/internal/util"
 	"golang.org/x/crypto/ssh"
 	"gorm.io/gorm"
 )
@@ -709,7 +710,7 @@ func (b *Bridge) ExecCommand(ctx context.Context, serverID, command string, time
 func (b *Bridge) ListImages(ctx context.Context, serverID, filter string) (string, error) {
 	dockerCmd := `docker images --format "{{.Repository}}:{{.Tag}}\t{{.Size}}\t{{.CreatedSince}}"`
 	if filter != "" {
-		dockerCmd += " | grep " + shellQuote(filter)
+		dockerCmd += " | grep " + util.ShellQuote(filter)
 	}
 
 	execCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
@@ -793,7 +794,7 @@ func (b *Bridge) PortForward(ctx context.Context, action, serverID string, local
 		}
 
 		sshCmd := fmt.Sprintf("ssh -N -L %d:%s:%d -p %d %s@%s",
-			localPort, remoteHost, remotePort, port, username, host)
+			localPort, remoteHost, remotePort, port, util.ShellQuote(username), util.ShellQuote(host))
 
 		// Execute SSH tunnel in background
 		execCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
@@ -812,7 +813,7 @@ func (b *Bridge) PortForward(ctx context.Context, action, serverID string, local
 			}()
 
 			tunnelCmd := fmt.Sprintf("ssh -f -N -L %d:%s:%d -p %d %s@%s",
-				localPort, remoteHost, remotePort, port, username, host)
+				localPort, remoteHost, remotePort, port, util.ShellQuote(username), util.ShellQuote(host))
 			if _, err := remoteExec.RunCommand(execCtx, tunnelCmd); err != nil {
 				slog.Error("SSH tunnel command failed", "error", err)
 			}
@@ -847,7 +848,7 @@ func (b *Bridge) PortForward(ctx context.Context, action, serverID string, local
 		}
 
 		// Kill the SSH tunnel process
-		killCmd := fmt.Sprintf("pkill -f 'ssh.*-L %d:%s:%d'", localPort, shellQuote(entry.RemoteHost), entry.RemotePort)
+		killCmd := fmt.Sprintf("pkill -f 'ssh.*-L %d:%s:%d'", localPort, util.ShellQuote(entry.RemoteHost), entry.RemotePort)
 		if _, err := b.Executor.RunCommand(ctx, killCmd); err != nil {
 			slog.Warn("failed to kill SSH tunnel process", "error", err)
 		}

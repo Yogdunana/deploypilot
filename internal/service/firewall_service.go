@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/Yogdunana/deploypilot/internal/sandbox"
+	"github.com/Yogdunana/deploypilot/internal/util"
 	"gorm.io/gorm"
 )
 
@@ -351,25 +352,25 @@ func (f *FirewallService) getFirewalldStatus(ctx context.Context, exec *sshClien
 }
 
 func (f *FirewallService) firewalldOpenPort(ctx context.Context, exec *sshClientExecutor, port, protocol string) error {
-	cmd := fmt.Sprintf("sudo firewall-cmd --permanent --add-port=%s/%s && sudo firewall-cmd --reload", port, protocol)
+	cmd := fmt.Sprintf("sudo firewall-cmd --permanent --add-port=%s/%s && sudo firewall-cmd --reload", util.ShellQuote(port), util.ShellQuote(protocol))
 	_, err := exec.RunCommand(ctx, cmd)
 	return err
 }
 
 func (f *FirewallService) firewalldClosePort(ctx context.Context, exec *sshClientExecutor, port, protocol string) error {
-	cmd := fmt.Sprintf("sudo firewall-cmd --permanent --remove-port=%s/%s && sudo firewall-cmd --reload", port, protocol)
+	cmd := fmt.Sprintf("sudo firewall-cmd --permanent --remove-port=%s/%s && sudo firewall-cmd --reload", util.ShellQuote(port), util.ShellQuote(protocol))
 	_, err := exec.RunCommand(ctx, cmd)
 	return err
 }
 
 func (f *FirewallService) firewalldBlockIP(ctx context.Context, exec *sshClientExecutor, ip string) error {
-	cmd := fmt.Sprintf("sudo firewall-cmd --permanent --add-rich-rule='rule family=ipv4 source address=%s reject' && sudo firewall-cmd --reload", ip)
+	cmd := fmt.Sprintf("sudo firewall-cmd --permanent --add-rich-rule='rule family=ipv4 source address=%s reject' && sudo firewall-cmd --reload", util.ShellQuote(ip))
 	_, err := exec.RunCommand(ctx, cmd)
 	return err
 }
 
 func (f *FirewallService) firewalldUnblockIP(ctx context.Context, exec *sshClientExecutor, ip string) error {
-	cmd := fmt.Sprintf("sudo firewall-cmd --permanent --remove-rich-rule='rule family=ipv4 source address=%s reject' && sudo firewall-cmd --reload", ip)
+	cmd := fmt.Sprintf("sudo firewall-cmd --permanent --remove-rich-rule='rule family=ipv4 source address=%s reject' && sudo firewall-cmd --reload", util.ShellQuote(ip))
 	_, err := exec.RunCommand(ctx, cmd)
 	return err
 }

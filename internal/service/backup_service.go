@@ -6,19 +6,14 @@ import (
 	"fmt"
 	"log/slog"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/Yogdunana/deploypilot/internal/engine/deployer"
 	"github.com/Yogdunana/deploypilot/internal/mcp"
 	"github.com/Yogdunana/deploypilot/internal/model"
+	"github.com/Yogdunana/deploypilot/internal/util"
 	"github.com/google/uuid"
 )
-
-// shellQuote safely escapes a string for use in a shell command.
-func shellQuote(s string) string {
-	return "'" + strings.ReplaceAll(s, "'", "'\"'\"'") + "'"
-}
 
 // ---------- 35. Backup ----------
 
@@ -38,7 +33,7 @@ func (b *Bridge) Backup(ctx context.Context, appID string) (string, error) {
 	// Attempt a docker-based backup: exec into the container and create a timestamped archive
 	timestamp := time.Now().Format("20060102-150405")
 	backupFile := fmt.Sprintf("/tmp/backup-%s-%s.tar.gz", containerName, timestamp)
-	cmd := fmt.Sprintf("docker exec %s sh -c 'tar czf - /app /data 2>/dev/null' > %s 2>/dev/null || echo 'no_backup_paths'", shellQuote(containerName), shellQuote(backupFile))
+	cmd := fmt.Sprintf("docker exec %s sh -c 'tar czf - /app /data 2>/dev/null' > %s 2>/dev/null || echo 'no_backup_paths'", util.ShellQuote(containerName), util.ShellQuote(backupFile))
 	out, err := b.Executor.RunCommand(ctx, cmd)
 	if err != nil {
 		slog.Warn("backup: container exec failed (may be expected)", "error", err, "output", out)
@@ -82,10 +77,10 @@ func (b *Bridge) Restore(ctx context.Context, backupID string) (*mcp.ContainerSt
 
 	// Stop and remove current container
 	exec := b.Executor
-	if _, err := exec.RunCommand(ctx, fmt.Sprintf("docker stop %s", shellQuote(containerName))); err != nil {
+	if _, err := exec.RunCommand(ctx, fmt.Sprintf("docker stop %s", util.ShellQuote(containerName))); err != nil {
 		slog.WarnContext(ctx, "failed to stop container during restore", "container", containerName, "error", err)
 	}
-	if _, err := exec.RunCommand(ctx, fmt.Sprintf("docker rm -f %s", shellQuote(containerName))); err != nil {
+	if _, err := exec.RunCommand(ctx, fmt.Sprintf("docker rm -f %s", util.ShellQuote(containerName))); err != nil {
 		slog.WarnContext(ctx, "failed to remove container during restore", "container", containerName, "error", err)
 	}
 
@@ -93,7 +88,7 @@ func (b *Bridge) Restore(ctx context.Context, backupID string) (*mcp.ContainerSt
 	timestamp := time.Now().Format("20060102-150405")
 	backupFile := fmt.Sprintf("/tmp/backup-%s-%s.tar.gz", containerName, timestamp)
 	cmd := fmt.Sprintf("docker run --rm -v /tmp:/backup -v %s-data:/data alpine sh -c 'cd /data && tar xzf /backup/%s 2>/dev/null || true'",
-		shellQuote(containerName), shellQuote(filepath.Base(backupFile)))
+		util.ShellQuote(containerName), util.ShellQuote(filepath.Base(backupFile)))
 	output, err := exec.RunCommand(ctx, cmd)
 	if err != nil {
 		slog.Warn("restore extract warning", "error", err, "output", output)

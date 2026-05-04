@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/Yogdunana/deploypilot/internal/util"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
@@ -80,7 +81,7 @@ func (p *ProcessService) ListProcesses(ctx context.Context, serverID string, fil
 	cmd := "ps aux --no-headers 2>/dev/null || ps aux 2>/dev/null"
 	if filter != "" {
 		cmd = fmt.Sprintf("ps aux --no-headers 2>/dev/null | grep -E %s | grep -v grep || ps aux 2>/dev/null | grep -E %s | grep -v grep",
-			shellQuote(filter), shellQuote(filter))
+			util.ShellQuote(filter), util.ShellQuote(filter))
 	}
 
 	output, err := exec.RunCommand(ctx, cmd)
@@ -149,7 +150,7 @@ func (p *ProcessService) SearchProcesses(ctx context.Context, serverID, pattern 
 	}
 	defer func() { _ = exec.Close() }()
 
-	cmd := fmt.Sprintf("ps aux --no-headers 2>/dev/null | grep -E %s | grep -v grep || echo ''", shellQuote(pattern))
+	cmd := fmt.Sprintf("ps aux --no-headers 2>/dev/null | grep -E %s | grep -v grep || echo ''", util.ShellQuote(pattern))
 	output, err := exec.RunCommand(ctx, cmd)
 	if err != nil {
 		return nil, fmt.Errorf("failed to search processes: %w", err)

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/Yogdunana/deploypilot/internal/engine/deployer"
+	"github.com/Yogdunana/deploypilot/internal/util"
 )
 
 // ---------- 11. DetectEnv ----------
@@ -60,7 +61,7 @@ func (b *Bridge) DetectEnv(ctx context.Context, level int, ports []int, services
 			if svc == "" {
 				continue
 			}
-			cmd := fmt.Sprintf("timeout 2 bash -c 'echo > /dev/tcp/%s' 2>/dev/null && echo ok || echo fail", strings.TrimPrefix(svc, "tcp://"))
+			cmd := fmt.Sprintf("timeout 2 bash -c 'echo > /dev/tcp/%s' 2>/dev/null && echo ok || echo fail", util.ShellQuote(strings.TrimPrefix(svc, "tcp://")))
 			if out, err := b.Executor.RunCommand(ctx, cmd); err == nil && strings.Contains(out, "ok") {
 				svcResults[svc] = true
 			} else {
