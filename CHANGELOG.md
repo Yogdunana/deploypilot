@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.10.0] - 2026-05-04
+
+### Added
+- **Comprehensive test suite**: 23 new test cases across 4 high-risk packages (signing, auth/totp, middleware, audit/chain)
+- **Dependency upgrades**: @xterm/xterm 5→6 (ESM support), docker/metadata-action 5→6 (Node 24 runtime)
+- Database migration system with golang-migrate (SQL files, up/down support, legacy compatibility)
+- API versioning middleware with X-API-Version, Deprecation, Sunset headers
+- Local development environment (docker-compose.dev.yml, Makefile targets, Air hot reload)
+- Community documentation (CONTRIBUTING.md, CODE_OF_CONDUCT.md, ADR templates, CLAUDE.md)
+- Seed data script for demo environments
+- VS Code launch configuration
+
+### Changed
+- Expanded frontend utils tests from 3 to 9 test cases
+
 ## [1.9.0] - 2026-05-04
 
 ### Added
@@ -54,16 +69,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - License RSA key pair generation and JWT signing
 - Machine fingerprint prevents casual trial resets
 - Audit trail for degradation events (action, feature, reason, tenant, user, IP)
-
-## [1.10.0]
-
-### Added
-- Database migration system with golang-migrate (SQL files, up/down support, legacy compatibility)
-- API versioning middleware with X-API-Version, Deprecation, Sunset headers
-- Local development environment (docker-compose.dev.yml, Makefile targets, Air hot reload)
-- Community documentation (CONTRIBUTING.md, CODE_OF_CONDUCT.md, ADR templates, CLAUDE.md)
-- Seed data script for demo environments
-- VS Code launch configuration
 
 ## [1.9.0]
 

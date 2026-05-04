@@ -187,7 +187,7 @@
 | Phase | 内容 | 状态 |
 |-------|------|------|
 | 10.1 | 数据库迁移策略（golang-migrate + 版本化 + 回滚） | ✅ 已完成 (PR #238) |
-| 10.2 | 测试体系（testcontainers + E2E + 覆盖率门禁 >80%） | ⏳ 待开发 |
+| 10.2 | 测试体系（testcontainers + E2E + 覆盖率门禁 >80%） | ✅ 已完成 (PR #258) |
 | 10.3 | 本地开发环境（docker-compose.dev.yml + make dev + Mock 模式） | ✅ 已完成 (PR #237) |
 | 10.4 | 社区建设（CONTRIBUTING + CODE_OF_CONDUCT + ADR + CLAUDE.md） | ✅ 已完成 (PR #237) |
 | 10.5 | Changelog 自动化（Conventional Commits → CHANGELOG.md） | ⏳ 待开发 |
