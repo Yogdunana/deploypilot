@@ -12,10 +12,12 @@ import (
 
 // RateLimiter implements token bucket rate limiting.
 type RateLimiter struct {
-	buckets     map[string]*bucket
-	mu          sync.Mutex
-	rates       map[string]int // role -> rate per minute
-	defaultRate int
+	buckets         map[string]*bucket
+	mu              sync.Mutex
+	rates           map[string]int // role -> rate per minute
+	defaultRate     int
+	cleanupInterval time.Duration
+	stopCleanup     chan struct{}
 }
 
 type bucket struct {
@@ -26,15 +28,53 @@ type bucket struct {
 
 // NewRateLimiter creates a new RateLimiter with per-role rate limits.
 func NewRateLimiter(defaultRate, ownerRate, adminRate, devRate, viewerRate int) *RateLimiter {
-	return &RateLimiter{
-		buckets: make(map[string]*bucket),
+	rl := &RateLimiter{
+		buckets:         make(map[string]*bucket),
 		rates: map[string]int{
 			"owner":  ownerRate,
 			"admin":  adminRate,
 			"dev":    devRate,
 			"viewer": viewerRate,
 		},
-		defaultRate: defaultRate,
+		defaultRate:     defaultRate,
+		cleanupInterval: 5 * time.Minute,
+		stopCleanup:     make(chan struct{}),
+	}
+	rl.startCleanup()
+	return rl
+}
+
+// Stop gracefully stops the cleanup goroutine.
+func (rl *RateLimiter) Stop() {
+	close(rl.stopCleanup)
+}
+
+// startCleanup launches a background goroutine to remove stale buckets.
+func (rl *RateLimiter) startCleanup() {
+	go func() {
+		ticker := time.NewTicker(rl.cleanupInterval)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				rl.cleanup()
+			case <-rl.stopCleanup:
+				return
+			}
+		}
+	}()
+}
+
+// cleanup removes buckets that have not been refilled for 2x the cleanup interval.
+func (rl *RateLimiter) cleanup() {
+	rl.mu.Lock()
+	defer rl.mu.Unlock()
+
+	threshold := time.Now().Add(-2 * rl.cleanupInterval)
+	for key, b := range rl.buckets {
+		if b.lastRefill.Before(threshold) {
+			delete(rl.buckets, key)
+		}
 	}
 }
 
