@@ -15,7 +15,7 @@ func setupAuditTestDB(t *testing.T) (*gorm.DB, *AuditChain) {
 	if err != nil {
 		t.Fatalf("failed to open test db: %v", err)
 	}
-	if err := db.AutoMigrate(&model.AuditLog{}); err != nil {
+	if err := db.AutoMigrate(&model.AuditLog{}, &model.AuditHash{}); err != nil {
 		t.Fatalf("failed to migrate: %v", err)
 	}
 	chain := NewAuditChain(db, []byte("test-secret-key"))
@@ -68,9 +68,9 @@ func TestNewAuditChain(t *testing.T) {
 
 	chain := NewAuditChain(db, []byte("secret"))
 	if chain == nil {
-		t.Error("expected non-nil chain")
+		t.Fatal("expected non-nil chain")
 	}
 	if chain.secretKey == nil {
-		t.Error("expected non-nil secretKey")
+		t.Fatal("expected non-nil secretKey")
 	}
 }
