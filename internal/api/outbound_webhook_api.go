@@ -37,6 +37,7 @@ func (a *OutboundWebhookAPI) CreateWebhook(c *gin.Context) {
 		return
 	}
 
+	webhook.TenantID = c.GetString("tenant_id")
 	svc := service.NewOutboundWebhookService(db, nil)
 	if err := svc.Create(c.Request.Context(), &webhook); err != nil {
 		respondErrori18n(c, http.StatusInternalServerError, "error.common.internal_error")
@@ -78,9 +79,10 @@ func (a *OutboundWebhookAPI) ListWebhooks(c *gin.Context) {
 func (a *OutboundWebhookAPI) GetWebhook(c *gin.Context) {
 	db := c.MustGet("db").(*gorm.DB)
 	id := c.Param("id")
+	tenantID := c.GetString("tenant_id")
 
 	svc := service.NewOutboundWebhookService(db, nil)
-	webhook, err := svc.GetByID(c.Request.Context(), id)
+	webhook, err := svc.GetByIDAndTenant(c.Request.Context(), id, tenantID)
 	if err != nil {
 		respondErrori18n(c, http.StatusNotFound, "error.common.not_found")
 		return
@@ -94,6 +96,7 @@ func (a *OutboundWebhookAPI) GetWebhook(c *gin.Context) {
 func (a *OutboundWebhookAPI) UpdateWebhook(c *gin.Context) {
 	db := c.MustGet("db").(*gorm.DB)
 	id := c.Param("id")
+	tenantID := c.GetString("tenant_id")
 
 	var webhook model.OutboundWebhook
 	if err := c.ShouldBindJSON(&webhook); err != nil {
@@ -102,8 +105,9 @@ func (a *OutboundWebhookAPI) UpdateWebhook(c *gin.Context) {
 	}
 
 	webhook.ID = id
+	webhook.TenantID = tenantID
 	svc := service.NewOutboundWebhookService(db, nil)
-	if err := svc.Update(c.Request.Context(), &webhook); err != nil {
+	if err := svc.UpdateByTenant(c.Request.Context(), &webhook); err != nil {
 		respondErrori18n(c, http.StatusInternalServerError, "error.common.internal_error")
 		return
 	}
@@ -116,9 +120,10 @@ func (a *OutboundWebhookAPI) UpdateWebhook(c *gin.Context) {
 func (a *OutboundWebhookAPI) DeleteWebhook(c *gin.Context) {
 	db := c.MustGet("db").(*gorm.DB)
 	id := c.Param("id")
+	tenantID := c.GetString("tenant_id")
 
 	svc := service.NewOutboundWebhookService(db, nil)
-	if err := svc.Delete(c.Request.Context(), id); err != nil {
+	if err := svc.DeleteByTenant(c.Request.Context(), id, tenantID); err != nil {
 		respondErrori18n(c, http.StatusInternalServerError, "error.common.internal_error")
 		return
 	}
@@ -131,9 +136,10 @@ func (a *OutboundWebhookAPI) DeleteWebhook(c *gin.Context) {
 func (a *OutboundWebhookAPI) TestWebhook(c *gin.Context) {
 	db := c.MustGet("db").(*gorm.DB)
 	id := c.Param("id")
+	tenantID := c.GetString("tenant_id")
 
 	svc := service.NewOutboundWebhookService(db, nil)
-	delivery, err := svc.TestDelivery(c.Request.Context(), id)
+	delivery, err := svc.TestDeliveryByTenant(c.Request.Context(), id, tenantID)
 	if err != nil {
 		respondErrori18n(c, http.StatusInternalServerError, "error.common.internal_error")
 		return
@@ -147,6 +153,14 @@ func (a *OutboundWebhookAPI) TestWebhook(c *gin.Context) {
 func (a *OutboundWebhookAPI) ListDeliveries(c *gin.Context) {
 	db := c.MustGet("db").(*gorm.DB)
 	webhookID := c.Param("id")
+	tenantID := c.GetString("tenant_id")
+
+	// First verify webhook belongs to tenant
+	var webhook model.OutboundWebhook
+	if err := db.WithContext(c.Request.Context()).Where("id = ? AND tenant_id = ?", webhookID, tenantID).First(&webhook).Error; err != nil {
+		respondErrori18n(c, http.StatusNotFound, "error.common.not_found")
+		return
+	}
 
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
@@ -160,7 +174,7 @@ func (a *OutboundWebhookAPI) ListDeliveries(c *gin.Context) {
 	var deliveries []model.WebhookDelivery
 	var total int64
 
-	query := db.WithContext(c.Request.Context()).Model(&model.WebhookDelivery{}).Where("webhook_id = ?", webhookID)
+	query := db.WithContext(c.Request.Context()).Model(&model.WebhookDelivery{}).Where("webhook_id = ? AND tenant_id = ?", webhookID, tenantID)
 	if err := query.Count(&total).Error; err != nil {
 		respondErrori18n(c, http.StatusInternalServerError, "error.common.internal_error")
 		return
@@ -181,9 +195,10 @@ func (a *OutboundWebhookAPI) GetDelivery(c *gin.Context) {
 	db := c.MustGet("db").(*gorm.DB)
 	deliveryID := c.Param("did")
 	webhookID := c.Param("id")
+	tenantID := c.GetString("tenant_id")
 
 	var delivery model.WebhookDelivery
-	if err := db.WithContext(c.Request.Context()).Where("id = ? AND webhook_id = ?", deliveryID, webhookID).First(&delivery).Error; err != nil {
+	if err := db.WithContext(c.Request.Context()).Where("id = ? AND webhook_id = ? AND tenant_id = ?", deliveryID, webhookID, tenantID).First(&delivery).Error; err != nil {
 		respondErrori18n(c, http.StatusNotFound, "error.common.not_found")
 		return
 	}

@@ -25,6 +25,7 @@ type BusEvent struct {
 	Source    string      `json:"source,omitempty"`     // instance ID to prevent loop
 	Payload   interface{} `json:"payload"`
 	Timestamp time.Time   `json:"timestamp"`
+	TenantID  string      `json:"tenant_id,omitempty"`  // Tenant ID for multi-tenant isolation
 }
 
 // AlertEventPayload is the payload for alert events published on the typed event bus.

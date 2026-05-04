@@ -38,6 +38,10 @@ func NewOutboundWebhookService(db *gorm.DB, bus TypedEventBus) *OutboundWebhookS
 // Create generates a UUID and inserts the webhook into the database.
 func (s *OutboundWebhookService) Create(ctx context.Context, webhook *model.OutboundWebhook) error {
 	webhook.ID = uuid.New().String()
+	// Generate a secret if not provided
+	if webhook.Secret == "" {
+		webhook.Secret = uuid.New().String()
+	}
 	return s.db.WithContext(ctx).Create(webhook).Error
 }
 
@@ -45,6 +49,15 @@ func (s *OutboundWebhookService) Create(ctx context.Context, webhook *model.Outb
 func (s *OutboundWebhookService) GetByID(ctx context.Context, id string) (*model.OutboundWebhook, error) {
 	var webhook model.OutboundWebhook
 	if err := s.db.WithContext(ctx).Where("id = ?", id).First(&webhook).Error; err != nil {
+		return nil, err
+	}
+	return &webhook, nil
+}
+
+// GetByIDAndTenant retrieves a webhook by its ID and tenant.
+func (s *OutboundWebhookService) GetByIDAndTenant(ctx context.Context, id string, tenantID string) (*model.OutboundWebhook, error) {
+	var webhook model.OutboundWebhook
+	if err := s.db.WithContext(ctx).Where("id = ? AND tenant_id = ?", id, tenantID).First(&webhook).Error; err != nil {
 		return nil, err
 	}
 	return &webhook, nil
@@ -72,14 +85,46 @@ func (s *OutboundWebhookService) List(ctx context.Context, tenantID string, page
 	return webhooks, total, nil
 }
 
-// Update updates an existing webhook.
+// Update updates an existing webhook, preserving the secret if not provided.
 func (s *OutboundWebhookService) Update(ctx context.Context, webhook *model.OutboundWebhook) error {
+	// Get existing webhook first to preserve secret
+	var existing model.OutboundWebhook
+	if err := s.db.WithContext(ctx).Where("id = ?", webhook.ID).First(&existing).Error; err != nil {
+		return err
+	}
+
+	// Preserve secret if not provided in update
+	if webhook.Secret == "" {
+		webhook.Secret = existing.Secret
+	}
+
+	return s.db.WithContext(ctx).Save(webhook).Error
+}
+
+// UpdateByTenant updates an existing webhook, checking tenant ownership first.
+func (s *OutboundWebhookService) UpdateByTenant(ctx context.Context, webhook *model.OutboundWebhook) error {
+	// Get existing webhook first to check ownership and preserve secret
+	var existing model.OutboundWebhook
+	if err := s.db.WithContext(ctx).Where("id = ? AND tenant_id = ?", webhook.ID, webhook.TenantID).First(&existing).Error; err != nil {
+		return err
+	}
+
+	// Preserve secret if not provided in update
+	if webhook.Secret == "" {
+		webhook.Secret = existing.Secret
+	}
+
 	return s.db.WithContext(ctx).Save(webhook).Error
 }
 
 // Delete removes a webhook by its ID.
 func (s *OutboundWebhookService) Delete(ctx context.Context, id string) error {
 	return s.db.WithContext(ctx).Where("id = ?", id).Delete(&model.OutboundWebhook{}).Error
+}
+
+// DeleteByTenant removes a webhook by its ID, checking tenant ownership first.
+func (s *OutboundWebhookService) DeleteByTenant(ctx context.Context, id string, tenantID string) error {
+	return s.db.WithContext(ctx).Where("id = ? AND tenant_id = ?", id, tenantID).Delete(&model.OutboundWebhook{}).Error
 }
 
 // --- Delivery Methods ---
@@ -143,7 +188,7 @@ func (s *OutboundWebhookService) Deliver(ctx context.Context, webhook *model.Out
 	delivery := &model.WebhookDelivery{
 		ID:            uuid.New().String(),
 		WebhookID:     webhook.ID,
-		TenantID:      webhook.TenantID,
+		TenantID:      webhook.TenantID, // Ensure tenant ID is set
 		EventID:       event.ID,
 		EventType:     string(event.Type),
 		StatusCode:    statusCode,
@@ -296,12 +341,28 @@ func (s *OutboundWebhookService) TestDelivery(ctx context.Context, webhookID str
 		return nil, fmt.Errorf("webhook not found: %w", err)
 	}
 
+	return s.doTestDelivery(ctx, webhook)
+}
+
+// TestDeliveryByTenant sends a synthetic test event to a webhook (tenant-isolated) and returns the delivery record.
+func (s *OutboundWebhookService) TestDeliveryByTenant(ctx context.Context, webhookID string, tenantID string) (*model.WebhookDelivery, error) {
+	webhook, err := s.GetByIDAndTenant(ctx, webhookID, tenantID)
+	if err != nil {
+		return nil, fmt.Errorf("webhook not found: %w", err)
+	}
+
+	return s.doTestDelivery(ctx, webhook)
+}
+
+// doTestDelivery is the internal method that actually sends the test delivery.
+func (s *OutboundWebhookService) doTestDelivery(ctx context.Context, webhook *model.OutboundWebhook) (*model.WebhookDelivery, error) {
 	testEvent := BusEvent{
 		ID:        fmt.Sprintf("test-%d", time.Now().UnixNano()),
 		Type:      EventSystem,
 		Topic:     "system:test",
 		Payload:   map[string]interface{}{"message": "Test webhook delivery"},
 		Timestamp: time.Now(),
+		TenantID:  webhook.TenantID, // Set tenant ID for event
 	}
 
 	// Build WebhookPayload
@@ -416,8 +477,14 @@ func (s *OutboundWebhookService) listenEventType(eventType EventType) {
 
 // handleEvent loads all enabled webhooks and delivers to those that match the event.
 func (s *OutboundWebhookService) handleEvent(event BusEvent) {
+	// Build query, include tenant ID filter if available
+	query := s.db.WithContext(s.ctx).Where("enabled = ?", true)
+	if event.TenantID != "" {
+		query = query.Where("tenant_id = ?", event.TenantID)
+	}
+
 	var webhooks []model.OutboundWebhook
-	if err := s.db.WithContext(s.ctx).Where("enabled = ?", true).Find(&webhooks).Error; err != nil {
+	if err := query.Find(&webhooks).Error; err != nil {
 		slog.Error("failed to load webhooks for event", "event_id", event.ID, "error", err)
 		return
 	}
