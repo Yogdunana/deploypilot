@@ -15,6 +15,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/Yogdunana/deploypilot/internal/util"
 	"github.com/Yogdunana/deploypilot/internal/version"
 )
 
@@ -118,7 +119,7 @@ func fetchLatestRelease(ctx context.Context) (*GitHubRelease, error) {
 	req.Header.Set("Accept", "application/vnd.github+json")
 	req.Header.Set("User-Agent", "DeployPilot/"+version.Version)
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := util.DefaultClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("fetch release: %w", err)
 	}
@@ -516,7 +517,7 @@ func downloadFile(ctx context.Context, url, destPath string) error {
 	}
 	req.Header.Set("User-Agent", "DeployPilot/"+version.Version)
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := util.DefaultClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("download: %w", err)
 	}

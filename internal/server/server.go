@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"crypto/rand"
 	"fmt"
 	"io/fs"
 	"log/slog"
@@ -116,10 +117,16 @@ func New(addr string, db *gorm.DB, bridge *service.Bridge, cfg *config.Config, b
 	r.Use(middleware.DeviceCheckMiddleware(deviceSvc))
 
 	// Audit verification & compliance (Issue #155)
-	auditSecretKey := []byte("deploypilot-audit-chain-secret")
-	if cfg.Auth.JWTSecret != "" {
-		// Derive audit chain key from JWT secret for persistence
-		auditSecretKey = []byte(cfg.Auth.JWTSecret + "-audit-chain")
+	auditSecretKey := []byte(cfg.Auth.JWTSecret)
+	if len(auditSecretKey) == 0 {
+		key := make([]byte, 32)
+		if _, err := rand.Read(key); err != nil {
+			slog.Warn("failed to generate random audit key, using fallback")
+			auditSecretKey = []byte("deploypilot-fallback-audit-key-change-me")
+		} else {
+			auditSecretKey = key
+			slog.Warn("JWT_SECRET not set, using random audit chain key (audit chain will break on restart)")
+		}
 	}
 	api.SetAuditVerificationAPI(api.NewAuditVerificationAPI(db, &cfg.Audit, auditSecretKey))
 
