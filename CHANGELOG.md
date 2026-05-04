@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.11.0] - 2026-05-04
+
+### Security
+- **SSH root fallback**: Reject empty user in AuthorizeKey/RevokeKey instead of silently defaulting to root
+- **DNS error propagation**: BatchDNS now returns error when any record creation fails
+- **CI vulnerability scanning**: Upgrade Go 1.23→1.24, enable govulncheck as blocking check
+
+### Added
+- **Changelog automation**: commitlint config + CI commit message validation + Makefile changelog target
+- **Performance benchmarks**: 9 benchmarks for signing (6) and auth (3) with benchstat CI regression detection
+- **Benchmark CI**: automated benchmark comparison on PR with >5% regression warning
+
+### Dependencies
+- @vueuse/core 12.8.2→14.3.0
+- axios 1.15.2→1.16.0
+- @vue/test-utils 2.4.9→2.4.10
+- jsdom 29.1.0→29.1.1
+
 ## [1.10.0] - 2026-05-04
 
 ### Added
