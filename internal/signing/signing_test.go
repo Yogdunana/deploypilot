@@ -89,8 +89,9 @@ func TestFingerprint(t *testing.T) {
 	if err != nil {
 		t.Fatalf("fingerprint not valid hex: %v", err)
 	}
-	if len(decoded) != 16 {
-		t.Errorf("expected fingerprint length 16, got %d", len(decoded))
+	// Fingerprint is first 16 hex chars of SHA256 = 8 bytes
+	if len(decoded) != 8 {
+		t.Errorf("expected fingerprint length 8, got %d", len(decoded))
 	}
 }
 
