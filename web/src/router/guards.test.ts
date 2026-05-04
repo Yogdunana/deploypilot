@@ -34,7 +34,7 @@ describe('setupRouterGuards', () => {
       const from = {}
       const next = vi.fn()
 
-      guardFn(to as any, from as any, next)
+      guardFn.call(router, to as any, from as any, next)
 
       expect(next).toHaveBeenCalledWith({
         name: 'Login',
@@ -52,7 +52,7 @@ describe('setupRouterGuards', () => {
       const from = {}
       const next = vi.fn()
 
-      guardFn(to as any, from as any, next)
+      guardFn.call(router, to as any, from as any, next)
 
       expect(next).toHaveBeenCalledWith()
     })
@@ -73,7 +73,7 @@ describe('setupRouterGuards', () => {
       const from = {}
       const next = vi.fn()
 
-      guardFn(to as any, from as any, next)
+      guardFn.call(router, to as any, from as any, next)
 
       expect(next).toHaveBeenCalledWith({ name: 'Dashboard' })
     })
@@ -88,7 +88,7 @@ describe('setupRouterGuards', () => {
       const from = {}
       const next = vi.fn()
 
-      guardFn(to as any, from as any, next)
+      guardFn.call(router, to as any, from as any, next)
 
       expect(next).toHaveBeenCalledWith()
     })
@@ -103,7 +103,7 @@ describe('setupRouterGuards', () => {
       const from = {}
       const next = vi.fn()
 
-      guardFn(to as any, from as any, next)
+      guardFn.call(router, to as any, from as any, next)
 
       expect(next).toHaveBeenCalledWith()
     })
@@ -120,7 +120,7 @@ describe('setupRouterGuards', () => {
       const from = {}
       const next = vi.fn()
 
-      guardFn(to as any, from as any, next)
+      guardFn.call(router, to as any, from as any, next)
 
       expect(next).toHaveBeenCalledWith()
     })
@@ -136,7 +136,7 @@ describe('setupRouterGuards', () => {
       const from = {}
       const next = vi.fn()
 
-      guardFn(to as any, from as any, next)
+      guardFn.call(router, to as any, from as any, next)
 
       // 未认证，requiresAuth 优先，重定向到登录
       expect(next).toHaveBeenCalledWith({
