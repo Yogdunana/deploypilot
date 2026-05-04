@@ -49,6 +49,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Shamir's Secret Sharing**: Split private key into N shares (threshold M) using GF(256)
 - **Key rotation API**: 4 REST endpoints (rotate, list, version, backup-shamir)
 - **Startup key loading**: All trusted keys loaded from DB at startup for rotation support
+- Audit log hash chain verification (HMAC-SHA256 tamper detection)
+- GDPR data export/deletion and compliance report generation
+- Audit log export (CSV/JSON formats)
+- Per-user IP whitelist with CIDR support and enforcement middleware
+- Device binding with trust management and new device detection
+- Ed25519 code signing with key generation, rotation, and CLI tool
 
 ### Changed
 - License Engine now maintains a key chain (`publicKeys []ed25519.PublicKey`)
@@ -87,16 +93,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - License RSA key pair generation and JWT signing
 - Machine fingerprint prevents casual trial resets
 - Audit trail for degradation events (action, feature, reason, tenant, user, IP)
-
-## [1.9.0]
-
-### Added
-- Audit log hash chain verification (HMAC-SHA256 tamper detection)
-- GDPR data export/deletion and compliance report generation
-- Audit log export (CSV/JSON formats)
-- Per-user IP whitelist with CIDR support and enforcement middleware
-- Device binding with trust management and new device detection
-- Ed25519 code signing with key generation, rotation, and CLI tool
 
 ## [1.7.0] - 2026-04-30
 
@@ -237,4 +233,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [1.7.0]: https://github.com/Yogdunana/deploypilot/releases/tag/v1.7.0
 [1.8.0]: https://github.com/Yogdunana/deploypilot/releases/tag/v1.8.0
 [1.9.0]: https://github.com/Yogdunana/deploypilot/releases/tag/v1.9.0
+[1.11.0]: https://github.com/Yogdunana/deploypilot/releases/tag/v1.11.0
 [1.10.0]: https://github.com/Yogdunana/deploypilot/releases/tag/v1.10.0

@@ -28,7 +28,7 @@ scope: 详细参考内容，按需查阅
 
 | 层级 | 技术 | 版本 |
 |------|------|------|
-| 后端语言 | Go | 1.23 |
+| 后端语言 | Go | 1.24 |
 | 后端框架 | Gin | - |
 | 后端 ORM | GORM | - |
 | 前端框架 | Vue | 3.5 |
@@ -345,13 +345,13 @@ Dependabot PR **必须**经过 `make check` 验证后再合并。
 #### Secret Scanning
 
 - CI 中配置了 gitleaks 进行密钥泄露扫描
-- 当前状态：`continue-on-error: true`（已知问题，见 Issue #114）
-- Token **禁止**硬编码，必须通过环境变量或 GitHub Secrets 管理
+- 当前状态：**已启用为阻断检查**（PR #261 修复）
 
 #### Vulnerability Scanning
 
 - CI 中配置了 govulncheck（Go）和 npm audit（前端）
-- govulncheck 当前 `continue-on-error: true`（需 Go 1.24+，跟踪为 M-14）
+- govulncheck 已升级为阻断检查（Go 1.24，PR #261 修复）
+- stdlib 漏洞以 warning 形式报告（需 Go 补丁版本修复）
 - npm audit 不再 `continue-on-error`（PR #127 修复）
 
 ### 2.7 Label 规范
@@ -447,7 +447,7 @@ PR 合并前必须全部通过的 check-runs：
 | Test | Go 测试（race + coverage） | `go test -race -coverprofile` |
 | Lint | golangci-lint 检查 | golangci-lint v2.1.0 |
 | Frontend Dependency Audit | npm 安全审计 | `npm audit --audit-level=high`，不再 continue-on-error（PR #127 修复） |
-| Vulnerability Check | Go 漏洞扫描 | govulncheck，continue-on-error: true（需 Go 1.24+） |
+| Vulnerability Check | Go 漏洞扫描 | govulncheck，stdlib 漏洞以 warning 报告 |
 | Secret Scanning | 密钥泄露扫描 | gitleaks |
 | Build Frontend | 前端构建 | Node 20, npm ci + build + test |
 
@@ -699,13 +699,13 @@ gh api /repos/Yogdunana/deploypilot/contents/internal/service/bridge_test.go \
 ### 5.1 Secret Scanning
 
 - CI 配置：gitleaks，fetch-depth: 0
-- 当前状态：continue-on-error: true（**已知问题**，密钥扫描形同虚设，见 Issue #114）
+- 当前状态：**已启用为阻断检查**（PR #261 修复）
 - Token 管理原则：环境变量获取，**禁止**硬编码
 
 ### 5.2 Vulnerability Check
 
-- CI 配置：govulncheck
-- 当前状态：continue-on-error: true（需 Go 1.24+ 修复 stdlib 漏洞，跟踪为 M-14）
+- CI 配置：govulncheck（Go 1.24）
+- 当前状态：**已启用为阻断检查**（PR #261 修复），stdlib 漏洞以 warning 报告
 
 ### 5.3 依赖审计
 
@@ -721,15 +721,15 @@ gh api /repos/Yogdunana/deploypilot/contents/internal/service/bridge_test.go \
 - DeployPilot 面板使用 Go 内嵌 HTTP 服务器（踩坑 #23，**禁止**假设面板依赖 Nginx）
 - Redis Pub/Sub **必须**防止消息回环（踩坑 #28，使用 SourceInstance 标识）
 
-#### 已知安全漏洞（需修复）
+#### 已知安全漏洞（已全部修复）
 
-| 编号 | 严重级别 | 描述 | 位置 |
-|------|----------|------|------|
-| Issue #113 | Critical | ListImages filter 命令注入：`filter` 参数直接拼接到 shell 命令 | `bridge.go` |
-| Issue #114 | - | CI 安全扫描形同虚设：gitleaks/govulncheck/npm audit 均 continue-on-error | `.github/workflows/ci.yml` |
-| Issue #115 | - | SSH 静默回退 root：`getRemoteExecutor` 和 `PortForward` 中 username 为空时静默回退 root | `bridge.go` |
-| - | - | DNS 服务吞掉错误：`dns_service.go` 返回 nil error + 错误 map | `dns_service.go` |
-| - | - | Backup/PortForward shellQuote 未一致使用：`backup_service.go:41` 中 `containerName` 和 `backupFile` 未转义 | `backup_service.go` |
+| 编号 | 严重级别 | 描述 | 位置 | 修复 |
+|------|----------|------|------|------|
+| Issue #113 | Critical | ListImages filter 命令注入 | `bridge.go` | ✅ PR #119，`shellQuote(filter)` |
+| Issue #114 | - | CI 安全扫描形同虚设 | `.github/workflows/ci.yml` | ✅ PR #261，Go 1.24 + govulncheck 阻断 |
+| Issue #115 | - | SSH 静默回退 root | `bridge.go`, `ssh_service.go` | ✅ PR #261，返回 error |
+| - | - | DNS 服务吞掉错误 | `dns_service.go` | ✅ PR #261，BatchDNS 返回 error |
+| - | - | Backup/PortForward shellQuote | `backup_service.go`, `bridge.go` | ✅ PR #119，`shellQuote()` 转义 |
 
 ### 5.5 内容安全
 
@@ -1040,9 +1040,13 @@ npm audit --audit-level=high
 
 | 路径 | 说明 |
 |------|------|
-| `.github/workflows/ci.yml` | CI 工作流 |
+| `.github/workflows/ci.yml` | CI 工作流（7 项检查） |
 | `.github/workflows/docker.yml` | Docker 构建推送 |
 | `.github/workflows/release.yml` | Release 发布 |
+| `.github/workflows/benchmark.yml` | 性能基准测试（benchstat 回归检测） |
+| `.github/workflows/changelog.yml` | Changelog 自动化 |
+| `.github/workflows/e2e.yml` | 端到端测试 |
+| `.github/workflows/wiki-sync.yml` | Wiki 同步 |
 | `Makefile` | 构建命令集合 |
 | `Dockerfile` | Docker 构建文件 |
 
@@ -1155,15 +1159,15 @@ npm audit --audit-level=high
 | #23 | DeployPilot 面板使用 Go 内嵌 HTTP 服务器，端口可配置 | `web/embed.go`, `internal/server/server.go` | 面板不依赖 Nginx/Apache/OpenResty，**禁止**假设面板由 Nginx 代理或固定在 8080 端口 |
 | #28 | Redis Pub/Sub 多实例广播必须防止消息回环 | WSHub, WSMessage | 使用 SourceInstance（UUID 前 8 位）标识消息来源，接收时跳过自己发出的消息 |
 
-### 已知安全漏洞
+### 已知安全漏洞（已全部修复）
 
-| 编号 | 标题 | 涉及文件 | 正确做法 |
-|------|------|----------|----------|
-| #29 | ListImages filter 命令注入 | `bridge.go` | `filter` 参数必须经过 `shellQuote()` 转义后再拼接到 shell 命令 |
-| #30 | CI 安全扫描形同虚设 | `.github/workflows/ci.yml` | 移除 gitleaks/govulncheck/npm audit 的 continue-on-error，使扫描失败时真正阻断 CI |
-| #31 | SSH 静默回退 root | `bridge.go`（`getRemoteExecutor`, `PortForward`） | username 为空时**禁止**静默回退 root，应返回错误或明确提示用户 |
-| #32 | DNS 服务吞掉错误 | `dns_service.go` | **禁止**返回 nil error + 错误 map，应将错误信息通过 error 返回 |
-| #33 | Backup/PortForward shellQuote 未一致使用 | `backup_service.go:41` | `containerName` 和 `backupFile` 参数必须经过 `shellQuote()` 转义 |
+| 编号 | 标题 | 涉及文件 | 正确做法 | 状态 |
+|------|------|----------|----------|------|
+| #29 | ListImages filter 命令注入 | `bridge.go` | `filter` 参数必须经过 `shellQuote()` 转义后再拼接到 shell 命令 | ✅ PR #119 |
+| #30 | CI 安全扫描形同虚设 | `.github/workflows/ci.yml` | 移除 gitleaks/govulncheck/npm audit 的 continue-on-error | ✅ PR #261 |
+| #31 | SSH 静默回退 root | `bridge.go`, `ssh_service.go` | username 为空时**禁止**静默回退 root，应返回错误 | ✅ PR #261 |
+| #32 | DNS 服务吞掉错误 | `dns_service.go` | **禁止**返回 nil error + 错误 map，应将错误信息通过 error 返回 | ✅ PR #261 |
+| #33 | Backup/PortForward shellQuote 未一致使用 | `backup_service.go:41`, `bridge.go:850` | `containerName`、`backupFile`、`RemoteHost` 参数必须经过 `shellQuote()` 转义 | ✅ PR #119 |
 
 ---
 
