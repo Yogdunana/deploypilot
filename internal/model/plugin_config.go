@@ -13,8 +13,8 @@ type PluginConfig struct {
 	Name      string    `json:"name" gorm:"uniqueIndex;size:100"`
 	Enabled   bool      `json:"enabled"`
 	Config    string    `json:"config" gorm:"type:text"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	CreatedAt time.Time `json:"created_at" gorm:"autoCreateTime"`
+	UpdatedAt time.Time `json:"updated_at" gorm:"autoUpdateTime"`
 }
 
 func (PluginConfig) TableName() string { return "plugin_configs" }

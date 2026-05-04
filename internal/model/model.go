@@ -152,8 +152,8 @@ type DeploymentRecord struct {
 	PreflightMessage string    `gorm:"column:preflight_message" json:"preflight_message,omitempty"`
 	PreflightChecks  string    `gorm:"column:preflight_checks;type:text" json:"preflight_checks,omitempty"` // JSON string
 	ErrorMessage     string    `gorm:"column:error_message" json:"error_message,omitempty"`
-	CreatedAt         time.Time `json:"created_at"`
-	UpdatedAt        time.Time `json:"updated_at"`
+	CreatedAt         time.Time `gorm:"autoCreateTime" json:"created_at"`
+	UpdatedAt        time.Time `gorm:"autoUpdateTime" json:"updated_at"`
 }
 
 func (DeploymentRecord) TableName() string { return "deployments" }
@@ -193,8 +193,8 @@ type SSLCertificate struct {
 	AutoRenew   bool       `gorm:"default:true" json:"auto_renew"`
 	LastRenewed *time.Time `json:"last_renewed"`
 	RetryCount  int        `gorm:"default:0" json:"retry_count"`
-	CreatedAt   time.Time  `json:"created_at"`
-	UpdatedAt   time.Time  `json:"updated_at"`
+	CreatedAt   time.Time  `gorm:"autoCreateTime" json:"created_at"`
+	UpdatedAt   time.Time  `gorm:"autoUpdateTime" json:"updated_at"`
 }
 
 func (SSLCertificate) TableName() string { return "ssl_certificates" }

@@ -117,7 +117,7 @@ flowchart LR
     end
 
     subgraph S2["DeployPilot Gateway"]
-        B["MCP Server - 52+ tools"]
+        B["MCP Server - 91+ tools"]
         C["REST API - JWT + RBAC"]
         D[WebSocket / SSE]
         E[Deploy Engine]
