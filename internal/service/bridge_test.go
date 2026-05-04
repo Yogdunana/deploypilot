@@ -27,15 +27,21 @@ func normalizeCmd(cmd string) string {
 }
 
 func (m *mockExecutor) RunCommand(_ context.Context, cmd string) (string, error) {
-	// Strip single quotes from both cmd and keys for matching
-	// (util.ShellQuote wraps args in single quotes)
+	// util.ShellQuote wraps args in single quotes, e.g. "docker inspect 'name'"
+	// Strip quotes from cmd for matching against keys that don't have quotes.
 	nc := normalizeCmd(cmd)
 	if m.err != nil {
+		// Try exact match, then normalized cmd, then normalized key
 		if m.err[cmd] != nil {
 			return "", m.err[cmd]
 		}
 		if m.err[nc] != nil {
 			return "", m.err[nc]
+		}
+		for k, v := range m.err {
+			if normalizeCmd(k) == nc {
+				return "", v
+			}
 		}
 	}
 	if m.output != nil {
@@ -44,6 +50,11 @@ func (m *mockExecutor) RunCommand(_ context.Context, cmd string) (string, error)
 		}
 		if out, ok := m.output[nc]; ok {
 			return out, nil
+		}
+		for k, v := range m.output {
+			if normalizeCmd(k) == nc {
+				return v, nil
+			}
 		}
 	}
 	return "", nil
