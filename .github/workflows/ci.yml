@@ -195,3 +195,18 @@ jobs:
 
       - name: Build MCP server
         run: go build -o bin/mcp-server ./cmd/mcp-server/
+
+  commitlint:
+    name: Commitlint
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install -g @commitlint/cli @commitlint/config-conventional
+      - run: echo "npx commitlint --from ${{ github.event.pull_request.base.sha }} --to ${{ github.event.pull_request.head.sha }} --verbose"

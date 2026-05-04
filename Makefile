@@ -1,4 +1,4 @@
-.PHONY: build build-mcp build-api build-all test lint coverage clean docker-build run swagger dev dev-up dev-down dev-logs dev-clean dev-backend dev-frontend migrate-up migrate-down migrate-status
+.PHONY: build build-mcp build-api build-all test lint coverage clean docker-build run swagger dev dev-up dev-down dev-logs dev-clean dev-backend dev-frontend migrate-up migrate-down migrate-status changelog changelog-init bench bench-signing bench-auth
 
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
 GIT_COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
@@ -44,6 +44,16 @@ vet: ## Run go vet
 	$(GOVET) ./...
 
 check: vet lint test ## Run all checks
+
+# Benchmark targets
+bench: ## Run all benchmarks
+	$(GOTEST) -bench=. -benchmem -count=5 ./internal/...
+
+bench-signing: ## Run signing benchmarks
+	$(GOTEST) -bench=. -benchmem -count=5 ./internal/signing/
+
+bench-auth: ## Run auth benchmarks
+	$(GOTEST) -bench=. -benchmem -count=5 ./internal/auth/
 
 # Docker targets
 docker-build: ## Build Docker image
@@ -106,6 +116,15 @@ migrate-down: ## Rollback last migration
 migrate-status: ## Show migration status
 	@echo "Migration status..."
 	go run ./cmd/api-server --migrate-status
+
+# Changelog targets
+changelog: ## Generate changelog from conventional commits
+	@echo "Generating changelog..."
+	npx conventional-changelog -p angular -i CHANGELOG.md -s
+	@echo "CHANGELOG.md updated"
+
+changelog-init: ## Initialize changelog
+	npx conventional-changelog -p angular -i CHANGELOG.md -s -r 0
 
 # Help target
 help: ## Show this help
