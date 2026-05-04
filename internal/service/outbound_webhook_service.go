@@ -15,6 +15,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/Yogdunana/deploypilot/internal/model"
+	"github.com/Yogdunana/deploypilot/internal/util"
 )
 
 // OutboundWebhookService manages outbound webhook CRUD, delivery, retry, and event subscription.
@@ -123,7 +124,7 @@ func (s *OutboundWebhookService) Deliver(ctx context.Context, webhook *model.Out
 
 	// Send request
 	startTime := time.Now()
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := util.DefaultClient.Do(req)
 	latency := time.Since(startTime)
 
 	// Read response body for error recording
@@ -133,9 +134,9 @@ func (s *OutboundWebhookService) Deliver(ctx context.Context, webhook *model.Out
 		statusCode = 0
 		respBody = err.Error()
 	} else {
+		defer resp.Body.Close()
 		statusCode = resp.StatusCode
 		respBytes, _ := io.ReadAll(resp.Body)
-		_ = resp.Body.Close()
 		respBody = string(respBytes)
 	}
 
@@ -231,7 +232,7 @@ func (s *OutboundWebhookService) retryDelivery(webhook *model.OutboundWebhook, d
 		req.Header.Set("User-Agent", "DeployPilot-Webhook/1.0")
 
 		startTime := time.Now()
-		resp, err := http.DefaultClient.Do(req)
+		resp, err := util.DefaultClient.Do(req)
 		latency := time.Since(startTime)
 
 		var respBody string
@@ -240,9 +241,9 @@ func (s *OutboundWebhookService) retryDelivery(webhook *model.OutboundWebhook, d
 			statusCode = 0
 			respBody = err.Error()
 		} else {
+			defer resp.Body.Close()
 			statusCode = resp.StatusCode
 			respBytes, _ := io.ReadAll(resp.Body)
-			_ = resp.Body.Close()
 			respBody = string(respBytes)
 		}
 
@@ -343,7 +344,7 @@ func (s *OutboundWebhookService) TestDelivery(ctx context.Context, webhookID str
 	req.Header.Set("User-Agent", "DeployPilot-Webhook/1.0")
 
 	startTime := time.Now()
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := util.DefaultClient.Do(req)
 	latency := time.Since(startTime)
 
 	var respBody string
@@ -352,9 +353,9 @@ func (s *OutboundWebhookService) TestDelivery(ctx context.Context, webhookID str
 		statusCode = 0
 		respBody = err.Error()
 	} else {
+		defer resp.Body.Close()
 		statusCode = resp.StatusCode
 		respBytes, _ := io.ReadAll(resp.Body)
-		_ = resp.Body.Close()
 		respBody = string(respBytes)
 	}
 

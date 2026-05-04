@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"context"
 	"fmt"
-	"io"
 	"strings"
 	"sync"
 	"time"
@@ -249,6 +248,5 @@ func parseLogLines(containerName, output string) []LogEntry {
 // detectStream guesses stdout vs stderr from log content.
 func detectStream(line string) string {
 	// Docker prefixes stderr lines, but in combined mode we just default to stdout
-	_ = io.EOF // suppress unused import
 	return "stdout"
 }

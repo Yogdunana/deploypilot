@@ -109,18 +109,20 @@ func Register(db *gorm.DB) gin.HandlerFunc {
 		if refreshStore != nil {
 			refreshID, rErr := auth.GenerateRefreshTokenID()
 			if rErr == nil {
-				_ = refreshStore.Store(auth.RefreshTokenEntry{
+				if err := refreshStore.Store(auth.RefreshTokenEntry{
 					TokenID: refreshID, UserID: user.ID, Role: "viewer",
 					DeviceInfo: c.GetHeader("User-Agent"), IPAddress: c.ClientIP(),
 					CreatedAt: time.Now(), ExpiresAt: time.Now().Add(7 * 24 * time.Hour),
-				})
+				}); err != nil {
+					slog.Warn("failed to store refresh token", "error", err)
+				}
 				setAuthCookies(c, token, refreshID)
 			}
 		}
 
 		// Record register audit event
 		if auditSvcForAuth != nil {
-			_ = auditSvcForAuth.Record(c.Request.Context(), service.AuditEntry{
+			if err := auditSvcForAuth.Record(c.Request.Context(), service.AuditEntry{
 				UserID:       parseUserID(user.ID),
 				Username:     user.Username,
 				Action:       "user.register",
@@ -128,7 +130,9 @@ func Register(db *gorm.DB) gin.HandlerFunc {
 				ResourceID:   user.ID,
 				IPAddress:    c.ClientIP(),
 				UserAgent:    c.GetHeader("User-Agent"),
-			})
+			}); err != nil {
+				slog.Warn("failed to record audit log", "error", err)
+			}
 		}
 
 		respondSuccess(c, gin.H{
@@ -339,18 +343,20 @@ func Login(db *gorm.DB, bf *bruteforce.Protector) gin.HandlerFunc {
 		if refreshStore != nil {
 			refreshID, rErr := auth.GenerateRefreshTokenID()
 			if rErr == nil {
-				_ = refreshStore.Store(auth.RefreshTokenEntry{
+				if err := refreshStore.Store(auth.RefreshTokenEntry{
 					TokenID: refreshID, UserID: user.ID, Role: roleName,
 					DeviceInfo: c.GetHeader("User-Agent"), IPAddress: c.ClientIP(),
 					CreatedAt: time.Now(), ExpiresAt: time.Now().Add(7 * 24 * time.Hour),
-				})
+				}); err != nil {
+					slog.Warn("failed to store refresh token", "error", err)
+				}
 				setAuthCookies(c, token, refreshID)
 			}
 		}
 
 		// Record login audit event
 		if auditSvcForAuth != nil {
-			_ = auditSvcForAuth.Record(c.Request.Context(), service.AuditEntry{
+			if err := auditSvcForAuth.Record(c.Request.Context(), service.AuditEntry{
 				UserID:       parseUserID(user.ID),
 				Username:     user.Username,
 				Action:       "user.login",
@@ -358,7 +364,9 @@ func Login(db *gorm.DB, bf *bruteforce.Protector) gin.HandlerFunc {
 				ResourceID:   user.ID,
 				IPAddress:    c.ClientIP(),
 				UserAgent:    c.GetHeader("User-Agent"),
-			})
+			}); err != nil {
+				slog.Warn("failed to record audit log", "error", err)
+			}
 		}
 
 		// Detect first login and update last_login_at
