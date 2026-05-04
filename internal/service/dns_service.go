@@ -182,6 +182,7 @@ func (b *Bridge) UpdateDNSRecord(ctx context.Context, domain, subdomain, recordT
 
 func (b *Bridge) BatchDNS(ctx context.Context, records []map[string]interface{}) (interface{}, error) {
 	results := make([]map[string]interface{}, 0, len(records))
+	var failed int
 	for i, rec := range records {
 		domain := toStringOrDefault(rec["domain"], "")
 		subdomain := toStringOrDefault(rec["subdomain"], "")
@@ -192,6 +193,7 @@ func (b *Bridge) BatchDNS(ctx context.Context, records []map[string]interface{})
 		status := "success"
 		if err != nil {
 			status = "error"
+			failed++
 			res = map[string]interface{}{"message": err.Error()}
 			slog.Error("batch DNS record creation failed", "index", i, "domain", domain, "type", recordType, "error", err)
 		}
@@ -201,8 +203,14 @@ func (b *Bridge) BatchDNS(ctx context.Context, records []map[string]interface{})
 			"record": res,
 		})
 	}
-	return map[string]interface{}{
+	resp := map[string]interface{}{
 		"total":   len(records),
+		"success": len(records) - failed,
+		"failed":  failed,
 		"results": results,
-	}, nil
+	}
+	if failed > 0 {
+		return resp, fmt.Errorf("%d of %d DNS records failed to create", failed, len(records))
+	}
+	return resp, nil
 }

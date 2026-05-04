@@ -976,8 +976,8 @@ func TestBatchDNS_NoProvider_Cov(t *testing.T) {
 	res, err := b.BatchDNS(context.TODO(), []map[string]interface{}{
 		{"domain": "example.com", "type": "A", "subdomain": "www", "value": "1.2.3.4"},
 	})
-	if err != nil {
-		t.Fatalf("BatchDNS failed: %v", err)
+	if err == nil {
+		t.Fatal("expected error when no DNS provider is configured")
 	}
 	m, ok := res.(map[string]interface{})
 	if !ok {

@@ -575,12 +575,15 @@ func TestBatchDNS(t *testing.T) {
 		{"domain": "example.com", "type": "A", "subdomain": "www", "value": "1.2.3.4"},
 	}
 	result, err := b.BatchDNS(context.Background(), records)
-	if err != nil {
-		t.Fatalf("BatchDNS failed: %v", err)
+	if err == nil {
+		t.Fatal("expected error when no DNS provider is configured")
 	}
 	m, ok := result.(map[string]interface{})
 	if !ok || m["total"] != 1 {
 		t.Fatalf("expected total=1, got %v", m)
+	}
+	if m["failed"] != 1 {
+		t.Fatalf("expected failed=1, got %v", m["failed"])
 	}
 	// Each record should have error status since no DNS provider is configured
 	results, ok := m["results"].([]map[string]interface{})
@@ -2769,8 +2772,8 @@ func TestBatchDNS_MultipleRecords(t *testing.T) {
 		{"domain": "example.com", "type": "CNAME", "subdomain": "cdn", "value": "cdn.example.com"},
 	}
 	result, err := b.BatchDNS(context.TODO(), records)
-	if err != nil {
-		t.Fatalf("BatchDNS failed: %v", err)
+	if err == nil {
+		t.Fatal("expected error when no DNS provider is configured")
 	}
 	m, ok := result.(map[string]interface{})
 	if !ok {
