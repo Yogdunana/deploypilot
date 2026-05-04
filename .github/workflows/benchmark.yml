@@ -1,0 +1,55 @@
+name: Benchmark
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '**/*.go'
+
+jobs:
+  benchmark:
+    name: Run Benchmarks
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version: "1.24"
+
+      - name: Run benchmarks on PR branch
+        run: |
+          go test -bench=. -benchmem -count=5 ./internal/signing/ ./internal/auth/ 2>&1 | tee pr_bench.txt
+
+      - name: Run benchmarks on base branch
+        run: |
+          git checkout ${{ github.event.pull_request.base.sha }}
+          go test -bench=. -benchmem -count=5 ./internal/signing/ ./internal/auth/ 2>&1 | tee base_bench.txt
+
+      - name: Install benchstat
+        run: go install golang.org/x/perf/cmd/benchstat@latest
+
+      - name: Compare benchmarks
+        run: |
+          benchstat base_bench.txt pr_bench.txt > benchstat_results.txt || true
+          cat benchstat_results.txt
+
+      - name: Check for regression (>5%)
+        run: |
+          if grep -q "~.*p=0.05" benchstat_results.txt; then
+            echo "::warning::Possible performance regression detected. Review benchstat results."
+          fi
+
+      - name: Upload benchmark results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results
+          path: |
+            pr_bench.txt
+            base_bench.txt
+            benchstat_results.txt
+          retention-days: 30
