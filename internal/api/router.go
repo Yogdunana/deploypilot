@@ -13,7 +13,6 @@ import (
 	"github.com/Yogdunana/deploypilot/internal/metrics"
 	"github.com/Yogdunana/deploypilot/internal/middleware"
 	"github.com/Yogdunana/deploypilot/internal/plugin"
-	"github.com/Yogdunana/deploypilot/internal/sandbox"
 	"github.com/Yogdunana/deploypilot/internal/service"
 	"github.com/gin-gonic/gin"
 	ginSwagger "github.com/swaggo/gin-swagger"
@@ -115,190 +114,16 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 	protected.Use(auth.APIKeyMiddleware(keySvc))
 	protected.Use(auth.AuthMiddleware(blacklist))
 	{
-		// Apps (12 endpoints)
-		apps := protected.Group("/apps")
-		{
-			apps.POST("", CreateApp(db))
-			apps.GET("", ListApps(db))
-			apps.GET("/:id", auth.RequireResourceAccessCached(bridge, "app", "id"), GetApp(db))
-			apps.PUT("/:id", auth.RequireResourceAccessCached(bridge, "app", "id"), UpdateApp(db))
-			apps.DELETE("/:id", auth.RequireResourceAccessCached(bridge, "app", "id"), DeleteApp(bridge))
-			apps.POST("/:id/deploy", auth.RequireResourceAccessCached(bridge, "app", "id"), DeployApp(bridge))
-			apps.POST("/:id/build", auth.RequireResourceAccessCached(bridge, "app", "id"), BuildAndDeployApp(bridge))
-			apps.GET("/:id/status", auth.RequireResourceAccessCached(bridge, "app", "id"), GetAppStatus(bridge))
-			apps.POST("/:id/rollback", auth.RequireResourceAccessCached(bridge, "app", "id"), RollbackApp(bridge))
-			apps.GET("/:id/history", auth.RequireResourceAccessCached(bridge, "app", "id"), GetDeploymentHistory(bridge))
-			apps.GET("/:id/logs/container", auth.RequireResourceAccessCached(bridge, "app", "id"), GetContainerLogs(bridge))
-			apps.POST("/:id/backup", auth.RequireResourceAccessCached(bridge, "app", "id"), BackupApp(bridge))
-			apps.POST("/:id/restore", auth.RequireResourceAccessCached(bridge, "app", "id"), RestoreApp(bridge))
-			apps.GET("/:id/env", auth.RequireResourceAccessCached(bridge, "app", "id"), GetAppEnv(db))
-			apps.PUT("/:id/env", auth.RequireResourceAccessCached(bridge, "app", "id"), UpdateAppEnv(db))
-		}
 
-		// Servers (7 endpoints)
-		servers := protected.Group("/servers")
-		{
-			servers.POST("", AddServer(bridge))
-			servers.GET("", ListServers(bridge))
-			servers.PUT("/:id", auth.RequireResourceAccessCached(bridge, "server", "id"), UpdateServer(bridge))
-			servers.DELETE("/:id", auth.RequireResourceAccessCached(bridge, "server", "id"), DeleteServer(bridge))
-			servers.POST("/:id/detect", auth.RequireResourceAccessCached(bridge, "server", "id"), DetectEnvironment(bridge))
-			servers.GET("/:id/environment", auth.RequireResourceAccessCached(bridge, "server", "id"), GetServerEnvironment(bridge))
-			servers.POST("/:id/test", auth.RequireResourceAccessCached(bridge, "server", "id"), TestServer(bridge))
-
-			// File management
-			fileAPI := NewFileManagerAPI(db, sandbox.New(sandbox.DefaultConfig()))
-			servers.GET("/:id/files", fileAPI.ListFiles)
-			servers.GET("/:id/files/read", fileAPI.ReadFile)
-			servers.PUT("/:id/files/write", fileAPI.WriteFile)
-			servers.DELETE("/:id/files", fileAPI.DeleteFile)
-			servers.POST("/:id/files/mkdir", fileAPI.CreateDirectory)
-			servers.POST("/:id/files/move", fileAPI.MoveFile)
-			servers.GET("/:id/files/disk-usage", fileAPI.GetDiskUsage)
-			servers.GET("/:id/files/info", fileAPI.GetFileInfo)
-			servers.GET("/:id/files/search", fileAPI.SearchFiles)
-
-			// Firewall management
-			fwAPI := NewFirewallAPI(db, sandbox.New(sandbox.DefaultConfig()))
-			servers.GET("/:id/firewall", fwAPI.GetFirewallStatus)
-			servers.GET("/:id/firewall/detect", fwAPI.DetectFirewall)
-			servers.POST("/:id/firewall/ports/open", fwAPI.OpenPort)
-			servers.POST("/:id/firewall/ports/close", fwAPI.ClosePort)
-			servers.POST("/:id/firewall/blocks", fwAPI.BlockIP)
-			servers.DELETE("/:id/firewall/blocks/:ip", fwAPI.UnblockIP)
-			servers.POST("/:id/firewall/common-ports", fwAPI.AllowCommonPorts)
-
-			// SSH management
-			servers.GET("/:id/ssh/authorizations", NewSSHAPI(db).ListServerAuthorizations)
-		}
-
-		// SSH key management (top-level)
-		sshAPI := NewSSHAPI(db)
-		sshGroup := protected.Group("/ssh")
-		{
-			sshGroup.POST("/keys/generate", sshAPI.GenerateKeyPair)
-			sshGroup.POST("/keys/import", sshAPI.ImportPublicKey)
-			sshGroup.GET("/keys", sshAPI.ListKeyPairs)
-			sshGroup.GET("/keys/:id", sshAPI.GetKeyPair)
-			sshGroup.DELETE("/keys/:id", sshAPI.DeleteKeyPair)
-			sshGroup.GET("/keys/:id/authorizations", sshAPI.ListKeyAuthorizations)
-			sshGroup.POST("/authorize", sshAPI.AuthorizeKey)
-			sshGroup.POST("/revoke", sshAPI.RevokeKey)
-		}
-
-		// Process daemon management
-		procAPI := NewProcessAPI(db)
-		servers.GET("/:id/processes", procAPI.ListProcesses)
-		servers.GET("/:id/processes/tree", procAPI.GetProcessTree)
-		servers.GET("/:id/processes/search", procAPI.SearchProcesses)
-		servers.GET("/:id/processes/:pid", procAPI.GetProcess)
-		servers.POST("/:id/processes/:pid/kill", procAPI.KillProcess)
-		servers.GET("/:id/resources", procAPI.GetSystemResources)
-
-		procGroup := protected.Group("/processes")
-		{
-			procGroup.GET("/rules", procAPI.ListRules)
-			procGroup.GET("/rules/:id", procAPI.GetRule)
-			procGroup.POST("/rules", procAPI.CreateRule)
-			procGroup.PUT("/rules/:id", procAPI.UpdateRule)
-			procGroup.DELETE("/rules/:id", procAPI.DeleteRule)
-		}
-
-		// System snapshot management
-		snapAPI := NewSnapshotAPI(db)
-		servers.GET("/:id/snapshots", snapAPI.ListSnapshots)
-		servers.GET("/:id/snapshots/files", snapAPI.GetSnapshotFiles)
-		servers.GET("/:id/snapshots/diff", snapAPI.DiffSnapshots)
-		servers.GET("/:id/snapshots/:snap_id", snapAPI.GetSnapshot)
-		servers.POST("/:id/snapshots", snapAPI.CreateSnapshot)
-		servers.POST("/:id/snapshots/:snap_id/restore", snapAPI.RestoreSnapshot)
-		servers.DELETE("/:id/snapshots/:snap_id", snapAPI.DeleteSnapshot)
-
-		// Toolbox management
-		tbAPI := NewToolboxAPI(db)
-		servers.GET("/:id/toolbox/detect", tbAPI.DetectEnvironment)
-		servers.POST("/:id/toolbox/run", tbAPI.RunScript)
-		servers.POST("/:id/toolbox/builtin", tbAPI.RunBuiltInScript)
-
-		tbGroup := protected.Group("/toolbox")
-		{
-			tbGroup.GET("/scripts/builtin", tbAPI.ListBuiltInScripts)
-			tbGroup.GET("/scripts", tbAPI.ListScripts)
-			tbGroup.GET("/scripts/:id", tbAPI.GetScript)
-			tbGroup.POST("/scripts", tbAPI.CreateScript)
-			tbGroup.PUT("/scripts/:id", tbAPI.UpdateScript)
-			tbGroup.DELETE("/scripts/:id", tbAPI.DeleteScript)
-		}
-
-		// Monitoring & Observability
-		monGroup := protected.Group("/monitors")
-		{
-			monGroup.GET("", globalMonitorAPI.ListMonitors)
-			monGroup.GET("/overview", globalMonitorAPI.QueryMonitorOverview)
-			monGroup.POST("", globalMonitorAPI.CreateMonitor)
-			monGroup.GET("/:id", globalMonitorAPI.GetMonitor)
-			monGroup.PUT("/:id", globalMonitorAPI.UpdateMonitor)
-			monGroup.DELETE("/:id", globalMonitorAPI.DeleteMonitor)
-			monGroup.POST("/:id/check", globalMonitorAPI.CheckMonitor)
-			monGroup.GET("/:id/results", globalMonitorAPI.GetMonitorResults)
-			monGroup.GET("/:id/sla", globalMonitorAPI.GetMonitorSLA)
-			monGroup.GET("/:id/history", globalMonitorAPI.QueryMonitorHistory)
-			monGroup.GET("/:id/export", ExportMonitorData(db))
-			monGroup.POST("/check-all", globalMonitorAPI.CheckAllMonitors)
-		}
-
-		// Heartbeat
-		hbGroup := protected.Group("/heartbeats")
-		{
-			hbGroup.GET("", globalMonitorAPI.ListHeartbeats)
-			hbGroup.POST("", globalMonitorAPI.CreateHeartbeat)
-			hbGroup.DELETE("/:id", globalMonitorAPI.DeleteHeartbeat)
-		}
+		// Register sub-route groups
+		registerAppRoutes(protected, db, bridge)
+		registerServerRoutes(protected, db, bridge)
+		registerMonitorRoutes(protected, db, bridge)
+		registerSettingsRoutes(protected, db, bridge, backupSvc)
 
 		// Public endpoints (no auth required for heartbeat ping and status page)
 		r.GET("/api/v1/heartbeat/ping/:token", globalMonitorAPI.PingHeartbeat)
 		r.GET("/api/v1/status", globalMonitorAPI.GetStatusPage)
-
-		// Outbound Webhooks
-		whGroup := protected.Group("/webhooks")
-		{
-			whGroup.GET("", globalWebhookAPI.ListWebhooks)
-			whGroup.POST("", globalWebhookAPI.CreateWebhook)
-			whGroup.GET("/:id", globalWebhookAPI.GetWebhook)
-			whGroup.PUT("/:id", globalWebhookAPI.UpdateWebhook)
-			whGroup.DELETE("/:id", globalWebhookAPI.DeleteWebhook)
-			whGroup.POST("/:id/test", globalWebhookAPI.TestWebhook)
-			whGroup.GET("/:id/deliveries", globalWebhookAPI.ListDeliveries)
-			whGroup.GET("/:id/deliveries/:did", globalWebhookAPI.GetDelivery)
-		}
-
-		// Grafana Integration
-		grafanaGroup := protected.Group("/grafana")
-		{
-			grafanaGroup.GET("/status", globalGrafanaAPI.GetStatus)
-			grafanaGroup.POST("/test", globalGrafanaAPI.TestConnection)
-			grafanaGroup.POST("/sync", globalGrafanaAPI.SyncAll)
-			grafanaGroup.GET("/dashboards", globalGrafanaAPI.ListDashboards)
-			grafanaGroup.GET("/dashboards/:id", globalGrafanaAPI.GetDashboard)
-			grafanaGroup.POST("/dashboards", globalGrafanaAPI.CreateDashboard)
-			grafanaGroup.PUT("/dashboards/:id", globalGrafanaAPI.UpdateDashboard)
-			grafanaGroup.DELETE("/dashboards/:id", globalGrafanaAPI.DeleteDashboard)
-			grafanaGroup.GET("/export", globalGrafanaAPI.ExportAll)
-		}
-
-		// OAuth2 client management (protected)
-		if globalOAuth2API != nil {
-			oauth2 := protected.Group("/oauth")
-			{
-				oauth2.GET("/clients", globalOAuth2API.ListClients)
-				oauth2.POST("/clients", globalOAuth2API.CreateClient)
-				oauth2.GET("/clients/:id", globalOAuth2API.GetClient)
-				oauth2.PUT("/clients/:id", globalOAuth2API.UpdateClient)
-				oauth2.DELETE("/clients/:id", globalOAuth2API.DeleteClient)
-				oauth2.POST("/clients/:id/secret", globalOAuth2API.RegenerateSecret)
-				oauth2.POST("/authorize", globalOAuth2API.Authorize)
-			}
-		}
 
 		// Credentials (5 endpoints)
 		creds := protected.Group("/credentials")
@@ -420,35 +245,6 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 			alerts.GET("/export", ExportAlertHistory(db))
 		}
 
-		// System (4 endpoints)
-		system := protected.Group("/system")
-		{
-			system.GET("/version", GetVersion)
-			system.GET("/update/check", CheckUpdate(bridge))
-			system.POST("/update/perform", auth.RoleRequired("owner", "admin"), DoUpdate(bridge))
-			system.GET("/sandbox", GetSandboxConfig(bridge))
-			system.POST("/sandbox/validate", ValidateSandboxCommand(bridge))
-			system.GET("/confirmations", ListConfirmations(bridge))
-			system.POST("/confirmations/:id/confirm", auth.RoleRequired("owner", "admin"), ConfirmRequest(bridge))
-			system.POST("/confirmations/:id/reject", auth.RoleRequired("owner", "admin"), RejectRequest(bridge))
-			system.GET("/bruteforce", GetBruteForceStatus(bridge))
-			system.POST("/bruteforce/accounts/:username/unlock", auth.RoleRequired("owner", "admin"), UnlockBruteForceAccount(bridge))
-			system.POST("/bruteforce/ips/:ip/unlock", auth.RoleRequired("owner", "admin"), UnlockBruteForceIP(bridge))
-			system.GET("/backup/status", GetBackupStatus(backupSvc))
-			system.POST("/backup/trigger", auth.RoleRequired("owner", "admin"), TriggerBackup(backupSvc))
-			system.GET("/backup/records", ListBackupRecords(backupSvc))
-			system.DELETE("/backup/records/:id", auth.RoleRequired("owner", "admin"), DeleteBackupRecord(backupSvc))
-			system.POST("/backup/cloud/download/:id", auth.RoleRequired("owner", "admin"), DownloadCloudBackup(backupSvc))
-			system.POST("/backup/cloud/retention", auth.RoleRequired("owner", "admin"), ApplyCloudRetention(backupSvc))
-			if bridge != nil {
-				system.GET("/detect/all", DetectAllComponents(bridge.Executor))
-				system.GET("/detect/databases", DetectDatabases(bridge.Executor))
-				system.GET("/detect/webservers", DetectWebServers(bridge.Executor))
-			}
-			system.GET("/security/config", GetSecurityConfig())
-			system.PUT("/security/config", auth.RoleRequired("owner", "admin"), UpdateSecurityConfig())
-		}
-
 	// Deployments (2 endpoints)
 		deployments := protected.Group("/deployments")
 		{
@@ -461,21 +257,6 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 		{
 			backups.GET("", ListBackups(backupSvc))
 			backups.DELETE("/:backupId", DeleteBackup(backupSvc))
-		}
-
-		// Monitor (6 endpoints)
-		mon := protected.Group("/monitor")
-		{
-			mon.GET("/system", GetSystemMetrics(bridge))
-			mon.GET("/container/:name", GetContainerMetrics(bridge))
-			mon.GET("/alerts", ListAlerts(bridge))
-			mon.GET("/alert-rules", ListAlertRules(bridge))
-			mon.POST("/alert-rules", CreateAlertRule(db))
-			mon.GET("/alert-rules/:id", GetAlertRule(db))
-			mon.PUT("/alert-rules/:id", UpdateAlertRule(db))
-			mon.DELETE("/alert-rules/:id", DeleteAlertRule(db))
-			mon.POST("/heal/:name", HealContainer(bridge))
-			mon.POST("/check/:name", CheckContainerHealth(bridge))
 		}
 
 		// CI/CD (2 endpoints)
@@ -660,3 +441,4 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 		}
 	}
 }
+
