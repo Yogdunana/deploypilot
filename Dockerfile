@@ -7,7 +7,7 @@ COPY web/ ./
 RUN npm run build
 
 # Stage 2: Build Go backend
-FROM --platform=$BUILDPLATFORM golang:1.23.6 AS backend
+FROM --platform=$BUILDPLATFORM golang:1.24.0 AS backend
 
 # Install xx for cross-compilation support
 COPY --from=tonistiigi/xx / /
