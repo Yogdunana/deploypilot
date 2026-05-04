@@ -80,7 +80,9 @@ export function useWebSocket(options: UseWebSocketOptions) {
     try {
       ticket = await fetchWSTicket()
     } catch (err) {
-      console.error('[WebSocket] Failed to fetch ticket:', err)
+      if (import.meta.env.DEV) {
+        console.error('[WebSocket] Failed to fetch ticket:', err)
+      }
       scheduleReconnect()
       return
     }
@@ -90,7 +92,9 @@ export function useWebSocket(options: UseWebSocketOptions) {
     try {
       ws = new WebSocket(url)
     } catch (err) {
-      console.error('[WebSocket] 创建连接失败:', err)
+      if (import.meta.env.DEV) {
+        console.error('[WebSocket] 创建连接失败:', err)
+      }
       scheduleReconnect()
       return
     }
@@ -150,7 +154,9 @@ export function useWebSocket(options: UseWebSocketOptions) {
       const payload = typeof data === 'string' ? data : JSON.stringify(data)
       ws.send(payload)
     } else {
-      console.warn('[WebSocket] 未连接，无法发送消息')
+      if (import.meta.env.DEV) {
+        console.warn('[WebSocket] 未连接，无法发送消息')
+      }
     }
   }
 

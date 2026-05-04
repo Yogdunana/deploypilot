@@ -30,5 +30,15 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     emptyOutDir: true,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-vue': ['vue', 'vue-router', 'pinia'],
+          'vendor-echarts': ['echarts', 'vue-echarts'],
+          'vendor-i18n': ['vue-i18n'],
+          'vendor-xterm': ['@xterm/xterm', '@xterm/addon-fit', '@xterm/addon-web-links'],
+        },
+      },
+    },
   },
 })
