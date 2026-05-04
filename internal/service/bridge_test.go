@@ -27,22 +27,22 @@ func normalizeCmd(cmd string) string {
 }
 
 func (m *mockExecutor) RunCommand(_ context.Context, cmd string) (string, error) {
-	// Try exact match first
-	if m.err != nil && m.err[cmd] != nil {
-		return "", m.err[cmd]
+	// Strip single quotes from both cmd and keys for matching
+	// (util.ShellQuote wraps args in single quotes)
+	nc := normalizeCmd(cmd)
+	if m.err != nil {
+		if m.err[cmd] != nil {
+			return "", m.err[cmd]
+		}
+		if m.err[nc] != nil {
+			return "", m.err[nc]
+		}
 	}
 	if m.output != nil {
 		if out, ok := m.output[cmd]; ok {
 			return out, nil
 		}
-	}
-	// Fallback: try with quotes stripped (util.ShellQuote wraps args in single quotes)
-	normalized := normalizeCmd(cmd)
-	if m.err != nil && m.err[normalized] != nil {
-		return "", m.err[normalized]
-	}
-	if m.output != nil {
-		if out, ok := m.output[normalized]; ok {
+		if out, ok := m.output[nc]; ok {
 			return out, nil
 		}
 	}
