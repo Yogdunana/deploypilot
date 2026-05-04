@@ -77,6 +77,7 @@ export default {
     expired: 'expired',
     expiresToday: 'expires today',
     daysUntilExpiry: 'days until expiry',
+    forbidden: 'Access Denied',
   },
 
   login: {

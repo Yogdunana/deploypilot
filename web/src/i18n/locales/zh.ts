@@ -75,6 +75,7 @@ export default {
     expired: '已过期',
     expiresToday: '今天过期',
     daysUntilExpiry: '天过期',
+    forbidden: '访问被拒绝',
   },
 
   login: {
