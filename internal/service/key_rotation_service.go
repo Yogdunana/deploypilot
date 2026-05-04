@@ -8,7 +8,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"log/slog"
-	"math"
 	"time"
 
 	"github.com/Yogdunana/deploypilot/internal/model"

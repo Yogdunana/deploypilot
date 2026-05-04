@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"testing"
 
 	"github.com/Yogdunana/deploypilot/internal/model"
@@ -30,7 +31,7 @@ func TestKeyFingerprint(t *testing.T) {
 
 func TestRotateLicenseKeys(t *testing.T) {
 	_, bridge := setupKeyRotationTestDB(t)
-	ctx := t.Context()
+	ctx := context.Background()
 
 	result, err := bridge.RotateLicenseKeys(ctx, "admin")
 	if err != nil {
@@ -50,7 +51,7 @@ func TestRotateLicenseKeys(t *testing.T) {
 
 func TestRotateLicenseKeys_MultipleRotations(t *testing.T) {
 	_, bridge := setupKeyRotationTestDB(t)
-	ctx := t.Context()
+	ctx := context.Background()
 
 	// First rotation
 	r1, err := bridge.RotateLicenseKeys(ctx, "admin")
@@ -79,7 +80,7 @@ func TestRotateLicenseKeys_MultipleRotations(t *testing.T) {
 
 func TestListLicenseKeys(t *testing.T) {
 	_, bridge := setupKeyRotationTestDB(t)
-	ctx := t.Context()
+	ctx := context.Background()
 
 	// Rotate twice
 	bridge.RotateLicenseKeys(ctx, "admin")
@@ -99,7 +100,7 @@ func TestListLicenseKeys(t *testing.T) {
 
 func TestGetCurrentKeyVersion_NoKeys(t *testing.T) {
 	_, bridge := setupKeyRotationTestDB(t)
-	ctx := t.Context()
+	ctx := context.Background()
 
 	result, err := bridge.GetCurrentKeyVersion(ctx)
 	if err != nil {
@@ -115,7 +116,7 @@ func TestGetCurrentKeyVersion_NoKeys(t *testing.T) {
 
 func TestGetCurrentKeyVersion_AfterRotation(t *testing.T) {
 	_, bridge := setupKeyRotationTestDB(t)
-	ctx := t.Context()
+	ctx := context.Background()
 
 	bridge.RotateLicenseKeys(ctx, "admin")
 
@@ -133,7 +134,7 @@ func TestGetCurrentKeyVersion_AfterRotation(t *testing.T) {
 
 func TestLoadAllActivePublicKeys(t *testing.T) {
 	_, bridge := setupKeyRotationTestDB(t)
-	ctx := t.Context()
+	ctx := context.Background()
 
 	// No keys
 	keys, err := bridge.LoadAllActivePublicKeys(ctx)
