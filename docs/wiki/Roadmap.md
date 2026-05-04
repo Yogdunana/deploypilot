@@ -190,9 +190,9 @@
 | 10.2 | 测试体系（testcontainers + E2E + 覆盖率门禁 >80%） | ✅ 已完成 (PR #258) |
 | 10.3 | 本地开发环境（docker-compose.dev.yml + make dev + Mock 模式） | ✅ 已完成 (PR #237) |
 | 10.4 | 社区建设（CONTRIBUTING + CODE_OF_CONDUCT + ADR + CLAUDE.md） | ✅ 已完成 (PR #237) |
-| 10.5 | Changelog 自动化（Conventional Commits → CHANGELOG.md） | ⏳ 待开发 |
+| 10.5 | Changelog 自动化（Conventional Commits -> CHANGELOG.md） | ✅ 已完成 (PR #264) |
 | 10.6 | API 版本管理（版本中间件 + 弃用头 + 版本发现端点） | ✅ 已完成 (PR #239) |
-| 10.7 | 性能基准测试（benchstat + CI 性能回归检测） | ⏳ 待开发 |
+| 10.7 | 性能基准测试（benchstat + CI 性能回归检测） | ✅ 已完成 (PR #264) |
 
 **相关 Issue**: #157, #160, #161, #162, #164
 
