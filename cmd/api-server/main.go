@@ -329,6 +329,14 @@ func run(configFilePath, cliDriver, cliDSN, cliAddr string, migrateOnly, migrate
 				slog.Warn("failed to load license from database", "error", err)
 			}
 
+			// Load all trusted public keys from DB for key rotation support
+			if allKeys, err := bridge.LoadAllActivePublicKeys(context.Background()); err == nil && len(allKeys) > 0 {
+				for _, pk := range allKeys {
+					bridge.LicenseEngine.AddTrustedKey(pk)
+				}
+				slog.Info("loaded trusted license keys from database", "count", len(allKeys))
+			}
+
 			slog.Info("license engine initialized", "grace_days", graceDays)
 		}
 	} else {

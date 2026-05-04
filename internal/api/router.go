@@ -599,6 +599,15 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 			license.GET("/list", auth.RoleRequired("owner"), ListLicensesHandler(bridge))
 			license.POST("/:id/revoke", auth.RoleRequired("owner"), RevokeLicenseHandler(bridge))
 			license.POST("/addon", PurchaseAddonHandler(bridge))
+
+			// Key rotation (owner only)
+			keys := license.Group("/keys")
+			{
+				keys.POST("/rotate", auth.RoleRequired("owner"), RotateLicenseKeysHandler(bridge))
+				keys.GET("/list", auth.RoleRequired("owner"), ListLicenseKeysHandler(bridge))
+				keys.GET("/version", GetKeyVersionHandler(bridge))
+				keys.POST("/backup-shamir", auth.RoleRequired("owner"), BackupKeyShamirHandler(bridge))
+			}
 		}
 
 		// Feature flags management (7 endpoints)
