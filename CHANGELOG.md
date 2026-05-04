@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.9.0] - 2026-05-04
+
+### Added
+- **License key rotation**: Ed25519 key pair rotation with auto-incrementing version numbers
+- **Multi-key verification**: License Engine verifies against all trusted public keys
+- **Key versioning**: Database-backed `license_signing_keys` table with version tracking
+- **Shamir's Secret Sharing**: Split private key into N shares (threshold M) using GF(256)
+- **Key rotation API**: 4 REST endpoints (rotate, list, version, backup-shamir)
+- **Startup key loading**: All trusted keys loaded from DB at startup for rotation support
+
+### Changed
+- License Engine now maintains a key chain (`publicKeys []ed25519.PublicKey`)
+- `LoadLicense()` verifies signature against all trusted keys (not just active)
+- `RotatePublicKey()` replaces active key while retaining old keys for verification
+
 ## [1.8.0] - 2026-05-03
 
 ### Added
