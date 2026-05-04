@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"github.com/Yogdunana/deploypilot/internal/util"
 )
 
 // ComposeDeployer handles docker-compose deployments.
@@ -19,7 +20,7 @@ func NewComposeDeployer(executor CommandExecutor) *ComposeDeployer {
 // ComposeUp writes a compose file and runs docker-compose up -d.
 func (d *ComposeDeployer) ComposeUp(ctx context.Context, workDir, composeContent string, envVars map[string]string) (string, error) {
 	// Write compose file
-	writeCmd := fmt.Sprintf("mkdir -p %s && cat > %s/docker-compose.yml << 'DEPLOYPILOT_COMPOSE_EOF'\n%s\nDEPLOYPILOT_COMPOSE_EOF", workDir, workDir, composeContent)
+	writeCmd := fmt.Sprintf("mkdir -p %s && cat > %s/docker-compose.yml << 'DEPLOYPILOT_COMPOSE_EOF'\n%s\nDEPLOYPILOT_COMPOSE_EOF", util.ShellQuote(workDir), util.ShellQuote(workDir), composeContent)
 	if out, err := d.executor.RunCommand(ctx, writeCmd); err != nil {
 		return "", fmt.Errorf("failed to write compose file: %w, output: %s", err, out)
 	}
@@ -35,7 +36,7 @@ func (d *ComposeDeployer) ComposeUp(ctx context.Context, workDir, composeContent
 	}
 
 	// Run docker-compose up -d
-	cmd := fmt.Sprintf("cd %s && %sdocker-compose up -d --remove-orphans 2>&1", workDir, envCmd)
+	cmd := fmt.Sprintf("cd %s && %sdocker-compose up -d --remove-orphans 2>&1", util.ShellQuote(workDir), envCmd)
 	out, err := d.executor.RunCommand(ctx, cmd)
 	if err != nil {
 		return out, fmt.Errorf("docker-compose up failed: %w", err)
@@ -45,7 +46,7 @@ func (d *ComposeDeployer) ComposeUp(ctx context.Context, workDir, composeContent
 
 // ComposeDown stops and removes containers defined in compose file.
 func (d *ComposeDeployer) ComposeDown(ctx context.Context, workDir string) (string, error) {
-	cmd := fmt.Sprintf("cd %s && docker-compose down --remove-orphans 2>&1", workDir)
+	cmd := fmt.Sprintf("cd %s && docker-compose down --remove-orphans 2>&1", util.ShellQuote(workDir))
 	out, err := d.executor.RunCommand(ctx, cmd)
 	if err != nil {
 		return out, fmt.Errorf("docker-compose down failed: %w", err)
@@ -55,7 +56,7 @@ func (d *ComposeDeployer) ComposeDown(ctx context.Context, workDir string) (stri
 
 // ComposePs lists containers managed by docker-compose.
 func (d *ComposeDeployer) ComposePs(ctx context.Context, workDir string) (string, error) {
-	cmd := fmt.Sprintf("cd %s && docker-compose ps --format 'table {{.Name}}\t{{.State}}\t{{.Ports}}' 2>&1", workDir)
+	cmd := fmt.Sprintf("cd %s && docker-compose ps --format 'table {{.Name}}\t{{.State}}\t{{.Ports}}' 2>&1", util.ShellQuote(workDir))
 	out, err := d.executor.RunCommand(ctx, cmd)
 	if err != nil {
 		return out, fmt.Errorf("docker-compose ps failed: %w", err)
@@ -65,7 +66,7 @@ func (d *ComposeDeployer) ComposePs(ctx context.Context, workDir string) (string
 
 // ComposeLogs fetches logs from compose services.
 func (d *ComposeDeployer) ComposeLogs(ctx context.Context, workDir, service, tail string) (string, error) {
-	cmd := fmt.Sprintf("cd %s && docker-compose logs", workDir)
+	cmd := fmt.Sprintf("cd %s && docker-compose logs", util.ShellQuote(workDir))
 	if service != "" {
 		cmd += " " + service
 	}
@@ -82,7 +83,7 @@ func (d *ComposeDeployer) ComposeLogs(ctx context.Context, workDir, service, tai
 
 // ComposeRestart restarts compose services.
 func (d *ComposeDeployer) ComposeRestart(ctx context.Context, workDir, service string) (string, error) {
-	cmd := fmt.Sprintf("cd %s && docker-compose restart", workDir)
+	cmd := fmt.Sprintf("cd %s && docker-compose restart", util.ShellQuote(workDir))
 	if service != "" {
 		cmd += " " + service
 	}

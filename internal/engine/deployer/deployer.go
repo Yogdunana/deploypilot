@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"github.com/Yogdunana/deploypilot/internal/util"
 )
 
 // CommandExecutor abstracts SSH command execution for testability.
@@ -72,13 +73,13 @@ func (d *DockerDeployer) Deploy(ctx context.Context, cfg DeployConfig) (*Contain
 	}
 
 	// Step 1: Pull image
-	pullCmd := fmt.Sprintf("docker pull %s", cfg.Image)
+	pullCmd := fmt.Sprintf("docker pull %s", util.ShellQuote(cfg.Image))
 	if _, err := d.executor.RunCommand(ctx, pullCmd); err != nil {
 		return nil, fmt.Errorf("failed to pull image %s: %w", cfg.Image, err)
 	}
 
 	// Step 2: Remove existing container with same name (if any)
-	_, _ = d.executor.RunCommand(ctx, fmt.Sprintf("docker rm -f %s 2>/dev/null || true", cfg.ContainerName))
+	_, _ = d.executor.RunCommand(ctx, fmt.Sprintf("docker rm -f %s 2>/dev/null || true", util.ShellQuote(cfg.ContainerName)))
 
 	// Step 3: Build docker run command
 	runCmd := d.buildRunCommand(cfg)
@@ -112,7 +113,7 @@ func (d *DockerDeployer) Deploy(ctx context.Context, cfg DeployConfig) (*Contain
 
 // GetContainerStatus returns the status of a container by name.
 func (d *DockerDeployer) GetContainerStatus(ctx context.Context, name string) (*ContainerStatus, error) {
-	cmd := fmt.Sprintf("docker inspect --format '{{.Id}}|{{.Name}}|{{.Config.Image}}|{{.State.Status}}|{{.Created}}' %s 2>/dev/null", name)
+	cmd := fmt.Sprintf("docker inspect --format '{{.Id}}|{{.Name}}|{{.Config.Image}}|{{.State.Status}}|{{.Created}}' %s 2>/dev/null", util.ShellQuote(name))
 	output, err := d.executor.RunCommand(ctx, cmd)
 	if err != nil {
 		return nil, fmt.Errorf("failed to inspect container %s: %w", name, err)
@@ -144,7 +145,7 @@ func (d *DockerDeployer) GetContainerStatus(ctx context.Context, name string) (*
 
 // Stop stops a running container.
 func (d *DockerDeployer) Stop(ctx context.Context, name string) error {
-	_, err := d.executor.RunCommand(ctx, fmt.Sprintf("docker stop %s", name))
+	_, err := d.executor.RunCommand(ctx, fmt.Sprintf("docker stop %s", util.ShellQuote(name)))
 	if err != nil {
 		return fmt.Errorf("failed to stop container %s: %w", name, err)
 	}
@@ -153,7 +154,7 @@ func (d *DockerDeployer) Stop(ctx context.Context, name string) error {
 
 // Remove removes a container.
 func (d *DockerDeployer) Remove(ctx context.Context, name string) error {
-	_, err := d.executor.RunCommand(ctx, fmt.Sprintf("docker rm -f %s", name))
+	_, err := d.executor.RunCommand(ctx, fmt.Sprintf("docker rm -f %s", util.ShellQuote(name)))
 	if err != nil {
 		return fmt.Errorf("failed to remove container %s: %w", name, err)
 	}
@@ -162,7 +163,7 @@ func (d *DockerDeployer) Remove(ctx context.Context, name string) error {
 
 // GetContainerLogs returns logs for a container.
 func (d *DockerDeployer) GetContainerLogs(ctx context.Context, name string, tail int) (string, error) {
-	cmd := fmt.Sprintf("docker logs --tail %d %s 2>&1", tail, name)
+	cmd := fmt.Sprintf("docker logs --tail %d %s 2>&1", tail, util.ShellQuote(name))
 	output, err := d.executor.RunCommand(ctx, cmd)
 	if err != nil {
 		return "", fmt.Errorf("failed to get logs for %s: %w", name, err)
@@ -215,49 +216,49 @@ func (d *DockerDeployer) buildRunCommand(cfg DeployConfig) string {
 	args = append(args, "docker run -d")
 
 	// Container name
-	args = append(args, fmt.Sprintf("--name %s", cfg.ContainerName))
+	args = append(args, fmt.Sprintf("--name %s", util.ShellQuote(cfg.ContainerName)))
 
 	// Restart policy
 	if cfg.RestartPolicy == "" {
 		cfg.RestartPolicy = "unless-stopped"
 	}
-	args = append(args, fmt.Sprintf("--restart %s", cfg.RestartPolicy))
+	args = append(args, fmt.Sprintf("--restart %s", util.ShellQuote(cfg.RestartPolicy)))
 
 	// Ports
 	if cfg.Ports != "" {
-		args = append(args, fmt.Sprintf("-p %s", cfg.Ports))
+		args = append(args, fmt.Sprintf("-p %s", util.ShellQuote(cfg.Ports)))
 	}
 
 	// Volumes
 	if cfg.Volumes != "" {
-		args = append(args, fmt.Sprintf("-v %s", cfg.Volumes))
+		args = append(args, fmt.Sprintf("-v %s", util.ShellQuote(cfg.Volumes)))
 	}
 
 	// Environment variables
 	for k, v := range cfg.EnvVars {
-		args = append(args, fmt.Sprintf("-e %s=%s", k, v))
+		args = append(args, fmt.Sprintf("-e %s=%s", util.ShellQuote(k), util.ShellQuote(v)))
 	}
 
 	// Labels
 	for k, v := range cfg.Labels {
-		args = append(args, fmt.Sprintf("-l %s=%s", k, v))
+		args = append(args, fmt.Sprintf("-l %s=%s", util.ShellQuote(k), util.ShellQuote(v)))
 	}
 
 	// Resource limits
 	if cfg.CPU != "" {
-		args = append(args, fmt.Sprintf("--cpus %s", cfg.CPU))
+		args = append(args, fmt.Sprintf("--cpus %s", util.ShellQuote(cfg.CPU)))
 	}
 	if cfg.Memory != "" {
-		args = append(args, fmt.Sprintf("--memory %s", cfg.Memory))
+		args = append(args, fmt.Sprintf("--memory %s", util.ShellQuote(cfg.Memory)))
 	}
 
 	// Network
 	if cfg.Network != "" {
-		args = append(args, fmt.Sprintf("--network %s", cfg.Network))
+		args = append(args, fmt.Sprintf("--network %s", util.ShellQuote(cfg.Network)))
 	}
 
 	// Image
-	args = append(args, cfg.Image)
+	args = append(args, util.ShellQuote(cfg.Image))
 
 	return strings.Join(args, " ")
 }
@@ -291,7 +292,7 @@ type ContainerDetail struct {
 func (d *DockerDeployer) GetContainerDetail(ctx context.Context, name string) (*ContainerDetail, error) {
 	cmd := fmt.Sprintf(
 		`docker inspect --format '{{.State.OOMKilled}}|{{.State.ExitCode}}|{{.State.Restarting}}|{{.State.Pid}}|{{.State.StartedAt}}|{{.State.FinishedAt}}|{{.State.Health.Status}}' %s 2>/dev/null`,
-		name,
+		util.ShellQuote(name),
 	)
 	output, err := d.executor.RunCommand(ctx, cmd)
 	if err != nil || output == "" {
@@ -316,7 +317,7 @@ func (d *DockerDeployer) GetContainerDetail(ctx context.Context, name string) (*
 
 	// Get restart count separately
 	restartCount := 0
-	restartCmd := fmt.Sprintf("docker inspect --format '{{.RestartCount}}' %s 2>/dev/null", name)
+	restartCmd := fmt.Sprintf("docker inspect --format '{{.RestartCount}}' %s 2>/dev/null", util.ShellQuote(name))
 	if restartOut, err := d.executor.RunCommand(ctx, restartCmd); err == nil {
 		restartCount, _ = strconv.Atoi(strings.TrimSpace(restartOut))
 	}

@@ -8,6 +8,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/Yogdunana/deploypilot/internal/util"
 )
 
 // LogEntry represents a single log line from a container.
@@ -78,7 +80,7 @@ func NewLogReader(executor CommandExecutor) *LogReader {
 
 // GetHistory retrieves historical logs for a container.
 func (lr *LogReader) GetHistory(ctx context.Context, containerName string, tail int) ([]LogEntry, error) {
-	cmd := fmt.Sprintf("docker logs --tail %d %s 2>&1", tail, containerName)
+	cmd := fmt.Sprintf("docker logs --tail %d %s 2>&1", tail, util.ShellQuote(containerName))
 	output, err := lr.executor.RunCommand(ctx, cmd)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get logs: %w", err)
@@ -90,7 +92,7 @@ func (lr *LogReader) GetHistory(ctx context.Context, containerName string, tail 
 // StreamLogs streams logs in real-time using docker logs --follow.
 // It writes entries to the provided LogStream until context is cancelled.
 func (lr *LogReader) StreamLogs(ctx context.Context, containerName string, stream *LogStream) error {
-	cmd := fmt.Sprintf("docker logs --follow --tail 0 %s 2>&1", containerName)
+	cmd := fmt.Sprintf("docker logs --follow --tail 0 %s 2>&1", util.ShellQuote(containerName))
 
 	// In production, this would use an SSH session with stdin/stdout pipes.
 	// For now, we simulate by running the command and parsing output.

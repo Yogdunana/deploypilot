@@ -8,12 +8,8 @@ import (
 	"time"
 
 	"github.com/Yogdunana/deploypilot/internal/engine/deployer"
+	"github.com/Yogdunana/deploypilot/internal/util"
 )
-
-// shellQuote safely escapes a string for use in a shell command.
-func shellQuote(s string) string {
-	return "'" + strings.ReplaceAll(s, "'", "'\"'\"'") + "'"
-}
 
 // BuildConfig holds parameters for a build operation.
 type BuildConfig struct {
@@ -115,7 +111,7 @@ func (b *Builder) BuildAndDeploy(ctx context.Context, cfg BuildConfig) (*BuildRe
 	dockerfile := tmpl.GenerateDockerfile(cfg.DockerfileOverrides)
 
 	// Write Dockerfile to project dir
-	_, err = b.executor.RunCommand(ctx, fmt.Sprintf("cat > %s/Dockerfile << 'DEPLOYPilot_EOF'\n%s\nDEPLOYPilot_EOF", shellQuote(cfg.ProjectDir), dockerfile))
+	_, err = b.executor.RunCommand(ctx, fmt.Sprintf("cat > %s/Dockerfile << 'DEPLOYPilot_EOF'\n%s\nDEPLOYPilot_EOF", util.ShellQuote(cfg.ProjectDir), dockerfile))
 	if err != nil {
 		return nil, fmt.Errorf("failed to write Dockerfile: %w", err)
 	}
@@ -132,7 +128,7 @@ func (b *Builder) BuildAndDeploy(ctx context.Context, cfg BuildConfig) (*BuildRe
 	}
 
 	// 6. Get image digest
-	digest, _ := b.executor.RunCommand(ctx, fmt.Sprintf("docker inspect --format='{{.Id}}' %s 2>/dev/null", shellQuote(imageTag)))
+	digest, _ := b.executor.RunCommand(ctx, fmt.Sprintf("docker inspect --format='{{.Id}}' %s 2>/dev/null", util.ShellQuote(imageTag)))
 
 	duration := time.Since(start).Seconds()
 
@@ -161,24 +157,24 @@ func (b *Builder) BuildAndDeploy(ctx context.Context, cfg BuildConfig) (*BuildRe
 // gitClone clones or pulls a git repository.
 func (b *Builder) gitClone(ctx context.Context, cfg BuildConfig) (string, error) {
 	// Check if directory exists
-	output, _ := b.executor.RunCommand(ctx, fmt.Sprintf("test -d %s/.git && echo 'exists'", shellQuote(cfg.ProjectDir)))
+	output, _ := b.executor.RunCommand(ctx, fmt.Sprintf("test -d %s/.git && echo 'exists'", util.ShellQuote(cfg.ProjectDir)))
 
 	if strings.TrimSpace(output) == "exists" {
 		// Pull latest
-		_, err := b.executor.RunCommand(ctx, fmt.Sprintf("cd %s && git fetch origin && git checkout %s && git pull origin %s", shellQuote(cfg.ProjectDir), shellQuote(cfg.Branch), shellQuote(cfg.Branch)))
+		_, err := b.executor.RunCommand(ctx, fmt.Sprintf("cd %s && git fetch origin && git checkout %s && git pull origin %s", util.ShellQuote(cfg.ProjectDir), util.ShellQuote(cfg.Branch), util.ShellQuote(cfg.Branch)))
 		if err != nil {
 			return "", fmt.Errorf("git pull failed: %w", err)
 		}
 	} else {
 		// Clone
-		_, err := b.executor.RunCommand(ctx, fmt.Sprintf("mkdir -p %s && git clone --branch %s --depth 1 %s %s", shellQuote(cfg.ProjectDir), shellQuote(cfg.Branch), shellQuote(cfg.RepoURL), shellQuote(cfg.ProjectDir)))
+		_, err := b.executor.RunCommand(ctx, fmt.Sprintf("mkdir -p %s && git clone --branch %s --depth 1 %s %s", util.ShellQuote(cfg.ProjectDir), util.ShellQuote(cfg.Branch), util.ShellQuote(cfg.RepoURL), util.ShellQuote(cfg.ProjectDir)))
 		if err != nil {
 			return "", fmt.Errorf("git clone failed: %w", err)
 		}
 	}
 
 	// Get commit hash
-	hash, err := b.executor.RunCommand(ctx, fmt.Sprintf("cd %s && git rev-parse HEAD", shellQuote(cfg.ProjectDir)))
+	hash, err := b.executor.RunCommand(ctx, fmt.Sprintf("cd %s && git rev-parse HEAD", util.ShellQuote(cfg.ProjectDir)))
 	if err != nil {
 		return "", fmt.Errorf("failed to get commit hash: %w", err)
 	}
@@ -188,11 +184,11 @@ func (b *Builder) gitClone(ctx context.Context, cfg BuildConfig) (string, error)
 
 // dockerBuild executes docker build.
 func (b *Builder) dockerBuild(ctx context.Context, projectDir, imageTag string, buildArgs map[string]string) (string, error) {
-	cmd := fmt.Sprintf("docker build -t %s", shellQuote(imageTag))
+	cmd := fmt.Sprintf("docker build -t %s", util.ShellQuote(imageTag))
 	for k, v := range buildArgs {
-		cmd += fmt.Sprintf(" --build-arg %s=%s", shellQuote(k), shellQuote(v))
+		cmd += fmt.Sprintf(" --build-arg %s=%s", util.ShellQuote(k), util.ShellQuote(v))
 	}
-	cmd += fmt.Sprintf(" %s", shellQuote(projectDir))
+	cmd += fmt.Sprintf(" %s", util.ShellQuote(projectDir))
 
 	output, err := b.executor.RunCommand(ctx, cmd)
 	return output, err
