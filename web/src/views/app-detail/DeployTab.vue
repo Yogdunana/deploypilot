@@ -6,12 +6,12 @@ import RelativeTime from '@/components/common/RelativeTime.vue'
 import Table from '@/components/ui/Table.vue'
 import type { DeploymentRecord } from '@/types/models'
 
-const { t } = useI18n()
-
 const props = defineProps<{
   deployments: DeploymentRecord[]
   loading: boolean
 }>()
+
+const { t } = useI18n()
 
 const deploymentColumns = computed(() => [
   { key: 'container_name', label: t('appDetail.deployContainerName') },
