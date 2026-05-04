@@ -6,8 +6,6 @@ import Switch from '@/components/ui/Switch.vue'
 import LogViewer from '@/components/common/LogViewer.vue'
 import type { LogEntry } from '@/components/common/LogViewer.vue'
 
-const { t } = useI18n()
-
 const props = defineProps<{
   logs: LogEntry[]
   realtimeEnabled: boolean
@@ -16,14 +14,12 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  'update:realtimeEnabled': [value: boolean]
-  loadHistory: []
-  clearLogs: []
+  (e: 'update:realtime-enabled', value: boolean): void
+  (e: 'load-history'): void
+  (e: 'clear-logs'): void
 }>()
 
-function toggleRealtime(value: boolean) {
-  emit('update:realtimeEnabled', value)
-}
+const { t } = useI18n()
 </script>
 
 <template>
@@ -32,14 +28,14 @@ function toggleRealtime(value: boolean) {
       <div class="flex items-center gap-2">
         <Radio class="w-4 h-4 text-muted-foreground" />
         <span class="text-sm text-muted-foreground">{{ t('appDetail.realtimeLogs') }}</span>
-        <Switch :model-value="realtimeEnabled" @update:model-value="toggleRealtime" />
+        <Switch :model-value="realtimeEnabled" @update:model-value="emit('update:realtime-enabled', $event)" />
       </div>
       <div class="flex-1" />
-      <Button variant="outline" size="sm" :loading="loadingHistory" @click="emit('loadHistory')">
+      <Button variant="outline" size="sm" :loading="loadingHistory" @click="emit('load-history')">
         <template #icon><History class="w-4 h-4" /></template>
         {{ t('appDetail.loadHistoryLogs') }}
       </Button>
-      <Button variant="outline" size="sm" @click="emit('clearLogs')">
+      <Button variant="outline" size="sm" @click="emit('clear-logs')">
         <template #icon><Trash2 class="w-4 h-4" /></template>
         {{ t('appDetail.clear') }}
       </Button>
@@ -50,7 +46,7 @@ function toggleRealtime(value: boolean) {
         :logs="logs"
         :connected="wsConnected"
         :auto-scroll="true"
-        @clear="emit('clearLogs')"
+        @clear="emit('clear-logs')"
       />
     </div>
   </div>

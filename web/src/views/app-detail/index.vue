@@ -3,29 +3,35 @@ import { ref, computed, inject, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import {
-  ArrowLeft, Rocket, Hammer, RotateCcw, Shield,
-  Clock, GitBranch, Globe, Server, Layers,
-  Radio, History, Trash2, Plus, Eye, EyeOff, Save,
+  ArrowLeft, Rocket, Hammer, RotateCcw,
+  Plus, Trash2,
 } from 'lucide-vue-next'
 import PageHeader from '@/components/common/PageHeader.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import RelativeTime from '@/components/common/RelativeTime.vue'
-import LogViewer from '@/components/common/LogViewer.vue'
-import DeployProgress from '@/components/common/DeployProgress.vue'
 import Button from '@/components/ui/Button.vue'
-import Badge from '@/components/ui/Badge.vue'
-import Card from '@/components/ui/Card.vue'
 import Tabs from '@/components/ui/Tabs.vue'
 import Table from '@/components/ui/Table.vue'
 import AlertDialog from '@/components/ui/AlertDialog.vue'
-import Input from '@/components/ui/Input.vue'
 import Skeleton from '@/components/ui/Skeleton.vue'
-import Switch from '@/components/ui/Switch.vue'
 import * as appsApi from '@/api/modules/apps'
 import * as deploymentsApi from '@/api/modules/deployments'
 import { useWebSocket } from '@/composables/useWebSocket'
 import type { App, DeploymentRecord } from '@/types/models'
 import type { LogEntry } from '@/components/common/LogViewer.vue'
+
+import OverviewTab from './OverviewTab.vue'
+import DeployTab from './DeployTab.vue'
+import EnvVarsTab from './EnvVarsTab.vue'
+import LogsTab from './LogsTab.vue'
+import RollbackDialog from './RollbackDialog.vue'
+
+interface EnvItem {
+  key: string
+  value: string
+  visible: boolean
+  isNew?: boolean
+}
 
 const props = defineProps<{ id: string }>()
 const router = useRouter()
@@ -65,8 +71,9 @@ const { connected: wsConnected, send, disconnect: wsDisconnect, connect: wsConne
   },
 })
 
-function toggleRealtime() {
-  if (realtimeEnabled.value) {
+function toggleRealtime(value: boolean) {
+  realtimeEnabled.value = value
+  if (value) {
     wsConnect()
   } else {
     wsDisconnect()
@@ -101,13 +108,6 @@ function clearLogs() {
 }
 
 // ===== Env Tab State =====
-interface EnvItem {
-  key: string
-  value: string
-  visible: boolean
-  isNew?: boolean
-}
-
 const envList = ref<EnvItem[]>([])
 const envLoading = ref(true)
 const envSaving = ref(false)
@@ -273,15 +273,6 @@ const detailTabs = computed(() => [
   { key: 'deployments', label: t('appDetail.deploymentHistory') },
 ])
 
-// Deployment history columns
-const deploymentColumns = computed(() => [
-  { key: 'container_name', label: t('appDetail.deployContainerName') },
-  { key: 'image', label: t('appDetail.image') },
-  { key: 'status', label: t('appDetail.status') },
-  { key: 'error_message', label: t('appDetail.errorMessage') },
-  { key: 'created_at', label: t('appDetail.time') },
-])
-
 // Fetch app detail
 async function fetchApp() {
   loading.value = true
@@ -362,24 +353,6 @@ async function confirmRollback() {
   }
 }
 
-// Info items for overview
-const infoItems = computed(() => {
-  if (!app.value) return []
-  return [
-    { label: t('appDetail.appName'), value: app.value.name, icon: Layers },
-    { label: t('appDetail.repoUrl'), value: app.value.repo_url, icon: GitBranch },
-    { label: t('appDetail.branch'), value: app.value.branch, icon: GitBranch },
-    { label: t('appDetail.stack'), value: app.value.tech_stack, icon: Layers },
-    { label: t('appDetail.domain'), value: app.value.domain, icon: Globe },
-    { label: t('appDetail.server'), value: String(app.value.server_id), icon: Server },
-    { label: t('appDetail.status'), value: app.value.status, icon: Shield, isStatus: true },
-    { label: t('appDetail.currentVersion'), value: app.value.current_version || '-', icon: Layers },
-    { label: t('appDetail.containerName'), value: app.value.container_name || '-', icon: Server },
-    { label: t('appDetail.createdAt'), value: app.value.created_at, icon: Clock, isTime: true },
-    { label: t('appDetail.updatedAt'), value: app.value.updated_at, icon: Clock, isTime: true },
-  ]
-})
-
 // Watch tab changes to load data lazily
 watch(activeTab, (val) => {
   if (val === 'deployments' && deployments.value.length === 0) {
@@ -454,159 +427,31 @@ onMounted(() => {
       <Tabs v-model="activeTab" :tabs="detailTabs" />
 
       <!-- Overview Tab -->
-      <div v-if="activeTab === 'overview'" class="space-y-4">
-        <Card>
-          <template #header>
-            <h3 class="text-sm font-medium text-foreground">{{ t('appDetail.basicInfo') }}</h3>
-          </template>
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-0">
-            <div
-              v-for="(item, index) in infoItems"
-              :key="item.label"
-              class="flex items-start gap-3 py-3"
-              :class="index % 2 === 0 ? 'pr-4' : 'pr-4 md:border-l md:border-border md:pl-4'"
-            >
-              <component :is="item.icon" class="w-4 h-4 mt-0.5 text-muted-foreground shrink-0" />
-              <div class="min-w-0">
-                <p class="text-xs text-muted-foreground">{{ item.label }}</p>
-                <p v-if="item.isStatus" class="text-sm text-foreground mt-0.5">
-                  <StatusBadge :status="item.value" />
-                </p>
-                <p v-else-if="item.label === t('appDetail.stack')" class="text-sm text-foreground mt-0.5">
-                  <Badge v-if="item.value" variant="secondary">{{ item.value }}</Badge>
-                  <span v-else>-</span>
-                </p>
-                <p v-else-if="item.isTime" class="text-sm text-foreground mt-0.5">
-                  <RelativeTime :date="item.value" />
-                </p>
-                <p v-else class="text-sm text-foreground mt-0.5 truncate">{{ item.value || '-' }}</p>
-              </div>
-            </div>
-          </div>
-        </Card>
-
-        <!-- Resource limits -->
-        <Card>
-          <template #header>
-            <h3 class="text-sm font-medium text-foreground">{{ t('appDetail.resourceLimits') }}</h3>
-          </template>
-          <div class="grid grid-cols-2 gap-4">
-            <div>
-              <p class="text-xs text-muted-foreground">{{ t('appDetail.memory') }}</p>
-              <p class="text-sm text-foreground mt-0.5">{{ app.resource_limits?.memory || '-' }}</p>
-            </div>
-            <div>
-              <p class="text-xs text-muted-foreground">{{ t('appDetail.cpu') }}</p>
-              <p class="text-sm text-foreground mt-0.5">{{ app.resource_limits?.cpu || '-' }}</p>
-            </div>
-          </div>
-        </Card>
-
-        <!-- Deploy Progress -->
-        <Card>
-          <template #header>
-            <h3 class="text-sm font-medium text-foreground">{{ t('appDetail.deployProgress') }}</h3>
-          </template>
-          <DeployProgress :app-id="String(app.id)" />
-        </Card>
-      </div>
+      <OverviewTab v-if="activeTab === 'overview'" :app="app" />
 
       <!-- Logs Tab -->
-      <div v-else-if="activeTab === 'logs'" class="space-y-3">
-        <div class="flex items-center gap-2">
-          <div class="flex items-center gap-2">
-            <Radio class="w-4 h-4 text-muted-foreground" />
-            <span class="text-sm text-muted-foreground">{{ t('appDetail.realtimeLogs') }}</span>
-            <Switch v-model="realtimeEnabled" @update:model-value="toggleRealtime" />
-          </div>
-          <div class="flex-1" />
-          <Button variant="outline" size="sm" :loading="loadingHistory" @click="loadHistory">
-            <template #icon><History class="w-4 h-4" /></template>
-            {{ t('appDetail.loadHistoryLogs') }}
-          </Button>
-          <Button variant="outline" size="sm" @click="clearLogs">
-            <template #icon><Trash2 class="w-4 h-4" /></template>
-            {{ t('appDetail.clear') }}
-          </Button>
-        </div>
-
-        <div class="h-[calc(100vh-280px)] min-h-[400px]">
-          <LogViewer
-            :logs="logs"
-            :connected="wsConnected"
-            :auto-scroll="true"
-            @clear="clearLogs"
-          />
-        </div>
-      </div>
+      <LogsTab
+        v-else-if="activeTab === 'logs'"
+        :logs="logs"
+        :realtime-enabled="realtimeEnabled"
+        :ws-connected="wsConnected"
+        :loading-history="loadingHistory"
+        @update:realtime-enabled="toggleRealtime"
+        @load-history="loadHistory"
+        @clear-logs="clearLogs"
+      />
 
       <!-- Environment Variables Tab -->
-      <div v-else-if="activeTab === 'env'" class="space-y-3">
-        <div class="flex items-center justify-between">
-          <p class="text-sm text-muted-foreground">
-            {{ t('appDetail.totalVars', { count: envList.length }) }}
-          </p>
-          <div class="flex items-center gap-2">
-            <Button :loading="envSaving" size="sm" @click="saveEnv">
-              <template #icon><Save class="w-4 h-4" /></template>
-              {{ t('appDetail.save') }}
-            </Button>
-          </div>
-        </div>
-
-        <div v-if="envLoading" class="space-y-3">
-          <Skeleton v-for="i in 5" :key="i" class="h-10 w-full" />
-        </div>
-
-        <div v-else class="space-y-2">
-          <div class="grid grid-cols-[1fr_1fr_80px] gap-3 px-1">
-            <span class="text-xs font-medium text-muted-foreground uppercase tracking-wider">{{ t('appDetail.key') }}</span>
-            <span class="text-xs font-medium text-muted-foreground uppercase tracking-wider">{{ t('appDetail.value') }}</span>
-            <span class="text-xs font-medium text-muted-foreground uppercase tracking-wider text-center">{{ t('appDetail.actions') }}</span>
-          </div>
-
-          <div
-            v-for="(item, index) in envList"
-            :key="index"
-            class="grid grid-cols-[1fr_1fr_80px] gap-3 items-center group"
-          >
-            <Input
-              v-model="item.key"
-              :placeholder="t('appDetail.varNamePlaceholder')"
-              :class="item.isNew ? 'border-primary/50' : ''"
-            />
-            <div class="relative">
-              <Input
-                v-model="item.value"
-                :type="item.visible ? 'text' : 'password'"
-                :placeholder="t('appDetail.varValuePlaceholder')"
-              />
-              <button
-                class="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-                @click="toggleVisibility(index)"
-              >
-                <Eye v-if="!item.visible" class="w-4 h-4" />
-                <EyeOff v-else class="w-4 h-4" />
-              </button>
-            </div>
-            <div class="flex justify-center">
-              <Button
-                variant="ghost"
-                size="icon"
-                class="h-8 w-8 text-muted-foreground hover:text-destructive"
-                @click="removeVariable(index)"
-              >
-                <Trash2 class="w-4 h-4" />
-              </Button>
-            </div>
-          </div>
-
-          <Button variant="outline" size="sm" class="mt-2" @click="addVariable">
-            <template #icon><Plus class="w-4 h-4" /></template>
-            {{ t('appDetail.addVar') }}
-          </Button>
-        </div>
-      </div>
+      <EnvVarsTab
+        v-else-if="activeTab === 'env'"
+        :env-list="envList"
+        :loading="envLoading"
+        :saving="envSaving"
+        @add="addVariable"
+        @remove="removeVariable"
+        @toggle-visibility="toggleVisibility"
+        @save="saveEnv"
+      />
 
       <!-- Backups Tab -->
       <div v-else-if="activeTab === 'backups'" class="space-y-3">
@@ -660,45 +505,18 @@ onMounted(() => {
       </div>
 
       <!-- Deployment History Tab -->
-      <div v-else-if="activeTab === 'deployments'">
-        <Table
-          :columns="deploymentColumns"
-          :data="deployments"
-          :loading="deploymentsLoading"
-        >
-          <template #cell-image="{ row }">
-            <span class="text-sm text-muted-foreground truncate max-w-[200px] inline-block">
-              {{ row.image || '-' }}
-            </span>
-          </template>
-          <template #cell-status="{ row }">
-            <StatusBadge :status="row.status" />
-          </template>
-          <template #cell-error_message="{ row }">
-            <span
-              v-if="row.error_message"
-              class="text-sm text-destructive truncate max-w-[200px] inline-block"
-              :title="row.error_message"
-            >
-              {{ row.error_message }}
-            </span>
-            <span v-else class="text-sm text-muted-foreground">-</span>
-          </template>
-          <template #cell-created_at="{ row }">
-            <RelativeTime :date="row.created_at" />
-          </template>
-        </Table>
-      </div>
+      <DeployTab
+        v-else-if="activeTab === 'deployments'"
+        :deployments="deployments"
+        :loading="deploymentsLoading"
+      />
     </template>
 
     <!-- Rollback confirmation dialog -->
-    <AlertDialog
+    <RollbackDialog
       v-model:open="rollbackDialogOpen"
-      :title="t('appDetail.rollbackConfirm')"
-      :description="t('appDetail.rollbackConfirmDesc', { name: app?.name || '', version: app?.current_version || '' })"
-      :confirm-text="t('appDetail.confirmRollback')"
-      :cancel-text="t('common.cancel')"
-      variant="destructive"
+      :app-name="app?.name || ''"
+      :current-version="app?.current_version || ''"
       @confirm="confirmRollback"
     />
 

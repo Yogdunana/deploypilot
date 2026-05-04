@@ -2,18 +2,17 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import {
-  Clock, GitBranch, Globe, Server, Layers, Shield,
+  Shield, Clock, GitBranch, Globe, Server, Layers,
 } from 'lucide-vue-next'
+import Card from '@/components/ui/Card.vue'
+import Badge from '@/components/ui/Badge.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import RelativeTime from '@/components/common/RelativeTime.vue'
 import DeployProgress from '@/components/common/DeployProgress.vue'
-import Badge from '@/components/ui/Badge.vue'
-import Card from '@/components/ui/Card.vue'
 import type { App } from '@/types/models'
 
-const { t } = useI18n()
-
 const props = defineProps<{ app: App }>()
+const { t } = useI18n()
 
 const infoItems = computed(() => {
   return [

@@ -1,25 +1,24 @@
 <script setup lang="ts">
 import { ref, computed, inject, onMounted } from 'vue'
-import { Plus, MoreHorizontal, Pencil, Trash2, Eye, EyeOff, KeyRound, RefreshCw } from 'lucide-vue-next'
+import { Plus, KeyRound, RefreshCw } from 'lucide-vue-next'
 import PageHeader from '@/components/common/PageHeader.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
-import RelativeTime from '@/components/common/RelativeTime.vue'
 import Button from '@/components/ui/Button.vue'
-import Input from '@/components/ui/Input.vue'
 import Badge from '@/components/ui/Badge.vue'
-import Textarea from '@/components/ui/Textarea.vue'
-import Select from '@/components/ui/Select.vue'
-import Table from '@/components/ui/ResponsiveTable.vue'
-import Dialog from '@/components/ui/Dialog.vue'
-import AlertDialog from '@/components/ui/AlertDialog.vue'
-import DropdownMenu from '@/components/ui/DropdownMenu.vue'
-import Pagination from '@/components/ui/Pagination.vue'
 import Skeleton from '@/components/ui/Skeleton.vue'
 import Tabs from '@/components/ui/Tabs.vue'
+import Dialog from '@/components/ui/Dialog.vue'
+import AlertDialog from '@/components/ui/AlertDialog.vue'
+import Pagination from '@/components/ui/Pagination.vue'
 import * as credentialsApi from '@/api/modules/credentials'
 import * as auditApi from '@/api/modules/audit'
 import type { Credential } from '@/types/models'
 import { useI18n } from 'vue-i18n'
+
+import CredentialTable from './CredentialTable.vue'
+import CredentialDialog from './CredentialDialog.vue'
+import RotateDialog from './RotateDialog.vue'
+import AuditLogTab from './AuditLogTab.vue'
 
 const { toast } = inject<any>('toast')!
 const { t } = useI18n()
@@ -62,22 +61,6 @@ const deleteDialogOpen = ref(false)
 const deletingItem = ref<Credential | null>(null)
 const deleting = ref(false)
 
-// Type options
-const typeOptions = computed(() => [
-  { label: t('credentials.ssh'), value: 'ssh' },
-  { label: t('credentials.apiKey'), value: 'api_key' },
-  { label: t('credentials.token'), value: 'token' },
-])
-
-// Table columns
-const columns = computed(() => [
-  { key: 'name', label: t('credentials.name'), mobile: true },
-  { key: 'type', label: t('credentials.type'), mobile: true },
-  { key: 'expiry_status', label: t('credentials.expiryStatus'), mobile: true },
-  { key: 'created_at', label: t('credentials.createdAt') },
-  { key: 'actions', label: t('credentials.actions'), width: '80px' },
-])
-
 // Type badge mapping
 function getTypeBadge(type: string) {
   const map: Record<string, { variant: 'default' | 'secondary' | 'outline' | 'success' | 'warning'; label: string }> = {
@@ -100,16 +83,6 @@ function getExpiryStatus(item: Credential): { variant: 'default' | 'secondary' |
     return { variant: 'success', label: t('credentials.neverExpires') }
   }
   return { variant: 'success', label: t('credentials.valid') }
-}
-
-function getExpiryText(item: Credential): string {
-  if (item.is_expired) {
-    return t('credentials.expired')
-  }
-  if (item.days_until_expiry !== undefined && item.days_until_expiry !== -1) {
-    return t('credentials.daysLeft', { days: item.days_until_expiry })
-  }
-  return t('credentials.neverExpires')
 }
 
 // Fetch credentials
@@ -248,14 +221,6 @@ async function confirmDelete() {
   }
 }
 
-function getDropdownItems(item: Credential) {
-  return [
-    { label: t('credentials.edit'), icon: Pencil, action: () => openEditDialog(item) },
-    { label: t('credentials.rotate'), icon: RefreshCw, action: () => openRotateDialog(item) },
-    { label: t('credentials.delete'), icon: Trash2, danger: true, action: () => openDeleteDialog(item) },
-  ]
-}
-
 onMounted(fetchCredentials)
 </script>
 
@@ -283,37 +248,15 @@ onMounted(fetchCredentials)
     </div>
 
     <!-- Table -->
-    <Table
+    <CredentialTable
       v-else-if="credentials.length > 0"
-      :columns="columns"
-      :data="credentials"
-    >
-      <template #cell-name="{ row }">
-        <span class="text-sm font-medium text-foreground cursor-pointer hover:underline" @click="openDetailDialog(row as Credential)">{{ row.name }}</span>
-      </template>
-      <template #cell-type="{ row }">
-        <Badge :variant="getTypeBadge(row.type).variant">
-          {{ getTypeBadge(row.type).label }}
-        </Badge>
-      </template>
-      <template #cell-expiry_status="{ row }">
-        <Badge :variant="getExpiryStatus(row as Credential).variant">
-          {{ getExpiryStatus(row as Credential).label }}
-        </Badge>
-      </template>
-      <template #cell-created_at="{ row }">
-        <RelativeTime :date="row.created_at" />
-      </template>
-      <template #cell-actions="{ row }">
-        <DropdownMenu :items="getDropdownItems(row as Credential)">
-          <template #trigger>
-            <Button variant="ghost" size="icon">
-              <MoreHorizontal class="w-4 h-4" />
-            </Button>
-          </template>
-        </DropdownMenu>
-      </template>
-    </Table>
+      :credentials="credentials"
+      :loading="loading"
+      @edit="openEditDialog"
+      @rotate="openRotateDialog"
+      @delete="openDeleteDialog"
+      @detail="openDetailDialog"
+    />
 
     <!-- Empty state -->
     <EmptyState
@@ -336,87 +279,35 @@ onMounted(fetchCredentials)
     </div>
 
     <!-- Create/Edit Dialog -->
-    <Dialog
-      v-model:open="dialogOpen"
+    <CredentialDialog
+      :open="dialogOpen"
       :title="dialogTitle"
-      :description="t('credentials.configDesc')"
-    >
-      <div class="space-y-4">
-        <div class="space-y-2">
-          <label class="text-sm font-medium text-foreground">{{ t('credentials.name') }}</label>
-          <Input v-model="formName" :placeholder="t('credentials.namePlaceholder')" />
-        </div>
-        <div class="space-y-2">
-          <label class="text-sm font-medium text-foreground">{{ t('credentials.type') }}</label>
-          <Select v-model="formType" :options="typeOptions" :placeholder="t('credentials.typePlaceholder')" />
-        </div>
-        <div class="space-y-2">
-          <label class="text-sm font-medium text-foreground">{{ t('credentials.value') }}</label>
-          <div class="relative">
-            <Textarea
-              v-model="formValue"
-              :type="showValue ? 'text' : 'password'"
-              :placeholder="t('credentials.valuePlaceholder')"
-              :rows="3"
-              class="pr-10"
-            />
-            <button
-              type="button"
-              class="absolute right-3 top-3 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-              @click="showValue = !showValue"
-            >
-              <EyeOff v-if="showValue" class="w-4 h-4" />
-              <Eye v-else class="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-        <div v-if="!editingId" class="space-y-2">
-          <label class="text-sm font-medium text-foreground">{{ t('credentials.expiresInDays') }}</label>
-          <Input
-            v-model.number="formExpiresInDays"
-            type="number"
-            :min="0"
-            :placeholder="t('credentials.expiresInDaysPlaceholder')"
-          />
-          <p class="text-xs text-muted-foreground">{{ t('credentials.expiresInDaysPlaceholder') }}</p>
-        </div>
-        <div class="flex justify-end gap-2 pt-2">
-          <Button variant="outline" @click="dialogOpen = false">{{ t('common.cancel') }}</Button>
-          <Button :loading="submitting" @click="handleSubmit">
-            {{ editingId ? t('common.saveText') : t('common.createText') }}
-          </Button>
-        </div>
-      </div>
-    </Dialog>
+      :editing-id="editingId"
+      :form-name="formName"
+      :form-type="formType"
+      :form-value="formValue"
+      :form-expires-in-days="formExpiresInDays"
+      :show-value="showValue"
+      :submitting="submitting"
+      @update:open="dialogOpen = $event"
+      @update:form-name="formName = $event"
+      @update:form-type="formType = $event"
+      @update:form-value="formValue = $event"
+      @update:form-expires-in-days="formExpiresInDays = $event"
+      @update:show-value="showValue = $event"
+      @submit="handleSubmit"
+    />
 
     <!-- Rotate Dialog -->
-    <Dialog
-      v-model:open="rotateDialogOpen"
-      :title="t('credentials.rotateTitle')"
-      :description="t('credentials.rotateDesc')"
-    >
-      <div class="space-y-4">
-        <div v-if="rotatingItem" class="rounded-lg bg-muted p-3 text-sm">
-          <span class="font-medium">{{ rotatingItem.name }}</span>
-          <span class="text-muted-foreground ml-2">({{ rotatingItem.type }})</span>
-        </div>
-        <div class="space-y-2">
-          <label class="text-sm font-medium text-foreground">{{ t('credentials.value') }}</label>
-          <Textarea
-            v-model="rotateValue"
-            :placeholder="t('credentials.valuePlaceholder')"
-            :rows="3"
-          />
-        </div>
-        <div class="flex justify-end gap-2 pt-2">
-          <Button variant="outline" @click="rotateDialogOpen = false">{{ t('common.cancel') }}</Button>
-          <Button :loading="rotateSubmitting" @click="handleRotate">
-            <template #icon><RefreshCw class="w-4 h-4" /></template>
-            {{ t('credentials.rotate') }}
-          </Button>
-        </div>
-      </div>
-    </Dialog>
+    <RotateDialog
+      :open="rotateDialogOpen"
+      :rotating-item="rotatingItem"
+      :rotate-value="rotateValue"
+      :rotate-submitting="rotateSubmitting"
+      @update:open="rotateDialogOpen = $event"
+      @update:rotate-value="rotateValue = $event"
+      @submit="handleRotate"
+    />
 
     <!-- Detail Dialog -->
     <Dialog
@@ -475,23 +366,11 @@ onMounted(fetchCredentials)
             </Button>
           </div>
         </div>
-        <div v-else-if="detailActiveTab === 'audit'" class="space-y-3">
-          <div v-if="detailAuditLoading" class="space-y-2">
-            <Skeleton v-for="i in 3" :key="i" class="h-4 w-full" />
-          </div>
-          <div v-else-if="detailAuditLogs.length > 0" class="space-y-2">
-            <div v-for="log in detailAuditLogs" :key="log.id" class="flex items-start gap-3 rounded-md border border-border p-3 text-sm">
-              <div class="min-w-0 flex-1">
-                <div class="flex items-center gap-2">
-                  <Badge variant="outline" class="text-xs">{{ log.action }}</Badge>
-                  <span class="text-muted-foreground">{{ log.username }}</span>
-                </div>
-                <p class="text-xs text-muted-foreground mt-1">{{ log.detail }}</p>
-              </div>
-              <RelativeTime :date="log.created_at" class="text-xs text-muted-foreground shrink-0" />
-            </div>
-          </div>
-          <p v-else class="text-sm text-muted-foreground text-center py-4">{{ t('credentials.noAuditLogs') }}</p>
+        <div v-else-if="detailActiveTab === 'audit'">
+          <AuditLogTab
+            :audit-logs="detailAuditLogs"
+            :loading="detailAuditLoading"
+          />
         </div>
       </div>
     </Dialog>

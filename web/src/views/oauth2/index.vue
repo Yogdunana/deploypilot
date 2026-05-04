@@ -8,17 +8,16 @@ import {
   Copy,
   RefreshCw,
   Check,
-  Loader2,
 } from 'lucide-vue-next'
 import PageHeader from '@/components/common/PageHeader.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
-import RelativeTime from '@/components/common/RelativeTime.vue'
 import Button from '@/components/ui/Button.vue'
-import Card from '@/components/ui/Card.vue'
-import Badge from '@/components/ui/Badge.vue'
 import Skeleton from '@/components/ui/Skeleton.vue'
 import * as oauth2Api from '@/api/modules/oauth2'
 import type { OAuth2Client } from '@/api/modules/oauth2'
+
+import OAuth2ClientTable from './OAuth2ClientTable.vue'
+import OAuth2SecretDialog from './OAuth2SecretDialog.vue'
 
 const { toast } = inject<any>('toast')!
 
@@ -61,15 +60,9 @@ const regenerating = ref(false)
 // Secret reveal dialog state
 const secretDialogOpen = ref(false)
 const revealedSecret = ref('')
-const clientSecretCopied = ref(false)
 
 const availableScopes = ['read', 'write', 'admin', 'apps', 'servers', 'deployments', 'monitor']
 const availableGrantTypes = ['client_credentials', 'authorization_code']
-
-function truncateClientId(id: string, maxLen = 24): string {
-  if (id.length <= maxLen) return id
-  return id.substring(0, maxLen) + '...'
-}
 
 async function fetchClients() {
   loading.value = true
@@ -218,11 +211,7 @@ async function confirmRegenerate() {
 async function copySecret() {
   try {
     await navigator.clipboard.writeText(revealedSecret.value)
-    clientSecretCopied.value = true
     toast('Client secret copied to clipboard', 'success')
-    setTimeout(() => {
-      clientSecretCopied.value = false
-    }, 2000)
   } catch {
     toast('Failed to copy to clipboard', 'destructive')
   }
@@ -235,12 +224,6 @@ async function copyClientId(clientId: string) {
   } catch {
     toast('Failed to copy to clipboard', 'destructive')
   }
-}
-
-function closeSecretDialog() {
-  secretDialogOpen.value = false
-  revealedSecret.value = ''
-  clientSecretCopied.value = false
 }
 
 onMounted(fetchClients)
@@ -288,80 +271,14 @@ onMounted(fetchClients)
     />
 
     <!-- Client Cards -->
-    <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      <Card v-for="client in clients" :key="client.id" class="p-0">
-        <div class="p-6 space-y-3">
-          <!-- Header: Name + Enabled indicator -->
-          <div class="flex items-start justify-between">
-            <h3 class="text-sm font-semibold text-foreground truncate">{{ client.name }}</h3>
-            <span
-              class="inline-flex items-center gap-1.5 px-2 py-0.5 text-xs rounded-full shrink-0 ml-2"
-              :class="client.enabled ? 'bg-success/15 text-success' : 'bg-accent text-muted-foreground'"
-            >
-              <span class="w-1.5 h-1.5 rounded-full" :class="client.enabled ? 'bg-success' : 'bg-muted-foreground'" />
-              {{ client.enabled ? 'Enabled' : 'Disabled' }}
-            </span>
-          </div>
-
-          <!-- Client ID -->
-          <div class="flex items-center gap-1.5">
-            <p class="text-xs font-mono text-muted-foreground truncate" :title="client.client_id">
-              {{ truncateClientId(client.client_id) }}
-            </p>
-            <button
-              class="inline-flex items-center justify-center w-5 h-5 rounded text-muted-foreground hover:text-foreground hover:bg-accent transition-colors cursor-pointer shrink-0"
-              title="Copy Client ID"
-              @click="copyClientId(client.client_id)"
-            >
-              <Copy class="w-3 h-3" />
-            </button>
-          </div>
-
-          <!-- Grant Type Badges -->
-          <div class="flex items-center gap-2 flex-wrap">
-            <span
-              v-for="gt in client.grant_types"
-              :key="gt"
-              class="inline-flex items-center px-2 py-0.5 text-xs rounded-full font-medium bg-blue-100 text-blue-700"
-            >
-              {{ gt === 'client_credentials' ? 'Client Credentials' : 'Authorization Code' }}
-            </span>
-          </div>
-
-          <!-- Scope Tags -->
-          <div v-if="client.scopes.length > 0" class="flex items-center gap-1.5 flex-wrap">
-            <Badge v-for="scope in client.scopes" :key="scope" variant="secondary" class="text-[11px]">
-              {{ scope }}
-            </Badge>
-          </div>
-
-          <!-- Created date -->
-          <div class="text-xs text-muted-foreground">
-            Created: <RelativeTime :date="client.created_at" />
-          </div>
-        </div>
-
-        <!-- Card Actions -->
-        <div class="flex items-center border-t border-border px-4 py-2 gap-1">
-          <Button variant="ghost" size="sm" class="h-7 text-xs" @click="openEditDialog(client)">
-            <template #icon>
-              <Pencil class="w-3.5 h-3.5" />
-            </template>
-            Edit
-          </Button>
-          <Button variant="ghost" size="sm" class="h-7 text-xs" @click="openRegenerateDialog(client)">
-            <template #icon>
-              <RefreshCw class="w-3.5 h-3.5" />
-            </template>
-            Regenerate
-          </Button>
-          <div class="flex-1" />
-          <Button variant="ghost" size="icon" class="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10" @click="openDeleteDialog(client)">
-            <Trash2 class="w-3.5 h-3.5" />
-          </Button>
-        </div>
-      </Card>
-    </div>
+    <OAuth2ClientTable
+      v-else
+      :clients="clients"
+      @edit="openEditDialog"
+      @regenerate="openRegenerateDialog"
+      @delete="openDeleteDialog"
+      @copy-client-id="copyClientId"
+    />
 
     <!-- Create Dialog -->
     <Teleport to="body">
@@ -641,25 +558,10 @@ onMounted(fetchClients)
     </Teleport>
 
     <!-- Secret Reveal Dialog -->
-    <Teleport to="body">
-      <div v-if="secretDialogOpen" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-        <div class="bg-card rounded-lg shadow-xl w-full max-w-md p-6 border border-border">
-          <h2 class="text-lg font-semibold text-foreground mb-2">Client Secret Created</h2>
-          <p class="text-sm text-destructive mb-3 font-medium">
-            Copy this secret now. It will not be shown again!
-          </p>
-          <div class="flex items-center gap-2 rounded-md border border-border bg-muted/50 p-3">
-            <code class="flex-1 text-xs font-mono text-foreground break-all select-all">{{ revealedSecret }}</code>
-            <Button variant="ghost" size="icon" class="h-8 w-8 shrink-0" @click="copySecret">
-              <Check v-if="clientSecretCopied" class="w-4 h-4 text-success" />
-              <Copy v-else class="w-4 h-4" />
-            </Button>
-          </div>
-          <div class="flex justify-end mt-4">
-            <Button size="sm" @click="closeSecretDialog">Done</Button>
-          </div>
-        </div>
-      </div>
-    </Teleport>
+    <OAuth2SecretDialog
+      v-model:open="secretDialogOpen"
+      :secret="revealedSecret"
+      @copy="copySecret"
+    />
   </div>
 </template>

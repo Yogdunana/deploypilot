@@ -1,13 +1,11 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
-import { Eye, EyeOff, Trash2, Plus, Save } from 'lucide-vue-next'
+import { Plus, Trash2, Eye, EyeOff, Save } from 'lucide-vue-next'
 import Button from '@/components/ui/Button.vue'
 import Input from '@/components/ui/Input.vue'
 import Skeleton from '@/components/ui/Skeleton.vue'
 
-const { t } = useI18n()
-
-export interface EnvItem {
+interface EnvItem {
   key: string
   value: string
   visible: boolean
@@ -21,11 +19,13 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  add: []
-  remove: [index: number]
-  toggleVisibility: [index: number]
-  save: []
+  (e: 'add'): void
+  (e: 'remove', index: number): void
+  (e: 'toggle-visibility', index: number): void
+  (e: 'save'): void
 }>()
+
+const { t } = useI18n()
 </script>
 
 <template>
@@ -71,7 +71,7 @@ const emit = defineEmits<{
           />
           <button
             class="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-            @click="emit('toggleVisibility', index)"
+            @click="emit('toggle-visibility', index)"
           >
             <Eye v-if="!item.visible" class="w-4 h-4" />
             <EyeOff v-else class="w-4 h-4" />

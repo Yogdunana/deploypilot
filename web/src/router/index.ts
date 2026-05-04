@@ -41,7 +41,7 @@ const router = createRouter({
         {
           path: '',
           name: 'Dashboard',
-          component: () => import('@/views/Dashboard.vue'),
+          component: () => import('@/views/dashboard/index.vue'),
           meta: { titleKey: 'routes.dashboard' },
         },
         {
@@ -53,7 +53,7 @@ const router = createRouter({
         {
           path: 'apps/:id',
           name: 'AppDetail',
-          component: () => import('@/views/AppDetail.vue'),
+          component: () => import('@/views/app-detail/index.vue'),
           props: true,
           meta: { titleKey: 'routes.appDetail' },
         },
@@ -114,7 +114,7 @@ const router = createRouter({
         {
           path: 'credentials',
           name: 'Credentials',
-          component: () => import('@/views/Credentials.vue'),
+          component: () => import('@/views/credentials/index.vue'),
           meta: { titleKey: 'routes.credentials' },
         },
         {
@@ -274,7 +274,7 @@ const router = createRouter({
         {
           path: 'settings/oauth2',
           name: 'OAuth2Apps',
-          component: () => import('@/views/OAuth2Apps.vue'),
+          component: () => import('@/views/oauth2/index.vue'),
           meta: { titleKey: 'layout.oauth2_apps', roles: ['owner', 'admin'] },
         },
         {
@@ -346,7 +346,7 @@ const router = createRouter({
         {
           path: 'license',
           name: 'License',
-          component: () => import('@/views/License.vue'),
+          component: () => import('@/views/license/index.vue'),
           meta: { titleKey: 'routes.license', roles: ['owner', 'admin'] },
         },
         {
