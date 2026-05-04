@@ -60,7 +60,7 @@ jobs:
         env:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
-          CGO_ENABLED: 0
+          CGO_ENABLED: 1
           VERSION: ${{ github.ref_name }}
           GIT_COMMIT: ${{ github.sha }}
           BUILD_TIME: ${{ needs.build-binaries.result != 'skipped' && steps.build.outputs.build_time || '' }}

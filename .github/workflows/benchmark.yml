@@ -8,6 +8,9 @@ on:
       - 'go.mod'
       - 'go.sum'
 
+permissions:
+  contents: read
+
 jobs:
   benchmark:
     name: Run Benchmarks
