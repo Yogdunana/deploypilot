@@ -5,6 +5,8 @@ on:
     branches: [main]
     paths:
       - '**/*.go'
+      - 'go.mod'
+      - 'go.sum'
 
 jobs:
   benchmark:
@@ -22,11 +24,13 @@ jobs:
 
       - name: Run benchmarks on PR branch
         run: |
+          go mod tidy
           go test -bench=. -benchmem -count=5 ./internal/signing/ ./internal/auth/ 2>&1 | tee pr_bench.txt
 
       - name: Run benchmarks on base branch
         run: |
           git checkout ${{ github.event.pull_request.base.sha }}
+          go mod tidy
           go test -bench=. -benchmem -count=5 ./internal/signing/ ./internal/auth/ 2>&1 | tee base_bench.txt
 
       - name: Install benchstat
