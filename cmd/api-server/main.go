@@ -6,7 +6,7 @@
 // @contact.name   DeployPilot
 // @contact.url    https://github.com/Yogdunana/deploypilot
 
-// @license.name  MIT
+// @license.name BSL 1.1
 // @license.url   https://github.com/Yogdunana/deploypilot/blob/main/LICENSE
 
 // @host      localhost:8080
