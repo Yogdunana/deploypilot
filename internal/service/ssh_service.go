@@ -157,7 +157,7 @@ func (s *SSHService) AuthorizeKey(ctx context.Context, keyPairID, serverID, user
 	}
 
 	if user == "" {
-		user = "root"
+		return fmt.Errorf("user is required for key authorization (cannot default to root)")
 	}
 
 	// Check if already authorized
@@ -205,7 +205,7 @@ func (s *SSHService) RevokeKey(ctx context.Context, keyPairID, serverID, user st
 	}
 
 	if user == "" {
-		user = "root"
+		return fmt.Errorf("user is required for key revocation (cannot default to root)")
 	}
 
 	exec, err := s.getExecutor(ctx, serverID)
