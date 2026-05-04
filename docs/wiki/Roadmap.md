@@ -174,7 +174,7 @@
 | 9.2 | IP 白名单（登录 + API 访问） | ✅ 已完成 (PR #235) |
 | 9.3 | 设备绑定（Token 绑定 User-Agent + IP + 指纹） | ✅ 已完成 (PR #235) |
 | 9.4 | 代码签名（二进制签名验证 + 防篡改） | ✅ 已完成 (PR #235) |
-| 9.5 | 密钥轮换（License RSA 密钥定期轮换 + Shamir's Secret Sharing） | ⏳ 待开发 |
+| 9.5 | 密钥轮换（License Ed25519 密钥定期轮换 + Shamir's Secret Sharing） | ✅ 已完成 (PR #252) |
 
 **相关 Issue**: #155, #206, #207, #208, #209
 
