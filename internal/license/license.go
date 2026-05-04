@@ -143,6 +143,7 @@ type LicenseInfo struct {
 type Engine struct {
 	mu          sync.RWMutex
 	publicKey   ed25519.PublicKey
+	publicKeys  []ed25519.PublicKey // all known public keys for rotation support
 	info        *LicenseInfo
 	graceDays   int
 	onExpired   func() // callback when license expires
@@ -151,10 +152,28 @@ type Engine struct {
 
 // NewEngine creates a new license engine with the given Ed25519 public key.
 func NewEngine(publicKey ed25519.PublicKey, graceDays int) *Engine {
+	keys := []ed25519.PublicKey{publicKey}
 	return &Engine{
-		publicKey: publicKey,
-		graceDays: graceDays,
+		publicKey:  publicKey,
+		publicKeys: keys,
+		graceDays:  graceDays,
 	}
+}
+
+// RotatePublicKey replaces the active public key and adds it to the key chain.
+// Old keys are retained for verifying existing licenses.
+func (e *Engine) RotatePublicKey(newKey ed25519.PublicKey) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.publicKey = newKey
+	e.publicKeys = append(e.publicKeys, newKey)
+}
+
+// AddTrustedKey adds a public key to the trusted key chain without making it active.
+func (e *Engine) AddTrustedKey(key ed25519.PublicKey) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.publicKeys = append(e.publicKeys, key)
 }
 
 // LoadLicense validates and loads a license key (base64-encoded signature + JSON payload).
@@ -173,9 +192,16 @@ func (e *Engine) LoadLicense(licenseKey string) error {
 		return fmt.Errorf("failed to parse license key: %w", err)
 	}
 
-	// Verify signature
-	if !ed25519.Verify(e.publicKey, payload, signature) {
-		return fmt.Errorf("invalid license signature")
+	// Verify signature against all trusted public keys (supports key rotation)
+	valid := false
+	for _, pk := range e.publicKeys {
+		if ed25519.Verify(pk, payload, signature) {
+			valid = true
+			break
+		}
+	}
+	if !valid {
+		return fmt.Errorf("invalid license signature (no matching key version)")
 	}
 
 	// Decode payload
