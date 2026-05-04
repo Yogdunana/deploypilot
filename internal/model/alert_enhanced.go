@@ -12,7 +12,7 @@ type AlertSilence struct {
 	StartsAt    time.Time `gorm:"index" json:"starts_at"`
 	EndsAt      time.Time `gorm:"index" json:"ends_at"`
 	CreatedBy   string    `gorm:"size:100" json:"created_by"`
-	CreatedAt   time.Time `json:"created_at"`
+	CreatedAt   time.Time `gorm:"autoCreateTime" json:"created_at"`
 }
 
 func (AlertSilence) TableName() string { return "alert_silences" }
@@ -26,8 +26,8 @@ type AlertEscalation struct {
 	Steps          string    `gorm:"type:text" json:"steps"`              // JSON: [{"after_minutes":30,"severity":"critical","channels":["telegram","sms"]}]
 	RepeatInterval int       `gorm:"default:60" json:"repeat_interval"` // minutes between repeated escalations
 	Enabled        bool      `gorm:"default:true" json:"enabled"`
-	CreatedAt      time.Time `json:"created_at"`
-	UpdatedAt      time.Time `json:"updated_at"`
+	CreatedAt      time.Time `gorm:"autoCreateTime" json:"created_at"`
+	UpdatedAt      time.Time `gorm:"autoUpdateTime" json:"updated_at"`
 }
 
 func (AlertEscalation) TableName() string { return "alert_escalations" }
@@ -44,8 +44,8 @@ type AlertGroup struct {
 	LastAlertAt   time.Time `json:"last_alert_at"`
 	Status        string    `gorm:"size:20;default:firing" json:"status"` // firing, resolved
 	ResolvedAt    *time.Time `json:"resolved_at,omitempty"`
-	CreatedAt     time.Time `json:"created_at"`
-	UpdatedAt     time.Time `json:"updated_at"`
+	CreatedAt     time.Time `gorm:"autoCreateTime" json:"created_at"`
+	UpdatedAt     time.Time `gorm:"autoUpdateTime" json:"updated_at"`
 }
 
 func (AlertGroup) TableName() string { return "alert_groups" }

@@ -410,15 +410,19 @@ Dependabot PR **必须**经过 `make check` 验证后再合并。
 
 #### 当前里程碑规划
 
-| # | 标题 | 描述 | 状态 |
-|---|------|------|------|
-| 2 | v1.2: Adapter Layer Refactor | 适配器层重构 | Closed |
-| 3 | v1.3: Deployment Enhancement | 部署增强 | Closed |
-| 4 | v1.4: Enterprise Features | 企业特性 | Closed |
-| 5 | v1.5: Notification & Alerting | 事件总线、SMTP/Bark/SMS、告警规则、模板 | **已完成 (9/9 phases)**，待发布 Tag |
-| 6 | v1.6: Monitoring & Observability | Uptime、心跳、Prometheus、Dashboard TV | Open（PR #219 进行中：Phase 6.1-6.3） |
-| 7 | v1.7: Ecosystem Integration | OpenClaw、Grafana、Webhooks、API 平台、插件 | Open |
-| 8 | v1.8: Commercial & Licensing | License Key、OpenCore、Feature Flags、Pro/Free | Open |
+| # | 标题 | 描述 | 状态 | Open Issues | Closed Issues |
+|---|------|------|------|-------------|---------------|
+| 1 | v1.1: Security & Stability | 安全与稳定性 | Closed | 0 | 1 |
+| 2 | v1.2: Adapter Layer Refactor | 适配器层重构 | Closed | 0 | 1 |
+| 3 | v1.3: Deployment Enhancement | 部署增强 | Closed | 0 | 3 |
+| 4 | v1.4: Enterprise Features | 企业特性 | Closed | 0 | 7 |
+| 5 | v1.5: Notification & Alerting | 事件总线、SMTP/Bark/SMS、告警规则、模板 | Closed | 0 | 11 |
+| 6 | v1.6: Monitoring & Observability | Uptime、心跳、Prometheus、Dashboard TV | Closed | 0 | 7 |
+| 7 | v1.7: Ecosystem Integration | OpenClaw、Grafana、Webhooks、API 平台、插件 | Closed | 0 | 6 |
+| 8 | v1.8: Commercial & Licensing | License Key、OpenCore、Feature Flags、Pro/Free | Closed | 0 | 7 |
+| 9 | v1.9: Security Hardening | 审计验证、IP 白名单、设备绑定、代码签名、密钥轮换 | Closed | 0 | 11 |
+| 10 | v1.10: Engineering Quality | 迁移策略、测试体系、开发环境、社区建设、Changelog 自动化 | Closed | 0 | 9 |
+| 12 | v1.11: Security Hardening & DevEx | CI 安全扫描、SSH root fallback、Changelog 自动化、性能基准 | Closed | 0 | 3 |
 
 #### 管理规则
 
