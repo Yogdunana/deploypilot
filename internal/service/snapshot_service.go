@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Yogdunana/deploypilot/internal/util"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
@@ -114,7 +115,7 @@ func (s *SnapshotService) CreateSnapshot(ctx context.Context, serverID, name, de
 	var totalSize int64
 
 	for _, path := range config.Paths {
-		cmd := fmt.Sprintf("find %s -type f 2>/dev/null | head -500", shellQuote(path))
+		cmd := fmt.Sprintf("find %s -type f 2>/dev/null | head -500", util.ShellQuote(path))
 		output, err := exec.RunCommand(ctx, cmd)
 		if err != nil {
 			s.logger.Warn("failed to list files in path", "path", path, "error", err)
@@ -322,7 +323,7 @@ func (s *SnapshotService) isExcluded(path string, excludes []string) bool {
 
 func (s *SnapshotService) getFileInfo(ctx context.Context, exec *sshClientExecutor, path string, config *SnapshotConfig) (*SnapshotFile, error) {
 	// Get stat info
-	cmd := fmt.Sprintf("stat -c '%%s %%Y %%a' %s 2>/dev/null", shellQuote(path))
+	cmd := fmt.Sprintf("stat -c '%%s %%Y %%a' %s 2>/dev/null", util.ShellQuote(path))
 	output, err := exec.RunCommand(ctx, cmd)
 	if err != nil || output == "" {
 		return nil, fmt.Errorf("failed to stat %s", path)
@@ -344,7 +345,7 @@ func (s *SnapshotService) getFileInfo(ctx context.Context, exec *sshClientExecut
 	// Get checksum (md5)
 	checksum := ""
 	if size < 10*1024*1024 { // Only checksum files < 10MB
-		cmd = fmt.Sprintf("md5sum %s 2>/dev/null | awk '{print $1}'", shellQuote(path))
+		cmd = fmt.Sprintf("md5sum %s 2>/dev/null | awk '{print $1}'", util.ShellQuote(path))
 		if output, err := exec.RunCommand(ctx, cmd); err == nil {
 			checksum = strings.TrimSpace(output)
 		}
@@ -364,7 +365,7 @@ func (s *SnapshotService) collectFiles(ctx context.Context, exec *sshClientExecu
 	var files []SnapshotFile
 
 	for _, path := range config.Paths {
-		cmd := fmt.Sprintf("find %s -type f 2>/dev/null | head -500", shellQuote(path))
+		cmd := fmt.Sprintf("find %s -type f 2>/dev/null | head -500", util.ShellQuote(path))
 		output, err := exec.RunCommand(ctx, cmd)
 		if err != nil {
 			continue

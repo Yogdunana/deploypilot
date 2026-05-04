@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Yogdunana/deploypilot/internal/util"
 	"gorm.io/gorm"
 )
 
@@ -175,12 +176,12 @@ func (s *SSHService) AuthorizeKey(ctx context.Context, keyPairID, serverID, user
 
 	// Add to authorized_keys
 	cmd := fmt.Sprintf("mkdir -p /home/%s/.ssh && echo %s >> /home/%s/.ssh/authorized_keys && chmod 600 /home/%s/.ssh/authorized_keys && chown %s:%s /home/%s/.ssh/authorized_keys",
-		shellQuote(user), shellQuote(keyPair.PublicKey), shellQuote(user), shellQuote(user), user, user, shellQuote(user))
+		util.ShellQuote(user), util.ShellQuote(keyPair.PublicKey), util.ShellQuote(user), util.ShellQuote(user), user, user, util.ShellQuote(user))
 
 	// For root user, use /root/.ssh
 	if user == "root" {
 		cmd = fmt.Sprintf("mkdir -p /root/.ssh && echo %s >> /root/.ssh/authorized_keys && chmod 600 /root/.ssh/authorized_keys",
-			shellQuote(keyPair.PublicKey))
+			util.ShellQuote(keyPair.PublicKey))
 	}
 
 	if _, err := exec.RunCommand(ctx, cmd); err != nil {
@@ -227,7 +228,7 @@ func (s *SSHService) RevokeKey(ctx context.Context, keyPairID, serverID, user st
 		sshDir = "/root/.ssh"
 	}
 
-	cmd := fmt.Sprintf("sed -i '/%s/d' %s/authorized_keys 2>/dev/null || true", shellQuote(keyComment), shellQuote(sshDir))
+	cmd := fmt.Sprintf("sed -i '/%s/d' %s/authorized_keys 2>/dev/null || true", util.ShellQuote(keyComment), util.ShellQuote(sshDir))
 	if _, err := exec.RunCommand(ctx, cmd); err != nil {
 		return fmt.Errorf("failed to revoke key: %w", err)
 	}
