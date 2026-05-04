@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"net"
 	"net/http"
 	"strings"
 
@@ -146,33 +147,15 @@ func isIPAllowed(ip string, allowed []string) bool {
 	return false
 }
 
-// matchCIDR performs basic CIDR matching for common subnet masks.
-func matchCIDR(ip, cidr string) bool {
-	// Parse CIDR
-	parts := strings.SplitN(cidr, "/", 2)
-	if len(parts) != 2 {
+// matchCIDR performs CIDR matching using standard library.
+func matchCIDR(ipStr, cidrStr string) bool {
+	ip := net.ParseIP(ipStr)
+	if ip == nil {
 		return false
 	}
-	network := parts[0]
-
-	// Simple prefix match for the network part
-	ipParts := strings.Split(ip, ".")
-	netParts := strings.Split(network, ".")
-	if len(ipParts) != 4 || len(netParts) != 4 {
+	_, network, err := net.ParseCIDR(cidrStr)
+	if err != nil {
 		return false
 	}
-
-	switch parts[1] {
-	case "8":
-		return ipParts[0] == netParts[0]
-	case "16":
-		return ipParts[0] == netParts[0] && ipParts[1] == netParts[1]
-	case "24":
-		return ipParts[0] == netParts[0] && ipParts[1] == netParts[1] && ipParts[2] == netParts[2]
-	case "32":
-		return ip == network
-	default:
-		// For non-standard CIDR, do exact match
-		return ip == network
-	}
+	return network.Contains(ip)
 }
