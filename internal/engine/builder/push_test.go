@@ -202,7 +202,7 @@ func TestPushImage_GHCR(t *testing.T) {
 		AppName:     "myowner/myapp",
 		RegistryURL: "https://ghcr.io",
 		RegistryUser: "myowner",
-		RegistryPass: "ghp_token",
+		RegistryPass: "test_token_push",
 	}
 
 	ref, err := b.PushImage(context.Background(), cfg, "myapp:abc12345")
