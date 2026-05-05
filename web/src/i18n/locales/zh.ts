@@ -87,7 +87,6 @@ export default {
     selectPlaceholder: '请选择',
     commandPlaceholder: '输入命令或搜索...',
     noResults: '未找到结果',
-    copy: '复制',
   },
 
   deploy: {

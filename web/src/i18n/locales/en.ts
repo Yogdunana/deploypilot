@@ -89,7 +89,6 @@ export default {
     selectPlaceholder: 'Please select',
     commandPlaceholder: 'Type command or search...',
     noResults: 'No results found',
-    copy: 'Copy',
   },
 
   deploy: {
