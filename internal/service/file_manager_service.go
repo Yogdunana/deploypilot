@@ -300,8 +300,8 @@ func (f *FileManagerService) SearchFiles(ctx context.Context, serverID, searchPa
 		limit = fmt.Sprintf(" | head -n %d", maxResults)
 	}
 
-	cmd := fmt.Sprintf("find %s -name '*%s*' -type f%s 2>/dev/null",
-		util.ShellQuote(searchPath), pattern, limit)
+	cmd := fmt.Sprintf("find %s -name %s -type f%s 2>/dev/null",
+		util.ShellQuote(searchPath), util.ShellQuote("*"+pattern+"*"), limit)
 	if err := f.sb.Validate(cmd); err != nil {
 		return nil, fmt.Errorf("sandbox blocked: %w", err)
 	}
