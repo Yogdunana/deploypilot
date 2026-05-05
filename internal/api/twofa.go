@@ -83,13 +83,15 @@ func Verify2FA(db *gorm.DB, auditSvc *service.AuditService) gin.HandlerFunc {
 		}
 
 		if auditSvc != nil {
-			_ = auditSvc.Record(c.Request.Context(), service.AuditEntry{
+			if err := auditSvc.Record(c.Request.Context(), service.AuditEntry{
 				UserID:       parseUserID(user.ID),
 				Username:     user.Username,
 				Action:       "auth.2fa_verify",
 				ResourceType: "user",
 				ResourceID:   user.ID,
-			})
+			}); err != nil {
+				slog.WarnContext(c.Request.Context(), "failed to record audit log", "error", err)
+			}
 		}
 
 		respondSuccess(c, gin.H{
@@ -160,13 +162,15 @@ func Setup2FA(db *gorm.DB, auditSvc *service.AuditService) gin.HandlerFunc {
 		}
 
 		if auditSvc != nil {
-			_ = auditSvc.Record(c.Request.Context(), service.AuditEntry{
+			if err := auditSvc.Record(c.Request.Context(), service.AuditEntry{
 				UserID:       parseUserID(uid),
 				Username:     user.Username,
 				Action:       "auth.2fa_setup",
 				ResourceType: "user",
 				ResourceID:   uid,
-			})
+			}); err != nil {
+				slog.WarnContext(c.Request.Context(), "failed to record audit log", "error", err)
+			}
 		}
 
 		qrURL := auth.TOTPQRCodeURL(secret, user.Username)
@@ -228,13 +232,15 @@ func Confirm2FA(db *gorm.DB, auditSvc *service.AuditService) gin.HandlerFunc {
 		}
 
 		if auditSvc != nil {
-			_ = auditSvc.Record(c.Request.Context(), service.AuditEntry{
+			if err := auditSvc.Record(c.Request.Context(), service.AuditEntry{
 				UserID:       parseUserID(uid),
 				Username:     user.Username,
 				Action:       "auth.2fa_confirm",
 				ResourceType: "user",
 				ResourceID:   uid,
-			})
+			}); err != nil {
+				slog.WarnContext(c.Request.Context(), "failed to record audit log", "error", err)
+			}
 		}
 
 		respondSuccess(c, gin.H{"enabled": true})
@@ -298,13 +304,15 @@ func Disable2FA(db *gorm.DB, auditSvc *service.AuditService) gin.HandlerFunc {
 		}
 
 		if auditSvc != nil {
-			_ = auditSvc.Record(c.Request.Context(), service.AuditEntry{
+			if err := auditSvc.Record(c.Request.Context(), service.AuditEntry{
 				UserID:       parseUserID(uid),
 				Username:     user.Username,
 				Action:       "auth.2fa_disable",
 				ResourceType: "user",
 				ResourceID:   uid,
-			})
+			}); err != nil {
+				slog.WarnContext(c.Request.Context(), "failed to record audit log", "error", err)
+			}
 		}
 
 		respondSuccess(c, gin.H{"enabled": false})
@@ -373,13 +381,15 @@ func RegenerateBackupCodes(db *gorm.DB, auditSvc *service.AuditService) gin.Hand
 		}
 
 		if auditSvc != nil {
-			_ = auditSvc.Record(c.Request.Context(), service.AuditEntry{
+			if err := auditSvc.Record(c.Request.Context(), service.AuditEntry{
 				UserID:       parseUserID(uid),
 				Username:     user.Username,
 				Action:       "auth.2fa_regenerate_codes",
 				ResourceType: "user",
 				ResourceID:   uid,
-			})
+			}); err != nil {
+				slog.WarnContext(c.Request.Context(), "failed to record audit log", "error", err)
+			}
 		}
 
 		respondSuccess(c, gin.H{"backup_codes": plaintextCodes})
@@ -470,14 +480,16 @@ func ResetUser2FA(db *gorm.DB, auditSvc *service.AuditService) gin.HandlerFunc {
 		if auditSvc != nil {
 			adminID, _ := c.Get(string(auth.UserIDKey))
 			adminUID, _ := adminID.(string)
-			_ = auditSvc.Record(c.Request.Context(), service.AuditEntry{
+			if err := auditSvc.Record(c.Request.Context(), service.AuditEntry{
 				UserID:       parseUserID(adminUID),
 				Username:     "",
 				Action:       "auth.2fa_admin_reset",
 				ResourceType: "user",
 				ResourceID:   targetUserID,
 				Detail:       "admin reset 2FA for user " + user.Username,
-			})
+			}); err != nil {
+				slog.WarnContext(c.Request.Context(), "failed to record audit log", "error", err)
+			}
 		}
 
 		slog.Info("admin reset 2FA for user", "target_user", user.Username, "target_id", targetUserID)
