@@ -2,7 +2,6 @@ package api
 
 import (
 	"net/http"
-	"strconv"
 
 	"github.com/Yogdunana/deploypilot/internal/model"
 	"github.com/Yogdunana/deploypilot/internal/service"
@@ -54,14 +53,7 @@ func (a *OutboundWebhookAPI) CreateWebhook(c *gin.Context) {
 func (a *OutboundWebhookAPI) ListWebhooks(c *gin.Context) {
 	db := c.MustGet("db").(*gorm.DB)
 
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
-	if page < 1 {
-		page = 1
-	}
-	if pageSize < 1 || pageSize > 100 {
-		pageSize = 20
-	}
+	page, pageSize := parsePaginationParams(c)
 
 	svc := service.NewOutboundWebhookService(db, nil)
 	webhooks, total, err := svc.List(c.Request.Context(), c.GetString("tenant_id"), page, pageSize)
@@ -148,14 +140,7 @@ func (a *OutboundWebhookAPI) ListDeliveries(c *gin.Context) {
 	db := c.MustGet("db").(*gorm.DB)
 	webhookID := c.Param("id")
 
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
-	if page < 1 {
-		page = 1
-	}
-	if pageSize < 1 || pageSize > 100 {
-		pageSize = 20
-	}
+	page, pageSize := parsePaginationParams(c)
 
 	var deliveries []model.WebhookDelivery
 	var total int64

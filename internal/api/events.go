@@ -2,7 +2,6 @@ package api
 
 import (
 	"net/http"
-	"strconv"
 
 	"github.com/Yogdunana/deploypilot/internal/model"
 	"github.com/gin-gonic/gin"
@@ -14,14 +13,7 @@ import (
 func ListEventLogs(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		eventType := c.Query("event_type")
-		page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-		pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
-		if page < 1 {
-			page = 1
-		}
-		if pageSize < 1 || pageSize > 100 {
-			pageSize = 20
-		}
+		page, pageSize := parsePaginationParams(c)
 
 		query := db.Model(&model.EventLog{})
 		if eventType != "" {
