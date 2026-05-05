@@ -19,12 +19,37 @@ import (
 // @Security     BearerAuth
 func ListSSLCertificates(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+		pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
+		if page < 1 {
+			page = 1
+		}
+		if pageSize < 1 || pageSize > 100 {
+			pageSize = 20
+		}
+
 		var certs []model.SSLCertificate
-		if result := db.Find(&certs); result.Error != nil {
+		var total int64
+
+		if err := db.Model(&model.SSLCertificate{}).Count(&total).Error; err != nil {
 			respondErrori18n(c, http.StatusInternalServerError, "error.ssl.failed_to_list_certificates")
 			return
 		}
-		respondSuccess(c, certs)
+
+		if result := db.Offset((page - 1) * pageSize).Limit(pageSize).Find(&certs); result.Error != nil {
+			respondErrori18n(c, http.StatusInternalServerError, "error.ssl.failed_to_list_certificates")
+			return
+		}
+		// Return paginated response with data key for backward compatibility
+		c.JSON(http.StatusOK, gin.H{
+			"status": "success",
+			"data":   certs,
+			"pagination": gin.H{
+				"page":      page,
+				"page_size": pageSize,
+				"total":     total,
+			},
+		})
 	}
 }
 
