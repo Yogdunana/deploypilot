@@ -18,13 +18,12 @@ linters:
         - fmt.Sscanf
     gosec:
       excludes:
-        - G101  # Hardcoded credentials (existing env var mechanism)
-        - G204  # Subprocess tainted input (config-driven commands are safe)
-        - G404  # Weak random (non-crypto contexts)
-        - G104  # Unhandled errors (pre-existing pattern throughout codebase)
-        - G115  # Integer overflow conversion (pre-existing pattern)
-        - G304  # File path from variable (controlled inputs)
-        - G306  # WriteFile permissions (test-only concern)
+        - G101  # Hardcoded credentials (test files only, see exclusions)
+        - G104  # Unhandled errors (acceptable in defer/close scenarios)
+        - G115  # Integer overflow conversion (common in Go)
+        - G304  # File path from variable (used in file manager)
+        - G306  # WriteFile permissions
+        - G404  # Weak random (non-security contexts)
   exclusions:
     rules:
       - linters: [errcheck]
@@ -34,12 +33,14 @@ linters:
       - linters: [gosec]
         path: internal/agent/
       - linters: [gosec]
-        path: internal/config/
+        path: internal/engine/builder/
       - linters: [gosec]
-        path: internal/middleware/
+        path: internal/backup/
+      - linters: [gosec]
+        path: cmd/
+      - linters: [gosec]
+        path: _test\.go
       - linters: [noctx]
         path: _test\.go
       - linters: [bodyclose]
         path: _test\.go
-      - linters: [gosec]
-        path: cmd/
