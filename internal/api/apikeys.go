@@ -177,9 +177,13 @@ func UpdateAPIKey(keySvc *service.APIKeyService, auditSvc *service.AuditService)
 			updates["name"] = *input.Name
 		}
 		if input.Scopes != nil {
-			scopesJSON, _ := json.Marshal(input.Scopes)
-			updates["scopes"] = string(scopesJSON)
+		validatedScopes := auth.ValidateScopes(input.Scopes)
+		if len(validatedScopes) == 0 {
+			validatedScopes = []string{"read"}
 		}
+		scopesJSON, _ := json.Marshal(validatedScopes)
+		updates["scopes"] = string(scopesJSON)
+	}
 		if input.AllowedIPs != nil {
 			if len(input.AllowedIPs) == 0 {
 				updates["allowed_ips"] = ""
