@@ -3,6 +3,7 @@ package api
 import (
 	"math"
 	"net/http"
+	"strconv"
 
 	appErrors "github.com/Yogdunana/deploypilot/pkg/errors"
 
@@ -81,4 +82,19 @@ func respondPaginated(c *gin.Context, data interface{}, total, page, pageSize in
 			"total_pages": totalPages,
 		},
 	})
+}
+
+// parsePaginationParams extracts and validates pagination parameters from query string.
+// Returns page (1-based) and pageSize with sensible defaults.
+func parsePaginationParams(c *gin.Context) (page, pageSize int) {
+	page, _ = strconv.Atoi(c.DefaultQuery("page", "1"))
+	pageSize, _ = strconv.Atoi(c.DefaultQuery("page_size", "20"))
+
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 || pageSize > 100 {
+		pageSize = 20
+	}
+	return
 }

@@ -78,14 +78,7 @@ func DeleteBackup(backupSvc *backup.Service) gin.HandlerFunc {
 // @Router       /audit-logs [get]
 func ListAuditLogs(auditSvc *service.AuditService) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-		pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
-		if page < 1 {
-			page = 1
-		}
-		if pageSize < 1 || pageSize > 100 {
-			pageSize = 20
-		}
+		page, pageSize := parsePaginationParams(c)
 
 		filter := service.AuditFilter{
 			Page:     page,

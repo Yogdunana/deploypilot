@@ -54,13 +54,14 @@ func ListSSLCertificates(db *gorm.DB) gin.HandlerFunc {
 }
 
 // RequestSSLCertificate creates a new SSL certificate request.
-// @Summary      Request a new SSL certificate
+// @Summary      Create a new SSL certificate
 // @Tags         SSL
 // @Accept       json
 // @Produce      json
 // @Param        request body object{domain=string,email=string,provider=string} true "Certificate request"
 // @Success      201 {object} map[string]interface{}
 // @Failure      400 {object} map[string]interface{}
+// @Failure      500 {object} map[string]interface{}
 // @Router       /ssl/certificates [post]
 // @Security     BearerAuth
 func RequestSSLCertificate(db *gorm.DB) gin.HandlerFunc {
@@ -90,12 +91,14 @@ func RequestSSLCertificate(db *gorm.DB) gin.HandlerFunc {
 	}
 }
 
-// DeleteSSLCertificate deletes an SSL certificate by ID.
+// DeleteSSLCertificate deletes an SSL certificate.
 // @Summary      Delete an SSL certificate
 // @Tags         SSL
 // @Produce      json
-// @Param        id path int true "Certificate ID"
+// @Param        id path string true "Certificate ID"
 // @Success      200 {object} map[string]interface{}
+// @Failure      404 {object} map[string]interface{}
+// @Failure      500 {object} map[string]interface{}
 // @Router       /ssl/certificates/{id} [delete]
 // @Security     BearerAuth
 func DeleteSSLCertificate(db *gorm.DB) gin.HandlerFunc {
@@ -117,8 +120,10 @@ func DeleteSSLCertificate(db *gorm.DB) gin.HandlerFunc {
 // @Summary      Renew an SSL certificate
 // @Tags         SSL
 // @Produce      json
-// @Param        id path int true "Certificate ID"
+// @Param        id path string true "Certificate ID"
 // @Success      200 {object} map[string]interface{}
+// @Failure      404 {object} map[string]interface{}
+// @Failure      500 {object} map[string]interface{}
 // @Router       /ssl/certificates/{id}/renew [post]
 // @Security     BearerAuth
 func RenewSSLCertificate(db *gorm.DB) gin.HandlerFunc {
@@ -129,14 +134,15 @@ func RenewSSLCertificate(db *gorm.DB) gin.HandlerFunc {
 			return
 		}
 		var cert model.SSLCertificate
-		if result := db.First(&cert, id); result.Error != nil {
+		if err := db.First(&cert, id).Error; err != nil {
 			respondErrori18n(c, http.StatusNotFound, "error.ssl.certificate_not_found")
 			return
 		}
-		now := time.Now()
+		// In a real implementation, this would trigger the renewal process
 		cert.Status = "renewing"
 		cert.RetryCount++
-		cert.LastRenewed = &now
+		newExpiresAt := time.Now().AddDate(0, 0, 90)
+		cert.ExpiresAt = &newExpiresAt
 		db.Save(&cert)
 		respondSuccess(c, gin.H{"data": cert, "message": "renewal initiated"})
 	}
