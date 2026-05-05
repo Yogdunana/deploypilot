@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -31,6 +32,7 @@ const (
 func NewEncryptionKey() []byte {
 	key := make([]byte, 32)
 	if _, err := io.ReadFull(rand.Reader, key); err != nil {
+		slog.Error("failed to generate random key", "error", err)
 		panic(fmt.Sprintf("failed to generate encryption key: %v", err))
 	}
 	return key
@@ -45,6 +47,7 @@ func DeriveKey(masterKey, nonce []byte) []byte {
 	hkdf := hkdf.New(sha256.New, masterKey, nonce, nil)
 	derived := make([]byte, 32)
 	if _, err := io.ReadFull(hkdf, derived); err != nil {
+		slog.Error("HKDF derivation failed", "error", err)
 		panic(fmt.Sprintf("HKDF derivation failed: %v", err))
 	}
 	return derived

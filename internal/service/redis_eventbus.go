@@ -37,7 +37,9 @@ func (r *RedisEventBus) Publish(event DeployEvent) {
 		return
 	}
 	// Publish to Redis for other instances (fire-and-forget)
-	_ = r.client.Publish(r.ctx, r.channel, data).Err()
+	if err := r.client.Publish(r.ctx, r.channel, data).Err(); err != nil {
+		slog.Warn("failed to publish redis event", "channel", r.channel, "error", err)
+	}
 	// Also publish locally for this instance's subscribers
 	r.localBus.Publish(event)
 }

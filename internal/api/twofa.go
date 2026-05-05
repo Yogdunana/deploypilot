@@ -406,10 +406,11 @@ func ResetUser2FA(db *gorm.DB, auditSvc *service.AuditService) gin.HandlerFunc {
 
 // twoFARateLimiter provides per-IP rate limiting for 2FA verification attempts.
 type twoFARateLimiter struct {
-	mu       sync.Mutex
-	attempts map[string]*twoFAAttempt
+	mu          sync.Mutex
+	attempts    map[string]*twoFAAttempt
 	maxAttempts int
 	window      time.Duration
+	stopCh      chan struct{}
 }
 
 type twoFAAttempt struct {
@@ -423,16 +424,27 @@ func newTwoFARateLimiter(maxAttempts int, window time.Duration) *twoFARateLimite
 		attempts:    make(map[string]*twoFAAttempt),
 		maxAttempts: maxAttempts,
 		window:      window,
+		stopCh:      make(chan struct{}),
 	}
 	// Background cleanup
 	go func() {
 		ticker := time.NewTicker(time.Minute)
 		defer ticker.Stop()
-		for range ticker.C {
-			rl.cleanup()
+		for {
+			select {
+			case <-ticker.C:
+				rl.cleanup()
+			case <-rl.stopCh:
+				return
+			}
 		}
 	}()
 	return rl
+}
+
+// Stop terminates the background cleanup goroutine.
+func (rl *twoFARateLimiter) Stop() {
+	close(rl.stopCh)
 }
 
 // Allow checks if an IP is allowed to attempt 2FA verification.

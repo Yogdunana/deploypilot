@@ -35,6 +35,7 @@ type TunnelManager struct {
 	commands map[string]chan CommandResult // commandID -> result channel
 	mu       sync.RWMutex
 	upgrader websocket.Upgrader
+	stopCh   chan struct{}
 }
 
 type agentConn struct {
@@ -238,13 +239,26 @@ func (tm *TunnelManager) ListAgents() []string {
 
 // StartCleanup starts a background goroutine to clean up stale connections.
 func (tm *TunnelManager) StartCleanup(interval time.Duration) {
+	tm.stopCh = make(chan struct{})
 	go func() {
 		ticker := time.NewTicker(interval)
 		defer ticker.Stop()
-		for range ticker.C {
-			tm.cleanup()
+		for {
+			select {
+			case <-ticker.C:
+				tm.cleanup()
+			case <-tm.stopCh:
+				return
+			}
 		}
 	}()
+}
+
+// StopCleanup terminates the background cleanup goroutine.
+func (tm *TunnelManager) StopCleanup() {
+	if tm.stopCh != nil {
+		close(tm.stopCh)
+	}
 }
 
 // cleanup removes stale agent connections.

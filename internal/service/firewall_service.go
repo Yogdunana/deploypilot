@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"net"
 	"regexp"
 	"strconv"
 	"strings"
@@ -290,27 +291,75 @@ func (f *FirewallService) getUFWStatus(ctx context.Context, exec *sshClientExecu
 }
 
 func (f *FirewallService) ufwAllow(ctx context.Context, exec *sshClientExecutor, port, protocol string) error {
+	if err := validatePort(port); err != nil {
+		return fmt.Errorf("invalid port: %w", err)
+	}
+	if err := validateProtocol(protocol); err != nil {
+		return fmt.Errorf("invalid protocol: %w", err)
+	}
 	cmd := fmt.Sprintf("sudo ufw allow %s/%s", port, protocol)
 	_, err := exec.RunCommand(ctx, cmd)
 	return err
 }
 
 func (f *FirewallService) ufwDeny(ctx context.Context, exec *sshClientExecutor, port, protocol string) error {
+	if err := validatePort(port); err != nil {
+		return fmt.Errorf("invalid port: %w", err)
+	}
+	if err := validateProtocol(protocol); err != nil {
+		return fmt.Errorf("invalid protocol: %w", err)
+	}
 	cmd := fmt.Sprintf("sudo ufw delete allow %s/%s", port, protocol)
 	_, err := exec.RunCommand(ctx, cmd)
 	return err
 }
 
 func (f *FirewallService) ufwDenyIP(ctx context.Context, exec *sshClientExecutor, ip string) error {
+	if err := validateIP(ip); err != nil {
+		return fmt.Errorf("invalid IP address: %w", err)
+	}
 	cmd := fmt.Sprintf("sudo ufw deny from %s", ip)
 	_, err := exec.RunCommand(ctx, cmd)
 	return err
 }
 
 func (f *FirewallService) ufwAllowIP(ctx context.Context, exec *sshClientExecutor, ip string) error {
+	if err := validateIP(ip); err != nil {
+		return fmt.Errorf("invalid IP address: %w", err)
+	}
 	cmd := fmt.Sprintf("sudo ufw delete deny from %s", ip)
 	_, err := exec.RunCommand(ctx, cmd)
 	return err
+}
+
+// validatePort checks that port is a valid numeric port number (1-65535).
+func validatePort(port string) error {
+	p, err := strconv.Atoi(port)
+	if err != nil {
+		return fmt.Errorf("port must be a number: %s", port)
+	}
+	if p < 1 || p > 65535 {
+		return fmt.Errorf("port out of range (1-65535): %d", p)
+	}
+	return nil
+}
+
+// validateProtocol checks that protocol is one of the allowed values.
+func validateProtocol(protocol string) error {
+	switch protocol {
+	case "tcp", "udp", "icmp":
+		return nil
+	default:
+		return fmt.Errorf("unsupported protocol: %s (must be tcp, udp, or icmp)", protocol)
+	}
+}
+
+// validateIP checks that ip is a valid IP address.
+func validateIP(ip string) error {
+	if net.ParseIP(ip) == nil {
+		return fmt.Errorf("invalid IP address: %s", ip)
+	}
+	return nil
 }
 
 func parseUFWOutput(output string) []FirewallRule {

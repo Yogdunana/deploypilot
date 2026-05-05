@@ -126,6 +126,6 @@ func run(configFilePath, cliDriver, cliDSN string) error {
 
 	// Start stdio transport
 	slog.Info("DeployPilot MCP server starting", "version", appversion.Version, "transport", "stdio")
-	slog.Info("database configured", "type", cfg.Database.Type, "dsn", cfg.Database.DSN)
+	slog.Info("database configured", "type", cfg.Database.Type, "dsn", "<redacted>")
 	return server.ServeStdio(mcpServer)
 }
