@@ -237,7 +237,9 @@ func (b *Bridge) ComposeDeploy(ctx context.Context, appID string) (string, error
 	// Parse env vars from JSON string
 	var envVars map[string]string
 	if app.EnvVars != "" {
-		_ = json.Unmarshal([]byte(app.EnvVars), &envVars)
+		if err := json.Unmarshal([]byte(app.EnvVars), &envVars); err != nil {
+			slog.Warn("failed to unmarshal app env vars", "app_id", app.ID, "error", err)
+		}
 	}
 
 	deployer := deployer.NewComposeDeployer(executor)

@@ -3,9 +3,11 @@ package deployer
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"strconv"
 	"strings"
 	"time"
+
 	"github.com/Yogdunana/deploypilot/internal/util"
 )
 
@@ -79,7 +81,9 @@ func (d *DockerDeployer) Deploy(ctx context.Context, cfg DeployConfig) (*Contain
 	}
 
 	// Step 2: Remove existing container with same name (if any)
-	_, _ = d.executor.RunCommand(ctx, fmt.Sprintf("docker rm -f %s 2>/dev/null || true", util.ShellQuote(cfg.ContainerName)))
+	if _, err := d.executor.RunCommand(ctx, fmt.Sprintf("docker rm -f %s 2>/dev/null || true", util.ShellQuote(cfg.ContainerName))); err != nil {
+		slog.Warn("failed to remove existing container", "container", cfg.ContainerName, "error", err)
+	}
 
 	// Step 3: Build docker run command
 	runCmd := d.buildRunCommand(cfg)

@@ -195,7 +195,9 @@ func (h *HealthChecker) Rollback(ctx context.Context, containerName, previousIma
 	if previousImage == "" {
 		// No previous image, just stop
 		deployer := New(h.executor)
-		_ = deployer.Stop(ctx, containerName)
+		if err := deployer.Stop(ctx, containerName); err != nil {
+			slog.Warn("failed to stop container during rollback", "container", containerName, "error", err)
+		}
 		return &RollbackResult{
 			Success:    false,
 			Message:    "no previous image to rollback to, container stopped",
@@ -205,8 +207,12 @@ func (h *HealthChecker) Rollback(ctx context.Context, containerName, previousIma
 
 	// Stop current container
 	deployer := New(h.executor)
-	_ = deployer.Stop(ctx, containerName)
-	_ = deployer.Remove(ctx, containerName)
+	if err := deployer.Stop(ctx, containerName); err != nil {
+		slog.Warn("failed to stop container during rollback", "container", containerName, "error", err)
+	}
+	if err := deployer.Remove(ctx, containerName); err != nil {
+		slog.Warn("failed to remove container during rollback", "container", containerName, "error", err)
+	}
 
 	// Redeploy with previous image
 	rollbackCfg := DeployConfig{
