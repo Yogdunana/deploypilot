@@ -30,7 +30,7 @@ func RequestTracing() gin.HandlerFunc {
 		start := time.Now()
 		c.Next()
 
-		slog.InfoContext(ctx, "request completed",
+		slog.DebugContext(ctx, "request completed",
 			"method", c.Request.Method,
 			"path", c.Request.URL.Path,
 			"status", c.Writer.Status(),

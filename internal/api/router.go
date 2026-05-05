@@ -73,7 +73,7 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 		wsGroup.GET("/logs/:app_id", LogStreamWS(bridge, wsHub, ticketStore))
 		wsGroup.GET("/terminal/:server_id", TerminalWS(bridge, wsHub, ticketStore))
 		wsGroup.GET("/agent/:server_id", AgentTunnelWS(bridge, ticketStore))
-		wsGroup.GET("/monitor", gin.WrapH(http.HandlerFunc(globalMonitorAPI.MonitorWS)))
+		wsGroup.GET("/monitor", auth.AuthMiddleware(blacklist), gin.WrapH(http.HandlerFunc(globalMonitorAPI.MonitorWS)))
 	}
 
 	// SSE routes (requires auth)

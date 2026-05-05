@@ -3,6 +3,7 @@ package middleware
 import (
 	"errors"
 	"strings"
+	"time"
 	"unicode"
 
 	"github.com/Yogdunana/deploypilot/internal/config"
@@ -254,6 +255,14 @@ func CheckPasswordExpired(passwordChangedAt string, maxAgeDays int) error {
 	}
 	// If passwordChangedAt is empty, consider it expired to force a change
 	if passwordChangedAt == "" {
+		return ErrPasswordExpired
+	}
+	changedAt, err := time.Parse(time.RFC3339, passwordChangedAt)
+	if err != nil {
+		// If we can't parse the date, consider it expired for safety
+		return ErrPasswordExpired
+	}
+	if time.Since(changedAt) > time.Duration(maxAgeDays)*24*time.Hour {
 		return ErrPasswordExpired
 	}
 	return nil
