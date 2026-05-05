@@ -52,6 +52,11 @@ func CreateAPIKey(keySvc *service.APIKeyService, auditSvc *service.AuditService)
 
 		if len(input.Scopes) == 0 {
 			input.Scopes = []string{"read"}
+		} else {
+			input.Scopes = auth.ValidateScopes(input.Scopes)
+			if len(input.Scopes) == 0 {
+				input.Scopes = []string{"read"}
+			}
 		}
 
 		apiKey, rawKey, err := keySvc.Create(c.Request.Context(), uid, "tenant-default", input.Name, input.Scopes, input.ExpiresInDays)

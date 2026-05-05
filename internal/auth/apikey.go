@@ -70,7 +70,8 @@ func APIKeyMiddleware(keySvc *service.APIKeyService) gin.HandlerFunc {
 func isIPAllowed(clientIP string, allowedIPsJSON string) bool {
 	var allowedIPs []string
 	if err := json.Unmarshal([]byte(allowedIPsJSON), &allowedIPs); err != nil {
-		return true // if parse fails, allow (fail open)
+		slog.Warn("failed to parse allowed IPs JSON, denying access", "error", err)
+		return false
 	}
 	if len(allowedIPs) == 0 {
 		return true
