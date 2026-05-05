@@ -253,7 +253,6 @@ func CheckPasswordExpired(passwordChangedAt string, maxAgeDays int) error {
 	if maxAgeDays <= 0 {
 		return nil
 	}
-	// If passwordChangedAt is empty, consider it expired to force a change
 	if passwordChangedAt == "" {
 		return ErrPasswordExpired
 	}
