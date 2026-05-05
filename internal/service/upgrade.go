@@ -282,33 +282,41 @@ func (us *UpgradeService) PerformUpgrade(ctx context.Context, targetVersion stri
 	if err := us.downloadBinaries(ctx, ver); err != nil {
 		us.emitProgress("download", fmt.Sprintf("download failed: %v", err), 40, "error")
 		// Auto-rollback
-		_ = us.restoreBinaries(backupDir)
-		return nil, fmt.Errorf("download: %w (auto-rollback attempted)", err)
+		if err := us.restoreBinaries(backupDir); err != nil {
+		slog.Warn("auto-rollback failed after download error", "backup_dir", backupDir, "error", err)
 	}
-	us.emitProgress("download", "binaries downloaded successfully", 65, "running")
+	return nil, fmt.Errorf("download: %w (auto-rollback attempted)", err)
+}
+us.emitProgress("download", "binaries downloaded successfully", 65, "running")
 
-	// Step 5: Verify new binaries
-	us.emitProgress("verify", "verifying new binaries...", 70, "running")
-	if err := us.verifyBinaries(); err != nil {
-		us.emitProgress("verify", fmt.Sprintf("verification failed: %v", err), 70, "error")
-		_ = us.restoreBinaries(backupDir)
-		return nil, fmt.Errorf("verify: %w (auto-rollback attempted)", err)
+// Step 5: Verify new binaries
+us.emitProgress("verify", "verifying new binaries...", 70, "running")
+if err := us.verifyBinaries(); err != nil {
+	us.emitProgress("verify", fmt.Sprintf("verification failed: %v", err), 70, "error")
+	if err := us.restoreBinaries(backupDir); err != nil {
+		slog.Warn("auto-rollback failed after verify error", "backup_dir", backupDir, "error", err)
 	}
+	return nil, fmt.Errorf("verify: %w (auto-rollback attempted)", err)
+}
 
-	// Step 6: Replace binaries
-	us.emitProgress("replace", "replacing binaries...", 80, "running")
-	if err := us.replaceBinaries(); err != nil {
-		us.emitProgress("replace", fmt.Sprintf("replace failed: %v", err), 80, "error")
-		_ = us.restoreBinaries(backupDir)
-		return nil, fmt.Errorf("replace: %w (auto-rollback attempted)", err)
+// Step 6: Replace binaries
+us.emitProgress("replace", "replacing binaries...", 80, "running")
+if err := us.replaceBinaries(); err != nil {
+	us.emitProgress("replace", fmt.Sprintf("replace failed: %v", err), 80, "error")
+	if err := us.restoreBinaries(backupDir); err != nil {
+		slog.Warn("auto-rollback failed after replace error", "backup_dir", backupDir, "error", err)
 	}
+	return nil, fmt.Errorf("replace: %w (auto-rollback attempted)", err)
+}
 
-	// Step 7: Restart services
-	us.emitProgress("restart", "restarting services...", 90, "running")
-	if err := us.restartServices(); err != nil {
-		us.emitProgress("restart", fmt.Sprintf("restart failed: %v", err), 90, "error")
-		_ = us.restoreBinaries(backupDir)
-		return nil, fmt.Errorf("restart: %w (auto-rollback attempted)", err)
+// Step 7: Restart services
+us.emitProgress("restart", "restarting services...", 90, "running")
+if err := us.restartServices(); err != nil {
+	us.emitProgress("restart", fmt.Sprintf("restart failed: %v", err), 90, "error")
+	if err := us.restoreBinaries(backupDir); err != nil {
+		slog.Warn("auto-rollback failed after restart error", "backup_dir", backupDir, "error", err)
+	}
+	return nil, fmt.Errorf("restart: %w (auto-rollback attempted)", err)
 	}
 
 	us.emitProgress("complete", fmt.Sprintf("successfully upgraded to %s", ver), 100, "success")

@@ -405,7 +405,7 @@ func run(configFilePath, cliDriver, cliDSN, cliAddr string, migrateOnly, migrate
 	}()
 
 	slog.Info("DeployPilot API server starting", "version", appversion.Version, "addr", listenAddr)
-	slog.Info("database configured", "type", cfg.Database.Type, "dsn", cfg.Database.DSN)
+	slog.Info("database configured", "type", cfg.Database.Type, "dsn", "<redacted>")
 
 	// Wait for shutdown signal or server error
 	quit := make(chan os.Signal, 1)

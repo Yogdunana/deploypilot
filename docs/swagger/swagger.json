@@ -9,8 +9,8 @@
             "url": "https://github.com/Yogdunana/deploypilot"
         },
         "license": {
-            "name": "MIT",
-            "url": "https://github.com/Yogdunana/deploypilot/blob/main/LICENSE"
+            "name": "BSL 1.1",
+            "url": "https://spdx.org/licenses/BSL-1.1.html"
         },
         "version": "1.0"
     },
