@@ -29,8 +29,14 @@ type cookieConfig struct {
 }
 
 var (
-	defaultCookieConfig cookieConfig
-	cookieConfigOnce   sync.Once
+	defaultCookieConfig = cookieConfig{
+		Secure:   true,
+		HTTPOnly: true,
+		SameSite: http.SameSiteStrictMode,
+		Path:     "/",
+		MaxAge:   86400, // 24 hours
+	}
+	cookieConfigOnce sync.Once
 )
 
 // SetCookieConfig updates the cookie configuration.

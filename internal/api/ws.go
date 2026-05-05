@@ -338,6 +338,7 @@ func LogStreamWS(bridge *service.Bridge, hub *WSHub, ticketStore *auth.WSTicketS
 			return
 		}
 		defer func() { _ = conn.Close() }()
+		conn.SetReadLimit(64 * 1024)
 
 		hub.Register(conn, appID)
 		defer hub.Unregister(conn, appID)
@@ -524,6 +525,7 @@ func TerminalWS(bridge *service.Bridge, hub *WSHub, ticketStore *auth.WSTicketSt
 			return
 		}
 		defer func() { _ = conn.Close() }()
+		conn.SetReadLimit(64 * 1024)
 
 		// 4. Get remote executor
 		remoteExec, err := bridge.GetRemoteExecutorForTerminal(c.Request.Context(), serverID)
