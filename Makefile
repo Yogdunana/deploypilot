@@ -1,4 +1,4 @@
-.PHONY: build build-mcp build-api build-all test lint coverage clean docker-build run swagger dev dev-up dev-down dev-logs dev-clean dev-backend dev-frontend migrate-up migrate-down migrate-status changelog changelog-init bench bench-signing bench-auth
+.PHONY: build build-mcp build-api build-all test lint coverage clean docker-build run swagger dev dev-up dev-down dev-logs dev-clean dev-backend dev-frontend migrate-up migrate-down migrate-status changelog changelog-init bench bench-signing bench-auth fmt
 
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
 GIT_COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
@@ -39,6 +39,10 @@ coverage-html: coverage ## Generate HTML coverage report
 # Quality targets
 lint: ## Run golangci-lint
 	golangci-lint run ./...
+
+fmt: ## Format Go and frontend code
+	gofmt -w .
+	cd web && npx prettier --write "src/**/*.{ts,vue}"
 
 vet: ## Run go vet
 	$(GOVET) ./...

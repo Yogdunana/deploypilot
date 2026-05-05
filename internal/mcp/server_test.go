@@ -3239,7 +3239,7 @@ func TestHandleDeployApp_WithOptionalParams(t *testing.T) {
 		"env_vars":        `{"KEY":"VALUE"}`,
 		"restart_policy":  "always",
 		"network":         "mynet",
-		"volumes":         "/host:/container",
+		"volumes":         "/app:/container",
 		"labels":          `{"app":"myapp"}`,
 		"cpu":             "2",
 		"memory":          "4GB",

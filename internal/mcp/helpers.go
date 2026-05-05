@@ -38,7 +38,7 @@ func getAllowedVolumeRoots() []string {
 	if roots := os.Getenv("DEPLOYPILOT_ALLOWED_VOLUME_ROOTS"); roots != "" {
 		return strings.Split(roots, ":")
 	}
-	return nil
+	return []string{"/app", "/data", "/opt", "/tmp"}
 }
 
 // validateImageRegistry checks if a Docker image is from an allowed registry.

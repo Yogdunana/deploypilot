@@ -19,6 +19,6 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Sync docs/wiki to GitHub Wiki
-        uses: spenserblack/actions-wiki@v0.3.0
+        uses: spenserblack/actions-wiki@v0.3.1
         with:
           path: docs/wiki
