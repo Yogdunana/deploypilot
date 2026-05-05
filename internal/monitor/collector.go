@@ -11,6 +11,8 @@ import (
 	"github.com/Yogdunana/deploypilot/internal/engine/deployer"
 )
 
+var mainDiskRe = regexp.MustCompile(`^(sd[a-z]|vd[a-z]|xvd[a-z]|nvme\d+n\d+|mmcblk\d+)$`)
+
 // MetricType defines the type of metric.
 type MetricType string
 
@@ -477,7 +479,6 @@ func collectDiskIOMetrics(ctx context.Context, executor deployer.CommandExecutor
 
 	// Pattern to match main disk devices, not partitions
 	// Matches: sda, vda, xvda, nvme0n1, etc. Skips: sda1, vda2, etc.
-	mainDiskRe := regexp.MustCompile(`^(sd[a-z]|vd[a-z]|xvd[a-z]|nvme\d+n\d+|mmcblk\d+)$`)
 
 	lines := strings.Split(out, "\n")
 	for _, line := range lines {

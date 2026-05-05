@@ -246,6 +246,9 @@ func (f *FileManagerService) MoveFile(ctx context.Context, serverID, srcPath, ds
 
 // GetDiskUsage returns disk usage information for a remote path.
 func (f *FileManagerService) GetDiskUsage(ctx context.Context, serverID, remotePath string) (*DiskUsage, error) {
+	if isPathBlocked(remotePath) {
+		return nil, fmt.Errorf("access to path %s is blocked", remotePath)
+	}
 	cmd := fmt.Sprintf("df -B1 --output=size,used,avail,pcent %s 2>/dev/null | tail -1", util.ShellQuote(remotePath))
 	if err := f.sb.Validate(cmd); err != nil {
 		return nil, fmt.Errorf("sandbox blocked: %w", err)
