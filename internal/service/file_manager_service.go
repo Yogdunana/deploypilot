@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"log/slog"
 	"path/filepath"
@@ -344,30 +345,9 @@ func base64Encode(s string) string {
 	return encodeToString([]byte(s))
 }
 
-// encodeToString is a simple base64 encoder (avoids importing encoding/base64 in service).
+// encodeToString encodes data to base64 using the standard library.
 func encodeToString(data []byte) string {
-	const charset = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
-	var result strings.Builder
-	result.Grow(len(data) * 4 / 3)
-
-	for i := 0; i < len(data); i += 3 {
-		n := len(data) - i
-		if n > 3 {
-			n = 3
-		}
-		var val uint32
-		for j := 0; j < n; j++ {
-			val |= uint32(data[i+j]) << uint((2-j)*8)
-		}
-		for j := 0; j < n+1; j++ {
-			result.WriteByte(charset[(val>>(uint((3-j)*6)))&0x3F])
-		}
-	}
-	// Padding
-	for result.Len()%4 != 0 {
-		result.WriteByte('=')
-	}
-	return result.String()
+	return base64.StdEncoding.EncodeToString(data)
 }
 
 // parseLsOutput parses the output of `ls -la` into FileEntry slices.

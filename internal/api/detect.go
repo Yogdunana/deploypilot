@@ -1,6 +1,7 @@
 package api
 
 import (
+	"log/slog"
 	"net/http"
 
 	"github.com/Yogdunana/deploypilot/internal/detector"
@@ -20,7 +21,8 @@ func DetectAllComponents(executor deployer.CommandExecutor) gin.HandlerFunc {
 		d := detector.New(executor)
 		components, err := d.DetectAll(c.Request.Context())
 		if err != nil {
-			respondErrori18n(c, http.StatusInternalServerError, "error.common.internal_error", err.Error())
+			slog.ErrorContext(c.Request.Context(), "failed to detect all components", "error", err)
+			respondErrori18n(c, http.StatusInternalServerError, "error.common.internal_error")
 			return
 		}
 
@@ -44,7 +46,8 @@ func DetectDatabases(executor deployer.CommandExecutor) gin.HandlerFunc {
 		d := detector.New(executor)
 		components, err := d.DetectDatabases(c.Request.Context())
 		if err != nil {
-			respondErrori18n(c, http.StatusInternalServerError, "error.common.internal_error", err.Error())
+			slog.ErrorContext(c.Request.Context(), "failed to detect databases", "error", err)
+			respondErrori18n(c, http.StatusInternalServerError, "error.common.internal_error")
 			return
 		}
 
@@ -68,7 +71,8 @@ func DetectWebServers(executor deployer.CommandExecutor) gin.HandlerFunc {
 		d := detector.New(executor)
 		components, err := d.DetectWebServers(c.Request.Context())
 		if err != nil {
-			respondErrori18n(c, http.StatusInternalServerError, "error.common.internal_error", err.Error())
+			slog.ErrorContext(c.Request.Context(), "failed to detect web servers", "error", err)
+			respondErrori18n(c, http.StatusInternalServerError, "error.common.internal_error")
 			return
 		}
 

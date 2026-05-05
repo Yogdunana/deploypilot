@@ -1,6 +1,7 @@
 package api
 
 import (
+	"log/slog"
 	"net/http"
 
 	"github.com/Yogdunana/deploypilot/internal/model"
@@ -21,7 +22,8 @@ func CreateAlertRule(db *gorm.DB) gin.HandlerFunc {
 
 		svc := service.NewAlertRuleService(db)
 		if err := svc.CreateAlertRule(&rule); err != nil {
-			respondErrori18n(c, http.StatusInternalServerError, "error.common.internal_error", err.Error())
+			slog.ErrorContext(c.Request.Context(), "failed to create alert rule", "error", err)
+			respondErrori18n(c, http.StatusInternalServerError, "error.common.internal_error")
 			return
 		}
 
@@ -44,7 +46,8 @@ func UpdateAlertRule(db *gorm.DB) gin.HandlerFunc {
 
 		svc := service.NewAlertRuleService(db)
 		if err := svc.UpdateAlertRule(&rule); err != nil {
-			respondErrori18n(c, http.StatusInternalServerError, "error.common.internal_error", err.Error())
+			slog.ErrorContext(c.Request.Context(), "failed to update alert rule", "error", err)
+			respondErrori18n(c, http.StatusInternalServerError, "error.common.internal_error")
 			return
 		}
 
@@ -60,7 +63,8 @@ func DeleteAlertRule(db *gorm.DB) gin.HandlerFunc {
 
 		svc := service.NewAlertRuleService(db)
 		if err := svc.DeleteAlertRule(id); err != nil {
-			respondErrori18n(c, http.StatusInternalServerError, "error.common.internal_error", err.Error())
+			slog.ErrorContext(c.Request.Context(), "failed to delete alert rule", "error", err)
+			respondErrori18n(c, http.StatusInternalServerError, "error.common.internal_error")
 			return
 		}
 
