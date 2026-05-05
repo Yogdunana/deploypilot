@@ -145,7 +145,7 @@ flowchart LR
 | Layer | Protocol | Purpose |
 |-------|----------|----------|
 | **MCP Server** | stdio | Native AI IDE integration — 52+ tools for deployment, DNS, SSL, monitoring |
-| **REST API** | HTTP + JWT | Programmatic access with full RBAC — 68+ endpoints, Swagger docs at `/swagger/` |
+| **REST API** | HTTP + JWT | Programmatic access with full RBAC — 100+ endpoints, Swagger docs at `/swagger/` |
 | **WebSocket / SSE** | ws://, text/event-stream | Real-time log streaming, SSH terminal, deployment progress |
 
 The embedded **web dashboard** (Vue 3 + TypeScript + Tailwind CSS) provides a full management UI accessible at `http://localhost:8080`.
@@ -156,7 +156,7 @@ The embedded **web dashboard** (Vue 3 + TypeScript + Tailwind CSS) provides a fu
 
 ### MCP Protocol Integration
 
-52+ MCP tools covering the complete deployment lifecycle. AI IDEs connect via stdio transport and can autonomously manage your infrastructure through natural language.
+91+ MCP tools covering the complete deployment lifecycle. AI IDEs connect via stdio transport and can autonomously manage your infrastructure through natural language.
 
 ### Multi-Server Management
 
