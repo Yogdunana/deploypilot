@@ -321,13 +321,13 @@ func LogStreamWS(bridge *service.Bridge, hub *WSHub, ticketStore *auth.WSTicketS
 		// 1. Authenticate via ticket (preferred) or JWT token (backward compat)
 		userID, role, err := authenticateWS(c, ticketStore)
 		if err != nil {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+			c.JSON(http.StatusUnauthorized, gin.H{"status": "error", "message": err.Error()})
 			return
 		}
 		// 2. Check resource-level authorization
 		appID := c.Param("app_id")
 		if !authorizeAppAccessCached(bridge, c.Request.Context(), appID, role, userID) {
-			c.JSON(http.StatusForbidden, gin.H{"error": "no permission to access this app"})
+			c.JSON(http.StatusForbidden, gin.H{"status": "error", "message": "no permission to access this app"})
 			return
 		}
 
@@ -430,7 +430,7 @@ func AgentTunnelWS(bridge *service.Bridge, ticketStore *auth.WSTicketStore) gin.
 		// Authenticate via ticket (preferred) or JWT token (backward compat)
 		_, _, err := authenticateWS(c, ticketStore)
 		if err != nil {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+			c.JSON(http.StatusUnauthorized, gin.H{"status": "error", "message": err.Error()})
 			return
 		}
 
@@ -440,7 +440,7 @@ func AgentTunnelWS(bridge *service.Bridge, ticketStore *auth.WSTicketStore) gin.
 		if bridge.TunnelManager != nil {
 			bridge.TunnelManager.HandleTunnel(c.Writer, c.Request, serverID)
 		} else {
-			c.JSON(http.StatusServiceUnavailable, gin.H{"error": "agent tunnel not configured"})
+			c.JSON(http.StatusServiceUnavailable, gin.H{"status": "error", "message": "agent tunnel not configured"})
 		}
 	}
 }
@@ -507,13 +507,13 @@ func TerminalWS(bridge *service.Bridge, hub *WSHub, ticketStore *auth.WSTicketSt
 		// 1. Authenticate via ticket (preferred) or JWT token (backward compat)
 		userID, role, err := authenticateWS(c, ticketStore)
 		if err != nil {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+			c.JSON(http.StatusUnauthorized, gin.H{"status": "error", "message": err.Error()})
 			return
 		}
 		// 2. Check resource-level authorization
 		serverID := c.Param("server_id")
 		if !authorizeServerAccessCached(bridge, c.Request.Context(), serverID, role, userID) {
-			c.JSON(http.StatusForbidden, gin.H{"error": "no permission to access this server"})
+			c.JSON(http.StatusForbidden, gin.H{"status": "error", "message": "no permission to access this server"})
 			return
 		}
 

@@ -1,6 +1,7 @@
 package api
 
 import (
+	"log/slog"
 	"net/http"
 	"runtime"
 	"strconv"
@@ -341,7 +342,8 @@ func TriggerBackup(backupSvc *backup.Service) gin.HandlerFunc {
 		}
 		record, err := backupSvc.CreateBackup(c.Request.Context(), "manual")
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"status": "error", "message": err.Error()})
+			slog.Error("failed to create backup", "error", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"status": "error", "message": "internal server error"})
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{"status": "success", "data": record})
@@ -369,7 +371,8 @@ func ListBackupRecords(backupSvc *backup.Service) gin.HandlerFunc {
 		}
 		records, err := backupSvc.ListRecords(limit)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"status": "error", "message": err.Error()})
+			slog.Error("failed to list backup records", "error", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"status": "error", "message": "internal server error"})
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{"status": "success", "data": records})
@@ -426,7 +429,8 @@ func DownloadCloudBackup(backupSvc *backup.Service) gin.HandlerFunc {
 		id := c.Param("id")
 		localPath, err := backupSvc.DownloadFromCloud(c.Request.Context(), id)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"status": "error", "message": err.Error()})
+			slog.Error("failed to download cloud backup", "error", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"status": "error", "message": "internal server error"})
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{"status": "success", "message": "backup downloaded", "local_path": localPath})
@@ -477,7 +481,8 @@ func GetAuditLogsByTraceID(auditSvc *service.AuditService) gin.HandlerFunc {
 		traceID := c.Param("trace_id")
 		logs, total, err := auditSvc.ListByTraceID(c.Request.Context(), traceID)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			slog.Error("failed to get audit logs by trace ID", "error", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"status": "error", "message": "internal server error"})
 			return
 		}
 		if logs == nil {

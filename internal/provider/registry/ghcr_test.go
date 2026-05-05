@@ -26,7 +26,7 @@ func newGHCRTestServer(t *testing.T) *httptest.Server {
 		if r.Method == http.MethodGet && r.URL.Path == "/v2/OWNER/myapp/tags/list" {
 			// Verify Bearer token (GitHub token) is present
 			auth := r.Header.Get("Authorization")
-			if auth != "Bearer ghp_testtoken123" {
+			if auth != "Bearer test_token_123" {
 				w.WriteHeader(http.StatusUnauthorized)
 				w.Write([]byte(`{"errors":[{"message":"unauthorized"}]}`))
 				return
@@ -41,7 +41,7 @@ func newGHCRTestServer(t *testing.T) *httptest.Server {
 		// Tags list for empty repo
 		if r.Method == http.MethodGet && r.URL.Path == "/v2/OWNER/empty/tags/list" {
 			auth := r.Header.Get("Authorization")
-			if auth != "Bearer ghp_testtoken123" {
+			if auth != "Bearer test_token_123" {
 				w.WriteHeader(http.StatusUnauthorized)
 				return
 			}
@@ -89,7 +89,7 @@ func TestGHCRPing(t *testing.T) {
 	ts := newGHCRTestServer(t)
 	defer ts.Close()
 
-	g := NewGHCRProvider(ts.URL+"/v2/", "OWNER", "ghp_testtoken123")
+	g := NewGHCRProvider(ts.URL+"/v2/", "OWNER", "test_token_123")
 	ctx := context.Background()
 
 	err := g.Ping(ctx)
@@ -146,7 +146,7 @@ func TestGHCRListTags(t *testing.T) {
 	ts := newGHCRTestServer(t)
 	defer ts.Close()
 
-	g := NewGHCRProvider(ts.URL+"/v2/", "OWNER", "ghp_testtoken123")
+	g := NewGHCRProvider(ts.URL+"/v2/", "OWNER", "test_token_123")
 	ctx := context.Background()
 
 	tags, err := g.ListTags(ctx, "OWNER/myapp")
@@ -180,7 +180,7 @@ func TestGHCRListTagsEmpty(t *testing.T) {
 	ts := newGHCRTestServer(t)
 	defer ts.Close()
 
-	g := NewGHCRProvider(ts.URL+"/v2/", "OWNER", "ghp_testtoken123")
+	g := NewGHCRProvider(ts.URL+"/v2/", "OWNER", "test_token_123")
 	ctx := context.Background()
 
 	tags, err := g.ListTags(ctx, "OWNER/empty")
@@ -216,7 +216,7 @@ func TestGHCRListTagsInvalidJSON(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	g := NewGHCRProvider(ts.URL+"/v2/", "OWNER", "ghp_testtoken123")
+	g := NewGHCRProvider(ts.URL+"/v2/", "OWNER", "test_token_123")
 	ctx := context.Background()
 
 	_, err := g.ListTags(ctx, "OWNER/myapp")
@@ -231,7 +231,7 @@ func TestGHCRListTagsNotFound(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	g := NewGHCRProvider(ts.URL+"/v2/", "OWNER", "ghp_testtoken123")
+	g := NewGHCRProvider(ts.URL+"/v2/", "OWNER", "test_token_123")
 	ctx := context.Background()
 
 	_, err := g.ListTags(ctx, "OWNER/nonexistent")
@@ -252,7 +252,7 @@ func TestGHCRListTagsBearerToken(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	g := NewGHCRProvider(ts.URL+"/v2/", "OWNER", "ghp_testtoken123")
+	g := NewGHCRProvider(ts.URL+"/v2/", "OWNER", "test_token_123")
 	ctx := context.Background()
 
 	_, err := g.ListTags(ctx, "OWNER/myapp")
@@ -260,8 +260,8 @@ func TestGHCRListTagsBearerToken(t *testing.T) {
 		t.Fatalf("ListTags() error = %v", err)
 	}
 
-	if capturedAuth != "Bearer ghp_testtoken123" {
-		t.Errorf("Authorization = %q, want %q", capturedAuth, "Bearer ghp_testtoken123")
+	if capturedAuth != "Bearer test_token_123" {
+		t.Errorf("Authorization = %q, want %q", capturedAuth, "Bearer test_token_123")
 	}
 }
 

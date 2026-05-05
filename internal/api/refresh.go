@@ -3,6 +3,7 @@ package api
 import (
 	"log/slog"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/Yogdunana/deploypilot/internal/auth"
@@ -27,17 +28,16 @@ type cookieConfig struct {
 	MaxAge   int // seconds; 0 = session cookie
 }
 
-var defaultCookieConfig = cookieConfig{
-	Secure:   true,
-	HTTPOnly: true,
-	SameSite: http.SameSiteLaxMode,
-	Path:     "/",
-	MaxAge:   0,
-}
+var (
+	defaultCookieConfig cookieConfig
+	cookieConfigOnce   sync.Once
+)
 
 // SetCookieConfig updates the cookie configuration.
 func SetCookieConfig(cfg cookieConfig) {
-	defaultCookieConfig = cfg
+	cookieConfigOnce.Do(func() {
+		defaultCookieConfig = cfg
+	})
 }
 
 // setAuthCookies sets both access and refresh token cookies on the response.
