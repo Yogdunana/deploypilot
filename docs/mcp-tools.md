@@ -132,3 +132,319 @@ ssh -p <port> root@<host>
 export DEPLOYPILOT_ENCRYPTION_KEY=<your-base64-key>
 ./bin/mcp-server
 ```
+## Extended Tools (Continued)
+
+### CI/CD Tools
+
+#### trigger_ci_build
+**Permission**: dev
+
+Trigger a CI/CD pipeline build.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| app_id | string | Yes | Application ID |
+| branch | string | No | Git branch to build (default: main) |
+| commit | string | No | Specific commit hash |
+
+#### get_ci_build_status
+**Permission**: viewer
+
+Get the status of a CI build.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| build_id | string | Yes | Build ID |
+
+### Kubernetes Tools
+
+#### list_clusters
+**Permission**: viewer
+
+List all configured Kubernetes clusters.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| - | - | - | No parameters |
+
+#### k8s_deploy
+**Permission**: dev
+
+Deploy an application to Kubernetes.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| cluster_id | string | Yes | Cluster ID |
+| namespace | string | Yes | Target namespace |
+| manifest | string | Yes | Kubernetes manifest YAML |
+
+#### k8s_list_deployments
+**Permission**: viewer
+
+List deployments in a Kubernetes cluster.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| cluster_id | string | Yes | Cluster ID |
+| namespace | string | No | Filter by namespace |
+
+#### k8s_get_pods
+**Permission**: viewer
+
+Get pods in a Kubernetes cluster.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| cluster_id | string | Yes | Cluster ID |
+| namespace | string | No | Filter by namespace |
+| deployment | string | No | Filter by deployment name |
+
+### Registry Tools
+
+#### registry_login
+**Permission**: dev
+
+Login to a container registry.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| registry | string | Yes | Registry URL |
+| username | string | Yes | Username |
+| password | string | Yes | Password |
+
+#### push_image
+**Permission**: dev
+
+Push a container image to registry.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| image | string | Yes | Local image name:tag |
+| registry | string | Yes | Target registry |
+| repository | string | Yes | Target repository |
+
+#### list_registry_tags
+**Permission**: viewer
+
+List tags for a repository.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| registry | string | Yes | Registry URL |
+| repository | string | Yes | Repository name |
+
+#### ping_registry
+**Permission**: viewer
+
+Test registry connectivity.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| registry | string | Yes | Registry URL |
+
+### Context Management Tools
+
+#### get_context
+**Permission**: viewer
+
+Get current deployment context.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| - | - | - | No parameters |
+
+#### list_recent_operations
+**Permission**: viewer
+
+List recent operations.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| limit | number | No | Number of operations to return |
+
+#### clear_context
+**Permission**: dev
+
+Clear the current context.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| - | - | - | No parameters |
+
+### Port Forward Tools
+
+#### port_forward
+**Permission**: dev
+
+Forward a local port to a remote server.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| server_id | string | Yes | Server ID |
+| local_port | number | Yes | Local port number |
+| remote_port | number | Yes | Remote port number |
+| remote_host | string | No | Remote host (default: localhost) |
+
+### Monitoring Extension Tools
+
+#### get_container_metrics
+**Permission**: viewer
+
+Get container resource metrics.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| app_id | string | Yes | Application ID |
+| container_id | string | Yes | Container ID |
+
+#### get_system_metrics
+**Permission**: viewer
+
+Get system-level metrics.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| server_id | string | Yes | Server ID |
+
+#### list_alerts
+**Permission**: viewer
+
+List active alerts.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| app_id | string | No | Filter by application |
+| severity | string | No | Filter by severity |
+
+#### list_alert_rules
+**Permission**: viewer
+
+List configured alert rules.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| app_id | string | No | Filter by application |
+
+#### query_metric_history
+**Permission**: viewer
+
+Query historical metrics.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| metric | string | Yes | Metric name |
+| start | string | Yes | Start time (ISO 8601) |
+| end | string | Yes | End time (ISO 8601) |
+| app_id | string | No | Filter by application |
+
+#### query_alert_history
+**Permission**: viewer
+
+Query alert history.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| start | string | Yes | Start time |
+| end | string | Yes | End time |
+| app_id | string | No | Filter by application |
+
+#### heal_container
+**Permission**: dev
+
+Attempt to heal a failed container.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| app_id | string | Yes | Application ID |
+| container_id | string | Yes | Container ID |
+
+#### health_check
+**Permission**: viewer
+
+Perform a health check on an application.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| app_id | string | Yes | Application ID |
+
+### Environment Template Tools
+
+#### list_env_templates
+**Permission**: viewer
+
+List available environment templates.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| - | - | - | No parameters |
+
+#### get_env_template
+**Permission**: viewer
+
+Get a specific environment template.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| template_id | string | Yes | Template ID |
+
+### Other Extension Tools
+
+#### build_and_deploy
+**Permission**: dev
+
+Build and deploy in one step.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| app_id | string | Yes | Application ID |
+| git_ref | string | No | Git reference to build |
+
+#### list_images
+**Permission**: viewer
+
+List available container images.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| app_id | string | No | Filter by application |
+| repository | string | No | Filter by repository |
+
+#### detect_panel
+**Permission**: viewer
+
+Detect server panel type.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| server_id | string | Yes | Server ID |
+
+#### doctor
+**Permission**: viewer
+
+Run system diagnostics.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| server_id | string | Yes | Server ID |
+| check_type | string | No | Specific check to run |
+
+#### exec_command
+**Permission**: admin
+
+Execute a command on a server.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| server_id | string | Yes | Server ID |
+| command | string | Yes | Command to execute |
+| timeout | number | No | Timeout in seconds |
+
+#### run_preflight
+**Permission**: viewer
+
+Run preflight checks before deployment.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| app_id | string | Yes | Application ID |
+| server_id | string | Yes | Target server ID |
