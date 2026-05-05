@@ -20,8 +20,17 @@ type sessionResponse struct {
 	IsCurrent  bool      `json:"is_current"`
 }
 
-// ListSessions returns all active sessions for the authenticated user.
-// GET /api/v1/sessions
+// ListSessions godoc
+// @Summary      List sessions
+// @Description  Get all active sessions for the authenticated user
+// @Tags         Sessions
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200 {object} map[string]interface{} "list of active sessions"
+// @Failure      401 {object} map[string]interface{} "unauthorized"
+// @Failure      500 {object} map[string]interface{} "internal error"
+// @Router       /sessions [get]
 func ListSessions() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID, _ := c.Get(string(auth.UserIDKey))
@@ -71,8 +80,21 @@ func ListSessions() gin.HandlerFunc {
 	}
 }
 
-// KickSession revokes a single session (refresh token) for the authenticated user.
-// DELETE /api/v1/sessions/:token_id
+// KickSession godoc
+// @Summary      Kick session
+// @Description  Revoke a single session (refresh token) for the authenticated user
+// @Tags         Sessions
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        token_id path string true "Refresh token ID"
+// @Success      200 {object} map[string]interface{} "revocation confirmation"
+// @Failure      400 {object} map[string]interface{} "invalid request"
+// @Failure      401 {object} map[string]interface{} "unauthorized"
+// @Failure      403 {object} map[string]interface{} "cannot kick another user's session"
+// @Failure      404 {object} map[string]interface{} "session not found"
+// @Failure      500 {object} map[string]interface{} "internal error"
+// @Router       /sessions/{token_id} [delete]
 func KickSession() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID, _ := c.Get(string(auth.UserIDKey))
@@ -117,8 +139,19 @@ func KickSession() gin.HandlerFunc {
 	}
 }
 
-// ListLoginHistory returns the login history for the authenticated user.
-// GET /api/v1/login-history
+// ListLoginHistory godoc
+// @Summary      List login history
+// @Description  Get paginated login history for the authenticated user
+// @Tags         Sessions
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        page query int false "Page number (default 1)"
+// @Param        page_size query int false "Page size (default 20, max 100)"
+// @Success      200 {object} map[string]interface{} "paginated login history"
+// @Failure      401 {object} map[string]interface{} "unauthorized"
+// @Failure      500 {object} map[string]interface{} "internal error"
+// @Router       /login-history [get]
 func ListLoginHistory(auditSvc *service.AuditService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID, _ := c.Get(string(auth.UserIDKey))
