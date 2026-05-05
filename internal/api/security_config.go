@@ -97,6 +97,20 @@ func UpdateSecurityConfig() gin.HandlerFunc {
 			return
 		}
 
+		// Validate input ranges
+		if input.PasswordMinLen != nil && *input.PasswordMinLen > 0 && *input.PasswordMinLen < 8 {
+			respondErrori18n(c, http.StatusBadRequest, "error.security.password_min_length_too_short")
+			return
+		}
+		if input.PasswordMaxAgeDays != nil && *input.PasswordMaxAgeDays < 0 {
+			respondErrori18n(c, http.StatusBadRequest, "error.security.invalid_max_age_days")
+			return
+		}
+		if input.Force2FAGraceDays != nil && *input.Force2FAGraceDays < 0 {
+			respondErrori18n(c, http.StatusBadRequest, "error.security.invalid_grace_days")
+			return
+		}
+
 		securityCfgMu.Lock()
 		defer securityCfgMu.Unlock()
 
