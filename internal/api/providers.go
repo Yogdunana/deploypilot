@@ -2,6 +2,7 @@ package api
 
 import (
 	"net/http"
+	"strconv"
 
 	"github.com/Yogdunana/deploypilot/internal/model"
 	"github.com/gin-gonic/gin"
@@ -22,19 +23,45 @@ import (
 // @Router       /providers [get]
 func ListProviders(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+		pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
+		if page < 1 {
+			page = 1
+		}
+		if pageSize < 1 || pageSize > 100 {
+			pageSize = 20
+		}
+
 		var providers []model.Provider
+		var total int64
+
 		query := db.Model(&model.Provider{})
 		if pType := c.Query("type"); pType != "" {
 			query = query.Where("type = ?", pType)
 		}
-		if err := query.Find(&providers).Error; err != nil {
+
+		if err := query.Count(&total).Error; err != nil {
+			respondErrori18n(c, http.StatusInternalServerError, "error.common.internal_error")
+			return
+		}
+
+		if err := query.Offset((page - 1) * pageSize).Limit(pageSize).Find(&providers).Error; err != nil {
 			respondErrori18n(c, http.StatusInternalServerError, "error.common.internal_error")
 			return
 		}
 		if providers == nil {
 			providers = []model.Provider{}
 		}
-		respondSuccess(c, providers)
+		// Return paginated response with data key for backward compatibility
+		c.JSON(http.StatusOK, gin.H{
+			"status": "success",
+			"data":   providers,
+			"pagination": gin.H{
+				"page":      page,
+				"page_size": pageSize,
+				"total":     total,
+			},
+		})
 	}
 }
 

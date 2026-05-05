@@ -2,6 +2,7 @@ package api
 
 import (
 	"net/http"
+	"strconv"
 
 	"github.com/Yogdunana/deploypilot/internal/model"
 	"github.com/gin-gonic/gin"
@@ -22,7 +23,18 @@ import (
 // @Router       /deployments [get]
 func ListDeployments(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+		pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
+		if page < 1 {
+			page = 1
+		}
+		if pageSize < 1 || pageSize > 100 {
+			pageSize = 20
+		}
+
 		var records []model.DeploymentRecord
+		var total int64
+
 		query := db.Model(&model.DeploymentRecord{})
 
 		if appID := c.Query("app_id"); appID != "" {
@@ -32,14 +44,28 @@ func ListDeployments(db *gorm.DB) gin.HandlerFunc {
 			query = query.Where("status = ?", status)
 		}
 
-		if err := query.Order("created_at DESC").Find(&records).Error; err != nil {
+		if err := query.Count(&total).Error; err != nil {
+			respondErrori18n(c, http.StatusInternalServerError, "error.common.internal_error")
+			return
+		}
+
+		if err := query.Order("created_at DESC").Offset((page - 1) * pageSize).Limit(pageSize).Find(&records).Error; err != nil {
 			respondErrori18n(c, http.StatusInternalServerError, "error.common.internal_error")
 			return
 		}
 		if records == nil {
 			records = []model.DeploymentRecord{}
 		}
-		respondSuccess(c, records)
+		// Return paginated response with data key for backward compatibility
+		c.JSON(http.StatusOK, gin.H{
+			"status": "success",
+			"data":   records,
+			"pagination": gin.H{
+				"page":      page,
+				"page_size": pageSize,
+				"total":     total,
+			},
+		})
 	}
 }
 

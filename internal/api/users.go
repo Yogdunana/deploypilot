@@ -2,6 +2,7 @@ package api
 
 import (
 	"net/http"
+	"strconv"
 
 	"github.com/Yogdunana/deploypilot/internal/auth"
 	"github.com/Yogdunana/deploypilot/internal/model"
@@ -59,15 +60,40 @@ func GetCurrentUser(c *gin.Context) {
 // @Router       /users [get]
 func ListUsers(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+		pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
+		if page < 1 {
+			page = 1
+		}
+		if pageSize < 1 || pageSize > 100 {
+			pageSize = 20
+		}
+
 		var users []model.User
-		if err := db.Preload("Role").Find(&users).Error; err != nil {
+		var total int64
+
+		if err := db.Model(&model.User{}).Count(&total).Error; err != nil {
+			respondErrori18n(c, http.StatusInternalServerError, "error.common.internal_error")
+			return
+		}
+
+		if err := db.Preload("Role").Offset((page - 1) * pageSize).Limit(pageSize).Find(&users).Error; err != nil {
 			respondErrori18n(c, http.StatusInternalServerError, "error.common.internal_error")
 			return
 		}
 		if users == nil {
 			users = []model.User{}
 		}
-		respondSuccess(c, users)
+		// Return paginated response with data key for backward compatibility
+		c.JSON(http.StatusOK, gin.H{
+			"status": "success",
+			"data":   users,
+			"pagination": gin.H{
+				"page":      page,
+				"page_size": pageSize,
+				"total":     total,
+			},
+		})
 	}
 }
 

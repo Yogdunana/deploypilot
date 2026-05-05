@@ -91,19 +91,45 @@ func CreateApp(db *gorm.DB) gin.HandlerFunc {
 // @Router       /apps [get]
 func ListApps(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+		pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
+		if page < 1 {
+			page = 1
+		}
+		if pageSize < 1 || pageSize > 100 {
+			pageSize = 20
+		}
+
 		var apps []model.App
+		var total int64
+
 		query := db.Model(&model.App{})
 		if env := c.Query("environment"); env != "" {
 			query = query.Where("environment = ?", env)
 		}
-		if err := query.Find(&apps).Error; err != nil {
+
+		if err := query.Count(&total).Error; err != nil {
+			respondErrori18n(c, http.StatusInternalServerError, "error.common.internal_error")
+			return
+		}
+
+		if err := query.Offset((page - 1) * pageSize).Limit(pageSize).Find(&apps).Error; err != nil {
 			respondErrori18n(c, http.StatusInternalServerError, "error.common.internal_error")
 			return
 		}
 		if apps == nil {
 			apps = []model.App{}
 		}
-		respondSuccess(c, apps)
+		// Return paginated response with data key for backward compatibility
+		c.JSON(http.StatusOK, gin.H{
+			"status": "success",
+			"data":   apps,
+			"pagination": gin.H{
+				"page":      page,
+				"page_size": pageSize,
+				"total":     total,
+			},
+		})
 	}
 }
 
