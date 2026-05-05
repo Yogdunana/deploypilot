@@ -22,8 +22,15 @@ func SetSecurityConfig(cfg *config.SecurityConfig) {
 	securityCfg = cfg
 }
 
-// GetSecurityConfig returns the current security configuration (read-only).
-// GET /api/v1/system/security/config
+// GetSecurityConfig godoc
+// @Summary      Get security config
+// @Description  Get the current security configuration (read-only)
+// @Tags         Security
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200 {object} map[string]interface{} "security configuration settings"
+// @Router       /system/security/config [get]
 func GetSecurityConfig() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		securityCfgMu.RLock()
@@ -55,8 +62,20 @@ func GetSecurityConfig() gin.HandlerFunc {
 	}
 }
 
-// UpdateSecurityConfig updates the security configuration at runtime.
-// PUT /api/v1/system/security/config
+// UpdateSecurityConfig godoc
+// @Summary      Update security config
+// @Description  Update the security configuration at runtime (requires owner or admin role)
+// @Tags         Security
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        request body object{security_entrance=string,allowed_domains=[]string,allowed_ips=[]string,password_min_len=int,password_require_upper=bool,password_require_lower=bool,password_require_digit=bool,password_require_special=bool,password_max_age_days=int,force_2fa=bool,force_2fa_roles=[]string,force_2fa_grace_days=int} true "Security config update request (only non-nil fields are updated)"
+// @Success      200 {object} map[string]interface{} "update confirmation"
+// @Failure      400 {object} map[string]interface{} "invalid request"
+// @Failure      401 {object} map[string]interface{} "unauthorized"
+// @Failure      403 {object} map[string]interface{} "forbidden"
+// @Failure      500 {object} map[string]interface{} "internal error"
+// @Router       /system/security/config [put]
 func UpdateSecurityConfig() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var input struct {

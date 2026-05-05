@@ -29,7 +29,19 @@ func encryptionKey() []byte {
 	return encryptionKeyVal
 }
 
-// Verify2FA handles the second step of 2FA login.
+// Verify2FA godoc
+// @Summary      Verify 2FA
+// @Description  Handle the second step of 2FA login by verifying TOTP code or backup code
+// @Tags         2FA
+// @Accept       json
+// @Produce      json
+// @Param        request body object{two_fa_token=string,code=string} true "2FA verification request"
+// @Success      200 {object} map[string]interface{} "user info and JWT token"
+// @Failure      400 {object} map[string]interface{} "invalid request"
+// @Failure      401 {object} map[string]interface{} "invalid token or 2FA code"
+// @Failure      429 {object} map[string]interface{} "too many attempts"
+// @Failure      500 {object} map[string]interface{} "internal error"
+// @Router       /auth/2fa/verify [post]
 func Verify2FA(db *gorm.DB, auditSvc *service.AuditService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var input struct {
@@ -93,7 +105,18 @@ func Verify2FA(db *gorm.DB, auditSvc *service.AuditService) gin.HandlerFunc {
 	}
 }
 
-// Setup2FA generates a new TOTP secret and backup codes.
+// Setup2FA godoc
+// @Summary      Setup 2FA
+// @Description  Generate a new TOTP secret and backup codes for the authenticated user
+// @Tags         2FA
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200 {object} map[string]interface{} "TOTP secret, QR code URL, and backup codes"
+// @Failure      401 {object} map[string]interface{} "unauthorized"
+// @Failure      404 {object} map[string]interface{} "user not found"
+// @Failure      500 {object} map[string]interface{} "internal error"
+// @Router       /2fa/setup [post]
 func Setup2FA(db *gorm.DB, auditSvc *service.AuditService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID, _ := c.Get(string(auth.UserIDKey))
@@ -155,7 +178,20 @@ func Setup2FA(db *gorm.DB, auditSvc *service.AuditService) gin.HandlerFunc {
 	}
 }
 
-// Confirm2FA enables 2FA after the user verifies a TOTP code.
+// Confirm2FA godoc
+// @Summary      Confirm 2FA
+// @Description  Enable 2FA after the user verifies a TOTP code
+// @Tags         2FA
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        request body object{code=string} true "TOTP code confirmation request"
+// @Success      200 {object} map[string]interface{} "2FA enabled confirmation"
+// @Failure      400 {object} map[string]interface{} "invalid request"
+// @Failure      401 {object} map[string]interface{} "unauthorized or invalid 2FA code"
+// @Failure      404 {object} map[string]interface{} "user not found"
+// @Failure      500 {object} map[string]interface{} "internal error"
+// @Router       /2fa/confirm [post]
 func Confirm2FA(db *gorm.DB, auditSvc *service.AuditService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID, _ := c.Get(string(auth.UserIDKey))
@@ -205,7 +241,20 @@ func Confirm2FA(db *gorm.DB, auditSvc *service.AuditService) gin.HandlerFunc {
 	}
 }
 
-// Disable2FA turns off 2FA for the user.
+// Disable2FA godoc
+// @Summary      Disable 2FA
+// @Description  Turn off 2FA for the authenticated user (requires current TOTP code)
+// @Tags         2FA
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        request body object{code=string} true "TOTP code to disable 2FA"
+// @Success      200 {object} map[string]interface{} "2FA disabled confirmation"
+// @Failure      400 {object} map[string]interface{} "invalid request or 2FA not enabled"
+// @Failure      401 {object} map[string]interface{} "unauthorized or invalid 2FA code"
+// @Failure      404 {object} map[string]interface{} "user not found"
+// @Failure      500 {object} map[string]interface{} "internal error"
+// @Router       /2fa/disable [post]
 func Disable2FA(db *gorm.DB, auditSvc *service.AuditService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID, _ := c.Get(string(auth.UserIDKey))
@@ -262,8 +311,20 @@ func Disable2FA(db *gorm.DB, auditSvc *service.AuditService) gin.HandlerFunc {
 	}
 }
 
-// RegenerateBackupCodes generates new backup codes for the user (requires current 2FA code).
-// POST /api/v1/2fa/regenerate-backup-codes
+// RegenerateBackupCodes godoc
+// @Summary      Regenerate backup codes
+// @Description  Generate new backup codes for the authenticated user (requires current TOTP code)
+// @Tags         2FA
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        request body object{code=string} true "Current TOTP code"
+// @Success      200 {object} map[string]interface{} "new backup codes"
+// @Failure      400 {object} map[string]interface{} "invalid request or 2FA not enabled"
+// @Failure      401 {object} map[string]interface{} "unauthorized or invalid 2FA code"
+// @Failure      404 {object} map[string]interface{} "user not found"
+// @Failure      500 {object} map[string]interface{} "internal error"
+// @Router       /2fa/regenerate-backup-codes [post]
 func RegenerateBackupCodes(db *gorm.DB, auditSvc *service.AuditService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID, _ := c.Get(string(auth.UserIDKey))
@@ -325,8 +386,17 @@ func RegenerateBackupCodes(db *gorm.DB, auditSvc *service.AuditService) gin.Hand
 	}
 }
 
-// Get2FAStatus returns the current 2FA status and backup code count for the user.
-// GET /api/v1/2fa/status
+// Get2FAStatus godoc
+// @Summary      Get 2FA status
+// @Description  Get the current 2FA status and backup code count for the authenticated user
+// @Tags         2FA
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200 {object} map[string]interface{} "2FA status and backup code count"
+// @Failure      401 {object} map[string]interface{} "unauthorized"
+// @Failure      404 {object} map[string]interface{} "user not found"
+// @Router       /2fa/status [get]
 func Get2FAStatus(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID, _ := c.Get(string(auth.UserIDKey))
@@ -357,8 +427,19 @@ func Get2FAStatus(db *gorm.DB) gin.HandlerFunc {
 	}
 }
 
-// ResetUser2FA allows an admin/owner to reset another user's 2FA.
-// POST /api/v1/users/:id/reset-2fa
+// ResetUser2FA godoc
+// @Summary      Reset user 2FA
+// @Description  Allow an admin or owner to reset another user's 2FA (requires owner or admin role)
+// @Tags         2FA
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id path string true "Target user ID"
+// @Success      200 {object} map[string]interface{} "reset confirmation"
+// @Failure      400 {object} map[string]interface{} "invalid request or 2FA not enabled"
+// @Failure      404 {object} map[string]interface{} "user not found"
+// @Failure      500 {object} map[string]interface{} "internal error"
+// @Router       /users/{id}/reset-2fa [post]
 func ResetUser2FA(db *gorm.DB, auditSvc *service.AuditService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		targetUserID := c.Param("id")
@@ -494,7 +575,13 @@ func (rl *twoFARateLimiter) cleanup() {
 // Global 2FA rate limiter: max 10 attempts per IP per 5 minutes.
 var twoFARL = newTwoFARateLimiter(10, 5*time.Minute)
 
-// Check2FARateLimit is a middleware that rate-limits 2FA verification attempts.
+// Check2FARateLimit godoc
+// @Summary      Check 2FA rate limit
+// @Description  Middleware that rate-limits 2FA verification attempts (max 10 per IP per 5 minutes)
+// @Tags         2FA
+// @Produce      json
+// @Failure      429 {object} map[string]interface{} "too many 2FA attempts"
+// @Router       /auth/2fa/verify [post]
 func Check2FARateLimit() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ip := c.ClientIP()

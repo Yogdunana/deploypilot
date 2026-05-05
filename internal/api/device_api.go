@@ -32,8 +32,17 @@ func GetGlobalDeviceAPI() *DeviceAPI {
 	return globalDeviceAPI
 }
 
-// ListDevices returns all devices for the authenticated user.
-// GET /api/v1/devices
+// ListDevices godoc
+// @Summary      List devices
+// @Description  Get all devices for the authenticated user
+// @Tags         Devices
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200 {object} map[string]interface{} "list of devices"
+// @Failure      401 {object} map[string]interface{} "unauthorized"
+// @Failure      500 {object} map[string]interface{} "internal error"
+// @Router       /devices [get]
 func ListDevices(c *gin.Context) {
 	if globalDeviceAPI == nil {
 		respondError(c, http.StatusInternalServerError, "device service not initialized")
@@ -55,8 +64,19 @@ func ListDevices(c *gin.Context) {
 	respondSuccess(c, devices)
 }
 
-// RevokeDevice removes trust from a device owned by the authenticated user.
-// DELETE /api/v1/devices/:id
+// RevokeDevice godoc
+// @Summary      Revoke device
+// @Description  Remove trust from a device owned by the authenticated user
+// @Tags         Devices
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id path string true "Device ID"
+// @Success      200 {object} map[string]interface{} "revocation confirmation"
+// @Failure      400 {object} map[string]interface{} "invalid request or revoke failed"
+// @Failure      401 {object} map[string]interface{} "unauthorized"
+// @Failure      500 {object} map[string]interface{} "internal error"
+// @Router       /devices/{id} [delete]
 func RevokeDevice(c *gin.Context) {
 	if globalDeviceAPI == nil {
 		respondError(c, http.StatusInternalServerError, "device service not initialized")
@@ -83,8 +103,20 @@ func RevokeDevice(c *gin.Context) {
 	respondSuccess(c, gin.H{"revoked": true})
 }
 
-// TrustDevice marks a device as trusted for N days.
-// POST /api/v1/devices/:id/trust
+// TrustDevice godoc
+// @Summary      Trust device
+// @Description  Mark a device as trusted for a specified number of days (default 30)
+// @Tags         Devices
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id path string true "Device ID"
+// @Param        request body object{days=int} false "Trust duration in days (default 30)"
+// @Success      200 {object} map[string]interface{} "trust confirmation"
+// @Failure      400 {object} map[string]interface{} "invalid request or trust failed"
+// @Failure      401 {object} map[string]interface{} "unauthorized"
+// @Failure      500 {object} map[string]interface{} "internal error"
+// @Router       /devices/{id}/trust [post]
 func TrustDevice(c *gin.Context) {
 	if globalDeviceAPI == nil {
 		respondError(c, http.StatusInternalServerError, "device service not initialized")
@@ -122,8 +154,17 @@ func TrustDevice(c *gin.Context) {
 	respondSuccess(c, gin.H{"trusted": true, "days": input.Days})
 }
 
-// CurrentDevice returns the current device info based on User-Agent and IP.
-// GET /api/v1/devices/current
+// CurrentDevice godoc
+// @Summary      Get current device
+// @Description  Get the current device info based on User-Agent and IP
+// @Tags         Devices
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200 {object} map[string]interface{} "current device info"
+// @Failure      401 {object} map[string]interface{} "unauthorized"
+// @Failure      500 {object} map[string]interface{} "internal error"
+// @Router       /devices/current [get]
 func CurrentDevice(c *gin.Context) {
 	if globalDeviceAPI == nil {
 		respondError(c, http.StatusInternalServerError, "device service not initialized")

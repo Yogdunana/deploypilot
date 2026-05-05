@@ -10,7 +10,17 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// ListAPIKeys returns all API keys for the authenticated user.
+// ListAPIKeys godoc
+// @Summary      List API keys
+// @Description  Get all API keys for the authenticated user
+// @Tags         API Keys
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200 {object} map[string]interface{} "list of API keys"
+// @Failure      401 {object} map[string]interface{} "unauthorized"
+// @Failure      500 {object} map[string]interface{} "internal error"
+// @Router       /api-keys [get]
 func ListAPIKeys(keySvc *service.APIKeyService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID, _ := c.Get(string(auth.UserIDKey))
@@ -29,7 +39,19 @@ func ListAPIKeys(keySvc *service.APIKeyService) gin.HandlerFunc {
 	}
 }
 
-// CreateAPIKey generates a new API key and returns it (raw key shown only once).
+// CreateAPIKey godoc
+// @Summary      Create API key
+// @Description  Generate a new API key and return it (raw key shown only once)
+// @Tags         API Keys
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        request body object{name=string,scopes=[]string,allowed_ips=[]string,expires_in_days=int} true "API key creation request"
+// @Success      200 {object} map[string]interface{} "created API key with raw key"
+// @Failure      400 {object} map[string]interface{} "invalid request"
+// @Failure      401 {object} map[string]interface{} "unauthorized"
+// @Failure      500 {object} map[string]interface{} "internal error"
+// @Router       /api-keys [post]
 func CreateAPIKey(keySvc *service.APIKeyService, auditSvc *service.AuditService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID, _ := c.Get(string(auth.UserIDKey))
@@ -97,7 +119,18 @@ func CreateAPIKey(keySvc *service.APIKeyService, auditSvc *service.AuditService)
 	}
 }
 
-// DeleteAPIKey revokes an API key.
+// DeleteAPIKey godoc
+// @Summary      Delete API key
+// @Description  Revoke an API key by its ID
+// @Tags         API Keys
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id path string true "API key ID"
+// @Success      200 {object} map[string]interface{} "revocation confirmation"
+// @Failure      401 {object} map[string]interface{} "unauthorized"
+// @Failure      500 {object} map[string]interface{} "internal error"
+// @Router       /api-keys/{id} [delete]
 func DeleteAPIKey(keySvc *service.APIKeyService, auditSvc *service.AuditService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID, _ := c.Get(string(auth.UserIDKey))
@@ -127,8 +160,18 @@ func DeleteAPIKey(keySvc *service.APIKeyService, auditSvc *service.AuditService)
 	}
 }
 
-// GetAPIKey returns a single API key's details.
-// GET /api/v1/api-keys/:id
+// GetAPIKey godoc
+// @Summary      Get API key
+// @Description  Get details of a single API key by its ID
+// @Tags         API Keys
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id path string true "API key ID"
+// @Success      200 {object} map[string]interface{} "API key details"
+// @Failure      401 {object} map[string]interface{} "unauthorized"
+// @Failure      404 {object} map[string]interface{} "not found"
+// @Router       /api-keys/{id} [get]
 func GetAPIKey(keySvc *service.APIKeyService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID, _ := c.Get(string(auth.UserIDKey))
@@ -149,8 +192,20 @@ func GetAPIKey(keySvc *service.APIKeyService) gin.HandlerFunc {
 	}
 }
 
-// UpdateAPIKey updates an API key's metadata (name, scopes, allowed_ips, expires_at).
-// PATCH /api/v1/api-keys/:id
+// UpdateAPIKey godoc
+// @Summary      Update API key
+// @Description  Update an API key's metadata (name, scopes, allowed IPs, expiration)
+// @Tags         API Keys
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id path string true "API key ID"
+// @Param        request body object{name=string,scopes=[]string,allowed_ips=[]string,expires_in_days=int} true "API key update request"
+// @Success      200 {object} map[string]interface{} "update confirmation"
+// @Failure      400 {object} map[string]interface{} "invalid request"
+// @Failure      401 {object} map[string]interface{} "unauthorized"
+// @Failure      500 {object} map[string]interface{} "internal error"
+// @Router       /api-keys/{id} [patch]
 func UpdateAPIKey(keySvc *service.APIKeyService, auditSvc *service.AuditService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID, _ := c.Get(string(auth.UserIDKey))
@@ -225,8 +280,18 @@ func UpdateAPIKey(keySvc *service.APIKeyService, auditSvc *service.AuditService)
 	}
 }
 
-// GetAPIKeyStats returns usage statistics for a specific API key.
-// GET /api/v1/api-keys/:id/stats
+// GetAPIKeyStats godoc
+// @Summary      Get API key stats
+// @Description  Get usage statistics for a specific API key
+// @Tags         API Keys
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id path string true "API key ID"
+// @Success      200 {object} map[string]interface{} "API key usage statistics"
+// @Failure      401 {object} map[string]interface{} "unauthorized"
+// @Failure      404 {object} map[string]interface{} "not found"
+// @Router       /api-keys/{id}/stats [get]
 func GetAPIKeyStats(keySvc *service.APIKeyService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID, _ := c.Get(string(auth.UserIDKey))
