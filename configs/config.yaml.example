@@ -40,6 +40,29 @@ audit:
   retention_days: 90       # Audit log retention period (days)
 
 log:
+
+# Notification configuration
+notify:
+  default_channels: ["webhook"]  # Default notification channels
+
+# Kubernetes configuration
+kubernetes:
+  enabled: false
+  default_namespace: "default"
+  clusters: []
+
+# License configuration
+license:
+  public_key_file: ""        # Path to license public key file
+  public_key_base64: ""      # Base64 encoded public key
+  grace_days: 7              # Grace period days for license expiration
+  license_key: ""            # License key (prefer env var DEPLOYPILOT_LICENSE_KEY)
+
+# API Version configuration
+api_version:
+  current_version: "v1"
+  supported_versions: ["v1"]
+  deprecated_versions: {}
   level: info               # debug, info, warn, error
   format: json              # json or text
   file: ./logs/deploypilot.log
