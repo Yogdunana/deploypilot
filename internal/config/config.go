@@ -97,6 +97,7 @@ type GrafanaConfig struct {
 	AdminPassword      string `mapstructure:"admin_password"`
 	AnnotationsEnabled bool   `mapstructure:"annotations_enabled"`
 	SyncInterval       int    `mapstructure:"sync_interval"`
+	PrometheusURL      string `mapstructure:"prometheus_url"`
 }
 
 // AuditConfig holds configuration for audit logging.
@@ -383,6 +384,7 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("grafana.url", "http://localhost:3000")
 	v.SetDefault("grafana.annotations_enabled", true)
 	v.SetDefault("grafana.sync_interval", 60)
+	v.SetDefault("grafana.prometheus_url", "http://localhost:9090")
 
 	// API Platform
 	v.SetDefault("api_platform.enabled", true)

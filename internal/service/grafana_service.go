@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -87,7 +88,13 @@ func (s *GrafanaService) SyncAll() (int, error) {
 	}
 
 	// 1. Ensure datasource
-	metricsURL := "http://localhost:9090" // default Prometheus URL
+	metricsURL := s.cfg.PrometheusURL
+	if envURL := os.Getenv("DEPLOYPILOT_PROMETHEUS_URL"); envURL != "" {
+		metricsURL = envURL
+	}
+	if metricsURL == "" {
+		metricsURL = "http://localhost:9090"
+	}
 	dsUID, err := s.client.EnsureDatasource(metricsURL)
 	if err != nil {
 		return 0, fmt.Errorf("ensure datasource: %w", err)
@@ -344,12 +351,11 @@ func (s *GrafanaService) PushAnnotation(event BusEvent) {
 
 // StartAnnotationListener subscribes to deploy, alert, server, and system event
 // types and forwards them as Grafana annotations.
-func (s *GrafanaService) StartAnnotationListener() {
+func (s *GrafanaService) StartAnnotationListener(ctx context.Context) {
 	if s.bus == nil || !s.cfg.AnnotationsEnabled {
 		return
 	}
 
-	ctx := context.Background()
 	eventTypes := []EventType{EventDeploy, EventAlert, EventServer, EventSystem}
 	for _, et := range eventTypes {
 		go func(eventType EventType) {

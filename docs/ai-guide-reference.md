@@ -779,7 +779,7 @@ gh api /repos/Yogdunana/deploypilot/contents/internal/service/bridge_test.go \
 
 | 工具 | 版本要求 | 用途 |
 |------|----------|------|
-| Go | 1.23+ | 后端编译 |
+| Go | 1.24+ | 后端编译 |
 | Node.js | 20+ | 前端构建 |
 | npm | 10+ | 前端包管理 |
 | Docker | 20.10+ | 容器化构建/测试 |

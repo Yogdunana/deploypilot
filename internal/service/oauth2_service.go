@@ -379,6 +379,7 @@ func (s *OAuth2Service) createToken(clientID, userID string, scopes []string) (*
 func generateToken() string {
 	b := make([]byte, 32)
 	if _, err := rand.Read(b); err != nil {
+		slog.Error("failed to generate token", "error", err)
 		panic("failed to generate token: " + err.Error())
 	}
 	return hex.EncodeToString(b)
@@ -388,6 +389,7 @@ func generateToken() string {
 func generateClientID() string {
 	b := make([]byte, 16)
 	if _, err := rand.Read(b); err != nil {
+		slog.Error("failed to generate client ID", "error", err)
 		panic("failed to generate client ID: " + err.Error())
 	}
 	return "dp_" + hex.EncodeToString(b)

@@ -237,12 +237,14 @@ func run(configFilePath, cliDriver, cliDSN, cliAddr string, migrateOnly, migrate
 	// Initialize Outbound Webhook Service
 	webhookSvc := service.NewOutboundWebhookService(db, typedBus)
 	webhookSvc.Start()
-	go webhookSvc.StartCleanupLoop(context.Background())
+	appCtx, appCancel := context.WithCancel(context.Background())
+	defer appCancel()
+	go webhookSvc.StartCleanupLoop(appCtx)
 
 	// Initialize Grafana integration (Phase 7.2)
 	if cfg.Grafana.Enabled {
 		grafanaSvc := service.NewGrafanaService(db, &cfg.Grafana, typedBus)
-		grafanaSvc.StartAnnotationListener()
+		grafanaSvc.StartAnnotationListener(appCtx)
 		slog.Info("Grafana integration enabled", "url", cfg.Grafana.URL)
 	}
 
@@ -405,7 +407,7 @@ func run(configFilePath, cliDriver, cliDSN, cliAddr string, migrateOnly, migrate
 	}()
 
 	slog.Info("DeployPilot API server starting", "version", appversion.Version, "addr", listenAddr)
-	slog.Info("database configured", "type", cfg.Database.Type, "dsn", cfg.Database.DSN)
+	slog.Info("database configured", "type", cfg.Database.Type, "dsn", "<redacted>")
 
 	// Wait for shutdown signal or server error
 	quit := make(chan os.Signal, 1)
