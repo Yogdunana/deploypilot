@@ -1,6 +1,7 @@
 package api
 
 import (
+	"log/slog"
 	"net/http"
 	"strconv"
 	"time"
@@ -36,7 +37,7 @@ func ListSessions() gin.HandlerFunc {
 		userID, _ := c.Get(string(auth.UserIDKey))
 		uid, _ := userID.(string)
 		if uid == "" {
-			c.JSON(http.StatusUnauthorized, gin.H{"status": "error", "message": "unauthorized"})
+			respondError(c, http.StatusUnauthorized, "unauthorized")
 			return
 		}
 
@@ -47,7 +48,8 @@ func ListSessions() gin.HandlerFunc {
 
 		entries, err := refreshStore.ListForUser(uid)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"status": "error", "message": "failed to list sessions"})
+			slog.Error("failed to list sessions", "error", err)
+			respondError(c, http.StatusInternalServerError, "failed to list sessions")
 			return
 		}
 
@@ -100,38 +102,40 @@ func KickSession() gin.HandlerFunc {
 		userID, _ := c.Get(string(auth.UserIDKey))
 		uid, _ := userID.(string)
 		if uid == "" {
-			c.JSON(http.StatusUnauthorized, gin.H{"status": "error", "message": "unauthorized"})
+			respondError(c, http.StatusUnauthorized, "unauthorized")
 			return
 		}
 
 		tokenID := c.Param("token_id")
 		if tokenID == "" {
-			c.JSON(http.StatusBadRequest, gin.H{"status": "error", "message": "token_id is required"})
+			respondError(c, http.StatusBadRequest, "token_id is required")
 			return
 		}
 
 		if refreshStore == nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"status": "error", "message": "session store not configured"})
+			respondError(c, http.StatusInternalServerError, "session store not configured")
 			return
 		}
 
 		// Verify the token belongs to the current user
 		entry, err := refreshStore.Retrieve(tokenID)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"status": "error", "message": "failed to retrieve session"})
+			slog.Error("failed to retrieve session", "error", err)
+			respondError(c, http.StatusInternalServerError, "failed to retrieve session")
 			return
 		}
 		if entry == nil {
-			c.JSON(http.StatusNotFound, gin.H{"status": "error", "message": "session not found"})
+			respondError(c, http.StatusNotFound, "session not found")
 			return
 		}
 		if entry.UserID != uid {
-			c.JSON(http.StatusForbidden, gin.H{"status": "error", "message": "cannot kick another user's session"})
+			respondError(c, http.StatusForbidden, "cannot kick another user's session")
 			return
 		}
 
 		if err := refreshStore.Revoke(tokenID); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"status": "error", "message": "failed to revoke session"})
+			slog.Error("failed to revoke session", "error", err)
+			respondError(c, http.StatusInternalServerError, "failed to revoke session")
 			return
 		}
 
@@ -157,7 +161,7 @@ func ListLoginHistory(auditSvc *service.AuditService) gin.HandlerFunc {
 		userID, _ := c.Get(string(auth.UserIDKey))
 		uid, _ := userID.(string)
 		if uid == "" {
-			c.JSON(http.StatusUnauthorized, gin.H{"status": "error", "message": "unauthorized"})
+			respondError(c, http.StatusUnauthorized, "unauthorized")
 			return
 		}
 
@@ -186,7 +190,8 @@ func ListLoginHistory(auditSvc *service.AuditService) gin.HandlerFunc {
 			PageSize: pageSize,
 		})
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"status": "error", "message": "failed to query login history"})
+			slog.Error("failed to query login history", "error", err)
+			respondError(c, http.StatusInternalServerError, "failed to query login history")
 			return
 		}
 
