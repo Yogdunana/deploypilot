@@ -453,7 +453,9 @@ func (s *GrafanaService) parseDeployPayload(payload interface{}) deployAnnotatio
 	if err != nil {
 		return p
 	}
-	_ = json.Unmarshal(data, &p)
+	if err := json.Unmarshal(data, &p); err != nil {
+		slog.Warn("failed to unmarshal deploy annotation payload", "error", err)
+	}
 	return p
 }
 
@@ -463,7 +465,9 @@ func (s *GrafanaService) parseAlertPayload(payload interface{}) alertAnnotationP
 	if err != nil {
 		return p
 	}
-	_ = json.Unmarshal(data, &p)
+	if err := json.Unmarshal(data, &p); err != nil {
+		slog.Warn("failed to unmarshal alert annotation payload", "error", err)
+	}
 	return p
 }
 
@@ -473,6 +477,8 @@ func (s *GrafanaService) parseServerPayload(payload interface{}) serverAnnotatio
 	if err != nil {
 		return p
 	}
-	_ = json.Unmarshal(data, &p)
+	if err := json.Unmarshal(data, &p); err != nil {
+		slog.Warn("failed to unmarshal server annotation payload", "error", err)
+	}
 	return p
 }

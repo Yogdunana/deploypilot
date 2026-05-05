@@ -64,10 +64,11 @@ type DiskUsage struct {
 // Blocked paths that should never be accessible.
 var blockedPaths = []string{
 	"/proc", "/sys", "/dev", "/boot",
+	"/etc", "/root", "/var/log", "/bin", "/sbin", "/usr",
 }
 
 // blockedPathRegex matches paths that should be blocked.
-var blockedPathRegex = regexp.MustCompile(`^/(proc|sys|dev|boot)(/|$)`)
+var blockedPathRegex = regexp.MustCompile(`^/(proc|sys|dev|boot|etc|root|var/log|bin|sbin|usr)(/|$)`)
 
 // isPathBlocked checks if a path is in the blocked list.
 func isPathBlocked(path string) bool {

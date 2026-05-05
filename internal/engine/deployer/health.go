@@ -3,6 +3,7 @@ package deployer
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net"
 	"net/http"
 	"strings"
@@ -168,7 +169,9 @@ func (h *HealthChecker) DeployWithHealthCheck(ctx context.Context, cfg DeployCon
 		host := parts[0]
 		port := 80
 		if len(parts) > 1 {
-			_, _ = fmt.Sscanf(parts[1], "%d", &port)
+			if _, err := fmt.Sscanf(parts[1], "%d", &port); err != nil {
+				slog.Warn("failed to parse port from health target", "target", healthTarget, "error", err)
+			}
 		}
 		healthResult = h.CheckTCP(ctx, host, port, 3, 3*time.Second)
 	default:

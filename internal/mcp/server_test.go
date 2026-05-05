@@ -3227,6 +3227,7 @@ func TestHandleBuildAndDeploy_BuildFailure(t *testing.T) {
 // ========== handleDeployApp success with optional params ==========
 
 func TestHandleDeployApp_WithOptionalParams(t *testing.T) {
+	t.Setenv("DEPLOYPILOT_ALLOWED_VOLUME_ROOTS", "/app,/data,/opt,/tmp,/host")
 	mock := &mockDeployer{
 		deployFn: func(_ context.Context, cfg DeployConfig) (*ContainerStatus, error) {
 			return &ContainerStatus{ID: "abc", Name: cfg.ContainerName, Image: cfg.Image, Status: "running"}, nil
