@@ -1,6 +1,7 @@
 package api
 
 import (
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -82,36 +83,25 @@ func RefreshToken() gin.HandlerFunc {
 		}
 
 		if refreshToken == "" {
-			c.JSON(http.StatusUnauthorized, gin.H{
-				"status":  "error",
-				"message": "refresh token is required",
-			})
+			respondError(c, http.StatusUnauthorized, "refresh token is required")
 			return
 		}
 
 		if refreshStore == nil {
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"status":  "error",
-				"message": "refresh token store not configured",
-			})
+			respondError(c, http.StatusInternalServerError, "refresh token store not configured")
 			return
 		}
 
 		// Look up the refresh token
 		entry, err := refreshStore.Retrieve(refreshToken)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"status":  "error",
-				"message": "failed to validate refresh token",
-			})
+			slog.Error("failed to validate refresh token", "error", err)
+			respondError(c, http.StatusInternalServerError, "failed to validate refresh token")
 			return
 		}
 		if entry == nil {
 			clearAuthCookies(c)
-			c.JSON(http.StatusUnauthorized, gin.H{
-				"status":  "error",
-				"message": "invalid or expired refresh token",
-			})
+			respondError(c, http.StatusUnauthorized, "invalid or expired refresh token")
 			return
 		}
 
@@ -121,20 +111,16 @@ func RefreshToken() gin.HandlerFunc {
 		// Generate new access token
 		accessToken, err := auth.GenerateToken(entry.UserID, entry.Role)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"status":  "error",
-				"message": "failed to generate access token",
-			})
+			slog.Error("failed to generate access token", "error", err)
+			respondError(c, http.StatusInternalServerError, "failed to generate access token")
 			return
 		}
 
 		// Generate new refresh token
 		newRefreshID, err := auth.GenerateRefreshTokenID()
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"status":  "error",
-				"message": "failed to generate refresh token",
-			})
+			slog.Error("failed to generate refresh token", "error", err)
+			respondError(c, http.StatusInternalServerError, "failed to generate refresh token")
 			return
 		}
 
@@ -148,23 +134,18 @@ func RefreshToken() gin.HandlerFunc {
 			ExpiresAt:  time.Now().Add(7 * 24 * time.Hour),
 		}
 		if err := refreshStore.Store(newEntry); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"status":  "error",
-				"message": "failed to store refresh token",
-			})
+			slog.Error("failed to store refresh token", "error", err)
+			respondError(c, http.StatusInternalServerError, "failed to store refresh token")
 			return
 		}
 
 		// Set cookies
 		setAuthCookies(c, accessToken, newRefreshID)
 
-		c.JSON(http.StatusOK, gin.H{
-			"status": "success",
-			"data": gin.H{
-				"token":         accessToken,
-				"refresh_token": newRefreshID,
-				"expires_in":    86400, // 24h in seconds
-			},
+		respondSuccess(c, gin.H{
+			"token":         accessToken,
+			"refresh_token": newRefreshID,
+			"expires_in":    86400, // 24h in seconds
 		})
 	}
 }
@@ -176,7 +157,7 @@ func LogoutAllDevices() gin.HandlerFunc {
 		userID, _ := c.Get(string(auth.UserIDKey))
 		uid, _ := userID.(string)
 		if uid == "" {
-			c.JSON(http.StatusUnauthorized, gin.H{"status": "error", "message": "unauthorized"})
+			respondError(c, http.StatusUnauthorized, "unauthorized")
 			return
 		}
 
