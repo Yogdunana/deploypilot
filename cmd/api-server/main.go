@@ -93,6 +93,11 @@ func run(configFilePath, cliDriver, cliDSN, cliAddr string, migrateOnly, migrate
 		cfg = config.DefaultConfig()
 	}
 
+	// Validate required configuration
+	if cfg.Auth.JWTSecret == "" && !migrateOnly && !migrateDown && !migrateStatus {
+		return fmt.Errorf("JWT_SECRET is required but not set")
+	}
+
 	// Inject JWT secret from config into environment for jwt.go's os.Getenv("JWT_SECRET")
 	if cfg.Auth.JWTSecret != "" && os.Getenv("JWT_SECRET") == "" {
 		if len(cfg.Auth.JWTSecret) < 16 {
@@ -430,6 +435,10 @@ func run(configFilePath, cliDriver, cliDSN, cliAddr string, migrateOnly, migrate
 	if err := srv.Shutdown(shutdownCtx); err != nil {
 		slog.Warn("API server shutdown error", "error", err)
 	}
+
+	// 1.5 Stop rate limiters
+	slog.Info("stopping rate limiters")
+	api.TwoFARL.Stop()
 
 	// 1.5 Stop event plugins
 	eventPluginMgr.StopAll()
