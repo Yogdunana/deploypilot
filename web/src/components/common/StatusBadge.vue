@@ -37,7 +37,8 @@ const variantMap: Record<string, 'success' | 'destructive' | 'warning' | 'second
 const mapped = computed(() => {
   const s = (props.status || '').toLowerCase()
   const variant = variantMap[s] || 'secondary'
-  const label = t(`status.${s}`) || props.status || s
+  const translated = t(`status.${s}`)
+  const label = translated !== `status.${s}` ? translated : (props.status || s)
   return { variant, label }
 })
 </script>
