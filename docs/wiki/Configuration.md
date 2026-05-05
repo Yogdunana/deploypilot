@@ -10,7 +10,7 @@ server:
   host: 0.0.0.0
   port: 8080
   cors_allowed_origins:
-    - "*"
+    - "https://your-domain.com"  # IMPORTANT: Replace with your actual domain. Using "*" is insecure.
 
 # Database
 database:

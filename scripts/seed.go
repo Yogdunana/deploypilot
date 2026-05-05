@@ -1,3 +1,6 @@
+// WARNING: This script is for LOCAL DEVELOPMENT ONLY.
+// Never run this against a production database.
+//
 // Package main provides a seed data script for local development.
 //
 // Usage:
@@ -12,6 +15,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"os"
 
 	"github.com/Yogdunana/deploypilot/internal/crypto"
 	"github.com/Yogdunana/deploypilot/internal/database"
@@ -21,7 +25,7 @@ import (
 
 func main() {
 	driver := flag.String("driver", "postgres", "database driver: sqlite, postgres")
-	dsn := flag.String("dsn", "host=localhost port=5432 user=deploypilot password=deploypilot_dev dbname=deploypilot sslmode=disable", "database DSN")
+	dsn := flag.String("dsn", "host=localhost port=5432 user=deploypilot dbname=deploypilot sslmode=disable", "database DSN")
 	flag.Parse()
 
 	fmt.Println("=== DeployPilot Seed Data Script ===")
@@ -44,7 +48,11 @@ func main() {
 	}
 
 	fmt.Println("Creating demo data...")
-	if err := seedDemoData(db); err != nil {
+	adminPassword := os.Getenv("SEED_ADMIN_PASSWORD")
+	if adminPassword == "" {
+		adminPassword = "Admin@123456"
+	}
+	if err := seedDemoData(db, adminPassword); err != nil {
 		log.Fatalf("Failed to seed demo data: %v", err)
 	}
 
@@ -53,7 +61,7 @@ func main() {
 	fmt.Println()
 	fmt.Println("Admin credentials:")
 	fmt.Println("  Email:    admin@deploypilot.dev")
-	fmt.Println("  Password: Admin@123456")
+	fmt.Println("  Password: " + adminPassword)
 	fmt.Println()
 	fmt.Println("Demo server:")
 	fmt.Println("  Name: Local Dev Server")
@@ -65,9 +73,9 @@ func main() {
 	fmt.Println("  Branch:  main")
 }
 
-func seedDemoData(db *gorm.DB) error {
+func seedDemoData(db *gorm.DB, adminPassword string) error {
 	// ── Admin User ──────────────────────────────────────────────
-	passwordHash, err := crypto.HashPassword("Admin@123456")
+	passwordHash, err := crypto.HashPassword(adminPassword)
 	if err != nil {
 		return fmt.Errorf("hash admin password: %w", err)
 	}

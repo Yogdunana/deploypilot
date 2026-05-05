@@ -11,12 +11,16 @@ import (
 	"strconv"
 	"time"
 
+	"golang.org/x/sync/semaphore"
+
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 
 	"github.com/Yogdunana/deploypilot/internal/model"
 	"github.com/Yogdunana/deploypilot/internal/util"
 )
+
+var webhookSem = semaphore.NewWeighted(20) // max 20 concurrent webhook deliveries
 
 // OutboundWebhookService manages outbound webhook CRUD, delivery, retry, and event subscription.
 type OutboundWebhookService struct {
@@ -433,6 +437,11 @@ func (s *OutboundWebhookService) handleEvent(event BusEvent) {
 		wh := &webhooks[i]
 		if s.matchesFilters(wh, event) {
 			go func() {
+				if err := webhookSem.Acquire(s.ctx, 1); err != nil {
+					slog.Warn("webhook delivery skipped: context cancelled", "webhook_id", wh.ID)
+					return
+				}
+				defer webhookSem.Release(1)
 				_ = s.Deliver(s.ctx, wh, event)
 			}()
 		}
