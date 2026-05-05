@@ -25,7 +25,7 @@
   <img src="https://img.shields.io/github/actions/workflow/status/Yogdunana/deploypilot/ci.yml?branch=main&amp;style=flat-square" alt="CI">
   <img src="https://img.shields.io/github/v/release/Yogdunana/deploypilot?style=flat-square" alt="Release">
   <img src="https://img.shields.io/badge/License-BSL_1.1-blue?style=flat-square" alt="License">
-  <img src="https://img.shields.io/badge/Go-1.24-00ADD8?style=flat-square&amp;logo=go&amp;logoColor=white" alt="Go">
+  <img src="https://img.shields.io/badge/Go-1.24.13-00ADD8?style=flat-square&amp;logo=go&amp;logoColor=white" alt="Go">
   <img src="https://img.shields.io/badge/Vue-3.5-4FC08D?style=flat-square&amp;logo=vue.js&amp;logoColor=white" alt="Vue">
   <img src="https://img.shields.io/docker/pulls/ghcr.io/yogdunana/deploypilot?style=flat-square" alt="Docker Pulls">
 </p>
