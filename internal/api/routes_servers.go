@@ -93,5 +93,11 @@ func registerServerRoutes(protected *gin.RouterGroup, db *gorm.DB, bridge *servi
 		servers.GET("/:id/toolbox/detect", tbAPI.DetectEnvironment)
 		servers.POST("/:id/toolbox/run", tbAPI.RunScript)
 		servers.POST("/:id/toolbox/builtin", tbAPI.RunBuiltInScript)
+		servers.GET("/:id/toolbox/builtin-scripts", tbAPI.ListBuiltInScripts)
+		servers.GET("/:id/toolbox/scripts", tbAPI.ListScripts)
+		servers.POST("/:id/toolbox/scripts", tbAPI.CreateScript)
+		servers.GET("/:id/toolbox/scripts/:script_id", tbAPI.GetScript)
+		servers.PUT("/:id/toolbox/scripts/:script_id", tbAPI.UpdateScript)
+		servers.DELETE("/:id/toolbox/scripts/:script_id", tbAPI.DeleteScript)
 
 }

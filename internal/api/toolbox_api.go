@@ -121,9 +121,9 @@ func (t *ToolboxAPI) ListScripts(c *gin.Context) {
 }
 
 // GetScript gets a custom script by ID.
-// GET /api/v1/toolbox/scripts/:id
+// GET /api/v1/servers/:id/toolbox/scripts/:script_id
 func (t *ToolboxAPI) GetScript(c *gin.Context) {
-	id := c.Param("id")
+	id := c.Param("script_id")
 
 	script, err := t.tbSvc.GetScript(c.Request.Context(), id)
 	if err != nil {
@@ -135,9 +135,9 @@ func (t *ToolboxAPI) GetScript(c *gin.Context) {
 }
 
 // UpdateScript updates a custom script.
-// PUT /api/v1/toolbox/scripts/:id
+// PUT /api/v1/servers/:id/toolbox/scripts/:script_id
 func (t *ToolboxAPI) UpdateScript(c *gin.Context) {
-	id := c.Param("id")
+	id := c.Param("script_id")
 
 	var script service.ToolboxScript
 	if err := c.ShouldBindJSON(&script); err != nil {
@@ -155,9 +155,9 @@ func (t *ToolboxAPI) UpdateScript(c *gin.Context) {
 }
 
 // DeleteScript deletes a custom script.
-// DELETE /api/v1/toolbox/scripts/:id
+// DELETE /api/v1/servers/:id/toolbox/scripts/:script_id
 func (t *ToolboxAPI) DeleteScript(c *gin.Context) {
-	id := c.Param("id")
+	id := c.Param("script_id")
 
 	if err := t.tbSvc.DeleteScript(c.Request.Context(), id); err != nil {
 		respondErrori18n(c, http.StatusInternalServerError, "error.common.internal_error")
