@@ -37,13 +37,14 @@ func GenerateToken(userID, role string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to get JWT secret: %w", err)
 	}
+	now := time.Now()
 	claims := &Claims{
 		UserID: userID,
 		Role:   role,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ID:        uuid.New().String(),
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(24 * time.Hour)),
-			IssuedAt:  jwt.NewNumericDate(time.Now()),
+			ExpiresAt: jwt.NewNumericDate(now.Add(24 * time.Hour)),
+			IssuedAt:  jwt.NewNumericDate(now),
 		},
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
@@ -52,13 +53,14 @@ func GenerateToken(userID, role string) (string, error) {
 
 // Generate2FAPendingToken creates a short-lived JWT (5 minutes) for 2FA verification.
 func Generate2FAPendingToken(userID, role string) (string, error) {
+	now := time.Now()
 	claims := &Claims{
 		UserID: userID,
 		Role:   role,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ID:        uuid.New().String(),
-			IssuedAt:  jwt.NewNumericDate(time.Now()),
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(5 * time.Minute)),
+			IssuedAt:  jwt.NewNumericDate(now),
+			ExpiresAt: jwt.NewNumericDate(now.Add(5 * time.Minute)),
 		},
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
