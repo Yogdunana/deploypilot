@@ -1,199 +1,74 @@
 # MCP Integration
 
-## What is MCP?
+DeployPilot implements the Model Context Protocol (MCP) to enable AI assistants to interact with the platform programmatically.
 
-The Model Context Protocol (MCP) is a standardized protocol that allows AI assistants to interact with external tools and services. DeployPilot exposes 37 MCP tools for server deployment management.
+## Overview
 
-## Supported AI IDEs
+The MCP server exposes 91+ tools across multiple categories:
+- Application Management
+- Server Management
+- Deployment Operations
+- Monitoring & Alerting
+- CI/CD Integration
+- Kubernetes Management
+- SSL Certificate Management
+- And more...
 
-| IDE | Transport | Status |
-|-----|-----------|--------|
-| Claude Desktop | stdio | ✅ Supported |
-| Cursor | stdio | ✅ Supported |
-| TRAE | stdio | ✅ Supported |
-| TRAE Solo | HTTP (remote) | ✅ Supported |
-| Coze (扣子) | HTTP (remote) | ✅ Supported |
-| SOLO | stdio | ✅ Supported |
+## Quick Start
 
-## Local Setup (stdio transport)
-
-For IDEs running on the same machine or with direct SSH access:
-
-### 1. Install DeployPilot
+### Starting the MCP Server
 
 ```bash
-# Download the MCP server binary
-wget https://github.com/Yogdunana/deploypilot/releases/latest/download/mcp-server-linux-amd64
-chmod +x mcp-server-linux-amd64
-sudo mv mcp-server-linux-amd64 /usr/local/bin/deploypilot-mcp
+# Start the MCP server (runs on port 9090 by default)
+./deploypilot mcp-server
+
+# Or using Docker
+docker run -p 9090:9090 yogdunana/deploypilot mcp-server
 ```
 
-### 2. Create Configuration
+### Connecting Claude Desktop
 
-```yaml
-# /etc/deploypilot/config.yaml
-server:
-  host: 0.0.0.0
-  port: 8080
-
-database:
-  dsn: ./data/deploypilot.db
-```
-
-### 3. Configure IDE
-
-Add to your IDE's MCP configuration:
+Add to your Claude Desktop config:
 
 ```json
 {
   "mcpServers": {
     "deploypilot": {
-      "command": "/usr/local/bin/deploypilot-mcp",
-      "args": ["--config", "/etc/deploypilot/config.yaml"]
-    }
-  }
-}
-```
-
-## Remote Setup (HTTP transport)
-
-For AI IDEs running in cloud sandboxes (TRAE Solo, Coze) that cannot SSH to your server:
-
-### 1. Deploy DeployPilot on Your Server
-
-```bash
-docker compose up -d
-```
-
-### 2. Create API Token
-
-1. Login to the web dashboard at `http://your-server:8080`
-2. Go to Settings → API Tokens
-3. Create a new token with appropriate permissions
-
-### 3. Configure IDE
-
-```json
-{
-  "mcpServers": {
-    "deploypilot": {
-      "url": "https://your-server:8080/api/v1/mcp",
-      "headers": {
-        "Authorization": "Bearer YOUR_API_TOKEN"
+      "command": "./deploypilot",
+      "args": ["mcp-server"],
+      "env": {
+        "DEPLOYPILOT_MCP_TOKEN": "your-api-key"
       }
     }
   }
 }
 ```
 
-### Important Notes
-
-- Use HTTPS in production
-- Ensure firewall allows inbound connections on port 8080
-- Create a dedicated API token with minimum required permissions
-
-## Bastion/Jump Host Scenario
-
-For enterprise servers behind a bastion host:
-
-1. Deploy DeployPilot on the bastion host (or a server with network access to internal servers)
-2. Configure SSH credentials that can reach internal servers through the bastion
-3. AI IDEs connect to DeployPilot via MCP, and DeployPilot handles SSH tunneling internally
-
-This eliminates the need for AI IDEs to directly connect to internal servers.
-
 ## Available Tools
 
-### Deployment (5 tools)
-| Tool | Description | RBAC |
-|------|-------------|------|
-| `deploy_app` | Deploy an application | dev |
-| `get_deploy_status` | Check deployment status | viewer |
-| `rollback_app` | Rollback to previous version | dev |
-| `batch_deploy` | Deploy multiple apps at once | admin |
-| `check_deploy_readiness` | Check if deployment prerequisites are met | viewer |
+For a complete list of all 91+ MCP tools, see [MCP Tools Reference](../mcp-tools.md).
 
-### Application Management (5 tools)
-| Tool | Description | RBAC |
-|------|-------------|------|
-| `list_apps` | List all applications | viewer |
-| `create_app` | Register a new application | dev |
-| `update_app` | Update application configuration | dev |
-| `delete_app` | Delete an application | admin |
-| `get_app_detail` | Get detailed application info | viewer |
+## Common Use Cases
 
-### Server Management (5 tools)
-| Tool | Description | RBAC |
-|------|-------------|------|
-| `list_servers` | List all registered servers | viewer |
-| `add_server` | Register a new server | dev |
-| `update_server` | Update server configuration | dev |
-| `delete_server` | Delete a server | admin |
-| `test_server` | Test server SSH connectivity | dev |
+### Deploy an Application
+```
+Use the deploy_app tool with your application configuration.
+```
 
-### DNS Management (4 tools)
-| Tool | Description | RBAC |
-|------|-------------|------|
-| `list_dns_records` | List DNS records | viewer |
-| `add_dns_record` | Create a DNS record | dev |
-| `update_dns_record` | Update a DNS record | dev |
-| `delete_dns_record` | Delete a DNS record | admin |
-| `batch_dns` | Batch DNS operations | admin |
+### Check System Health
+```
+Use the detect_environment and health_check tools.
+```
 
-### Credential Management (4 tools)
-| Tool | Description | RBAC |
-|------|-------------|------|
-| `list_credentials` | List all credentials | viewer |
-| `add_credential` | Add a new credential | dev |
-| `update_credential` | Update a credential | dev |
-| `delete_credential` | Delete a credential | admin |
+### Monitor Deployments
+```
+Use get_deploy_status and list_deployments tools.
+```
 
-### Logging (2 tools)
-| Tool | Description | RBAC |
-|------|-------------|------|
-| `get_app_logs` | Get application logs | viewer |
-| `search_app_logs` | Search application logs | viewer |
+## Authentication
 
-### Backup & Restore (3 tools)
-| Tool | Description | RBAC |
-|------|-------------|------|
-| `backup_database` | Create a database backup | dev |
-| `restore_database` | Restore from a backup | dev |
-| `batch_backup` | Batch backup operations | admin |
+All MCP tools require authentication via:
+- API Key (DEPLOYPILOT_API_KEY)
+- JWT Token (DEPLOYPILOT_JWT_TOKEN)
 
-### Task Management (2 tools)
-| Tool | Description | RBAC |
-|------|-------------|------|
-| `get_task_status` | Get task execution status | viewer |
-| `list_tasks` | List all tasks | viewer |
-
-### System & Monitoring (4 tools)
-| Tool | Description | RBAC |
-|------|-------------|------|
-| `check_system_update` | Check for system updates | viewer |
-| `detect_environment` | Detect server environment info | viewer |
-| `health_check` | HTTP/TCP health probe | viewer |
-| `send_notification` | Send deployment notifications | dev |
-
-### Templates (2 tools)
-| Tool | Description | RBAC |
-|------|-------------|------|
-| `list_templates` | List available app templates (9 stacks) | viewer |
-| `get_template` | Get template details | viewer |
-
-See the full tool specification in [docs/mcp-tools.md](https://github.com/Yogdunana/deploypilot/blob/main/docs/mcp-tools.md).
-
-### Uptime Monitoring & Heartbeats (8 tools)
-| Tool | Description | RBAC |
-|------|-------------|------|
-| `create_uptime_monitor` | Create uptime monitor (HTTP/TCP/Ping) | dev |
-| `list_uptime_monitors` | List all uptime monitors | viewer |
-| `check_uptime_monitor` | Trigger immediate check on a monitor | dev |
-| `get_monitor_sla` | Get SLA metrics for a monitor | viewer |
-| `delete_uptime_monitor` | Delete an uptime monitor | admin |
-| `create_heartbeat` | Create heartbeat monitor (returns ping URL) | dev |
-| `list_heartbeats` | List all heartbeat monitors | viewer |
-| `delete_heartbeat` | Delete a heartbeat monitor | admin |
-
-See the full tool specification in [docs/mcp-tools.md](../mcp-tools.md).
-}
+See [Authentication Guide](./Authentication.md) for details.
