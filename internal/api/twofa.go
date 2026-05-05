@@ -573,7 +573,7 @@ func (rl *twoFARateLimiter) cleanup() {
 }
 
 // Global 2FA rate limiter: max 10 attempts per IP per 5 minutes.
-var twoFARL = newTwoFARateLimiter(10, 5*time.Minute)
+var TwoFARL = newTwoFARateLimiter(10, 5*time.Minute)
 
 // Check2FARateLimit godoc
 // @Summary      Check 2FA rate limit
@@ -585,7 +585,7 @@ var twoFARL = newTwoFARateLimiter(10, 5*time.Minute)
 func Check2FARateLimit() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ip := c.ClientIP()
-		if !twoFARL.Allow(ip) {
+		if !TwoFARL.Allow(ip) {
 			c.JSON(http.StatusTooManyRequests, gin.H{
 				"status":  "error",
 				"message": "too many 2FA attempts, please try again later",
@@ -594,7 +594,7 @@ func Check2FARateLimit() gin.HandlerFunc {
 			c.Abort()
 			return
 		}
-		c.Header("X-2FA-Attempts-Remaining", strconv.Itoa(twoFARL.Remaining(ip)))
+		c.Header("X-2FA-Attempts-Remaining", strconv.Itoa(TwoFARL.Remaining(ip)))
 		c.Next()
 	}
 }
