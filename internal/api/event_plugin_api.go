@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"log/slog"
 	"net/http"
 
 	"github.com/Yogdunana/deploypilot/internal/model"
@@ -118,12 +119,14 @@ func (a *EventPluginAPI) UpdateEventPlugin(c *gin.Context) {
 	if input.Enabled != nil {
 		if *input.Enabled {
 			if err := a.pluginMgr.EnablePlugin(name); err != nil {
-				respondErrori18n(c, http.StatusInternalServerError, "error.plugin.update_failed", err.Error())
+				slog.ErrorContext(c.Request.Context(), "failed to enable event plugin", "error", err)
+				respondErrori18n(c, http.StatusInternalServerError, "error.plugin.update_failed")
 				return
 			}
 		} else {
 			if err := a.pluginMgr.DisablePlugin(name); err != nil {
-				respondErrori18n(c, http.StatusInternalServerError, "error.plugin.update_failed", err.Error())
+				slog.ErrorContext(c.Request.Context(), "failed to disable event plugin", "error", err)
+				respondErrori18n(c, http.StatusInternalServerError, "error.plugin.update_failed")
 				return
 			}
 		}
@@ -131,7 +134,8 @@ func (a *EventPluginAPI) UpdateEventPlugin(c *gin.Context) {
 
 	if input.Config != nil {
 		if err := a.pluginMgr.SetPluginConfig(name, input.Config); err != nil {
-			respondErrori18n(c, http.StatusInternalServerError, "error.plugin.update_failed", err.Error())
+			slog.ErrorContext(c.Request.Context(), "failed to set event plugin config", "error", err)
+			respondErrori18n(c, http.StatusInternalServerError, "error.plugin.update_failed")
 			return
 		}
 	}

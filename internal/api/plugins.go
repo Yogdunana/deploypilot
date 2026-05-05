@@ -1,6 +1,7 @@
 package api
 
 import (
+	"log/slog"
 	"net/http"
 
 	"github.com/Yogdunana/deploypilot/internal/model"
@@ -99,7 +100,8 @@ func (h *PluginHandler) CreatePlugin() gin.HandlerFunc {
 			enabled, input.Priority,
 		)
 		if err != nil {
-			respondErrori18n(c, http.StatusInternalServerError, "error.plugin.create_failed", err.Error())
+			slog.ErrorContext(c.Request.Context(), "failed to create plugin", "error", err)
+			respondErrori18n(c, http.StatusInternalServerError, "error.plugin.create_failed")
 			return
 		}
 
@@ -215,7 +217,8 @@ func (h *PluginHandler) EnablePlugin() gin.HandlerFunc {
 		}
 
 		if err := h.lifecycleManager.EnablePlugin(c.Request.Context(), id); err != nil {
-			respondErrori18n(c, http.StatusInternalServerError, "error.plugin.instance_create_failed", err.Error())
+			slog.ErrorContext(c.Request.Context(), "failed to enable plugin", "error", err)
+			respondErrori18n(c, http.StatusInternalServerError, "error.plugin.instance_create_failed")
 			return
 		}
 
@@ -273,7 +276,8 @@ func (h *PluginHandler) ReloadPlugin() gin.HandlerFunc {
 		}
 
 		if err := h.lifecycleManager.ReloadPlugin(c.Request.Context(), id); err != nil {
-			respondErrori18n(c, http.StatusInternalServerError, "error.plugin.instance_create_failed", err.Error())
+			slog.ErrorContext(c.Request.Context(), "failed to reload plugin", "error", err)
+			respondErrori18n(c, http.StatusInternalServerError, "error.plugin.instance_create_failed")
 			return
 		}
 
