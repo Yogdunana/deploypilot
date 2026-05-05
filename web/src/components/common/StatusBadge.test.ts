@@ -1,9 +1,38 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 
+vi.mock('vue-i18n', () => ({
+  useI18n: () => ({
+    t: (key: string) => {
+      const map: Record<string, string> = {
+        'status.running': '运行中',
+        'status.stopped': '已停止',
+        'status.error': '错误',
+        'status.deploying': '部署中',
+        'status.success': '成功',
+        'status.active': '活跃',
+        'status.healthy': '健康',
+        'status.online': '在线',
+        'status.completed': '已完成',
+        'status.enabled': '已启用',
+        'status.failed': '失败',
+        'status.expired': '已过期',
+        'status.disabled': '已禁用',
+        'status.offline': '离线',
+        'status.pending': '等待中',
+        'status.renewing': '续期中',
+        'status.building': '构建中',
+        'status.warning': '警告',
+        'status.unknown': '未知',
+        'status.inactive': '未激活',
+      }
+      return map[key] || key
+    },
+  }),
+}))
+
 describe('StatusBadge', () => {
-  // 辅助函数：创建包装器
   function createWrapper(status?: string) {
     return mount(StatusBadge, {
       props: { status },
