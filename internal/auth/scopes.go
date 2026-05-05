@@ -120,6 +120,13 @@ func RequireScope(scopes ...string) gin.HandlerFunc {
 			}
 		}
 
+		// If no scopes found (e.g., JWT auth without scopes), allow through
+		// JWT auth permissions are handled by RoleRequired middleware
+		if len(tokenScopes) == 0 {
+			c.Next()
+			return
+		}
+
 		// Check admin bypass
 		for _, s := range tokenScopes {
 			if s == ScopeAdmin {
