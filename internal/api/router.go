@@ -151,9 +151,9 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 		{
 			registries.GET("", ListRegistries())
 			registries.POST("", CreateRegistry())
-			registries.GET("/:id", GetRegistry())
-			registries.PUT("/:id", UpdateRegistry())
-			registries.DELETE("/:id", DeleteRegistry())
+			registries.GET("/:id", auth.RequireResourceAccessCached(bridge, "registry", "id"), GetRegistry())
+			registries.PUT("/:id", auth.RequireResourceAccessCached(bridge, "registry", "id"), UpdateRegistry())
+			registries.DELETE("/:id", auth.RequireResourceAccessCached(bridge, "registry", "id"), DeleteRegistry())
 		}
 
 		// DNS (4 endpoints)
@@ -162,7 +162,7 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 			dns.GET("/records", ListDNSRecords(bridge))
 			dns.POST("/records", CreateDNSRecord(bridge))
 			dns.PUT("/records/:id", UpdateDNSRecord(bridge))
-			dns.DELETE("/records/:id", DeleteDNSRecord(bridge))
+			dns.DELETE("/records/:id", auth.RequireScope("delete"), DeleteDNSRecord(bridge))
 		}
 
 		// Providers (4 endpoints)
@@ -171,7 +171,7 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 			providers.GET("", ListProviders(db))
 			providers.POST("", CreateProvider(db))
 			providers.PUT("/:id", UpdateProvider(db))
-			providers.DELETE("/:id", DeleteProvider(db))
+			providers.DELETE("/:id", auth.RequireScope("delete"), DeleteProvider(db))
 		}
 
 		// Notifications (4 endpoints)
@@ -180,7 +180,7 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 			notifs.GET("", ListNotifications(db))
 			notifs.POST("", CreateNotification(db))
 			notifs.PUT("/:id", UpdateNotification(db))
-			notifs.DELETE("/:id", DeleteNotification(db))
+			notifs.DELETE("/:id", auth.RequireScope("delete"), DeleteNotification(db))
 		}
 
 		// Templates (4 endpoints)
@@ -189,7 +189,7 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 			templates.GET("", ListTemplates(bridge))
 			templates.POST("", CreateTemplate(db))
 			templates.PUT("/:id", UpdateTemplate(db))
-			templates.DELETE("/:id", DeleteTemplate(db))
+			templates.DELETE("/:id", auth.RequireScope("delete"), DeleteTemplate(db))
 		}
 
 		// Users & Roles
@@ -200,7 +200,7 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 			users.PUT("/me/onboarding", CompleteOnboarding(db))
 			users.POST("/me/demo", GenerateDemoData(db))
 			users.GET("", auth.RoleRequired("owner", "admin"), ListUsers(db))
-			users.DELETE("/:id", auth.RoleRequired("owner"), DeleteUser(db))
+			users.DELETE("/:id", auth.RequireScope("delete"), auth.RoleRequired("owner"), DeleteUser(db))
 			users.PUT("/:id/role", auth.RoleRequired("owner", "admin"), UpdateUserRole(db))
 			users.POST("/:id/reset-2fa", auth.RoleRequired("owner", "admin"), ResetUser2FA(db, auditSvc))
 		}
@@ -223,7 +223,7 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 			auditVerGroup.GET("/verify", VerifyAuditChain)
 			auditVerGroup.GET("/export", ExportAuditLogsV2)
 			auditVerGroup.GET("/gdpr/export", GDPRExportUserData)
-			auditVerGroup.DELETE("/gdpr/delete", auth.RoleRequired("owner", "admin"), GDPRDeleteUserData)
+			auditVerGroup.DELETE("/gdpr/delete", auth.RequireScope("delete"), auth.RoleRequired("owner", "admin"), GDPRDeleteUserData)
 			auditVerGroup.GET("/compliance", ComplianceReport)
 		}
 		protected.GET("/events", ListEventLogs(db))
@@ -234,10 +234,10 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 		{
 			alerts.POST("/silences", CreateAlertSilence(db))
 			alerts.GET("/silences", ListAlertSilences(db))
-			alerts.DELETE("/silences/:id", DeleteAlertSilence(db))
+			alerts.DELETE("/silences/:id", auth.RequireScope("delete"), DeleteAlertSilence(db))
 			alerts.POST("/escalations", CreateAlertEscalation(db))
 			alerts.GET("/escalations", ListAlertEscalations(db))
-			alerts.DELETE("/escalations/:id", DeleteAlertEscalation(db))
+			alerts.DELETE("/escalations/:id", auth.RequireScope("delete"), DeleteAlertEscalation(db))
 			alerts.GET("/groups", ListAlertGroups(db))
 			alerts.GET("/history", ListAlertHistory(db))
 			alerts.GET("/history/:id", GetAlertHistory(db))
@@ -256,13 +256,13 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 		backups := protected.Group("/apps/:id/backups")
 		{
 			backups.GET("", ListBackups(backupSvc))
-			backups.DELETE("/:backupId", DeleteBackup(backupSvc))
+			backups.DELETE("/:backupId", auth.RequireScope("delete"), DeleteBackup(backupSvc))
 		}
 
 		// CI/CD (2 endpoints)
 		cicd := protected.Group("/cicd")
 		{
-			cicd.POST("/trigger", TriggerCIBuild(bridge))
+			cicd.POST("/trigger", auth.RequireScope("deploy"), TriggerCIBuild(bridge))
 			cicd.GET("/status/:runID", GetCIBuildStatus(bridge))
 		}
 
@@ -271,7 +271,7 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 		{
 			ssl.GET("/certificates", ListSSLCertificates(db))
 			ssl.POST("/certificates", RequestSSLCertificate(db))
-			ssl.DELETE("/certificates/:id", DeleteSSLCertificate(db))
+			ssl.DELETE("/certificates/:id", auth.RequireScope("delete"), DeleteSSLCertificate(db))
 			ssl.POST("/certificates/:id/renew", RenewSSLCertificate(db))
 		}
 
@@ -283,7 +283,7 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 			plugins.POST("", pluginHandler.CreatePlugin())
 			plugins.GET("/:id", pluginHandler.GetPlugin())
 			plugins.PUT("/:id", pluginHandler.UpdatePlugin())
-			plugins.DELETE("/:id", pluginHandler.DeletePlugin())
+			plugins.DELETE("/:id", auth.RequireScope("delete"), pluginHandler.DeletePlugin())
 			plugins.POST("/:id/enable", pluginHandler.EnablePlugin())
 			plugins.POST("/:id/disable", pluginHandler.DisablePlugin())
 			plugins.POST("/:id/reload", pluginHandler.ReloadPlugin())
@@ -324,7 +324,7 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 		// Session management
 		protected.POST("/auth/logout-all", LogoutAllDevices())
 		protected.GET("/sessions", ListSessions())
-		protected.DELETE("/sessions/:token_id", KickSession())
+		protected.DELETE("/sessions/:token_id", auth.RequireScope("delete"), KickSession())
 		protected.GET("/login-history", ListLoginHistory(auditSvc))
 
 		// API Keys (3 endpoints)
@@ -334,7 +334,7 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 			apiKeys.POST("", CreateAPIKey(keySvc, auditSvc))
 			apiKeys.GET("/:id", GetAPIKey(keySvc))
 			apiKeys.PATCH("/:id", UpdateAPIKey(keySvc, auditSvc))
-			apiKeys.DELETE("/:id", DeleteAPIKey(keySvc, auditSvc))
+			apiKeys.DELETE("/:id", auth.RequireScope("delete"), DeleteAPIKey(keySvc, auditSvc))
 			apiKeys.GET("/:id/stats", GetAPIKeyStats(keySvc))
 		}
 
@@ -345,7 +345,7 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 		{
 			ipWhitelist.GET("", ListIPWhitelist)
 			ipWhitelist.POST("", AddIPWhitelist)
-			ipWhitelist.DELETE("/:id", DeleteIPWhitelist)
+			ipWhitelist.DELETE("/:id", auth.RequireScope("delete"), DeleteIPWhitelist)
 			ipWhitelist.GET("/check", CheckIPAccess)
 		}
 
@@ -356,7 +356,7 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 		{
 			devices.GET("", ListDevices)
 			devices.GET("/current", CurrentDevice)
-			devices.DELETE("/:id", RevokeDevice)
+			devices.DELETE("/:id", auth.RequireScope("delete"), RevokeDevice)
 			devices.POST("/:id/trust", TrustDevice)
 		}
 
@@ -398,7 +398,7 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 			ff.GET("/:key", GetFeatureFlagHandler(bridge))
 			ff.PUT("/:key", auth.RoleRequired("owner"), UpdateFeatureFlagHandler(bridge))
 			ff.POST("/:key/override", auth.RoleRequired("owner"), SetFeatureFlagOverrideHandler(bridge))
-			ff.DELETE("/:key/override", auth.RoleRequired("owner"), DeleteFeatureFlagOverrideHandler(bridge))
+			ff.DELETE("/:key/override", auth.RequireScope("delete"), auth.RoleRequired("owner"), DeleteFeatureFlagOverrideHandler(bridge))
 			ff.GET("/:key/overrides", auth.RoleRequired("owner"), ListFeatureFlagOverridesHandler(bridge))
 			ff.GET("/tenant/:tenant_id", GetFeatureFlagsForTenantHandler(bridge))
 		}
@@ -420,7 +420,7 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 		}
 
 		// Batch operations (1 endpoint)
-		protected.POST("/batch-deploy", BatchDeployHandler(bridge))
+		protected.POST("/batch-deploy", auth.RequireScope("deploy"), BatchDeployHandler(bridge))
 
 		// Prometheus metrics (JWT authenticated by default)
 		protected.GET("/metrics", gin.WrapH(metrics.Handler()))
