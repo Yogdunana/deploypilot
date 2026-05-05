@@ -1,10 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { useI18n } from 'vue-i18n'
 import { cn } from '@/lib/utils'
 import { Check, Copy } from 'lucide-vue-next'
-
-const { t } = useI18n()
 
 interface Props {
   text?: string
@@ -46,7 +43,7 @@ async function copy() {
       'inline-flex items-center justify-center rounded-md p-1 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors duration-150 cursor-pointer',
       props.class
     )"
-    :title="t('common.copy')"
+    title="复制"
     @click="copy"
   >
     <Check v-if="copied" class="w-3.5 h-3.5 text-success" />
