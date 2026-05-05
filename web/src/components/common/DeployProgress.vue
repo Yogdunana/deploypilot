@@ -1,8 +1,11 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useSSE } from '@/composables/useSSE'
 import { CheckCircle, XCircle, Loader2, Circle, Clock } from 'lucide-vue-next'
 import Progress from '@/components/ui/Progress.vue'
+
+const { t } = useI18n()
 
 interface Props {
   appId: string
@@ -19,11 +22,11 @@ interface Step {
 }
 
 const steps = ref<Step[]>([
-  { key: 'pulling', label: '拉取镜像', status: 'waiting' },
-  { key: 'building', label: '构建中', status: 'waiting' },
-  { key: 'deploying', label: '部署中', status: 'waiting' },
-  { key: 'health_check', label: '健康检查', status: 'waiting' },
-  { key: 'done', label: '完成', status: 'waiting' },
+  { key: 'pulling', label: t('deploy.stepPulling'), status: 'waiting' },
+  { key: 'building', label: t('deploy.stepBuilding'), status: 'waiting' },
+  { key: 'deploying', label: t('deploy.stepDeploying'), status: 'waiting' },
+  { key: 'health_check', label: t('deploy.stepHealthCheck'), status: 'waiting' },
+  { key: 'done', label: t('deploy.stepDone'), status: 'waiting' },
 ])
 
 const overallStatus = ref<'running' | 'success' | 'error' | 'idle'>('idle')
@@ -68,7 +71,7 @@ const { status: sseStatus } = useSSE({
 
     if (stepKey === 'error') {
       overallStatus.value = 'error'
-      errorMessage.value = data.message || data.error || '部署失败'
+      errorMessage.value = data.message || data.error || t('deploy.failed')
       // 标记当前运行中的步骤为错误
       const runningStep = steps.value.find((s) => s.status === 'running')
       if (runningStep) {
@@ -98,7 +101,7 @@ const { status: sseStatus } = useSSE({
   },
   onError(err) {
     overallStatus.value = 'error'
-    errorMessage.value = err.message || '连接失败'
+    errorMessage.value = err.message || t('deploy.connectionFailed')
   },
 })
 
@@ -124,19 +127,19 @@ defineExpose({ startWatching })
         <div class="flex items-center gap-2">
           <template v-if="overallStatus === 'running'">
             <Loader2 class="w-4 h-4 animate-spin text-primary" />
-            <span class="text-sm font-medium text-foreground">部署进行中...</span>
+            <span class="text-sm font-medium text-foreground">{{ t('deploy.inProgress') }}</span>
           </template>
           <template v-else-if="overallStatus === 'success'">
             <CheckCircle class="w-4 h-4 text-success" />
-            <span class="text-sm font-medium text-success">部署成功</span>
+            <span class="text-sm font-medium text-success">{{ t('deploy.success') }}</span>
           </template>
           <template v-else-if="overallStatus === 'error'">
             <XCircle class="w-4 h-4 text-destructive" />
-            <span class="text-sm font-medium text-destructive">部署失败</span>
+            <span class="text-sm font-medium text-destructive">{{ t('deploy.failed') }}</span>
           </template>
           <template v-else>
             <Clock class="w-4 h-4 text-muted-foreground" />
-            <span class="text-sm font-medium text-muted-foreground">等待部署</span>
+            <span class="text-sm font-medium text-muted-foreground">{{ t('deploy.waiting') }}</span>
           </template>
         </div>
         <span class="text-xs text-muted-foreground">{{ progressValue }}%</span>
@@ -196,7 +199,7 @@ defineExpose({ startWatching })
             'text-muted-foreground/50': step.status === 'waiting',
           }"
         >
-          {{ step.status === 'waiting' ? '等待中' : step.status === 'running' ? '进行中' : step.status === 'done' ? '已完成' : '失败' }}
+          {{ step.status === 'waiting' ? t('deploy.statusWaiting') : step.status === 'running' ? t('deploy.statusRunning') : step.status === 'done' ? t('deploy.statusDone') : t('deploy.statusFailed') }}
         </span>
       </div>
     </div>

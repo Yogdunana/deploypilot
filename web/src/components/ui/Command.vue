@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { ref, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { cn } from '@/lib/utils'
 import { Search } from 'lucide-vue-next'
+
+const { t } = useI18n()
 
 interface CommandItem {
   label: string
@@ -21,7 +24,7 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {
   open: false,
   items: () => [],
-  placeholder: '输入命令或搜索...',
+  placeholder: 'Type command or search...',
 })
 
 const emit = defineEmits<{
@@ -142,7 +145,7 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onGlobalKeydown))
             </div>
             <div class="max-h-72 overflow-auto p-1">
               <div v-if="filteredItems.length === 0" class="py-6 text-center text-sm text-muted-foreground">
-                未找到结果
+                {{ t('common.noResults') }}
               </div>
               <button
                 v-for="(item, index) in filteredItems"

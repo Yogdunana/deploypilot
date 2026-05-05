@@ -19,7 +19,7 @@ const clock = ref('')
 let timer: ReturnType<typeof setInterval>
 
 function updateClock() {
-  clock.value = new Date().toLocaleTimeString('zh-CN', { hour12: false })
+  clock.value = new Date().toLocaleTimeString(navigator.language || 'en-US', { hour12: false })
 }
 
 onMounted(() => {

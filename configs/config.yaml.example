@@ -4,7 +4,12 @@
 server:
   host: 0.0.0.0
   port: 8080
-  cors_allowed_origins: []
+  mcp_port: 9090           # MCP server port
+  web_port: 3000           # Web dashboard port (dev mode)
+  cors_allowed_origins: [] # CORS allowed origins (empty = no CORS)
+  cors_allow_credentials: false
+  cors_allow_methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+  cors_allow_headers: ["Authorization", "Content-Type", "X-Request-ID"]
 
 database:
   type: sqlite
@@ -34,6 +39,16 @@ security:
   rate_limit_admin: 150
   rate_limit_dev: 100
   rate_limit_viewer: 50
+  security_entrance: ""    # Panel security entrance path
+  allowed_domains: []      # Allowed domains for panel access
+  allowed_ips: []          # Allowed IPs for panel access
+  password_min_length: 8
+  password_require_uppercase: true
+  password_require_lowercase: true
+  password_require_digit: true
+  password_require_special: true
+  force_2fa_for_admin: false
+  force_2fa_for_dev: false
 
 audit:
   external_log_path: ""    # Optional: path for external audit log (JSON Lines)
@@ -88,6 +103,14 @@ backup:
   retention_count: 10
   retention_days: 30
   backup_dir: "data/backups"
+  cloud_enabled: false
+  cloud_type: ""           # s3, oss, cos, minio
+  cloud_endpoint: ""
+  cloud_region: ""
+  cloud_bucket: ""
+  cloud_access_key: ""
+  cloud_secret_key: ""     # Prefer env var
+  cloud_path_prefix: ""
 
 # 暴力破解防护
 bruteforce:
@@ -109,6 +132,7 @@ grafana:
   admin_password: ""
   annotations_enabled: true
   sync_interval: 60
+  prometheus_url: "http://localhost:9090"  # Prometheus URL for metrics
 
 # API 开放平台 (OAuth2)
 api_platform:
@@ -116,3 +140,31 @@ api_platform:
   max_clients_per_user: 10
   token_expire_hours: 24
   code_expire_minutes: 10
+
+# Cache configuration
+cache:
+  build_cache_ttl: "720h"    # Build cache time-to-live
+  build_cache_max: 50        # Maximum number of cached builds
+
+# Notification configuration
+notify:
+  default_channels: ["webhook"]  # Default notification channels
+
+# Kubernetes configuration
+kubernetes:
+  enabled: false
+  default_namespace: "default"
+  clusters: []
+
+# License configuration
+license:
+  public_key_file: ""        # Path to license public key file
+  public_key_base64: ""      # Base64 encoded public key
+  grace_days: 7              # Grace period days for license expiration
+  license_key: ""            # License key (prefer env var DEPLOYPILOT_LICENSE_KEY)
+
+# API Version configuration
+api_version:
+  current_version: "v1"
+  supported_versions: ["v1"]
+  deprecated_versions: {}

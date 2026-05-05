@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { ref, computed, watch, nextTick, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { Search, Lock, Unlock, Trash2 } from 'lucide-vue-next'
 import Button from '@/components/ui/Button.vue'
+
+const { t } = useI18n()
 
 export interface LogEntry {
   timestamp: string
@@ -92,7 +95,7 @@ function formatTimestamp(ts: string): string {
   if (!ts) return ''
   try {
     const date = new Date(ts)
-    return date.toLocaleTimeString('zh-CN', {
+    return date.toLocaleTimeString(navigator.language || 'en-US', {
       hour: '2-digit',
       minute: '2-digit',
       second: '2-digit',
@@ -119,7 +122,7 @@ onMounted(() => {
           class="inline-block w-2 h-2 rounded-full"
           :class="connected ? 'bg-green-500 shadow-[0_0_6px_rgba(34,197,94,0.5)]' : 'bg-red-500 shadow-[0_0_6px_rgba(239,68,68,0.5)]'"
         />
-        <span class="text-xs text-[#888888]">{{ connected ? '已连接' : '已断开' }}</span>
+        <span class="text-xs text-[#888888]">{{ connected ? t('common.connected') : t('common.disconnected') }}</span>
       </div>
 
       <div class="flex-1" />
@@ -130,7 +133,7 @@ onMounted(() => {
         <input
           v-model="searchQuery"
           type="text"
-          placeholder="搜索日志..."
+          :placeholder="t('common.searchLogsPlaceholder')"
           class="h-7 w-48 pl-7 pr-2 rounded-md border border-[#333333] bg-[#1a1a1a] text-xs text-[#d4d4d4] placeholder:text-[#555555] focus:outline-none focus:border-[#444444] focus:ring-1 focus:ring-[#444444]"
         />
       </div>
@@ -140,7 +143,7 @@ onMounted(() => {
         variant="ghost"
         size="icon"
         class="h-7 w-7 text-[#888888] hover:text-[#d4d4d4] hover:bg-[#222222]"
-        :title="scrollLocked ? '解锁滚动' : '锁定滚动'"
+        :title="scrollLocked ? t('common.unlockScroll') : t('common.lockScroll')"
         @click="toggleScrollLock"
       >
         <Lock v-if="scrollLocked" class="w-3.5 h-3.5" />
@@ -152,7 +155,7 @@ onMounted(() => {
         variant="ghost"
         size="icon"
         class="h-7 w-7 text-[#888888] hover:text-red-400 hover:bg-[#222222]"
-        title="清空日志"
+        :title="t('common.clearLogs')"
         @click="emit('clear')"
       >
         <Trash2 class="w-3.5 h-3.5" />
@@ -160,7 +163,7 @@ onMounted(() => {
 
       <!-- 日志计数 -->
       <span class="text-xs text-[#555555]">
-        {{ filteredLogs.length }} 条
+        {{ filteredLogs.length }} {{ t('common.countUnit') }}
       </span>
     </div>
 
@@ -172,7 +175,7 @@ onMounted(() => {
     >
       <!-- 空状态 -->
       <div v-if="filteredLogs.length === 0" class="flex items-center justify-center h-full">
-        <p class="text-sm text-[#555555]">暂无日志</p>
+        <p class="text-sm text-[#555555]">{{ t('common.noLogs') }}</p>
       </div>
 
       <!-- 日志行 -->

@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { cn } from '@/lib/utils'
 import { ChevronDown } from 'lucide-vue-next'
+
+const { t } = useI18n()
 
 interface SelectOption {
   label: string
@@ -18,7 +21,7 @@ interface Props {
 
 const props = withDefaults(defineProps<Props>(), {
   options: () => [],
-  placeholder: '请选择',
+  placeholder: 'Please select',
   disabled: false,
 })
 
