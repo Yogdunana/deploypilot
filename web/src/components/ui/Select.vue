@@ -21,7 +21,7 @@ interface Props {
 
 const props = withDefaults(defineProps<Props>(), {
   options: () => [],
-  placeholder: () => t('common.selectPlaceholder'),
+  placeholder: 'Please select',
   disabled: false,
 })
 

@@ -24,7 +24,7 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {
   open: false,
   items: () => [],
-  placeholder: () => t('common.commandPlaceholder'),
+  placeholder: 'Type command or search...',
 })
 
 const emit = defineEmits<{
