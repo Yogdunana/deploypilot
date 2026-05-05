@@ -37,7 +37,7 @@ export default {
     filter: 'Filter',
     export: 'Export',
     import: 'Import',
-    loadingHistory: 'Load History',
+    loadingHistory: 'Loading history...',
     clear: 'Clear',
     download: 'Download',
     viewAll: 'View All',
