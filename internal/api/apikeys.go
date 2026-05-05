@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -97,14 +98,16 @@ func CreateAPIKey(keySvc *service.APIKeyService, auditSvc *service.AuditService)
 		}
 
 		if auditSvc != nil {
-			_ = auditSvc.Record(c.Request.Context(), service.AuditEntry{
+			if err := auditSvc.Record(c.Request.Context(), service.AuditEntry{
 				UserID:       parseUserID(uid),
 				Username:     uid,
 				Action:       "apikey.create",
 				ResourceType: "apikey",
 				ResourceID:   apiKey.ID,
 				Detail:       map[string]string{"name": input.Name, "prefix": apiKey.KeyPrefix},
-			})
+			}); err != nil {
+				slog.WarnContext(c.Request.Context(), "failed to record audit log", "error", err)
+			}
 		}
 
 		respondSuccess(c, gin.H{
@@ -147,13 +150,15 @@ func DeleteAPIKey(keySvc *service.APIKeyService, auditSvc *service.AuditService)
 		}
 
 		if auditSvc != nil {
-			_ = auditSvc.Record(c.Request.Context(), service.AuditEntry{
+			if err := auditSvc.Record(c.Request.Context(), service.AuditEntry{
 				UserID:       parseUserID(uid),
 				Username:     uid,
 				Action:       "apikey.delete",
 				ResourceType: "apikey",
 				ResourceID:   keyID,
-			})
+			}}); err != nil {
+				slog.WarnContext(c.Request.Context(), "failed to record audit log", "error", err)
+			}
 		}
 
 		respondSuccess(c, gin.H{"message": "API key revoked", "id": keyID})
@@ -267,13 +272,15 @@ func UpdateAPIKey(keySvc *service.APIKeyService, auditSvc *service.AuditService)
 		}
 
 		if auditSvc != nil {
-			_ = auditSvc.Record(c.Request.Context(), service.AuditEntry{
+			if err := auditSvc.Record(c.Request.Context(), service.AuditEntry{
 				UserID:       parseUserID(uid),
 				Username:     uid,
 				Action:       "apikey.update",
 				ResourceType: "apikey",
 				ResourceID:   keyID,
-			})
+			}}); err != nil {
+				slog.WarnContext(c.Request.Context(), "failed to record audit log", "error", err)
+			}
 		}
 
 		respondSuccess(c, gin.H{"message": "API key updated", "id": keyID})
