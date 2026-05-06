@@ -214,6 +214,10 @@ func (s *Server) Run() error {
 		Addr:              s.addr,
 		Handler:           s.router,
 		ReadHeaderTimeout: 10 * time.Second,
+		MaxHeaderBytes:    1 << 20, // 1MB max header size
+		ReadTimeout:       30 * time.Second,
+		WriteTimeout:      30 * time.Second,
+		IdleTimeout:       120 * time.Second,
 	}
 	slog.Info("HTTP server listening", "addr", s.addr)
 	return s.httpSrv.ListenAndServe()

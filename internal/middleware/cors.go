@@ -52,6 +52,11 @@ func CORS(cfg CORSConfig) gin.HandlerFunc {
 		}
 	}
 
+	// Security: Reject wildcard with credentials configuration
+	if hasWildcard && cfg.AllowCredentials {
+		panic("CORS configuration error: AllowCredentials cannot be true when AllowedOrigins contains wildcard '*'")
+	}
+
 	return func(c *gin.Context) {
 		origin := c.GetHeader("Origin")
 
