@@ -143,7 +143,10 @@ func RenewSSLCertificate(db *gorm.DB) gin.HandlerFunc {
 		cert.RetryCount++
 		newExpiresAt := time.Now().AddDate(0, 0, 90)
 		cert.ExpiresAt = &newExpiresAt
-		db.Save(&cert)
+		if result := db.Save(&cert); result.Error != nil {
+			respondErrori18n(c, http.StatusInternalServerError, "error.ssl.failed_to_renew_certificate")
+			return
+		}
 		respondSuccess(c, gin.H{"data": cert, "message": "renewal initiated"})
 	}
 }

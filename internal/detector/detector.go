@@ -12,6 +12,13 @@ import (
 	"github.com/Yogdunana/deploypilot/internal/engine/deployer"
 )
 
+var (
+	versionFullRe    = regexp.MustCompile(`(\d+\.\d+\.\d+[a-z0-9]*)`)
+	versionPrefixedRe = regexp.MustCompile(`v(\d+\.\d+)`)
+	versionShortRe   = regexp.MustCompile(`(\d+\.\d+)`)
+	nginxVersionRe   = regexp.MustCompile(`(?:nginx|openresty)/([\d.]+)`)
+)
+
 // ComponentType represents the type of detected system component.
 type ComponentType string
 
@@ -472,15 +479,16 @@ func (d *Detector) detectOpenResty(ctx context.Context) (DetectedComponent, erro
 
 // extractVersion extracts a version string from command output using regex.
 func extractVersion(output string) string {
-	patterns := []string{
-		`(\d+\.\d+\.\d+[a-z0-9]*)`,  // e.g. 8.0.35, 15.2
-		`v(\d+\.\d+)`,                 // e.g. v7.2
-		`(\d+\.\d+)`,                  // e.g. 7.2
+	patterns := []struct {
+		re *regexp.Regexp
+	}{
+		{versionFullRe},
+		{versionPrefixedRe},
+		{versionShortRe},
 	}
 
-	for _, pattern := range patterns {
-		re := regexp.MustCompile(pattern)
-		matches := re.FindStringSubmatch(output)
+	for _, p := range patterns {
+		matches := p.re.FindStringSubmatch(output)
 		if len(matches) > 1 {
 			return matches[1]
 		}
@@ -495,7 +503,7 @@ func extractVersion(output string) string {
 // nginx -v output format: "nginx version: nginx/1.24.0" or "nginx version: openresty/1.25.3.1"
 func extractVersionFromNginxOutput(output string) string {
 	// Try to extract from "nginx/X.Y.Z" or "openresty/X.Y.Z"
-	re := regexp.MustCompile(`(?:nginx|openresty)/([\d.]+)`)
+	re := nginxVersionRe
 	matches := re.FindStringSubmatch(output)
 	if len(matches) > 1 {
 		return matches[1]

@@ -112,7 +112,9 @@ func RefreshToken() gin.HandlerFunc {
 		}
 
 		// Rotate: revoke old refresh token, issue new pair
-		_ = refreshStore.Revoke(refreshToken)
+		if err := refreshStore.Revoke(refreshToken); err != nil {
+			slog.WarnContext(c.Request.Context(), "failed to revoke old refresh token", "error", err)
+		}
 
 		// Generate new access token
 		accessToken, err := auth.GenerateToken(entry.UserID, entry.Role)
@@ -168,7 +170,9 @@ func LogoutAllDevices() gin.HandlerFunc {
 		}
 
 		if refreshStore != nil {
-			_ = refreshStore.RevokeAllForUser(uid)
+			if err := refreshStore.RevokeAllForUser(uid); err != nil {
+				slog.WarnContext(c.Request.Context(), "failed to revoke all refresh tokens", "error", err)
+			}
 		}
 
 		clearAuthCookies(c)

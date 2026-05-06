@@ -17,6 +17,8 @@ import (
 // FirewallType represents the detected firewall backend.
 type FirewallType string
 
+var ufwLineRe = regexp.MustCompile(`\[(\d+)\]\s+(\S+)\s+(ALLOW|DENY|REJECT)\s+IN\s+(.*)`)
+
 const (
 	FirewallTypeUFW      FirewallType = "ufw"
 	FirewallTypeFirewalld FirewallType = "firewalld"
@@ -369,8 +371,7 @@ func parseUFWOutput(output string) []FirewallRule {
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
 		// Match lines like: "[ 1] 22/tcp                   ALLOW IN    Anywhere"
-		re := regexp.MustCompile(`\[(\d+)\]\s+(\S+)\s+(ALLOW|DENY|REJECT)\s+IN\s+(.*)`)
-		matches := re.FindStringSubmatch(line)
+		matches := ufwLineRe.FindStringSubmatch(line)
 		if len(matches) >= 5 {
 			rules = append(rules, FirewallRule{
 				ID:     matches[1],
