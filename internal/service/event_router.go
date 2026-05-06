@@ -283,6 +283,11 @@ func (r *EventRouter) forwardToChannels(event BusEvent, channels []string) {
 
 	// Send via notification service
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				r.logger.Error("panic recovered in event notification", "event_id", event.ID, "panic", r)
+			}
+		}()
 		_, err := r.notifySvc.SendToChannels(r.ctx, notifType, appName, "", status, message, channelsStr)
 		if err != nil {
 			r.logger.Error("failed to route event notification",
