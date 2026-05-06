@@ -174,7 +174,7 @@ func (s *OAuthService) getUserInfo(ctx context.Context, provider, accessToken st
 	}
 	defer func() { _ = resp.Body.Close() }()
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20)) // 1MB max
 	if err != nil {
 		return nil, err
 	}

@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
+	"regexp"
 	"strings"
 	"time"
 
@@ -32,6 +33,33 @@ type AuditService struct {
 	hmacKey        []byte
 	externalWriter AuditWriter
 	onRecord       []func(AuditEntry) // callbacks invoked after successful record
+}
+
+// sensitiveFieldPattern matches field names that may contain sensitive data.
+var sensitiveFieldPattern = regexp.MustCompile(`(?i)(password|secret|token|api_key|apikey|private_key|credit_card|ssn|authorization|auth)`)
+
+// sanitizeAuditData recursively sanitizes sensitive fields in audit data.
+func sanitizeAuditData(data interface{}) interface{} {
+	switch v := data.(type) {
+	case map[string]interface{}:
+		sanitized := make(map[string]interface{}, len(v))
+		for key, val := range v {
+			if sensitiveFieldPattern.MatchString(key) {
+				sanitized[key] = "[REDACTED]"
+			} else {
+				sanitized[key] = sanitizeAuditData(val)
+			}
+		}
+		return sanitized
+	case []interface{}:
+		sanitized := make([]interface{}, len(v))
+		for i, val := range v {
+			sanitized[i] = sanitizeAuditData(val)
+		}
+		return sanitized
+	default:
+		return v
+	}
 }
 
 // OnRecord registers a callback to be invoked after each audit record is created.
@@ -136,7 +164,9 @@ func (s *AuditService) computeRecordHash(log *model.AuditLog) string {
 func (s *AuditService) Record(ctx context.Context, entry AuditEntry) error {
 	detail := ""
 	if entry.Detail != nil {
-		b, err := json.Marshal(entry.Detail)
+		// Sanitize sensitive fields before serialization
+		sanitized := sanitizeAuditData(entry.Detail)
+		b, err := json.Marshal(sanitized)
 		if err == nil {
 			detail = string(b)
 		}
