@@ -5,9 +5,94 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
+	"strings"
 	"sync"
 	"time"
 )
+
+// sensitiveFieldPatterns contains regex patterns for sensitive fields
+var sensitiveFieldPatterns = []*regexp.Regexp{
+	regexp.MustCompile(`(?i)password`),
+	regexp.MustCompile(`(?i)secret`),
+	regexp.MustCompile(`(?i)token`),
+	regexp.MustCompile(`(?i)api[_-]?key`),
+	regexp.MustCompile(`(?i)private[_-]?key`),
+	regexp.MustCompile(`(?i)credit[_-]?card`),
+	regexp.MustCompile(`(?i)ssn`),
+	regexp.MustCompile(`(?i)auth`),
+}
+
+// isSensitiveField checks if a field name indicates sensitive data
+func isSensitiveField(field string) bool {
+	for _, pattern := range sensitiveFieldPatterns {
+		if pattern.MatchString(field) {
+			return true
+		}
+	}
+	return false
+}
+
+// sanitizeValue masks sensitive values
+func sanitizeValue(value interface{}) interface{} {
+	if value == nil {
+		return nil
+	}
+	switch v := value.(type) {
+	case string:
+		if len(v) == 0 {
+			return v
+		}
+		// Mask all but first 4 and last 4 characters
+		if len(v) <= 8 {
+			return strings.Repeat("*", len(v))
+		}
+		return v[:4] + strings.Repeat("*", len(v)-8) + v[len(v)-4:]
+	case map[string]interface{}:
+		return sanitizeMap(v)
+	case []interface{}:
+		return sanitizeSlice(v)
+	default:
+		return value
+	}
+}
+
+// sanitizeMap recursively sanitizes a map
+func sanitizeMap(m map[string]interface{}) map[string]interface{} {
+	result := make(map[string]interface{}, len(m))
+	for k, v := range m {
+		if isSensitiveField(k) {
+			result[k] = "***REDACTED***"
+		} else {
+			result[k] = sanitizeValue(v)
+		}
+	}
+	return result
+}
+
+// sanitizeSlice recursively sanitizes a slice
+func sanitizeSlice(s []interface{}) []interface{} {
+	result := make([]interface{}, len(s))
+	for i, v := range s {
+		result[i] = sanitizeValue(v)
+	}
+	return result
+}
+
+// sanitizeAuditData sanitizes sensitive information from audit data
+func sanitizeAuditData(data interface{}) interface{} {
+	if data == nil {
+		return nil
+	}
+	switch v := data.(type) {
+	case map[string]interface{}:
+		return sanitizeMap(v)
+	case []interface{}:
+		return sanitizeSlice(v)
+	default:
+		return data
+	}
+}
 
 // AuditWriter defines the interface for writing audit entries to external storage.
 type AuditWriter interface {
@@ -39,17 +124,20 @@ func NewFileAuditWriter(filePath string) (*FileAuditWriter, error) {
 
 // Write appends an audit entry as a JSON line to the file.
 func (w *FileAuditWriter) Write(entry AuditEntry) error {
+	// Sanitize sensitive information from detail
+	sanitizedDetail := sanitizeAuditData(entry.Detail)
+
 	// Add timestamp
 	data := map[string]interface{}{
-		"timestamp":    time.Now().UTC().Format(time.RFC3339Nano),
-		"user_id":      fmt.Sprintf("%d", entry.UserID),
-		"username":     entry.Username,
-		"action":       entry.Action,
+		"timestamp":     time.Now().UTC().Format(time.RFC3339Nano),
+		"user_id":       fmt.Sprintf("%d", entry.UserID),
+		"username":      entry.Username,
+		"action":        entry.Action,
 		"resource_type": entry.ResourceType,
-		"resource_id":  entry.ResourceID,
-		"detail":       entry.Detail,
-		"ip_address":   entry.IPAddress,
-		"user_agent":   entry.UserAgent,
+		"resource_id":   entry.ResourceID,
+		"detail":        sanitizedDetail,
+		"ip_address":    entry.IPAddress,
+		"user_agent":    entry.UserAgent,
 	}
 
 	line, err := json.Marshal(data)

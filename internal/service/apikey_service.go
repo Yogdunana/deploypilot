@@ -38,8 +38,8 @@ func (s *APIKeyService) Create(ctx context.Context, userID, tenantID, name strin
 	}
 	rawKey := "dp_" + hex.EncodeToString(rawBytes)
 
-	// Hash the key for storage
-	hash := sha256.Sum256([]byte(rawKey))
+	// Hash the key with salt for storage
+	hash := sha256.Sum256([]byte(apiKeySalt + rawKey))
 	keyHash := hex.EncodeToString(hash[:])
 
 	// Prefix for identification (first 10 chars)
@@ -80,7 +80,7 @@ func (s *APIKeyService) Create(ctx context.Context, userID, tenantID, name strin
 // Validate checks if a raw API key is valid and not expired.
 // On success, it updates LastUsedAt and returns the APIKey.
 func (s *APIKeyService) Validate(ctx context.Context, rawKey string) (*model.APIKey, error) {
-	hash := sha256.Sum256([]byte(rawKey))
+	hash := sha256.Sum256([]byte(apiKeySalt + rawKey))
 	keyHash := hex.EncodeToString(hash[:])
 
 	var apiKey model.APIKey
