@@ -20,6 +20,8 @@ type FeatureFlagCache struct {
 	overrides map[string]map[string]*model.FeatureFlagOverride // flagKey -> tenantID -> override
 	loadedAt time.Time
 	ttl      time.Duration
+	// loadMu prevents cache stampede during cache refresh
+	loadMu sync.Mutex
 }
 
 // NewFeatureFlagCache creates a new cache with the given TTL.
@@ -165,10 +167,16 @@ func (b *Bridge) EvaluateFeature(ctx context.Context, featureKey string, tenantI
 	if tenantID != "" {
 		override := b.featureFlagCache.GetOverride(featureKey, tenantID)
 		if override == nil {
-			// Cache miss: try loading from DB
-			var dbOverride model.FeatureFlagOverride
-			if err := b.DB.Where("flag_key = ? AND tenant_id = ?", featureKey, tenantID).First(&dbOverride).Error; err == nil {
-				override = &dbOverride
+			// Cache miss: try loading from DB with stampede protection
+			b.featureFlagCache.loadMu.Lock()
+			defer b.featureFlagCache.loadMu.Unlock()
+			// Double-check after acquiring lock
+			override = b.featureFlagCache.GetOverride(featureKey, tenantID)
+			if override == nil {
+				var dbOverride model.FeatureFlagOverride
+				if err := b.DB.Where("flag_key = ? AND tenant_id = ?", featureKey, tenantID).First(&dbOverride).Error; err == nil {
+					override = &dbOverride
+				}
 			}
 		}
 		if override != nil {
@@ -179,10 +187,16 @@ func (b *Bridge) EvaluateFeature(ctx context.Context, featureKey string, tenantI
 	// 2. Check dynamic feature flag from DB
 	flag := b.featureFlagCache.Get(featureKey)
 	if flag == nil {
-		// Cache miss: try loading from DB
-		var dbFlag model.FeatureFlag
-		if err := b.DB.Where("key = ?", featureKey).First(&dbFlag).Error; err == nil {
-			flag = &dbFlag
+		// Cache miss: try loading from DB with stampede protection
+		b.featureFlagCache.loadMu.Lock()
+		defer b.featureFlagCache.loadMu.Unlock()
+		// Double-check after acquiring lock
+		flag = b.featureFlagCache.Get(featureKey)
+		if flag == nil {
+			var dbFlag model.FeatureFlag
+			if err := b.DB.Where("key = ?", featureKey).First(&dbFlag).Error; err == nil {
+				flag = &dbFlag
+			}
 		}
 	}
 	if flag != nil {

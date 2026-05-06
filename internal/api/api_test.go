@@ -229,7 +229,7 @@ func setupFullTestRouter(db *gorm.DB, bridge *service.Bridge) *gin.Engine {
 	auditSvc := service.NewAuditService(db)
 	backupSvc := backup.New(backup.Config{BackupDir: os.TempDir()}, db, "sqlite", "")
 	SetAuditVerificationAPI(NewAuditVerificationAPI(db, nil, []byte("test-audit-chain-key")))
-	RegisterRoutes(r, db, bridge, wsHub, auditSvc, nil, nil, nil, nil, backupSvc, nil, false, nil, nil)
+	RegisterRoutes(r, db, bridge, wsHub, auditSvc, nil, nil, nil, nil, backupSvc, nil, false, nil, nil, nil)
 	return r
 }
 

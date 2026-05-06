@@ -78,6 +78,7 @@ func statusColorInt(status string) int {
 // ===================== JSON Formatter =====================
 
 // JSONFormatter produces a standard JSON representation of the webhook payload.
+// It is the default formatter when no specific platform format is requested.
 type JSONFormatter struct{}
 
 // Format marshals the WebhookPayload to indented JSON.
@@ -95,6 +96,7 @@ func (f *JSONFormatter) Name() string { return "json" }
 // ===================== Slack Formatter =====================
 
 // SlackFormatter formats payloads for Slack Incoming Webhooks.
+// It converts webhook payloads into Slack's attachment format with color-coded status.
 type SlackFormatter struct{}
 
 // slackAttachment represents a Slack message attachment.
@@ -171,6 +173,7 @@ func (f *SlackFormatter) Name() string { return "slack" }
 // ===================== Discord Formatter =====================
 
 // DiscordFormatter formats payloads for Discord Webhooks.
+// It converts webhook payloads into Discord's embed format with appropriate color coding.
 type DiscordFormatter struct{}
 
 // discordEmbed represents a Discord embed object.
@@ -247,6 +250,7 @@ func (f *DiscordFormatter) Name() string { return "discord" }
 // ===================== Teams Formatter =====================
 
 // TeamsFormatter formats payloads as Microsoft Adaptive Cards for Teams.
+// It converts webhook payloads into Microsoft's Adaptive Card format for Teams integration.
 type TeamsFormatter struct{}
 
 // teamsAttachment is the top-level Teams webhook payload.
