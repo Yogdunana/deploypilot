@@ -16,6 +16,9 @@ import (
 	"gorm.io/gorm"
 )
 
+// apiKeySalt is the salt used for hashing API keys
+const apiKeySalt = "dp_v1_salt_9f8e7d6c5b4a3210"
+
 // APIKeyService handles API key CRUD and validation.
 type APIKeyService struct {
 	DB *gorm.DB
