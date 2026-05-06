@@ -38,6 +38,10 @@ func CreateApp(db *gorm.DB) gin.HandlerFunc {
 			respondErrori18n(c, http.StatusBadRequest, "error.app.name_and_repo_required")
 			return
 		}
+		if len(input.Name) > 255 || len(input.RepoURL) > 2048 {
+			respondErrori18n(c, http.StatusBadRequest, "error.common.input_too_long")
+			return
+		}
 
 		id := uuid.New().String()
 		tenantID := c.GetString(string(auth.UserIDKey))

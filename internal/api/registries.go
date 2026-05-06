@@ -67,6 +67,10 @@ func CreateRegistry() gin.HandlerFunc {
 		if input.TenantID == "" {
 			input.TenantID = "tenant-default"
 		}
+		if len(input.Name) > 255 || len(input.URL) > 2048 || len(input.Username) > 255 || len(input.Password) > 255 {
+			respondErrori18n(c, http.StatusBadRequest, "error.common.input_too_long")
+			return
+		}
 
 		registry, err := model.CreateRegistry(input.TenantID, input.Name, input.Provider, input.URL, input.Username, input.Password)
 		if err != nil {

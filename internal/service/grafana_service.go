@@ -359,6 +359,11 @@ func (s *GrafanaService) StartAnnotationListener(ctx context.Context) {
 	eventTypes := []EventType{EventDeploy, EventAlert, EventServer, EventSystem}
 	for _, et := range eventTypes {
 		go func(eventType EventType) {
+			defer func() {
+				if rv := recover(); rv != nil {
+					slog.Error("panic recovered in grafana annotation listener", "event_type", eventType, "panic", rv)
+				}
+			}()
 			ch := s.bus.SubscribeType(ctx, eventType)
 			for {
 				select {
