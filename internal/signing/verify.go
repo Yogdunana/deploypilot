@@ -67,7 +67,7 @@ func SignBinary(binaryPath, signaturePath string, signer *Signer) error {
 		return fmt.Errorf("failed to sign binary: %w", err)
 	}
 
-	if err := os.WriteFile(signaturePath, signature, 0644); err != nil {
+	if err := os.WriteFile(signaturePath, signature, 0640); err != nil {
 		return fmt.Errorf("failed to write signature file: %w", err)
 	}
 

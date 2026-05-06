@@ -58,6 +58,12 @@ func Register(db *gorm.DB) gin.HandlerFunc {
 			return
 		}
 
+		// Input length limits
+		if len(input.Username) > 255 || len(input.Email) > 255 || len(input.Password) > 128 {
+			respondErrori18n(c, http.StatusBadRequest, "error.common.input_too_long")
+			return
+		}
+
 		// Validate password complexity
 		if passwordValidator != nil {
 			if err := passwordValidator.Validate(input.Password); err != nil {
