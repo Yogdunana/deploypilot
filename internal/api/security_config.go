@@ -93,7 +93,7 @@ func UpdateSecurityConfig() gin.HandlerFunc {
 			Force2FAGraceDays       *int     `json:"force_2fa_grace_days"`
 		}
 		if err := c.ShouldBindJSON(&input); err != nil {
-			respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request", err.Error())
+			respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request")
 			return
 		}
 

@@ -50,7 +50,7 @@ func CreateNotification(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var input model.Provider
 		if err := c.ShouldBindJSON(&input); err != nil {
-			respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request", err.Error())
+			respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request")
 			return
 		}
 		if input.Name == "" {
@@ -92,7 +92,7 @@ func UpdateNotification(db *gorm.DB) gin.HandlerFunc {
 		id := c.Param("id")
 		var input model.Provider
 		if err := c.ShouldBindJSON(&input); err != nil {
-			respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request", err.Error())
+			respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request")
 			return
 		}
 

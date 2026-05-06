@@ -28,7 +28,7 @@ func TriggerCIBuild(bridge *service.Bridge) gin.HandlerFunc {
 			Branch   string `json:"branch" binding:"required"`
 		}
 		if err := c.ShouldBindJSON(&input); err != nil {
-			respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request", err.Error())
+			respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request")
 			return
 		}
 

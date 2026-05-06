@@ -49,7 +49,7 @@ func Verify2FA(db *gorm.DB, auditSvc *service.AuditService) gin.HandlerFunc {
 			Code       string `json:"code" binding:"required"`
 		}
 		if err := c.ShouldBindJSON(&input); err != nil {
-			respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request", err.Error())
+			respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request")
 			return
 		}
 
@@ -209,7 +209,7 @@ func Confirm2FA(db *gorm.DB, auditSvc *service.AuditService) gin.HandlerFunc {
 			Code string `json:"code" binding:"required"`
 		}
 		if err := c.ShouldBindJSON(&input); err != nil {
-			respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request", err.Error())
+			respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request")
 			return
 		}
 
@@ -274,7 +274,7 @@ func Disable2FA(db *gorm.DB, auditSvc *service.AuditService) gin.HandlerFunc {
 			Code string `json:"code" binding:"required"`
 		}
 		if err := c.ShouldBindJSON(&input); err != nil {
-			respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request", err.Error())
+			respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request")
 			return
 		}
 
@@ -346,7 +346,7 @@ func RegenerateBackupCodes(db *gorm.DB, auditSvc *service.AuditService) gin.Hand
 			Code string `json:"code" binding:"required"`
 		}
 		if err := c.ShouldBindJSON(&input); err != nil {
-			respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request", err.Error())
+			respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request")
 			return
 		}
 

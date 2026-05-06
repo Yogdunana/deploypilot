@@ -31,7 +31,7 @@ func CreateApp(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var input mcp.CreateAppConfig
 		if err := c.ShouldBindJSON(&input); err != nil {
-			respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request", err.Error())
+			respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request")
 			return
 		}
 		if input.Name == "" || input.RepoURL == "" {
@@ -179,7 +179,7 @@ func UpdateApp(db *gorm.DB) gin.HandlerFunc {
 		id := c.Param("id")
 		var updates map[string]interface{}
 		if err := c.ShouldBindJSON(&updates); err != nil {
-			respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request", err.Error())
+			respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request")
 			return
 		}
 
@@ -259,7 +259,7 @@ func DeployApp(bridge *service.Bridge) gin.HandlerFunc {
 
 		var cfg mcp.DeployConfig
 		if err := c.ShouldBindJSON(&cfg); err != nil {
-			respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request", err.Error())
+			respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request")
 			return
 		}
 
@@ -552,7 +552,7 @@ func UpdateAppEnv(db *gorm.DB) gin.HandlerFunc {
 			EnvVars string `json:"env_vars"`
 		}
 		if err := c.ShouldBindJSON(&input); err != nil {
-			respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request", err.Error())
+			respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request")
 			return
 		}
 

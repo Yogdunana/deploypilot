@@ -31,7 +31,7 @@ func AddServer(bridge *service.Bridge) gin.HandlerFunc {
 			User string `json:"user"`
 		}
 		if err := c.ShouldBindJSON(&input); err != nil {
-			respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request", err.Error())
+			respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request")
 			return
 		}
 		if input.Port == 0 {
@@ -93,7 +93,7 @@ func UpdateServer(bridge *service.Bridge) gin.HandlerFunc {
 		id := c.Param("id")
 		var config map[string]interface{}
 		if err := c.ShouldBindJSON(&config); err != nil {
-			respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request", err.Error())
+			respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request")
 			return
 		}
 

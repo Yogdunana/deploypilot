@@ -58,7 +58,7 @@ func CreateDNSRecord(bridge *service.Bridge) gin.HandlerFunc {
 			Value  string `json:"value" binding:"required"`
 		}
 		if err := c.ShouldBindJSON(&input); err != nil {
-			respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request", err.Error())
+			respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request")
 			return
 		}
 
@@ -100,7 +100,7 @@ func UpdateDNSRecord(bridge *service.Bridge) gin.HandlerFunc {
 			NewValue  string `json:"new_value" binding:"required"`
 		}
 		if err := c.ShouldBindJSON(&input); err != nil {
-			respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request", err.Error())
+			respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request")
 			return
 		}
 

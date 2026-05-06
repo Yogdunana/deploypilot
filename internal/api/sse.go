@@ -57,7 +57,7 @@ func DeployAsyncHandler(bridge *service.Bridge) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var cfg mcp.DeployConfig
 		if err := c.ShouldBindJSON(&cfg); err != nil {
-			respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request", err.Error())
+			respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request")
 			return
 		}
 

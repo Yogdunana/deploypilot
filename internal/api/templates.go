@@ -54,7 +54,7 @@ func CreateTemplate(db *gorm.DB) gin.HandlerFunc {
 			Port        int    `json:"port"`
 		}
 		if err := c.ShouldBindJSON(&input); err != nil {
-			respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request", err.Error())
+			respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request")
 			return
 		}
 
@@ -103,7 +103,7 @@ func UpdateTemplate(db *gorm.DB) gin.HandlerFunc {
 			Port        int    `json:"port"`
 		}
 		if err := c.ShouldBindJSON(&input); err != nil {
-			respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request", err.Error())
+			respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request")
 			return
 		}
 
