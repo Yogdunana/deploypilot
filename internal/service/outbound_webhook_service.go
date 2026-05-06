@@ -7,8 +7,11 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"net"
 	"net/http"
+	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	"golang.org/x/sync/semaphore"
@@ -33,6 +36,69 @@ type OutboundWebhookService struct {
 	bus    TypedEventBus
 	ctx    context.Context
 	cancel context.CancelFunc
+}
+
+// isPrivateIP checks if the given IP address is a private/reserved IP.
+func isPrivateIP(ip net.IP) bool {
+	privateRanges := []string{
+		"10.0.0.0/8",
+		"172.16.0.0/12",
+		"192.168.0.0/16",
+		"127.0.0.0/8",
+		"169.254.0.0/16",
+		"::1/128",
+		"fc00::/7",
+		"fe80::/10",
+	}
+	for _, cidr := range privateRanges {
+		_, ipNet, err := net.ParseCIDR(cidr)
+		if err != nil {
+			continue
+		}
+		if ipNet.Contains(ip) {
+			return true
+		}
+	}
+	return false
+}
+
+// validateWebhookURL checks if the URL is safe to call (SSRF protection).
+func validateWebhookURL(webhookURL string) error {
+	parsed, err := url.Parse(webhookURL)
+	if err != nil {
+		return fmt.Errorf("invalid URL: %w", err)
+	}
+
+	// Only allow http and https schemes
+	if parsed.Scheme != "http" && parsed.Scheme != "https" {
+		return fmt.Errorf("only http and https schemes are allowed")
+	}
+
+	// Check host is not empty
+	if parsed.Hostname() == "" {
+		return fmt.Errorf("URL must have a host")
+	}
+
+	// Block metadata service
+	if strings.Contains(parsed.Hostname(), "169.254.169.254") {
+		return fmt.Errorf("metadata service access is not allowed")
+	}
+
+	// Resolve hostname and check IP
+	ips, err := net.LookupIP(parsed.Hostname())
+	if err != nil {
+		// If we can't resolve, we'll allow it but log a warning
+		slog.Warn("could not resolve webhook URL hostname", "hostname", parsed.Hostname())
+		return nil
+	}
+
+	for _, ip := range ips {
+		if isPrivateIP(ip) {
+			return fmt.Errorf("private IP addresses are not allowed")
+		}
+	}
+
+	return nil
 }
 
 // NewOutboundWebhookService creates a new OutboundWebhookService.
@@ -112,6 +178,11 @@ func (s *OutboundWebhookService) Deliver(ctx context.Context, webhook *model.Out
 	// Compute timestamp and signature
 	timestamp := time.Now().Unix()
 	signature := SignWebhook(webhook.Secret, timestamp, body)
+
+	// Validate webhook URL (SSRF protection)
+	if err := validateWebhookURL(webhook.URL); err != nil {
+		return fmt.Errorf("invalid webhook URL: %w", err)
+	}
 
 	// Create HTTP request
 	timeout := time.Duration(webhook.Timeout) * time.Second
