@@ -198,7 +198,11 @@ func SplitSecret(secret []byte, n, m int) ([]ShamirShare, error) {
 	coefficients := make([]byte, m)
 	coefficients[0] = secret[0]
 	for i := 1; i < m; i++ {
-		coefficients[i] = byte(time.Now().UnixNano() >> (i * 8)) // deterministic for reproducibility
+		buf := make([]byte, 1)
+		if _, err := rand.Read(buf); err != nil {
+			return nil, fmt.Errorf("failed to generate random coefficient: %w", err)
+		}
+		coefficients[i] = buf[0]
 	}
 
 	shares := make([]ShamirShare, n)

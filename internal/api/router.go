@@ -209,21 +209,26 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 			roles.GET("", ListRoles(db))
 		}
 
-		// Audit logs
-		protected.GET("/audit-logs", ListAuditLogs(auditSvc))
-		protected.GET("/audit-logs/stats", GetAuditStats(auditSvc))
-		protected.GET("/audit-logs/export", ExportAuditLogs(auditSvc))
-		protected.POST("/audit-logs/archive", ArchiveAuditLogs(auditSvc))
-		protected.POST("/audit-logs/verify", VerifyAuditLogs(auditSvc))
-		protected.GET("/audit-logs/trace/:trace_id", GetAuditLogsByTraceID(auditSvc))
+		// Audit logs (restricted to owner/admin)
+		auditGroup := protected.Group("")
+		auditGroup.Use(auth.RoleRequired("owner", "admin"))
+		{
+			auditGroup.GET("/audit-logs", ListAuditLogs(auditSvc))
+			auditGroup.GET("/audit-logs/stats", GetAuditStats(auditSvc))
+			auditGroup.GET("/audit-logs/export", ExportAuditLogs(auditSvc))
+			auditGroup.POST("/audit-logs/archive", ArchiveAuditLogs(auditSvc))
+			auditGroup.POST("/audit-logs/verify", VerifyAuditLogs(auditSvc))
+			auditGroup.GET("/audit-logs/trace/:trace_id", GetAuditLogsByTraceID(auditSvc))
+		}
 
 		// Audit verification & compliance (Issue #155)
 		auditVerGroup := protected.Group("/audit")
+		auditVerGroup.Use(auth.RoleRequired("owner", "admin"))
 		{
 			auditVerGroup.GET("/verify", VerifyAuditChain)
 			auditVerGroup.GET("/export", ExportAuditLogsV2)
 			auditVerGroup.GET("/gdpr/export", GDPRExportUserData)
-			auditVerGroup.DELETE("/gdpr/delete", auth.RequireScope("delete"), auth.RoleRequired("owner", "admin"), GDPRDeleteUserData)
+			auditVerGroup.DELETE("/gdpr/delete", auth.RequireScope("delete"), GDPRDeleteUserData)
 			auditVerGroup.GET("/compliance", ComplianceReport)
 		}
 		protected.GET("/events", ListEventLogs(db))

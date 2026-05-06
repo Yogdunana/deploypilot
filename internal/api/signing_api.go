@@ -91,13 +91,13 @@ func VerifySignature(c *gin.Context) {
 
 	signer, err := globalSigningAPI.loadSignerFromModel(&activeKey)
 	if err != nil {
-		respondError(c, http.StatusInternalServerError, "failed to load signing key: "+err.Error())
+		respondError(c, http.StatusInternalServerError, "failed to load signing key")
 		return
 	}
 
 	verified, err := signing.VerifySelf("", ed25519.PublicKey(signer.PublicKeyBytes()))
 	if err != nil {
-		respondError(c, http.StatusInternalServerError, "failed to verify binary: "+err.Error())
+		respondError(c, http.StatusInternalServerError, "failed to verify binary")
 		return
 	}
 
@@ -124,7 +124,7 @@ func GenerateKeys(c *gin.Context) {
 
 	publicKey, privateKey, err := signing.GenerateKeyPair()
 	if err != nil {
-		respondError(c, http.StatusInternalServerError, "failed to generate key pair: "+err.Error())
+		respondError(c, http.StatusInternalServerError, "failed to generate key pair")
 		return
 	}
 
@@ -150,12 +150,12 @@ func GenerateKeys(c *gin.Context) {
 
 	// Deactivate all existing keys
 	if err := globalSigningAPI.db.Model(&model.SigningKey{}).Where("is_active = ?", true).Update("is_active", false).Error; err != nil {
-		respondError(c, http.StatusInternalServerError, "failed to deactivate old keys: "+err.Error())
+		respondError(c, http.StatusInternalServerError, "failed to deactivate old keys")
 		return
 	}
 
 	if err := globalSigningAPI.db.Create(&keyRecord).Error; err != nil {
-		respondError(c, http.StatusInternalServerError, "failed to save signing key: "+err.Error())
+		respondError(c, http.StatusInternalServerError, "failed to save signing key")
 		return
 	}
 
@@ -184,7 +184,7 @@ func RotateKeys(c *gin.Context) {
 
 	publicKey, privateKey, err := signing.GenerateKeyPair()
 	if err != nil {
-		respondError(c, http.StatusInternalServerError, "failed to generate key pair: "+err.Error())
+		respondError(c, http.StatusInternalServerError, "failed to generate key pair")
 		return
 	}
 
@@ -210,12 +210,12 @@ func RotateKeys(c *gin.Context) {
 
 	// Deactivate all existing keys (keep them in DB for verification)
 	if err := globalSigningAPI.db.Model(&model.SigningKey{}).Where("is_active = ?", true).Update("is_active", false).Error; err != nil {
-		respondError(c, http.StatusInternalServerError, "failed to deactivate old keys: "+err.Error())
+		respondError(c, http.StatusInternalServerError, "failed to deactivate old keys")
 		return
 	}
 
 	if err := globalSigningAPI.db.Create(&keyRecord).Error; err != nil {
-		respondError(c, http.StatusInternalServerError, "failed to save new signing key: "+err.Error())
+		respondError(c, http.StatusInternalServerError, "failed to save new signing key")
 		return
 	}
 
