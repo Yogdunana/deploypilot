@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"log/slog"
+	"strconv"
 	"sync"
 	"time"
 
@@ -342,13 +343,9 @@ func splitString(s string, sep rune, n int) []string {
 }
 
 func parseUnix(s string) int64 {
-	n := int64(0)
-	for _, c := range s {
-		if c >= '0' && c <= '9' {
-			n = n*10 + int64(c-'0')
-		} else {
-			break
-		}
+	n, err := strconv.ParseInt(s, 10, 64)
+	if err != nil {
+		return 0
 	}
 	return n
 }
