@@ -565,8 +565,13 @@ func TerminalWS(bridge *service.Bridge, hub *WSHub, ticketStore *auth.WSTicketSt
 					}
 				case "resize":
 					if m, ok := wsMsg.Data.(map[string]interface{}); ok {
-						rows := int(m["rows"].(float64))
-						cols := int(m["cols"].(float64))
+						rowsVal, ok1 := m["rows"].(float64)
+						colsVal, ok2 := m["cols"].(float64)
+						if !ok1 || !ok2 {
+							continue
+						}
+						rows := int(rowsVal)
+						cols := int(colsVal)
 						if rows < 1 || rows > 500 || cols < 1 || cols > 500 {
 							continue
 						}
