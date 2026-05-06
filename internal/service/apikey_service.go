@@ -27,6 +27,8 @@ func NewAPIKeyService(db *gorm.DB) *APIKeyService {
 }
 
 // Create generates a new API key. Returns the APIKey model and the raw key (shown only once).
+const apiKeySalt = "deploypilot-apikey-salt-v1"
+
 func (s *APIKeyService) Create(ctx context.Context, userID, tenantID, name string, scopes []string, expiresInDays int) (*model.APIKey, string, error) {
 	// Generate random key: dp_ + 32 hex chars = 35 chars total
 	rawBytes := make([]byte, 16)
@@ -36,7 +38,7 @@ func (s *APIKeyService) Create(ctx context.Context, userID, tenantID, name strin
 	rawKey := "dp_" + hex.EncodeToString(rawBytes)
 
 	// Hash the key for storage
-	hash := sha256.Sum256([]byte(rawKey))
+	hash := sha256.Sum256([]byte(apiKeySalt + rawKey))
 	keyHash := hex.EncodeToString(hash[:])
 
 	// Prefix for identification (first 10 chars)
@@ -77,7 +79,7 @@ func (s *APIKeyService) Create(ctx context.Context, userID, tenantID, name strin
 // Validate checks if a raw API key is valid and not expired.
 // On success, it updates LastUsedAt and returns the APIKey.
 func (s *APIKeyService) Validate(ctx context.Context, rawKey string) (*model.APIKey, error) {
-	hash := sha256.Sum256([]byte(rawKey))
+	hash := sha256.Sum256([]byte(apiKeySalt + rawKey))
 	keyHash := hex.EncodeToString(hash[:])
 
 	var apiKey model.APIKey
