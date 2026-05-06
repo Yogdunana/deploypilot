@@ -259,6 +259,11 @@ func Load(configPath string) (*Config, error) {
 		return nil, fmt.Errorf("failed to unmarshal config: %w", err)
 	}
 
+	// Validate required fields
+	if cfg.JWTSecret == "" {
+		return nil, fmt.Errorf("JWT_SECRET is required but not set")
+	}
+
 	return &cfg, nil
 }
 

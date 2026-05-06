@@ -522,6 +522,11 @@ func (s *OutboundWebhookService) handleEvent(event BusEvent) {
 		wh := &webhooks[i]
 		if s.matchesFilters(wh, event) {
 			go func() {
+				defer func() {
+					if r := recover(); r != nil {
+						slog.Error("panic recovered in webhook delivery", "webhook_id", wh.ID, "panic", r)
+					}
+				}()
 				if err := webhookSem.Acquire(s.ctx, 1); err != nil {
 					slog.Warn("webhook delivery skipped: context cancelled", "webhook_id", wh.ID)
 					return
