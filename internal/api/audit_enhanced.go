@@ -139,7 +139,7 @@ func buildAuditFilter(c *gin.Context) service.AuditFilter {
 		}
 	}
 	if v := c.Query("page_size"); v != "" {
-		if pageSize, err := strconv.Atoi(v); err == nil {
+		if pageSize, err := strconv.Atoi(v); err == nil && pageSize > 0 && pageSize <= 100 {
 			filter.PageSize = pageSize
 		}
 	}
