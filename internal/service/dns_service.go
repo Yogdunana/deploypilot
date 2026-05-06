@@ -117,10 +117,34 @@ func (b *Bridge) DNSListRecords(ctx context.Context, domain string) (interface{}
 
 	provider, err := b.getDNSProvider(ctx)
 	if err != nil {
+		// Cache empty result with short TTL to prevent repeated provider errors
+		if b.Cache != nil {
+			cacheKey := fmt.Sprintf("dns:%s:records", domain)
+			emptyResp := map[string]interface{}{
+				"status":  "error",
+				"domain":  domain,
+				"records": []map[string]interface{}{},
+			}
+			if cacheErr := b.Cache.SetJSON(ctx, cacheKey, emptyResp, 30*time.Second); cacheErr != nil {
+				slog.Warn("DNS cache set error (empty)", "error", cacheErr)
+			}
+		}
 		return nil, fmt.Errorf("DNS provider error: %w", err)
 	}
 	records, err := provider.ListRecords(ctx, domain)
 	if err != nil {
+		// Cache empty result with short TTL to prevent repeated query errors
+		if b.Cache != nil {
+			cacheKey := fmt.Sprintf("dns:%s:records", domain)
+			emptyResp := map[string]interface{}{
+				"status":  "error",
+				"domain":  domain,
+				"records": []map[string]interface{}{},
+			}
+			if cacheErr := b.Cache.SetJSON(ctx, cacheKey, emptyResp, 30*time.Second); cacheErr != nil {
+				slog.Warn("DNS cache set error (empty)", "error", cacheErr)
+			}
+		}
 		return nil, fmt.Errorf("DNS list records failed: %w", err)
 	}
 	// Convert to response format

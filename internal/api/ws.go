@@ -567,6 +567,9 @@ func TerminalWS(bridge *service.Bridge, hub *WSHub, ticketStore *auth.WSTicketSt
 					if m, ok := wsMsg.Data.(map[string]interface{}); ok {
 						rows := int(m["rows"].(float64))
 						cols := int(m["cols"].(float64))
+						if rows < 1 || rows > 500 || cols < 1 || cols > 500 {
+							continue
+						}
 						_ = session.SetWindowSize(rows, cols)
 					}
 				}

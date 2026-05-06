@@ -16,6 +16,7 @@ import (
 // FeatureFlagCache is an in-memory cache of feature flags with TTL.
 type FeatureFlagCache struct {
 	mu      sync.RWMutex
+	loadMu  sync.Mutex
 	flags   map[string]*model.FeatureFlag
 	overrides map[string]map[string]*model.FeatureFlagOverride // flagKey -> tenantID -> override
 	loadedAt time.Time
@@ -165,11 +166,17 @@ func (b *Bridge) EvaluateFeature(ctx context.Context, featureKey string, tenantI
 	if tenantID != "" {
 		override := b.featureFlagCache.GetOverride(featureKey, tenantID)
 		if override == nil {
-			// Cache miss: try loading from DB
-			var dbOverride model.FeatureFlagOverride
-			if err := b.DB.Where("flag_key = ? AND tenant_id = ?", featureKey, tenantID).First(&dbOverride).Error; err == nil {
-				override = &dbOverride
+			// Cache miss: acquire loadMu to prevent cache stampede
+			b.featureFlagCache.loadMu.Lock()
+			// double-check cache after acquiring lock
+			override = b.featureFlagCache.GetOverride(featureKey, tenantID)
+			if override == nil {
+				var dbOverride model.FeatureFlagOverride
+				if err := b.DB.Where("flag_key = ? AND tenant_id = ?", featureKey, tenantID).First(&dbOverride).Error; err == nil {
+					override = &dbOverride
+				}
 			}
+			b.featureFlagCache.loadMu.Unlock()
 		}
 		if override != nil {
 			return override.Enabled, nil
@@ -179,11 +186,17 @@ func (b *Bridge) EvaluateFeature(ctx context.Context, featureKey string, tenantI
 	// 2. Check dynamic feature flag from DB
 	flag := b.featureFlagCache.Get(featureKey)
 	if flag == nil {
-		// Cache miss: try loading from DB
-		var dbFlag model.FeatureFlag
-		if err := b.DB.Where("key = ?", featureKey).First(&dbFlag).Error; err == nil {
-			flag = &dbFlag
+		// Cache miss: acquire loadMu to prevent cache stampede
+		b.featureFlagCache.loadMu.Lock()
+		// double-check cache after acquiring lock
+		flag = b.featureFlagCache.Get(featureKey)
+		if flag == nil {
+			var dbFlag model.FeatureFlag
+			if err := b.DB.Where("key = ?", featureKey).First(&dbFlag).Error; err == nil {
+				flag = &dbFlag
+			}
 		}
+		b.featureFlagCache.loadMu.Unlock()
 	}
 	if flag != nil {
 		if flag.Status != model.FeatureFlagEnabled {

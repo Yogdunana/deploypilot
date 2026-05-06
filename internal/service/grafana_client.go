@@ -77,7 +77,7 @@ func (c *GrafanaClient) doRequest(method, path string, body interface{}) ([]byte
 	}
 	defer func() { _ = resp.Body.Close() }()
 
-	respBody, err := io.ReadAll(resp.Body)
+	respBody, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20)) // 1MB max
 	if err != nil {
 		return nil, resp.StatusCode, fmt.Errorf("read response body: %w", err)
 	}

@@ -145,7 +145,7 @@ func (s *OutboundWebhookService) Deliver(ctx context.Context, webhook *model.Out
 	} else {
 		defer func() { _ = resp.Body.Close() }()
 		statusCode = resp.StatusCode
-		respBytes, _ := io.ReadAll(resp.Body)
+		respBytes, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20)) // 1MB max
 		respBody = string(respBytes)
 	}
 
@@ -261,7 +261,7 @@ func (s *OutboundWebhookService) retryDelivery(webhook *model.OutboundWebhook, d
 		} else {
 			defer func() { _ = resp.Body.Close() }()
 			statusCode = resp.StatusCode
-			respBytes, _ := io.ReadAll(resp.Body)
+			respBytes, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20)) // 1MB max
 			respBody = string(respBytes)
 		}
 
@@ -373,7 +373,7 @@ func (s *OutboundWebhookService) TestDelivery(ctx context.Context, webhookID str
 	} else {
 		defer func() { _ = resp.Body.Close() }()
 		statusCode = resp.StatusCode
-		respBytes, _ := io.ReadAll(resp.Body)
+		respBytes, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20)) // 1MB max
 		respBody = string(respBytes)
 	}
 
