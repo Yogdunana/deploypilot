@@ -3,6 +3,7 @@ package api
 import (
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/Yogdunana/deploypilot/internal/model"
@@ -68,7 +69,7 @@ func RequestSSLCertificate(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var req struct {
 			Domain   string `json:"domain" binding:"required"`
-			Email    string `json:"email" binding:"required"`
+			Email    string `json:"email" binding:"required,email"`
 			Provider string `json:"provider"`
 		}
 		if err := c.ShouldBindJSON(&req); err != nil {

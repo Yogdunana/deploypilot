@@ -50,7 +50,7 @@ func Register(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var input struct {
 			Username string `json:"username" binding:"required"`
-			Email    string `json:"email" binding:"required"`
+			Email    string `json:"email" binding:"required,email"`
 			Password string `json:"password" binding:"required"`
 		}
 		if err := c.ShouldBindJSON(&input); err != nil {
