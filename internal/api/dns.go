@@ -62,6 +62,12 @@ func CreateDNSRecord(bridge *service.Bridge) gin.HandlerFunc {
 			return
 		}
 
+		validTypes := map[string]bool{"A": true, "AAAA": true, "CNAME": true, "MX": true, "TXT": true, "NS": true, "SRV": true, "CAA": true}
+		if !validTypes[input.Type] {
+			respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request", "invalid DNS record type")
+			return
+		}
+
 		record, err := bridge.DNSCreateRecord(c.Request.Context(), input.Domain, input.Type, input.Name, input.Value)
 		if err != nil {
 			respondErrori18n(c, http.StatusInternalServerError, "error.common.internal_error")

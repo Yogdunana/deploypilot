@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -30,6 +31,7 @@ func NewGrafanaClient(rawURL, apiKey, adminUser, adminPass string) (*GrafanaClie
 	}
 	if parsed.Scheme == "" {
 		parsed.Scheme = "http"
+		slog.Warn("Grafana URL uses HTTP, credentials will be transmitted in plaintext. Consider using HTTPS.")
 	}
 	return &GrafanaClient{
 		baseURL:   strings.TrimRight(parsed.String(), "/"),
