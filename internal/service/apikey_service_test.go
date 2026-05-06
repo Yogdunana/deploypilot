@@ -2,7 +2,11 @@ package service
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/Yogdunana/deploypilot/internal/model"
 	"gorm.io/driver/sqlite"
@@ -164,5 +168,105 @@ func TestHasScope(t *testing.T) {
 	}
 	if HasScope([]string{"read"}, "write") {
 		t.Error("should not have write scope")
+	}
+}
+
+func TestValidateExpiredKey(t *testing.T) {
+	db := setupAPIKeyTestDB(t)
+	svc := NewAPIKeyService(db)
+
+	// Create a key that expires immediately (negative days to simulate expiration)
+	apiKey, rawKey, err := svc.Create(context.TODO(), "user-1", "tenant-default", "expired-key", []string{"read"}, -1)
+	if err != nil {
+		t.Fatalf("Create() error = %v", err)
+	}
+
+	// Manually set expiration to past
+	past := time.Now().Add(-24 * time.Hour)
+	db.Model(apiKey).Update("expires_at", past)
+
+	// Validate should fail for expired key
+	_, err = svc.Validate(context.TODO(), rawKey)
+	if err == nil {
+		t.Error("Validate() should fail for expired key")
+	}
+	if err != nil && err.Error() != "API key expired" {
+		t.Errorf("Validate() error = %v, want 'API key expired'", err)
+	}
+}
+
+func TestValidateInvalidKey(t *testing.T) {
+	db := setupAPIKeyTestDB(t)
+	svc := NewAPIKeyService(db)
+
+	// Test various invalid key formats
+	invalidKeys := []string{
+		"dp_invalidkey123456789012345678",
+		"invalid_prefix_1234567890123456",
+		"",
+		"dp_",
+		"not_a_valid_key_at_all",
+	}
+
+	for _, key := range invalidKeys {
+		_, err := svc.Validate(context.TODO(), key)
+		if err == nil {
+			t.Errorf("Validate() should fail for invalid key: %q", key)
+		}
+	}
+}
+
+func TestValidateConcurrentAccess(t *testing.T) {
+	db := setupAPIKeyTestDB(t)
+	svc := NewAPIKeyService(db)
+
+	_, rawKey, err := svc.Create(context.TODO(), "user-1", "tenant-default", "concurrent-key", []string{"read"}, 0)
+	if err != nil {
+		t.Fatalf("Create() error = %v", err)
+	}
+
+	// Run concurrent validations
+	concurrency := 50
+	var wg sync.WaitGroup
+	errors := make(chan error, concurrency)
+
+	for i := 0; i < concurrency; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_, err := svc.Validate(context.TODO(), rawKey)
+			if err != nil {
+				errors <- err
+			}
+		}()
+	}
+
+	wg.Wait()
+	close(errors)
+
+	// Check that all validations succeeded
+	errCount := 0
+	for err := range errors {
+		if err != nil {
+			errCount++
+			t.Logf("Concurrent validation error: %v", err)
+		}
+	}
+
+	if errCount > 0 {
+		t.Errorf("Got %d errors during concurrent access", errCount)
+	}
+
+	// Verify usage count was incremented
+	var apiKey model.APIKey
+	hash := sha256.Sum256([]byte(rawKey))
+	keyHash := hex.EncodeToString(hash[:])
+	if err := db.Where("key_hash = ?", keyHash).First(&apiKey).Error; err != nil {
+		t.Fatalf("Failed to retrieve API key: %v", err)
+	}
+
+	// Usage count should reflect concurrent access (may not be exact due to race conditions)
+	if apiKey.UsageCount < 1 {
+		t.Errorf("UsageCount = %d, want at least 1", apiKey.UsageCount)
 	}
 }

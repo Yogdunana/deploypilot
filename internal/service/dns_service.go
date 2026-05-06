@@ -101,6 +101,9 @@ func (b *Bridge) DNSDeleteRecord(ctx context.Context, recordID string) error {
 
 // ---------- 21. DNSListRecords ----------
 
+// emptyRecordsTTL is the TTL for caching empty DNS records to prevent cache penetration.
+const emptyRecordsTTL = 1 * time.Minute
+
 func (b *Bridge) DNSListRecords(ctx context.Context, domain string) (interface{}, error) {
 	// Try cache first
 	if b.Cache != nil {
@@ -142,9 +145,14 @@ func (b *Bridge) DNSListRecords(ctx context.Context, domain string) (interface{}
 	}
 
 	// Cache the result (fire-and-forget)
+	// Use shorter TTL for empty results to prevent cache penetration
 	if b.Cache != nil {
 		cacheKey := fmt.Sprintf("dns:%s:records", domain)
-		if cacheErr := b.Cache.SetJSON(ctx, cacheKey, response, 10*time.Minute); cacheErr != nil {
+		ttl := 10 * time.Minute
+		if len(records) == 0 {
+			ttl = emptyRecordsTTL
+		}
+		if cacheErr := b.Cache.SetJSON(ctx, cacheKey, response, ttl); cacheErr != nil {
 			slog.Warn("DNS cache set error", "error", cacheErr)
 		}
 	}
