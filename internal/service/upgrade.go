@@ -283,7 +283,7 @@ func (us *UpgradeService) PerformUpgrade(ctx context.Context, targetVersion stri
 		us.emitProgress("download", fmt.Sprintf("download failed: %v", err), 40, "error")
 		// Auto-rollback
 		if err := us.restoreBinaries(backupDir); err != nil {
-			slog.Warn("auto-rollback failed after download error", "backup_dir", backupDir, "error", err)
+			slog.Error("auto-rollback failed after download error", "backup_dir", backupDir, "error", err)
 		}
 		return nil, fmt.Errorf("download: %w (auto-rollback attempted)", err)
 	}
@@ -294,7 +294,7 @@ func (us *UpgradeService) PerformUpgrade(ctx context.Context, targetVersion stri
 	if err := us.verifyBinaries(); err != nil {
 		us.emitProgress("verify", fmt.Sprintf("verification failed: %v", err), 70, "error")
 		if err := us.restoreBinaries(backupDir); err != nil {
-			slog.Warn("auto-rollback failed after verify error", "backup_dir", backupDir, "error", err)
+			slog.Error("auto-rollback failed after verify error", "backup_dir", backupDir, "error", err)
 		}
 		return nil, fmt.Errorf("verify: %w (auto-rollback attempted)", err)
 	}
@@ -304,7 +304,7 @@ func (us *UpgradeService) PerformUpgrade(ctx context.Context, targetVersion stri
 	if err := us.replaceBinaries(); err != nil {
 		us.emitProgress("replace", fmt.Sprintf("replace failed: %v", err), 80, "error")
 		if err := us.restoreBinaries(backupDir); err != nil {
-			slog.Warn("auto-rollback failed after replace error", "backup_dir", backupDir, "error", err)
+			slog.Error("auto-rollback failed after replace error", "backup_dir", backupDir, "error", err)
 		}
 		return nil, fmt.Errorf("replace: %w (auto-rollback attempted)", err)
 	}
@@ -314,7 +314,7 @@ func (us *UpgradeService) PerformUpgrade(ctx context.Context, targetVersion stri
 	if err := us.restartServices(); err != nil {
 		us.emitProgress("restart", fmt.Sprintf("restart failed: %v", err), 90, "error")
 		if err := us.restoreBinaries(backupDir); err != nil {
-			slog.Warn("auto-rollback failed after restart error", "backup_dir", backupDir, "error", err)
+			slog.Error("auto-rollback failed after restart error", "backup_dir", backupDir, "error", err)
 		}
 		return nil, fmt.Errorf("restart: %w (auto-rollback attempted)", err)
 	}
