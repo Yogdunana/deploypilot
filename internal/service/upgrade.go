@@ -355,13 +355,13 @@ func (us *UpgradeService) preflightChecks(targetVersion string) error {
 	}
 
 	// Check disk space (need at least 100MB free)
+	const minDiskSpace = 100 * 1024 * 1024 // 100MB
 	var stat syscall.Statfs_t
 	if err := syscall.Statfs(us.installDir, &stat); err != nil {
 		return fmt.Errorf("failed to stat filesystem: %w", err)
 	}
-	// 100MB in bytes
 	freeSpace := stat.Bavail * uint64(stat.Bsize)
-	if freeSpace < 100*1024*1024 {
+	if freeSpace < minDiskSpace {
 		return fmt.Errorf("insufficient disk space: %d bytes free, need at least 100MB", freeSpace)
 	}
 

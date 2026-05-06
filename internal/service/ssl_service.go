@@ -16,7 +16,7 @@ func (b *Bridge) ListSSLCertificates(ctx context.Context) (interface{}, error) {
 		return nil, fmt.Errorf("database not available")
 	}
 	var certs []model.SSLCertificate
-	if err := b.DB.Find(&certs).Error; err != nil {
+	if err := b.DB.Limit(100).Find(&certs).Error; err != nil {
 		return nil, fmt.Errorf("failed to list SSL certificates: %w", err)
 	}
 	return certs, nil

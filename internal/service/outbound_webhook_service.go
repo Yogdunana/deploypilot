@@ -22,6 +22,11 @@ import (
 
 var webhookSem = semaphore.NewWeighted(20) // max 20 concurrent webhook deliveries
 
+const (
+	webhookRetentionDays = 7
+	maxRetryDelay        = 30 * time.Second
+)
+
 // OutboundWebhookService manages outbound webhook CRUD, delivery, retry, and event subscription.
 type OutboundWebhookService struct {
 	db     *gorm.DB
@@ -205,9 +210,9 @@ func (s *OutboundWebhookService) retryDelivery(webhook *model.OutboundWebhook, d
 
 	for attempt < webhook.MaxRetries {
 		// Exponential backoff: delay = min(2^attempt * time.Second, 30*time.Second)
-		delay := 1 << uint(attempt)
-		if delay > 30 {
-			delay = 30
+		delay := time.Duration(1<<uint(attempt)) * time.Second
+		if delay > maxRetryDelay {
+			delay = maxRetryDelay
 		}
 		select {
 		case <-s.ctx.Done():
@@ -561,7 +566,7 @@ func (s *OutboundWebhookService) StartCleanupLoop(ctx context.Context) {
 			case <-ctx.Done():
 				return
 			case <-ticker.C:
-				cutoff := time.Now().AddDate(0, 0, -7)
+				cutoff := time.Now().AddDate(0, 0, -webhookRetentionDays)
 				result := s.db.WithContext(ctx).
 					Where("created_at < ?", cutoff).
 					Delete(&model.WebhookDelivery{})
