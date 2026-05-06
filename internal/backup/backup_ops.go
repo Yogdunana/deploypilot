@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -57,7 +58,7 @@ func (s *Service) CreateBackup(ctx context.Context, trigger string) (*Record, er
 	} else {
 		record.FilePath = backupPath
 		record.FileSize = fileSize
-		record.CreatedAt = time.Now()
+		record.CreatedAt = time.Now().UTC()
 	}
 
 	// Save record to database
@@ -90,7 +91,7 @@ func (s *Service) backupSQLite(ctx context.Context) (string, int64, error) {
 	}
 
 	// Generate backup filename with timestamp
-	timestamp := time.Now().Format("20060102-150405")
+	timestamp := time.Now().UTC().Format("20060102-150405")
 	backupPath := filepath.Join(s.config.BackupDir, fmt.Sprintf("db-%s.bak", timestamp))
 
 	// Use SQLite .backup command via a temporary connection
@@ -111,8 +112,10 @@ func (s *Service) backupSQLite(ctx context.Context) (string, int64, error) {
 		}
 	}()
 
-	// Validate backupPath doesn't contain single quotes (SQL injection prevention)
-	if strings.Contains(backupPath, "'") {
+	// Validate backupPath is a safe file path (SQL injection prevention)
+	// Only allow alphanumeric, underscore, hyphen, dot, and forward slash
+	validPathPattern := regexp.MustCompile(`^[a-zA-Z0-9_\-\./]+$`)
+	if !validPathPattern.MatchString(backupPath) {
 		return "", 0, fmt.Errorf("backup path contains invalid characters")
 	}
 	// Use BACKUP command for hot copy
@@ -155,7 +158,7 @@ func (s *Service) fileCopyBackup(srcPath, dstPath string) (string, int64, error)
 
 // backupGeneric creates a backup for non-SQLite databases using SQL dump.
 func (s *Service) backupGeneric(ctx context.Context) (string, int64, error) {
-	timestamp := time.Now().Format("20060102-150405")
+	timestamp := time.Now().UTC().Format("20060102-150405")
 
 	switch strings.ToLower(s.dbType) {
 	case "postgres":
@@ -178,7 +181,7 @@ func (s *Service) backupGeneric(ctx context.Context) (string, int64, error) {
 		// Fallback: write metadata-only backup file
 		backupPath := filepath.Join(s.config.BackupDir, fmt.Sprintf("db-%s.meta.json", timestamp))
 		meta := fmt.Sprintf(`{"type":"database","db_type":"%s","timestamp":"%s","note":"automated backup"}`,
-			s.dbType, time.Now().Format(time.RFC3339))
+			s.dbType, time.Now().UTC().Format(time.RFC3339))
 		if err := os.WriteFile(backupPath, []byte(meta), 0640); err != nil {
 			return "", 0, fmt.Errorf("failed to write backup metadata: %w", err)
 		}
