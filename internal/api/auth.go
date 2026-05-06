@@ -135,15 +135,18 @@ func Register(db *gorm.DB) gin.HandlerFunc {
 			}
 		}
 
-		respondSuccess(c, gin.H{
-			"user": model.User{
-				ID:       user.ID,
-				TenantID: user.TenantID,
-				RoleID:   user.RoleID,
-				Username: user.Username,
-				Email:    user.Email,
+		c.JSON(http.StatusCreated, gin.H{
+			"status": "success",
+			"data": gin.H{
+				"user": model.User{
+					ID:       user.ID,
+					TenantID: user.TenantID,
+					RoleID:   user.RoleID,
+					Username: user.Username,
+					Email:    user.Email,
+				},
+				"token": token,
 			},
-			"token": token,
 		})
 	}
 }

@@ -475,7 +475,7 @@ func streamContainerLogs(ctx context.Context, bridge *service.Bridge, containerN
 			if err != nil {
 				hub.Broadcast(appID, WSMessage{
 					Type:      "error",
-					Timestamp: time.Now().Format(time.RFC3339),
+					Timestamp: time.Now().UTC().Format(time.RFC3339),
 					Data:      err.Error(),
 					AppID:     appID,
 				})
@@ -483,7 +483,7 @@ func streamContainerLogs(ctx context.Context, bridge *service.Bridge, containerN
 			}
 			hub.Broadcast(appID, WSMessage{
 				Type:      "log",
-				Timestamp: time.Now().Format(time.RFC3339),
+				Timestamp: time.Now().UTC().Format(time.RFC3339),
 				Data:      logs,
 				AppID:     appID,
 			})
