@@ -52,10 +52,14 @@ func (h *WSMonitorHub) Run() {
 
 	case message := <-h.broadcast:
 		h.mu.RLock()
+		clients := make([]*websocket.Conn, 0, len(h.clients))
 		for conn := range h.clients {
-			_ = conn.WriteMessage(websocket.TextMessage, message)
+			clients = append(clients, conn)
 		}
 		h.mu.RUnlock()
+		for _, conn := range clients {
+			_ = conn.WriteMessage(websocket.TextMessage, message)
+		}
 
 	case <-h.done:
 		return
