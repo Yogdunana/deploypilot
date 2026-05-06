@@ -179,7 +179,21 @@ func UpdateApp(db *gorm.DB) gin.HandlerFunc {
 			return
 		}
 
-		if err := db.Model(&model.App{}).Where("id = ?", id).Updates(updates).Error; err != nil {
+		allowedFields := map[string]bool{
+			"name": true, "description": true, "git_repo": true,
+			"git_branch": true, "build_cmd": true, "deploy_path": true,
+			"env_vars": true, "auto_deploy": true, "dockerfile_path": true,
+			"docker_image": true, "compose_path": true, "health_check_path": true,
+			"health_check_interval": true, "notification_id": true,
+		}
+		filtered := make(map[string]interface{})
+		for k, v := range updates {
+			if allowedFields[k] {
+				filtered[k] = v
+			}
+		}
+
+		if err := db.Model(&model.App{}).Where("id = ?", id).Updates(filtered).Error; err != nil {
 			respondErrori18n(c, http.StatusInternalServerError, "error.common.internal_error")
 			return
 		}

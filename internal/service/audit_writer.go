@@ -47,7 +47,7 @@ func (w *FileAuditWriter) Write(entry AuditEntry) error {
 		"action":       entry.Action,
 		"resource_type": entry.ResourceType,
 		"resource_id":  entry.ResourceID,
-		"detail":       entry.Detail,
+		"detail":       sanitizeAuditData(entry.Detail),
 		"ip_address":   entry.IPAddress,
 		"user_agent":   entry.UserAgent,
 	}
