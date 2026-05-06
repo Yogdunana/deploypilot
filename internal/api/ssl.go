@@ -77,6 +77,12 @@ func RequestSSLCertificate(db *gorm.DB) gin.HandlerFunc {
 			return
 		}
 
+		// Validate domain format
+		if !isValidDomain(req.Domain) {
+			respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request", "invalid domain format")
+			return
+		}
+
 		cert := model.SSLCertificate{
 			Domain:    req.Domain,
 			Email:     req.Email,
@@ -150,4 +156,13 @@ func RenewSSLCertificate(db *gorm.DB) gin.HandlerFunc {
 		}
 		respondSuccess(c, gin.H{"data": cert, "message": "renewal initiated"})
 	}
+}
+
+// isValidDomain checks whether the given string looks like a valid domain name.
+func isValidDomain(domain string) bool {
+	if len(domain) == 0 || len(domain) > 253 {
+		return false
+	}
+	// Simple domain validation: must contain at least one dot, no spaces
+	return strings.Contains(domain, ".") && !strings.ContainsAny(domain, " \t\n")
 }

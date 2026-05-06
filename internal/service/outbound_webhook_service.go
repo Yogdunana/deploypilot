@@ -210,11 +210,20 @@ func (s *OutboundWebhookService) retryDelivery(webhook *model.OutboundWebhook, d
 
 	for attempt < webhook.MaxRetries {
 		// Exponential backoff: delay = min(2^attempt * time.Second, 30*time.Second)
-		delay := time.Duration(1<<uint(attempt)) * time.Second
-		if delay > maxRetryDelay {
-			delay = maxRetryDelay
+		delay := 1 << uint(attempt)
+		if delay > 30 {
+			delay = 30
 		}
-		time.Sleep(delay)
+
+		select {
+		case <-s.ctx.Done():
+			slog.Info("webhook retry cancelled: service shutting down",
+				"webhook_id", webhook.ID,
+				"event_id", delivery.EventID,
+			)
+			return
+		case <-time.After(time.Duration(delay) * time.Second):
+		}
 
 		attempt++
 
@@ -224,7 +233,7 @@ func (s *OutboundWebhookService) retryDelivery(webhook *model.OutboundWebhook, d
 			timeout = 10 * time.Second
 		}
 
-		ctx, cancel := context.WithTimeout(context.Background(), timeout)
+		ctx, cancel := context.WithTimeout(s.ctx, timeout)
 		defer cancel()
 
 		req, err := http.NewRequestWithContext(ctx, http.MethodPost, webhook.URL, bytes.NewReader([]byte(delivery.RequestBody)))
