@@ -416,7 +416,7 @@ func GetContainerLogs(bridge *service.Bridge) gin.HandlerFunc {
 		id := c.Param("id")
 		tail := 100
 		if t := c.Query("tail"); t != "" {
-			if parsed, err := strconv.Atoi(t); err == nil && parsed > 0 {
+			if parsed, err := strconv.Atoi(t); err == nil && parsed > 0 && parsed <= 10000 {
 				tail = parsed
 			}
 		}

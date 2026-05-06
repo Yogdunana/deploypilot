@@ -110,7 +110,7 @@ func CreateAPIKey(keySvc *service.APIKeyService, auditSvc *service.AuditService)
 			}
 		}
 
-		respondSuccess(c, gin.H{
+		c.JSON(http.StatusCreated, gin.H{"status": "success", "data": gin.H{
 			"id":         apiKey.ID,
 			"name":       apiKey.Name,
 			"key":        rawKey,
@@ -118,7 +118,7 @@ func CreateAPIKey(keySvc *service.APIKeyService, auditSvc *service.AuditService)
 			"scopes":     input.Scopes,
 			"expires_at": apiKey.ExpiresAt,
 			"created_at": apiKey.CreatedAt,
-		})
+		}})
 	}
 }
 

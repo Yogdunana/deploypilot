@@ -165,7 +165,10 @@ func (s *APIKeyService) Update(ctx context.Context, keyID, userID string, update
 // generateAPIKeyID generates a random hex ID for API keys.
 func generateAPIKeyID() string {
 	b := make([]byte, 12)
-	if _, err := rand.Read(b); err != nil { panic("failed to generate ID: " + err.Error()) }
+	if _, err := rand.Read(b); err != nil {
+		slog.Error("failed to generate random API key ID", "error", err)
+		return hex.EncodeToString([]byte(time.Now().Format("20060102150405")))
+	}
 	return hex.EncodeToString(b)
 }
 
