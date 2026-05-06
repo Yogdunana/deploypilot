@@ -107,7 +107,7 @@ func (a *EventPluginAPI) UpdateEventPlugin(c *gin.Context) {
 		Config  map[string]interface{} `json:"config"`
 	}
 	if err := c.ShouldBindJSON(&input); err != nil {
-		respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request", err.Error())
+		respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request")
 		return
 	}
 

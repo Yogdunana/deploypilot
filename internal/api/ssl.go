@@ -73,7 +73,7 @@ func RequestSSLCertificate(db *gorm.DB) gin.HandlerFunc {
 			Provider string `json:"provider"`
 		}
 		if err := c.ShouldBindJSON(&req); err != nil {
-			respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request", err.Error())
+			respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request")
 			return
 		}
 

@@ -25,14 +25,15 @@ func (b *Bridge) DeployAsync(ctx context.Context, cfg mcp.DeployConfig, appID st
 	go func() {
 		cs, deployErr := b.Deploy(ctx, cfg)
 		if deployErr != nil {
-			b.updateTask(taskID, "failed", 100, deployErr.Error())
+			slog.Error("deploy failed", "task_id", taskID, "app_id", appID, "error", deployErr)
+			b.updateTask(taskID, "failed", 100, "deploy failed: see server logs for details")
 			b.EventBus.Publish(DeployEvent{
 				TaskID:    taskID,
 				AppID:     appID,
 				Step:      "done",
 				Status:    "failed",
 				Progress:  100,
-				Message:   deployErr.Error(),
+				Message:   "deploy failed: see server logs for details",
 				Timestamp: time.Now().Format(time.RFC3339),
 				TraceID:   traceID,
 			})
@@ -166,10 +167,11 @@ func (b *Bridge) Deploy(ctx context.Context, cfg mcp.DeployConfig) (*mcp.Contain
 		metrics.DeployTotal.WithLabelValues(cfg.ContainerName, cfg.ServerID, "failed").Inc()
 		metrics.DeployDuration.Observe(time.Since(deployStart).Seconds())
 
+		slog.Error("deploy run failed", "app_id", cfg.ContainerName, "server_id", cfg.ServerID, "error", err)
 		b.EventBus.Publish(DeployEvent{
 			TaskID:    "", AppID: cfg.ContainerName,
 			Step: "run", Status: "failed", Progress: 60,
-			Message:   "deploy failed: " + err.Error(),
+			Message:   "deploy failed: see server logs for details",
 			Timestamp: time.Now().Format(time.RFC3339),
 		})
 

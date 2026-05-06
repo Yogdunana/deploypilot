@@ -78,7 +78,7 @@ func (h *PluginHandler) CreatePlugin() gin.HandlerFunc {
 			Priority    int    `json:"priority"`
 		}
 		if err := c.ShouldBindJSON(&input); err != nil {
-			respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request", err.Error())
+			respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request")
 			return
 		}
 		if input.TenantID == "" {
@@ -153,7 +153,7 @@ func (h *PluginHandler) UpdatePlugin() gin.HandlerFunc {
 		id := c.Param("id")
 		var input map[string]interface{}
 		if err := c.ShouldBindJSON(&input); err != nil {
-			respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request", err.Error())
+			respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request")
 			return
 		}
 

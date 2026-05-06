@@ -61,7 +61,7 @@ func CreateRegistry() gin.HandlerFunc {
 			Password string `json:"password"`
 		}
 		if err := c.ShouldBindJSON(&input); err != nil {
-			respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request", err.Error())
+			respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request")
 			return
 		}
 		if input.TenantID == "" {
@@ -130,7 +130,7 @@ func UpdateRegistry() gin.HandlerFunc {
 			Password string `json:"password"`
 		}
 		if err := c.ShouldBindJSON(&input); err != nil {
-			respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request", err.Error())
+			respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request")
 			return
 		}
 

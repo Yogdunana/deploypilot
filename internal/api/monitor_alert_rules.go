@@ -16,7 +16,7 @@ func CreateAlertRule(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var rule model.AlertRuleRecord
 		if err := c.ShouldBindJSON(&rule); err != nil {
-			respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request", err.Error())
+			respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request")
 			return
 		}
 
@@ -39,7 +39,7 @@ func UpdateAlertRule(db *gorm.DB) gin.HandlerFunc {
 
 		var rule model.AlertRuleRecord
 		if err := c.ShouldBindJSON(&rule); err != nil {
-			respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request", err.Error())
+			respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request")
 			return
 		}
 		rule.ID = id

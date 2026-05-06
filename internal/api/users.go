@@ -148,7 +148,7 @@ func UpdateUserRole(db *gorm.DB) gin.HandlerFunc {
 			RoleID string `json:"role_id" binding:"required"`
 		}
 		if err := c.ShouldBindJSON(&input); err != nil {
-			respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request", err.Error())
+			respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request")
 			return
 		}
 

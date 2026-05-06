@@ -1,6 +1,7 @@
 package api
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -54,7 +55,7 @@ func Register(db *gorm.DB) gin.HandlerFunc {
 			Password string `json:"password" binding:"required"`
 		}
 		if err := c.ShouldBindJSON(&input); err != nil {
-			respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request", err.Error())
+			respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request")
 			return
 		}
 
@@ -67,11 +68,19 @@ func Register(db *gorm.DB) gin.HandlerFunc {
 		// Validate password complexity
 		if passwordValidator != nil {
 			if err := passwordValidator.Validate(input.Password); err != nil {
-				c.JSON(http.StatusBadRequest, gin.H{
+				var pwdErr *middleware.PasswordValidationError
+				errorsAs := false
+				if errors.As(err, &pwdErr) {
+					errorsAs = true
+				}
+				resp := gin.H{
 					"status":  "error",
 					"message": "password does not meet security requirements",
-					"errors":  err.(*middleware.PasswordValidationError).Errors,
-				})
+				}
+				if errorsAs {
+					resp["errors"] = pwdErr.Errors
+				}
+				c.JSON(http.StatusBadRequest, resp)
 				return
 			}
 		}
@@ -275,7 +284,7 @@ func Login(db *gorm.DB, bf *bruteforce.Protector) gin.HandlerFunc {
 			Password string `json:"password" binding:"required"`
 		}
 		if err := c.ShouldBindJSON(&input); err != nil {
-			respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request", err.Error())
+			respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request")
 			return
 		}
 

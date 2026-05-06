@@ -37,7 +37,7 @@ func CreateCluster(bridge *service.Bridge) gin.HandlerFunc {
 			Tags           string `json:"tags"`
 		}
 		if err := c.ShouldBindJSON(&input); err != nil {
-			respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request", err.Error())
+			respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request")
 			return
 		}
 		if input.TenantID == "" {
@@ -154,7 +154,7 @@ func UpdateCluster(bridge *service.Bridge) gin.HandlerFunc {
 			NodeCount      *int   `json:"node_count"`
 		}
 		if err := c.ShouldBindJSON(&input); err != nil {
-			respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request", err.Error())
+			respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request")
 			return
 		}
 

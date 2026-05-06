@@ -69,7 +69,7 @@ func CreateAPIKey(keySvc *service.APIKeyService, auditSvc *service.AuditService)
 			ExpiresInDays int      `json:"expires_in_days"`
 		}
 		if err := c.ShouldBindJSON(&input); err != nil {
-			respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request", err.Error())
+			respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request")
 			return
 		}
 
@@ -228,7 +228,7 @@ func UpdateAPIKey(keySvc *service.APIKeyService, auditSvc *service.AuditService)
 			ExpiresInDays *int     `json:"expires_in_days"`
 		}
 		if err := c.ShouldBindJSON(&input); err != nil {
-			respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request", err.Error())
+			respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request")
 			return
 		}
 
