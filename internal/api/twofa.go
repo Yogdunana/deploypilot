@@ -593,7 +593,6 @@ var TwoFARL = newTwoFARateLimiter(10, 5*time.Minute)
 // @Tags         2FA
 // @Produce      json
 // @Failure      429 {object} map[string]interface{} "too many 2FA attempts"
-// @Router       /auth/2fa/verify [post]
 func Check2FARateLimit() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ip := c.ClientIP()
