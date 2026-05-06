@@ -209,7 +209,15 @@ func (s *OutboundWebhookService) retryDelivery(webhook *model.OutboundWebhook, d
 		if delay > 30 {
 			delay = 30
 		}
-		time.Sleep(time.Duration(delay) * time.Second)
+		select {
+		case <-s.ctx.Done():
+			slog.Info("webhook retry cancelled: service shutting down",
+				"webhook_id", webhook.ID,
+				"event_id", delivery.EventID,
+			)
+			return
+		case <-time.After(time.Duration(delay) * time.Second):
+		}
 
 		attempt++
 
@@ -219,7 +227,7 @@ func (s *OutboundWebhookService) retryDelivery(webhook *model.OutboundWebhook, d
 			timeout = 10 * time.Second
 		}
 
-		ctx, cancel := context.WithTimeout(context.Background(), timeout)
+		ctx, cancel := context.WithTimeout(s.ctx, timeout)
 		defer cancel()
 
 		req, err := http.NewRequestWithContext(ctx, http.MethodPost, webhook.URL, bytes.NewReader([]byte(delivery.RequestBody)))
