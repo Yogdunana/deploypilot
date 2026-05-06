@@ -26,6 +26,10 @@ func BatchDeployHandler(b *service.Bridge) gin.HandlerFunc {
 			respondErrori18n(c, http.StatusBadRequest, "apps list cannot be empty")
 			return
 		}
+		if len(input.Apps) > 100 {
+			respondErrori18n(c, http.StatusBadRequest, "batch size cannot exceed 100")
+			return
+		}
 
 		config := mcp.BatchDeployConfig{
 			Apps:          input.Apps,

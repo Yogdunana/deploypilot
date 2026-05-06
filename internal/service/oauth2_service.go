@@ -2,6 +2,7 @@ package service
 
 import (
 	"crypto/rand"
+	"crypto/subtle"
 	"database/sql"
 	"encoding/hex"
 	"encoding/json"
@@ -261,8 +262,8 @@ func (s *OAuth2Service) ClientCredentials(clientID, clientSecret string, scopes 
 		return nil, fmt.Errorf("failed to validate client: %w", err)
 	}
 
-	// Validate client secret
-	if client.ClientSecret != clientSecret {
+	// Validate client secret using constant-time comparison
+	if subtle.ConstantTimeCompare([]byte(client.ClientSecret), []byte(clientSecret)) != 1 {
 		return nil, fmt.Errorf("invalid client credentials")
 	}
 

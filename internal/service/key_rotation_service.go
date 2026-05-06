@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"crypto/ed25519"
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
@@ -194,11 +195,15 @@ func SplitSecret(secret []byte, n, m int) ([]ShamirShare, error) {
 		return nil, fmt.Errorf("total shares N cannot exceed 255")
 	}
 
-	// Generate random coefficients for polynomial
+	// Generate random coefficients for polynomial using cryptographic random
 	coefficients := make([]byte, m)
 	coefficients[0] = secret[0]
 	for i := 1; i < m; i++ {
-		coefficients[i] = byte(time.Now().UnixNano() >> (i * 8)) // deterministic for reproducibility
+		buf := make([]byte, 1)
+		if _, err := rand.Read(buf); err != nil {
+			return nil, fmt.Errorf("failed to generate random coefficient: %w", err)
+		}
+		coefficients[i] = buf[0]
 	}
 
 	shares := make([]ShamirShare, n)
