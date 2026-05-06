@@ -25,8 +25,8 @@ import (
 func ListAPIKeys(keySvc *service.APIKeyService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID, _ := c.Get(string(auth.UserIDKey))
-		uid, _ := userID.(string)
-		if uid == "" {
+		uid, ok := userID.(string)
+		if !ok || uid == "" {
 			respondErrori18n(c, http.StatusUnauthorized, "error.common.unauthorized")
 			return
 		}
@@ -56,8 +56,8 @@ func ListAPIKeys(keySvc *service.APIKeyService) gin.HandlerFunc {
 func CreateAPIKey(keySvc *service.APIKeyService, auditSvc *service.AuditService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID, _ := c.Get(string(auth.UserIDKey))
-		uid, _ := userID.(string)
-		if uid == "" {
+		uid, ok := userID.(string)
+		if !ok || uid == "" {
 			respondErrori18n(c, http.StatusUnauthorized, "error.common.unauthorized")
 			return
 		}
@@ -137,8 +137,8 @@ func CreateAPIKey(keySvc *service.APIKeyService, auditSvc *service.AuditService)
 func DeleteAPIKey(keySvc *service.APIKeyService, auditSvc *service.AuditService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID, _ := c.Get(string(auth.UserIDKey))
-		uid, _ := userID.(string)
-		if uid == "" {
+		uid, ok := userID.(string)
+		if !ok || uid == "" {
 			respondErrori18n(c, http.StatusUnauthorized, "error.common.unauthorized")
 			return
 		}
@@ -180,8 +180,8 @@ func DeleteAPIKey(keySvc *service.APIKeyService, auditSvc *service.AuditService)
 func GetAPIKey(keySvc *service.APIKeyService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID, _ := c.Get(string(auth.UserIDKey))
-		uid, _ := userID.(string)
-		if uid == "" {
+		uid, ok := userID.(string)
+		if !ok || uid == "" {
 			respondErrori18n(c, http.StatusUnauthorized, "error.common.unauthorized")
 			return
 		}
@@ -214,8 +214,8 @@ func GetAPIKey(keySvc *service.APIKeyService) gin.HandlerFunc {
 func UpdateAPIKey(keySvc *service.APIKeyService, auditSvc *service.AuditService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID, _ := c.Get(string(auth.UserIDKey))
-		uid, _ := userID.(string)
-		if uid == "" {
+		uid, ok := userID.(string)
+		if !ok || uid == "" {
 			respondErrori18n(c, http.StatusUnauthorized, "error.common.unauthorized")
 			return
 		}
@@ -302,8 +302,8 @@ func UpdateAPIKey(keySvc *service.APIKeyService, auditSvc *service.AuditService)
 func GetAPIKeyStats(keySvc *service.APIKeyService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID, _ := c.Get(string(auth.UserIDKey))
-		uid, _ := userID.(string)
-		if uid == "" {
+		uid, ok := userID.(string)
+		if !ok || uid == "" {
 			respondErrori18n(c, http.StatusUnauthorized, "error.common.unauthorized")
 			return
 		}

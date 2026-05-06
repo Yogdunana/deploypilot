@@ -122,8 +122,8 @@ func Verify2FA(db *gorm.DB, auditSvc *service.AuditService) gin.HandlerFunc {
 func Setup2FA(db *gorm.DB, auditSvc *service.AuditService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID, _ := c.Get(string(auth.UserIDKey))
-		uid, _ := userID.(string)
-		if uid == "" {
+		uid, ok := userID.(string)
+		if !ok || uid == "" {
 			respondErrori18n(c, http.StatusUnauthorized, "error.common.unauthorized")
 			return
 		}
@@ -199,8 +199,8 @@ func Setup2FA(db *gorm.DB, auditSvc *service.AuditService) gin.HandlerFunc {
 func Confirm2FA(db *gorm.DB, auditSvc *service.AuditService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID, _ := c.Get(string(auth.UserIDKey))
-		uid, _ := userID.(string)
-		if uid == "" {
+		uid, ok := userID.(string)
+		if !ok || uid == "" {
 			respondErrori18n(c, http.StatusUnauthorized, "error.common.unauthorized")
 			return
 		}
@@ -264,8 +264,8 @@ func Confirm2FA(db *gorm.DB, auditSvc *service.AuditService) gin.HandlerFunc {
 func Disable2FA(db *gorm.DB, auditSvc *service.AuditService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID, _ := c.Get(string(auth.UserIDKey))
-		uid, _ := userID.(string)
-		if uid == "" {
+		uid, ok := userID.(string)
+		if !ok || uid == "" {
 			respondErrori18n(c, http.StatusUnauthorized, "error.common.unauthorized")
 			return
 		}
@@ -336,8 +336,8 @@ func Disable2FA(db *gorm.DB, auditSvc *service.AuditService) gin.HandlerFunc {
 func RegenerateBackupCodes(db *gorm.DB, auditSvc *service.AuditService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID, _ := c.Get(string(auth.UserIDKey))
-		uid, _ := userID.(string)
-		if uid == "" {
+		uid, ok := userID.(string)
+		if !ok || uid == "" {
 			respondErrori18n(c, http.StatusUnauthorized, "error.common.unauthorized")
 			return
 		}
@@ -410,8 +410,8 @@ func RegenerateBackupCodes(db *gorm.DB, auditSvc *service.AuditService) gin.Hand
 func Get2FAStatus(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID, _ := c.Get(string(auth.UserIDKey))
-		uid, _ := userID.(string)
-		if uid == "" {
+		uid, ok := userID.(string)
+		if !ok || uid == "" {
 			respondErrori18n(c, http.StatusUnauthorized, "error.common.unauthorized")
 			return
 		}
