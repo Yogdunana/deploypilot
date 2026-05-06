@@ -2,7 +2,9 @@ package api
 
 import (
 	"net/http"
+	"path/filepath"
 	"strconv"
+	"strings"
 
 	"github.com/Yogdunana/deploypilot/internal/sandbox"
 	"github.com/Yogdunana/deploypilot/internal/service"
@@ -73,6 +75,13 @@ func (f *FileManagerAPI) WriteFile(c *gin.Context) {
 		Content string `json:"content"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
+		respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request")
+		return
+	}
+
+	// Reject path traversal attempts
+	cleanPath := filepath.Clean(req.Path)
+	if strings.Contains(cleanPath, "..") {
 		respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request")
 		return
 	}
