@@ -27,7 +27,7 @@ var globalMonitorAPI *MonitorAPI
 func GetGlobalMonitorAPI() *MonitorAPI { return globalMonitorAPI }
 
 // RegisterRoutes registers all API routes on the given Gin engine.
-func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *WSHub, auditSvc *service.AuditService, pluginManager *plugin.Manager, eventPluginMgr *plugin.EventPluginManager, blacklist auth.TokenBlacklist, oauthSvc *service.OAuthService, backupSvc *backup.Service, keySvc *service.APIKeyService, metricsPublic bool, grafanaCfg *config.GrafanaConfig, apiPlatformCfg *config.APIPlatformConfig) {
+func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *WSHub, auditSvc *service.AuditService, pluginManager *plugin.Manager, eventPluginMgr *plugin.EventPluginManager, blacklist auth.TokenBlacklist, oauthSvc *service.OAuthService, backupSvc *backup.Service, keySvc *service.APIKeyService, metricsPublic bool, grafanaCfg *config.GrafanaConfig, apiPlatformCfg *config.APIPlatformConfig, rateLimiter *middleware.RateLimiter) {
 	// Swagger documentation — only accessible in development mode.
 	// In production, the endpoint is disabled to prevent information leakage.
 	if os.Getenv("DEPLOYPILOT_ENV") == "development" || os.Getenv("GIN_MODE") == "debug" {
@@ -69,6 +69,9 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 	}
 
 	wsGroup := r.Group("/ws")
+	if rateLimiter != nil {
+		wsGroup.Use(rateLimiter.Middleware())
+	}
 	{
 		wsGroup.GET("/logs/:app_id", LogStreamWS(bridge, wsHub, ticketStore))
 		wsGroup.GET("/terminal/:server_id", TerminalWS(bridge, wsHub, ticketStore))
@@ -79,6 +82,9 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 	// SSE routes (requires auth)
 	sseGroup := api.Group("/sse")
 	sseGroup.Use(auth.AuthMiddleware(blacklist))
+	if rateLimiter != nil {
+		sseGroup.Use(rateLimiter.Middleware())
+	}
 	{
 		sseGroup.GET("/deploy/:app_id", DeploySSE(bridge))
 		sseGroup.GET("/alerts", AlertSSE(bridge))
