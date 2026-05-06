@@ -210,6 +210,11 @@ func (e *AlertEngine) escalateAlert(ctx context.Context, group *model.AlertGroup
 	if e.notifySvc != nil && len(step.Channels) > 0 {
 		channels := strings.Join(step.Channels, ",")
 		go func() {
+			defer func() {
+				if rv := recover(); rv != nil {
+					e.logger.Error("panic recovered in escalation notification", "group_key", group.GroupKey, "panic", rv)
+				}
+			}()
 			_, err := e.notifySvc.SendToChannels(ctx, "alert", group.GroupKey, "", step.Severity, message, channels)
 			if err != nil {
 				e.logger.Error("failed to send escalation notification", "error", err)
