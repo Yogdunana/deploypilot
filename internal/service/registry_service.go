@@ -54,6 +54,11 @@ func (b *Bridge) RegistryOps(registryID string, operation string, args map[strin
 		}
 	}
 
+	// SSRF protection: validate registry URL
+	if err := validateWebhookURL(regURL); err != nil {
+		return nil, fmt.Errorf("invalid registry URL: %w", err)
+	}
+
 	// Create registry provider via plugin registry
 	config := map[string]interface{}{
 		"url":      regURL,

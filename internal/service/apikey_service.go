@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"os"
 	"strings"
 	"time"
 
@@ -27,7 +28,13 @@ func NewAPIKeyService(db *gorm.DB) *APIKeyService {
 }
 
 // Create generates a new API key. Returns the APIKey model and the raw key (shown only once).
-const apiKeySalt = "deploypilot-apikey-salt-v1"
+// apiKeySalt is loaded from environment variable DEPLOYPILOT_APIKEY_SALT with a default fallback.
+var apiKeySalt = func() string {
+	if s := os.Getenv("DEPLOYPILOT_APIKEY_SALT"); s != "" {
+		return s
+	}
+	return "deploypilot-apikey-salt-v1"
+}()
 
 func (s *APIKeyService) Create(ctx context.Context, userID, tenantID, name string, scopes []string, expiresInDays int) (*model.APIKey, string, error) {
 	// Generate random key: dp_ + 32 hex chars = 35 chars total
@@ -165,7 +172,10 @@ func (s *APIKeyService) Update(ctx context.Context, keyID, userID string, update
 // generateAPIKeyID generates a random hex ID for API keys.
 func generateAPIKeyID() string {
 	b := make([]byte, 12)
-	if _, err := rand.Read(b); err != nil { panic("failed to generate ID: " + err.Error()) }
+	if _, err := rand.Read(b); err != nil {
+		slog.Error("failed to generate random API key ID", "error", err)
+		return hex.EncodeToString([]byte(time.Now().Format("20060102150405.999999999")))
+	}
 	return hex.EncodeToString(b)
 }
 

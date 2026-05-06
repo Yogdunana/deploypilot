@@ -73,7 +73,7 @@ func CreateRegistry() gin.HandlerFunc {
 			respondErrori18n(c, http.StatusInternalServerError, "error.common.internal_error")
 			return
 		}
-		respondSuccess(c, registry)
+		c.JSON(http.StatusCreated, gin.H{"status": "success", "data": registry})
 	}
 }
 

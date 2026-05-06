@@ -10,6 +10,7 @@ import (
 	"github.com/Yogdunana/deploypilot/internal/config"
 	"github.com/Yogdunana/deploypilot/internal/crypto"
 	"github.com/Yogdunana/deploypilot/internal/model"
+	"github.com/Yogdunana/deploypilot/internal/util"
 	"github.com/google/uuid"
 	"golang.org/x/oauth2"
 	"gorm.io/gorm"
@@ -160,7 +161,7 @@ func (s *OAuthService) getUserInfo(ctx context.Context, provider, accessToken st
 		return nil, fmt.Errorf("unsupported OAuth provider: %s", provider)
 	}
 
-	client := &http.Client{}
+	client := util.DefaultClient
 	req, err := http.NewRequestWithContext(ctx, "GET", p.UserInfoURL(), nil)
 	if err != nil {
 		return nil, err
