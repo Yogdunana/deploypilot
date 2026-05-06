@@ -33,6 +33,10 @@ func GenerateDeviceID(userAgent, ip string) string {
 // hexEncode converts a byte slice to a lowercase hex string.
 func hexEncode(b []byte) string {
 	const hexChars = "0123456789abcdef"
+	// Guard against integer overflow on very large inputs
+	if len(b) > (1<<30) {
+		b = b[:1<<30]
+	}
 	result := make([]byte, len(b)*2)
 	for i, v := range b {
 		result[i*2] = hexChars[v>>4]

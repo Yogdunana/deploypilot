@@ -52,7 +52,7 @@ func BatchDeployHandler(b *service.Bridge) gin.HandlerFunc {
 
 		result, err := b.BatchDeployWithConfig(c.Request.Context(), config)
 		if err != nil {
-			respondErrori18n(c, http.StatusInternalServerError, err.Error())
+			respondErrori18n(c, http.StatusInternalServerError, "error.common.internal_error")
 			return
 		}
 

@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"time"
@@ -13,6 +14,7 @@ import (
 	"github.com/Yogdunana/deploypilot/internal/metrics"
 	"github.com/Yogdunana/deploypilot/internal/model"
 	"github.com/Yogdunana/deploypilot/internal/tracing"
+	"gorm.io/gorm"
 )
 
 // ---------- 1. Deploy ----------
@@ -391,7 +393,10 @@ func (b *Bridge) findPreviousSuccessfulImage(ctx context.Context, containerName 
 		Limit(1).
 		First(&record).Error
 	if err != nil {
-		return "", fmt.Errorf("no successful deployment found for container %s", containerName)
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return "", fmt.Errorf("no successful deployment found for container %s", containerName)
+		}
+		return "", fmt.Errorf("failed to query deployment record: %w", err)
 	}
 
 	return record.Image, nil

@@ -118,7 +118,7 @@ func (a *OAuth2API) CreateClient(c *gin.Context) {
 	svc := service.NewOAuth2Service(a.db, a.cfg)
 	client, secret, err := svc.CreateClient(userID, req.Name, req.RedirectURIs, req.Scopes, req.GrantTypes)
 	if err != nil {
-		respondError(c, http.StatusBadRequest, err.Error())
+		respondError(c, http.StatusBadRequest, "invalid request")
 		return
 	}
 
@@ -290,7 +290,7 @@ func (a *OAuth2API) Authorize(c *gin.Context) {
 	svc := service.NewOAuth2Service(a.db, a.cfg)
 	authz, err := svc.CreateAuthorization(req.ClientID, userID, req.Scopes)
 	if err != nil {
-		respondError(c, http.StatusBadRequest, err.Error())
+		respondError(c, http.StatusBadRequest, "invalid request")
 		return
 	}
 
@@ -348,7 +348,7 @@ func (a *OAuth2API) Token(c *gin.Context) {
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{
 				"error":             "invalid_grant",
-				"error_description": err.Error(),
+				"error_description": "internal server error",
 			})
 			return
 		}
@@ -370,7 +370,7 @@ func (a *OAuth2API) Token(c *gin.Context) {
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{
 				"error":             "invalid_client",
-				"error_description": err.Error(),
+				"error_description": "internal server error",
 			})
 			return
 		}
@@ -388,7 +388,7 @@ func (a *OAuth2API) Token(c *gin.Context) {
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{
 				"error":             "invalid_grant",
-				"error_description": err.Error(),
+				"error_description": "internal server error",
 			})
 			return
 		}
@@ -416,7 +416,7 @@ func (a *OAuth2API) RefreshToken(c *gin.Context) {
 	svc := service.NewOAuth2Service(a.db, a.cfg)
 	token, err := svc.RefreshToken(req.RefreshToken)
 	if err != nil {
-		respondError(c, http.StatusBadRequest, err.Error())
+		respondError(c, http.StatusBadRequest, "invalid request")
 		return
 	}
 
@@ -436,7 +436,7 @@ func (a *OAuth2API) RevokeToken(c *gin.Context) {
 
 	svc := service.NewOAuth2Service(a.db, a.cfg)
 	if err := svc.RevokeToken(req.AccessToken); err != nil {
-		respondError(c, http.StatusBadRequest, err.Error())
+		respondError(c, http.StatusBadRequest, "invalid request")
 		return
 	}
 

@@ -2,7 +2,9 @@ package api
 
 import (
 	"net/http"
+	"path/filepath"
 	"strconv"
+	"strings"
 
 	"github.com/Yogdunana/deploypilot/internal/sandbox"
 	"github.com/Yogdunana/deploypilot/internal/service"
@@ -61,18 +63,22 @@ func (f *FileManagerAPI) ReadFile(c *gin.Context) {
 // WriteFile writes content to a remote file.
 // PUT /api/v1/servers/:server_id/files/write
 func (f *FileManagerAPI) WriteFile(c *gin.Context) {
+	// Limit request body to 10MB
 	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 10*1024*1024)
 
 	serverID := c.Param("server_id")
-
-	// Limit request body to 10MB
-	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 10*1024*1024)
 
 	var req struct {
 		Path    string `json:"path" binding:"required"`
 		Content string `json:"content"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
+		respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request")
+		return
+	}
+
+	// Reject path traversal attempts
+	if strings.Contains(filepath.Clean(req.Path), "..") {
 		respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request")
 		return
 	}
