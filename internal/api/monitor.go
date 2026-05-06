@@ -128,12 +128,12 @@ func HealContainer(bridge *service.Bridge) gin.HandlerFunc {
 
 // CheckContainerHealth runs a health check for a specific container.
 // @Summary      Check container health
-// @Description  Run a health check for a specific container
+// @Description  Retrieve the current status of a specific container (read-only health check, does not trigger self-healing)
 // @Tags         Monitor
 // @Produce      json
 // @Security     BearerAuth
 // @Param        name path string true "Container name"
-// @Success      200 {object} map[string]interface{} "status, data (health check result)"
+// @Success      200 {object} map[string]interface{} "status, data (container status)"
 // @Failure      400 {object} map[string]interface{} "container name is required"
 // @Failure      401 {object} map[string]interface{} "unauthorized"
 // @Failure      500 {object} map[string]interface{} "internal error"
@@ -145,7 +145,7 @@ func CheckContainerHealth(bridge *service.Bridge) gin.HandlerFunc {
 			respondErrori18n(c, http.StatusBadRequest, "error.monitor.container_name_required")
 			return
 		}
-		data, err := bridge.HealContainer(c.Request.Context(), name)
+		data, err := bridge.GetContainerStatus(c.Request.Context(), name)
 		if err != nil {
 			respondErrori18n(c, http.StatusInternalServerError, "error.common.internal_error")
 			return
