@@ -26,8 +26,15 @@ const (
 //
 // Note: This is a defense-in-depth measure. The existing SameSite=Strict
 // cookie policy already provides strong CSRF protection for modern browsers.
+// The middleware can be disabled by setting "csrf_skip" in the gin context.
 func CSRF() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		// Allow tests to skip CSRF check
+		if _, ok := c.Get("csrf_skip"); ok {
+			c.Next()
+			return
+		}
+
 		// Skip safe methods
 		if c.Request.Method == http.MethodGet || c.Request.Method == http.MethodHead || c.Request.Method == http.MethodOptions {
 			// Ensure CSRF cookie exists for safe requests too

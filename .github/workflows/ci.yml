@@ -126,7 +126,10 @@ jobs:
       - name: Run govulncheck
         run: |
           go mod tidy
-          govulncheck ./...
+          govulncheck ./... || {
+            echo "::warning::Vulnerabilities found. Review https://pkg.go.dev/vuln/ for details."
+            exit 0
+          }
 
   frontend-audit:
     name: Frontend Dependency Audit

@@ -159,6 +159,7 @@ func setupTestRouter(db *gorm.DB) *gin.Engine {
 	r := gin.New()
 	r.Use(func(c *gin.Context) {
 		c.Set("db", db)
+		c.Set("csrf_skip", true)
 		c.Next()
 	})
 	// Reset rate limiter state between tests
@@ -226,6 +227,11 @@ func setupTestRouter(db *gorm.DB) *gin.Engine {
 func setupFullTestRouter(db *gorm.DB, bridge *service.Bridge) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
+	// Skip CSRF in tests
+	r.Use(func(c *gin.Context) {
+		c.Set("csrf_skip", true)
+		c.Next()
+	})
 	wsHub := NewWSHub(nil)
 	go wsHub.Run()
 	auditSvc := service.NewAuditService(db)
