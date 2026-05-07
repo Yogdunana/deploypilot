@@ -15,6 +15,7 @@ import (
 	"github.com/Yogdunana/deploypilot/internal/auth"
 	"github.com/Yogdunana/deploypilot/internal/metrics"
 	"github.com/Yogdunana/deploypilot/internal/service"
+	"github.com/Yogdunana/deploypilot/internal/util/timeutil"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
@@ -175,7 +176,7 @@ func (h *WSHub) Close() {
 			// Use WriteControl to send a close frame
 			_ = conn.WriteControl(websocket.CloseMessage,
 				websocket.FormatCloseMessage(websocket.CloseNormalClosure, "server shutting down"),
-				time.Now().Add(time.Second))
+				timeutil.Now().Add(time.Second))
 			_ = conn.Close()
 		}
 		delete(h.clients, appID)
@@ -365,9 +366,9 @@ func LogStreamWS(bridge *service.Bridge, hub *WSHub, ticketStore *auth.WSTicketS
 		go streamContainerLogs(ctx, bridge, containerName, hub, appID)
 
 		// 5. Read loop (handle ping/pong, close)
-		_ = conn.SetReadDeadline(time.Now().Add(60 * time.Second))
+		_ = conn.SetReadDeadline(timeutil.Now().Add(60 * time.Second))
 		conn.SetPongHandler(func(string) error {
-			_ = conn.SetReadDeadline(time.Now().Add(60 * time.Second))
+			_ = conn.SetReadDeadline(timeutil.Now().Add(60 * time.Second))
 			return nil
 		})
 
@@ -475,7 +476,7 @@ func streamContainerLogs(ctx context.Context, bridge *service.Bridge, containerN
 			if err != nil {
 				hub.Broadcast(appID, WSMessage{
 					Type:      "error",
-					Timestamp: time.Now().Format(time.RFC3339),
+					Timestamp: timeutil.FormatRFC3339(),
 					Data:      err.Error(),
 					AppID:     appID,
 				})
@@ -483,7 +484,7 @@ func streamContainerLogs(ctx context.Context, bridge *service.Bridge, containerN
 			}
 			hub.Broadcast(appID, WSMessage{
 				Type:      "log",
-				Timestamp: time.Now().Format(time.RFC3339),
+				Timestamp: timeutil.FormatRFC3339(),
 				Data:      logs,
 				AppID:     appID,
 			})

@@ -11,6 +11,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/Yogdunana/deploypilot/internal/model"
+	"github.com/Yogdunana/deploypilot/internal/util/timeutil"
 )
 
 // Scheduler manages cron-based scheduled tasks.
@@ -135,9 +136,9 @@ func (s *Scheduler) addTask(ctx context.Context, task model.ScheduledTask) {
 
 // executeTask runs a scheduled task and records the result.
 func (s *Scheduler) executeTask(ctx context.Context, task model.ScheduledTask) {
-	startTime := time.Now()
+	startTime := timeutil.Now()
 	execution := model.TaskExecution{
-		ID:        fmt.Sprintf("%s-%d", task.ID, startTime.UnixNano()),
+		ID:        fmt.Sprintf("%s-%d", task.ID, timeutil.UnixNano()),
 		TaskID:    task.ID,
 		TenantID:  task.TenantID,
 		Status:    "running",
@@ -163,7 +164,7 @@ func (s *Scheduler) executeTask(ctx context.Context, task model.ScheduledTask) {
 		execErr = fmt.Errorf("unknown task type: %s", task.TaskType)
 	}
 
-	endTime := time.Now()
+	endTime := timeutil.Now()
 	duration := endTime.Sub(startTime).Milliseconds()
 
 	// Update execution record
