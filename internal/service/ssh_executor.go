@@ -44,12 +44,14 @@ func (b *Bridge) getRemoteExecutor(ctx context.Context, serverID string) (*sshCl
 		return nil, fmt.Errorf("SSH username not configured for server %s (configure DEPLOYPILOT_SSH_DEFAULT_USER or set server username)", serverID)
 	}
 	cfg := server.Config{
-		Host:     host,
-		Port:     port,
-		Username: username,
-		Password: password,
-		KeyBytes: []byte(keyStr),
-		Timeout:  30 * time.Second,
+		Host:               host,
+		Port:               port,
+		Username:           username,
+		Password:           password,
+		KeyBytes:           []byte(keyStr),
+		Timeout:            30 * time.Second,
+		KnownHostsPath:     b.SSHKnownHostsPath,
+		StrictHostChecking: b.SSHStrictHostKeyChecking,
 	}
 
 	client, err := server.Connect(ctx, cfg)

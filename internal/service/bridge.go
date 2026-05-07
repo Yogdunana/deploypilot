@@ -95,6 +95,10 @@ type Bridge struct {
 	// Port forwarding (moved from package-level globals, Issue #117)
 	portForwardMu sync.RWMutex
 	portForwards  map[string]*portForwardEntry
+
+	// SSH configuration for host key verification (Issue #684)
+	SSHKnownHostsPath        string // path to known_hosts file
+	SSHStrictHostKeyChecking bool   // strict mode for host key verification
 }
 
 // TunnelManager defines the interface for agent reverse tunnel management.
@@ -140,6 +144,12 @@ func (b *Bridge) SetTypedBus(bus TypedEventBus) {
 // SetBruteForceConfig replaces the brute-force protector with one using the given config.
 func (b *Bridge) SetBruteForceConfig(cfg bruteforce.Config) {
 	b.BFProtector = bruteforce.New(cfg)
+}
+
+// SetSSHConfig sets the SSH configuration for host key verification.
+func (b *Bridge) SetSSHConfig(knownHostsPath string, strictHostChecking bool) {
+	b.SSHKnownHostsPath = knownHostsPath
+	b.SSHStrictHostKeyChecking = strictHostChecking
 }
 
 // BruteForceConfigFromMap creates a bruteforce.Config from raw config values.
