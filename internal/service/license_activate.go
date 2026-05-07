@@ -206,7 +206,9 @@ func (b *Bridge) activateCommunity(ctx context.Context) (interface{}, error) {
 				slog.Warn("failed to load community license into engine", "error", loadErr)
 			} else {
 				// Update the license key in DB
-				b.DB.Model(&lic).Update("license_key", communityKey)
+				if err := b.DB.Model(&lic).Update("license_key", communityKey).Error; err != nil {
+					slog.Error("failed to update license key in DB", "license_id", lic.ID, "error", err)
+				}
 			}
 		}
 	}

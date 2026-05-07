@@ -91,8 +91,22 @@ func (b *InMemoryTypedEventBus) SubscribeType(ctx context.Context, eventType Eve
 	return ch
 }
 
-// Close is a no-op for the in-memory implementation.
+// Close closes all subscriber channels and clears the subscriber maps.
 func (b *InMemoryTypedEventBus) Close() error {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	for topic, channels := range b.topicSubs {
+		for _, ch := range channels {
+			close(ch)
+		}
+		delete(b.topicSubs, topic)
+	}
+	for eventType, channels := range b.typeSubs {
+		for _, ch := range channels {
+			close(ch)
+		}
+		delete(b.typeSubs, eventType)
+	}
 	return nil
 }
 

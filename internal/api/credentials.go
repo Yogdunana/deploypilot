@@ -242,13 +242,14 @@ func RotateCredential(bridge *service.Bridge, auditSvc *service.AuditService) gi
 		if auditSvc != nil {
 			userID, _ := c.Get(string(auth.UserIDKey))
 			uid, _ := userID.(string)
+			name, _ := result.(string)
 			_ = auditSvc.Record(c.Request.Context(), service.AuditEntry{
 				UserID:       parseUserID(uid),
 				Username:     uid,
 				Action:       "credential.rotate",
 				ResourceType: "credential",
 				ResourceID:   id,
-				Detail:       map[string]string{"name": fmt.Sprintf("%v", result)},
+				Detail:       map[string]string{"name": name},
 			})
 		}
 

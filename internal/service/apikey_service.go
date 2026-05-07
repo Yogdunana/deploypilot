@@ -106,10 +106,12 @@ func (s *APIKeyService) Validate(ctx context.Context, rawKey string) (*model.API
 
 	// Update last used time and usage count (fire-and-forget)
 	now := time.Now()
-	s.DB.WithContext(ctx).Model(&apiKey).Updates(map[string]interface{}{
+	if err := s.DB.WithContext(ctx).Model(&apiKey).Updates(map[string]interface{}{
 		"last_used_at": now,
 		"usage_count":  gorm.Expr("usage_count + 1"),
-	})
+	}).Error; err != nil {
+		slog.Error("failed to update api key usage", "key_id", apiKey.ID, "error", err)
+	}
 
 	return &apiKey, nil
 }

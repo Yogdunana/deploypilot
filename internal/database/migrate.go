@@ -3,6 +3,7 @@ package database
 import (
 	"fmt"
 	"log/slog"
+	"net/url"
 	"strings"
 
 	"github.com/go-gormigrate/gormigrate/v2"
@@ -127,7 +128,7 @@ func convertPostgresDSN(dsn string) string {
 	if sslmode == "" {
 		sslmode = "disable"
 	}
-	return fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=%s", user, password, host, port, dbname, sslmode)
+	return fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=%s", user, url.PathEscape(password), host, port, dbname, sslmode)
 }
 
 
@@ -355,14 +356,22 @@ func MigrateLegacy(db *gorm.DB) error {
 					return err
 				}
 				// Create index on expires_at for expiry queries
-				tx.Exec(`CREATE INDEX IF NOT EXISTS idx_credentials_expires_at ON credentials(expires_at)`)
+				if err := tx.Exec(`CREATE INDEX IF NOT EXISTS idx_credentials_expires_at ON credentials(expires_at)`).Error; err != nil {
+					return fmt.Errorf("create credentials expires_at index: %w", err)
+				}
 				return nil
 			},
 			Rollback: func(tx *gorm.DB) error {
 				// SQLite does not support DROP COLUMN easily, so we recreate the table
-				tx.Exec(`CREATE TABLE credentials_backup AS SELECT id, tenant_id, name, type, encrypted_value, created_at, updated_at FROM credentials`)
-				tx.Exec(`DROP TABLE credentials`)
-				tx.Exec(`ALTER TABLE credentials_backup RENAME TO credentials`)
+				if err := tx.Exec(`CREATE TABLE credentials_backup AS SELECT id, tenant_id, name, type, encrypted_value, created_at, updated_at FROM credentials`).Error; err != nil {
+					return fmt.Errorf("create credentials backup: %w", err)
+				}
+				if err := tx.Exec(`DROP TABLE credentials`).Error; err != nil {
+					return fmt.Errorf("drop credentials: %w", err)
+				}
+				if err := tx.Exec(`ALTER TABLE credentials_backup RENAME TO credentials`).Error; err != nil {
+					return fmt.Errorf("rename credentials backup: %w", err)
+				}
 				return nil
 			},
 		},
@@ -461,15 +470,25 @@ func MigrateLegacy(db *gorm.DB) error {
 					return err
 				}
 				// Create indexes for common queries
-				tx.Exec(`CREATE INDEX IF NOT EXISTS idx_deployments_container_name ON deployments(container_name)`)
-				tx.Exec(`CREATE INDEX IF NOT EXISTS idx_deployments_app_id ON deployments(app_id)`)
+				if err := tx.Exec(`CREATE INDEX IF NOT EXISTS idx_deployments_container_name ON deployments(container_name)`).Error; err != nil {
+					return fmt.Errorf("create deployments container_name index: %w", err)
+				}
+				if err := tx.Exec(`CREATE INDEX IF NOT EXISTS idx_deployments_app_id ON deployments(app_id)`).Error; err != nil {
+					return fmt.Errorf("create deployments app_id index: %w", err)
+				}
 				return nil
 			},
 			Rollback: func(tx *gorm.DB) error {
 				// SQLite: recreate table without new columns
-				tx.Exec(`CREATE TABLE deployments_backup AS SELECT id, tenant_id, server_id, app_name, container_name, image, status, preflight_code, preflight_message, preflight_checks, error_message, created_at, updated_at FROM deployments`)
-				tx.Exec(`DROP TABLE deployments`)
-				tx.Exec(`ALTER TABLE deployments_backup RENAME TO deployments`)
+				if err := tx.Exec(`CREATE TABLE deployments_backup AS SELECT id, tenant_id, server_id, app_name, container_name, image, status, preflight_code, preflight_message, preflight_checks, error_message, created_at, updated_at FROM deployments`).Error; err != nil {
+					return fmt.Errorf("create deployments backup: %w", err)
+				}
+				if err := tx.Exec(`DROP TABLE deployments`).Error; err != nil {
+					return fmt.Errorf("drop deployments: %w", err)
+				}
+				if err := tx.Exec(`ALTER TABLE deployments_backup RENAME TO deployments`).Error; err != nil {
+					return fmt.Errorf("rename deployments backup: %w", err)
+				}
 				return nil
 			},
 		},
@@ -519,8 +538,12 @@ func MigrateLegacy(db *gorm.DB) error {
 					return err
 				}
 				// Create indexes for OAuth lookups
-				tx.Exec(`CREATE INDEX IF NOT EXISTS idx_users_auth_provider ON users(auth_provider)`)
-				tx.Exec(`CREATE INDEX IF NOT EXISTS idx_users_auth_uid ON users(auth_uid)`)
+				if err := tx.Exec(`CREATE INDEX IF NOT EXISTS idx_users_auth_provider ON users(auth_provider)`).Error; err != nil {
+					return fmt.Errorf("create users auth_provider index: %w", err)
+				}
+				if err := tx.Exec(`CREATE INDEX IF NOT EXISTS idx_users_auth_uid ON users(auth_uid)`).Error; err != nil {
+					return fmt.Errorf("create users auth_uid index: %w", err)
+				}
 				// Also add record_hash to audit_logs
 				if err := ignoreDuplicateColumnError(tx, tx.Exec(`ALTER TABLE audit_logs ADD COLUMN record_hash TEXT DEFAULT ''`).Error); err != nil {
 					return err
@@ -539,7 +562,9 @@ func MigrateLegacy(db *gorm.DB) error {
 				if err := ignoreDuplicateColumnError(tx, tx.Exec(`ALTER TABLE apps ADD COLUMN environment TEXT DEFAULT 'production'`).Error); err != nil {
 					return err
 				}
-				tx.Exec(`CREATE INDEX IF NOT EXISTS idx_apps_environment ON apps(environment)`)
+				if err := tx.Exec(`CREATE INDEX IF NOT EXISTS idx_apps_environment ON apps(environment)`).Error; err != nil {
+					return fmt.Errorf("create apps environment index: %w", err)
+				}
 				return nil
 			},
 			Rollback: func(tx *gorm.DB) error {
@@ -765,8 +790,12 @@ func MigrateLegacy(db *gorm.DB) error {
 				)`).Error
 			},
 			Rollback: func(tx *gorm.DB) error {
-				tx.Exec("DROP TABLE IF EXISTS alert_groups")
-				tx.Exec("DROP TABLE IF EXISTS alert_escalations")
+				if err := tx.Exec("DROP TABLE IF EXISTS alert_groups").Error; err != nil {
+					return fmt.Errorf("drop alert_groups: %w", err)
+				}
+				if err := tx.Exec("DROP TABLE IF EXISTS alert_escalations").Error; err != nil {
+					return fmt.Errorf("drop alert_escalations: %w", err)
+				}
 				return tx.Exec("DROP TABLE IF EXISTS alert_silences").Error
 			},
 		},
@@ -790,7 +819,9 @@ func MigrateLegacy(db *gorm.DB) error {
 				)`).Error
 			},
 			Rollback: func(tx *gorm.DB) error {
-				tx.Exec("DROP TABLE IF EXISTS ssh_authorizations")
+				if err := tx.Exec("DROP TABLE IF EXISTS ssh_authorizations").Error; err != nil {
+					return fmt.Errorf("drop ssh_authorizations: %w", err)
+				}
 				return tx.Exec("DROP TABLE IF EXISTS ssh_key_pairs").Error
 			},
 		},
@@ -910,8 +941,12 @@ func MigrateLegacy(db *gorm.DB) error {
 				)`).Error
 			},
 			Rollback: func(tx *gorm.DB) error {
-				tx.Exec("DROP TABLE IF EXISTS monitor_check_results")
-				tx.Exec("DROP TABLE IF EXISTS monitors")
+				if err := tx.Exec("DROP TABLE IF EXISTS monitor_check_results").Error; err != nil {
+					return fmt.Errorf("drop monitor_check_results: %w", err)
+				}
+				if err := tx.Exec("DROP TABLE IF EXISTS monitors").Error; err != nil {
+					return fmt.Errorf("drop monitors: %w", err)
+				}
 				return tx.Exec("DROP TABLE IF EXISTS heartbeats").Error
 			},
 		},

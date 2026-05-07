@@ -96,13 +96,13 @@ func SystemHealth(db *gorm.DB) gin.HandlerFunc {
 		// Check database
 		sqlDB, err := db.DB()
 		if err != nil {
-			slog.ErrorContext(c.Request.Context(), "database health check failed", "error", err)
+			slog.ErrorContext(c.Request.Context(), "failed to get underlying sql.DB", "error", err)
 			health["status"] = "unhealthy"
-			health["database"] = gin.H{"status": "error", "message": "connection failed"}
+			health["database"] = gin.H{"status": "error", "message": "failed to get database connection"}
 		} else if err := sqlDB.Ping(); err != nil {
-			slog.ErrorContext(c.Request.Context(), "database health check failed", "error", err)
+			slog.ErrorContext(c.Request.Context(), "database ping failed", "error", err)
 			health["status"] = "unhealthy"
-			health["database"] = gin.H{"status": "error", "message": "connection failed"}
+			health["database"] = gin.H{"status": "error", "message": "database ping failed"}
 		} else {
 			health["database"] = gin.H{"status": "ok"}
 		}

@@ -187,11 +187,13 @@ func (e *AlertEngine) CheckEscalations(ctx context.Context) {
 // escalateAlert performs the escalation: updates severity and sends notification.
 func (e *AlertEngine) escalateAlert(ctx context.Context, group *model.AlertGroup, step EscalationStep, policy model.AlertEscalation) {
 	// Update group severity
-	e.db.Model(group).Updates(map[string]interface{}{
+	if err := e.db.Model(group).Updates(map[string]interface{}{
 		"severity":  step.Severity,
 		"alert_count": gorm.Expr("alert_count + 1"),
 		"updated_at": time.Now(),
-	})
+	}).Error; err != nil {
+		slog.Error("failed to escalate alert group severity", "group", group.GroupKey, "error", err)
+	}
 
 	message := fmt.Sprintf("🚨 ALERT ESCALATION: %s (group: %s, severity: %s)",
 		group.GroupKey, group.RuleID, step.Severity)
@@ -275,11 +277,13 @@ func (e *AlertEngine) GroupAlert(ruleID, groupKey, severity string) (*model.Aler
 	}
 
 	// Update existing group
-	e.db.Model(&group).Updates(map[string]interface{}{
+	if err := e.db.Model(&group).Updates(map[string]interface{}{
 		"alert_count": gorm.Expr("alert_count + 1"),
 		"last_alert_at": time.Now(),
 		"updated_at":   time.Now(),
-	})
+	}).Error; err != nil {
+		slog.Error("failed to update alert group", "group", group.GroupKey, "error", err)
+	}
 
 	return &group, nil
 }

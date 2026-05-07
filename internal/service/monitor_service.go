@@ -426,7 +426,9 @@ func (m *MonitorService) CheckHeartbeats(ctx context.Context) ([]Heartbeat, erro
 		}
 
 		if now.Sub(lastBeat) > timeout {
-			m.db.WithContext(ctx).Model(&Heartbeat{}).Where("id = ?", hb.ID).Update("status", "down")
+			if err := m.db.WithContext(ctx).Model(&Heartbeat{}).Where("id = ?", hb.ID).Update("status", "down").Error; err != nil {
+				slog.Error("failed to update heartbeat status to down", "id", hb.ID, "error", err)
+			}
 			hb.Status = "down"
 			timedOut = append(timedOut, hb)
 		}
@@ -499,19 +501,18 @@ func (m *MonitorService) checkTCP(mon Monitor, result MonitorCheckResult) Monito
 }
 
 func (m *MonitorService) checkPing(mon Monitor, result MonitorCheckResult) MonitorCheckResult {
-	// Use exec to run ping on the server where the monitor is configured
-	// For now, do a simple TCP connection check as a fallback
 	timeout := time.Duration(mon.Timeout) * time.Second
 	if timeout == 0 {
 		timeout = 10 * time.Second
 	}
 
-	// Try ICMP-like check via TCP connection to common ports
+	// TCP connection check (not ICMP — requires privileges)
 	target := mon.Target
 	if !strings.Contains(target, ":") {
 		target = target + ":80"
 	}
 
+	start := time.Now()
 	conn, err := net.DialTimeout("tcp", target, timeout)
 	if err != nil {
 		result.Status = "down"
@@ -521,7 +522,8 @@ func (m *MonitorService) checkPing(mon Monitor, result MonitorCheckResult) Monit
 	defer func() { _ = conn.Close() }()
 
 	result.Status = "up"
-	result.Message = fmt.Sprintf("host %s is reachable", mon.Target)
+	result.Latency = time.Since(start).Seconds()
+	result.Message = fmt.Sprintf("host %s is reachable (tcp)", mon.Target)
 	return result
 }
 
@@ -544,5 +546,7 @@ func (m *MonitorService) updateMonitorStats(ctx context.Context, mon *Monitor, r
 	mon.LastCheck = time.Now().Format(time.RFC3339)
 	mon.LastStatus = result.Status
 
-	m.db.WithContext(ctx).Save(mon)
+	if err := m.db.WithContext(ctx).Save(mon).Error; err != nil {
+		slog.Error("failed to save monitor check result", "monitor_id", mon.ID, "error", err)
+	}
 }
