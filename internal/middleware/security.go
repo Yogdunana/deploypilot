@@ -20,7 +20,8 @@ func getCSPPolicy() string {
 		"img-src 'self' data:; " +
 		"connect-src 'self' ws: wss:; " +
 		"font-src 'self'; " +
-		"frame-ancestors 'none'"
+		"frame-ancestors 'none'; " +
+		"report-uri /api/v1/system/csp-report"
 }
 
 // getHSTSMaxAge returns the HSTS max-age value in seconds.

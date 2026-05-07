@@ -10,6 +10,7 @@ import (
 	"github.com/robfig/cron/v3"
 	"gorm.io/gorm"
 
+	"github.com/Yogdunana/deploypilot/internal/engine/sandbox"
 	"github.com/Yogdunana/deploypilot/internal/model"
 	"github.com/Yogdunana/deploypilot/internal/util/timeutil"
 )
@@ -188,6 +189,7 @@ func (s *Scheduler) executeTask(ctx context.Context, task model.ScheduledTask) {
 }
 
 // executeShellCommand runs a shell command on local or remote server.
+// Local commands are wrapped with SandboxExecutor to enforce sandbox rules.
 func (s *Scheduler) executeShellCommand(ctx context.Context, task model.ScheduledTask) (string, error) {
 	var executor CommandExecutor
 	if task.ServerID != "" {
@@ -202,6 +204,15 @@ func (s *Scheduler) executeShellCommand(ctx context.Context, task model.Schedule
 		}()
 		executor = remoteExec
 	} else {
+		// Wrap local executor with sandbox to enforce command validation
+		if sb := s.bridge.GetSandbox(); sb != nil {
+			sandboxInst, ok := sb.(interface{ GetConfig() sandbox.Config; Validate(cmd string) error })
+			if ok {
+				if err := sandboxInst.Validate(task.Command); err != nil {
+					return "", fmt.Errorf("sandbox validation failed: %w", err)
+				}
+			}
+		}
 		executor = s.bridge.Executor
 	}
 

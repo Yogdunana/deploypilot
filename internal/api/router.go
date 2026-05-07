@@ -86,6 +86,7 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 
 	// Public routes
 	authGroup := api.Group("/auth")
+	authGroup.Use(middleware.CSRF())
 	{
 		authGroup.POST("/register", Register(db))
 		authGroup.POST("/login", Login(db, func() *bruteforce.Protector {
