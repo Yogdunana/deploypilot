@@ -46,6 +46,14 @@ var registerRL = &registerRateLimiter{
 	window:   15 * time.Minute,
 }
 
+// resetRegisterRateLimiter clears all rate limit state.
+// Must be called in test setup to prevent cross-test interference.
+func resetRegisterRateLimiter() {
+	registerRL.mu.Lock()
+	defer registerRL.mu.Unlock()
+	registerRL.attempts = make(map[string]*rateLimitEntry)
+}
+
 // Allow checks if the given IP is allowed to register.
 func (rl *registerRateLimiter) Allow(ip string) bool {
 	rl.mu.Lock()
