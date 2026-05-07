@@ -49,6 +49,13 @@ security:
   password_require_special: true
   force_2fa_for_admin: false
   force_2fa_for_dev: false
+  # SSH host key verification (TOFU: Trust On First Use)
+  # - When ssh_known_hosts_path is set, DeployPilot will verify server host keys
+  # - New hosts are automatically added to known_hosts on first connection
+  # - Host key mismatch (possible MITM attack) will reject the connection
+  # - If left empty, host key verification is disabled (warning logged)
+  ssh_known_hosts_path: "~/.ssh/known_hosts_deploypilot"  # default: empty (disabled)
+  ssh_strict_host_key_checking: false  # true = reject unknown hosts, false = auto-add (TOFU)
 
 audit:
   external_log_path: ""    # Optional: path for external audit log (JSON Lines)

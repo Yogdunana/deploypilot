@@ -622,6 +622,8 @@ function main() {
 
     print_info "正在创建配置文件..."
     JWT_SECRET=$(random_string 32)
+    API_KEY_SALT=$(random_string 32)
+    SSH_KNOWN_HOSTS="${INSTALL_DIR}/data/known_hosts"
     cat > "$INSTALL_DIR/config/config.yaml" << EOF
 server:
   port: ${PORT}
@@ -632,7 +634,18 @@ database:
 auth:
   jwt_secret: ${JWT_SECRET}
   token_expire: 24h
+  api_key_salt: ${API_KEY_SALT}
+security:
+  # SSH host key verification (TOFU: Trust On First Use)
+  # - New hosts are automatically added to known_hosts on first connection
+  # - Host key mismatch (possible MITM attack) will reject the connection
+  ssh_known_hosts_path: "${SSH_KNOWN_HOSTS}"
+  ssh_strict_host_key_checking: false  # true = reject unknown hosts, false = auto-add (TOFU)
 EOF
+    # Create empty known_hosts file with proper permissions
+    touch "${SSH_KNOWN_HOSTS}"
+    chmod 600 "${SSH_KNOWN_HOSTS}"
+    chown deploypilot:deploypilot "${SSH_KNOWN_HOSTS}" 2>/dev/null || true
 
     chmod 600 "$INSTALL_DIR/config/config.yaml"
     print_success "配置文件创建成功"
@@ -776,6 +789,9 @@ EOF
     echo -e "  ${YELLOW}• 请妥善保管以上登录信息${RESET}"
     echo -e "  ${YELLOW}• 首次登录后请立即修改密码${RESET}"
     echo -e "  ${YELLOW}• 建议配置防火墙仅允许特定 IP 访问${RESET}"
+    echo -e "  ${YELLOW}• SSH 主机密钥验证已启用 (TOFU 模式):${RESET}"
+    echo -e "    ${YELLOW}  首次连接的服务器会自动添加到 ${SSH_KNOWN_HOSTS}${RESET}"
+    echo -e "    ${YELLOW}  主机密钥变更时会拒绝连接（防止中间人攻击）${RESET}"
     echo ""
 }
 main "$@"

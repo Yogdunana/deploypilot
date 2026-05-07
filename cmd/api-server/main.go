@@ -218,6 +218,8 @@ func run(configFilePath, cliDriver, cliDSN, cliAddr string, migrateOnly, migrate
 	bridge.SetTypedBus(typedBus)
 	bridge.TunnelManager = tunnelManager
 	bridge.UpgradeSvc = service.NewUpgradeService("")
+	// Set SSH configuration for host key verification (Issue #684)
+	bridge.SetSSHConfig(cfg.Security.SSHKnownHostsPath, cfg.Security.SSHStrictHostKeyChecking)
 
 	// Initialize scheduler
 	scheduler := service.NewScheduler(db, bridge)
