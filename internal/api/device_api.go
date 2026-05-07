@@ -32,6 +32,16 @@ func GetGlobalDeviceAPI() *DeviceAPI {
 	return globalDeviceAPI
 }
 
+// getUserIDStrFromCtx safely extracts user ID string from context
+func getUserIDStrFromCtx(c *gin.Context) (string, bool) {
+	userID, exists := c.Get(string(auth.UserIDKey))
+	if !exists {
+		return "", false
+	}
+	userIDStr, ok := userID.(string)
+	return userIDStr, ok
+}
+
 // ListDevices godoc
 // @Summary      List devices
 // @Description  Get all devices for the authenticated user
@@ -49,13 +59,13 @@ func ListDevices(c *gin.Context) {
 		return
 	}
 
-	userID, exists := c.Get(string(auth.UserIDKey))
-	if !exists {
+	userIDStr, ok := getUserIDStrFromCtx(c)
+	if !ok {
 		respondErrori18n(c, http.StatusUnauthorized, "error.auth.authentication_required")
 		return
 	}
 
-	devices, err := globalDeviceAPI.svc.ListDevices(userID.(string))
+	devices, err := globalDeviceAPI.svc.ListDevices(userIDStr)
 	if err != nil {
 		respondError(c, http.StatusInternalServerError, "failed to list devices")
 		return
@@ -83,8 +93,8 @@ func RevokeDevice(c *gin.Context) {
 		return
 	}
 
-	userID, exists := c.Get(string(auth.UserIDKey))
-	if !exists {
+	userIDStr, ok := getUserIDStrFromCtx(c)
+	if !ok {
 		respondErrori18n(c, http.StatusUnauthorized, "error.auth.authentication_required")
 		return
 	}
@@ -95,7 +105,7 @@ func RevokeDevice(c *gin.Context) {
 		return
 	}
 
-	if err := globalDeviceAPI.svc.RevokeDevice(id, userID.(string)); err != nil {
+	if err := globalDeviceAPI.svc.RevokeDevice(id, userIDStr); err != nil {
 		respondError(c, http.StatusBadRequest, err.Error())
 		return
 	}
@@ -123,8 +133,8 @@ func TrustDevice(c *gin.Context) {
 		return
 	}
 
-	userID, exists := c.Get(string(auth.UserIDKey))
-	if !exists {
+	userIDStr, ok := getUserIDStrFromCtx(c)
+	if !ok {
 		respondErrori18n(c, http.StatusUnauthorized, "error.auth.authentication_required")
 		return
 	}
@@ -146,7 +156,7 @@ func TrustDevice(c *gin.Context) {
 		input.Days = 30
 	}
 
-	if err := globalDeviceAPI.svc.TrustDevice(id, userID.(string), input.Days); err != nil {
+	if err := globalDeviceAPI.svc.TrustDevice(id, userIDStr, input.Days); err != nil {
 		respondError(c, http.StatusBadRequest, err.Error())
 		return
 	}
@@ -171,8 +181,8 @@ func CurrentDevice(c *gin.Context) {
 		return
 	}
 
-	userID, exists := c.Get(string(auth.UserIDKey))
-	if !exists {
+	userIDStr, ok := getUserIDStrFromCtx(c)
+	if !ok {
 		respondErrori18n(c, http.StatusUnauthorized, "error.auth.authentication_required")
 		return
 	}
@@ -181,7 +191,7 @@ func CurrentDevice(c *gin.Context) {
 	clientIP := c.ClientIP()
 	deviceID := model.GenerateDeviceID(userAgent, clientIP)
 
-	isNew, device, err := globalDeviceAPI.svc.IsNewDevice(userID.(string), deviceID)
+	isNew, device, err := globalDeviceAPI.svc.IsNewDevice(userIDStr, deviceID)
 	if err != nil {
 		respondError(c, http.StatusInternalServerError, "failed to check device")
 		return

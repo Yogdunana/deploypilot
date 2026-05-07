@@ -70,8 +70,14 @@ func (s *OAuth2Service) CreateClient(userID, name string, redirectURIs, scopes, 
 	// Validate grant types
 	validGrantTypes := validateGrantTypes(grantTypes)
 
-	clientID := generateClientID()
-	clientSecret := generateClientSecret()
+	clientID, err := generateClientID()
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to generate client ID: %w", err)
+	}
+	clientSecret, err := generateClientSecret()
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to generate client secret: %w", err)
+	}
 
 	redirectURIsJSON, err := json.Marshal(redirectURIs)
 	if err != nil {
@@ -88,8 +94,13 @@ func (s *OAuth2Service) CreateClient(userID, name string, redirectURIs, scopes, 
 		return nil, "", fmt.Errorf("failed to marshal grant types: %w", err)
 	}
 
+	oauth2ID, err := generateOAuth2ID()
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to generate OAuth2 ID: %w", err)
+	}
+
 	client := &model.OAuth2Client{
-		ID:           generateOAuth2ID(),
+		ID:           oauth2ID,
 		UserID:       userID,
 		Name:         name,
 		ClientID:     clientID,
@@ -168,7 +179,10 @@ func (s *OAuth2Service) RegenerateSecret(id, userID string) (string, error) {
 		return "", fmt.Errorf("failed to get OAuth2 client: %w", err)
 	}
 
-	newSecret := generateClientSecret()
+	newSecret, err := generateClientSecret()
+	if err != nil {
+		return "", fmt.Errorf("failed to regenerate client secret: %w", err)
+	}
 	if err := s.db.Model(&client).Update("client_secret", newSecret).Error; err != nil {
 		return "", fmt.Errorf("failed to regenerate client secret: %w", err)
 	}
@@ -201,11 +215,19 @@ func (s *OAuth2Service) CreateAuthorization(clientID, userID string, scopes []st
 		return nil, fmt.Errorf("failed to marshal scopes: %w", err)
 	}
 
-	code := generateToken()
+	code, err := generateToken()
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate authorization code: %w", err)
+	}
 	expiresAt := time.Now().Add(time.Duration(s.cfg.CodeExpireMinutes) * time.Minute)
 
+	oauth2ID, err := generateOAuth2ID()
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate OAuth2 ID: %w", err)
+	}
+
 	authz := &model.OAuth2Authorization{
-		ID:        generateOAuth2ID(),
+		ID:        oauth2ID,
 		ClientID:  clientID,
 		UserID:    userID,
 		Scopes:    string(scopesJSON),
@@ -347,8 +369,14 @@ func (s *OAuth2Service) ValidateAccessToken(token string) (*model.OAuth2Token, e
 
 // createToken creates a new access/refresh token pair.
 func (s *OAuth2Service) createToken(clientID, userID string, scopes []string) (*model.OAuth2Token, error) {
-	accessToken := generateToken()
-	refreshToken := generateToken()
+	accessToken, err := generateToken()
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate access token: %w", err)
+	}
+	refreshToken, err := generateToken()
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate refresh token: %w", err)
+	}
 
 	scopesJSON, err := json.Marshal(scopes)
 	if err != nil {
@@ -357,8 +385,13 @@ func (s *OAuth2Service) createToken(clientID, userID string, scopes []string) (*
 
 	expiresAt := time.Now().Add(time.Duration(s.cfg.TokenExpireHours) * time.Hour)
 
+	oauth2ID, err := generateOAuth2ID()
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate OAuth2 ID: %w", err)
+	}
+
 	token := &model.OAuth2Token{
-		ID:           generateOAuth2ID(),
+		ID:           oauth2ID,
 		ClientID:     clientID,
 		UserID:       userID,
 		AccessToken:  accessToken,
@@ -377,37 +410,37 @@ func (s *OAuth2Service) createToken(clientID, userID string, scopes []string) (*
 }
 
 // generateToken generates a random 32-byte hex string.
-func generateToken() string {
+func generateToken() (string, error) {
 	b := make([]byte, 32)
 	if _, err := rand.Read(b); err != nil {
 		slog.Error("failed to generate token", "error", err)
-		panic("failed to generate token: " + err.Error())
+		return "", fmt.Errorf("failed to generate token: %w", err)
 	}
-	return hex.EncodeToString(b)
+	return hex.EncodeToString(b), nil
 }
 
 // generateClientID generates a random 16-byte hex string prefixed with "dp_".
-func generateClientID() string {
+func generateClientID() (string, error) {
 	b := make([]byte, 16)
 	if _, err := rand.Read(b); err != nil {
 		slog.Error("failed to generate client ID", "error", err)
-		panic("failed to generate client ID: " + err.Error())
+		return "", fmt.Errorf("failed to generate client ID: %w", err)
 	}
-	return "dp_" + hex.EncodeToString(b)
+	return "dp_" + hex.EncodeToString(b), nil
 }
 
 // generateClientSecret generates a random 32-byte hex string.
-func generateClientSecret() string {
+func generateClientSecret() (string, error) {
 	return generateToken()
 }
 
 // generateOAuth2ID generates a random hex ID for OAuth2 records.
-func generateOAuth2ID() string {
+func generateOAuth2ID() (string, error) {
 	b := make([]byte, 12)
 	if _, err := rand.Read(b); err != nil {
-		panic("failed to generate OAuth2 ID: " + err.Error())
+		return "", fmt.Errorf("failed to generate OAuth2 ID: %w", err)
 	}
-	return hex.EncodeToString(b)
+	return hex.EncodeToString(b), nil
 }
 
 // validateGrantTypes filters grant types to only allowed values.

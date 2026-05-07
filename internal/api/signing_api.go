@@ -122,6 +122,12 @@ func GenerateKeys(c *gin.Context) {
 		return
 	}
 
+	userIDStr, ok := userID.(string)
+	if !ok {
+		respondErrori18n(c, http.StatusInternalServerError, "error.auth.invalid_user_id")
+		return
+	}
+
 	publicKey, privateKey, err := signing.GenerateKeyPair()
 	if err != nil {
 		respondError(c, http.StatusInternalServerError, "failed to generate key pair")
@@ -145,7 +151,7 @@ func GenerateKeys(c *gin.Context) {
 		PrivateKey:  base64.StdEncoding.EncodeToString(privateKey.Seed()),
 		Fingerprint: fingerprint,
 		IsActive:    true,
-		CreatedBy:   userID.(string),
+		CreatedBy:   userIDStr,
 	}
 
 	// Deactivate all existing keys
@@ -182,6 +188,12 @@ func RotateKeys(c *gin.Context) {
 		return
 	}
 
+	userIDStr, ok := userID.(string)
+	if !ok {
+		respondErrori18n(c, http.StatusInternalServerError, "error.auth.invalid_user_id")
+		return
+	}
+
 	publicKey, privateKey, err := signing.GenerateKeyPair()
 	if err != nil {
 		respondError(c, http.StatusInternalServerError, "failed to generate key pair")
@@ -205,7 +217,7 @@ func RotateKeys(c *gin.Context) {
 		PrivateKey:  base64.StdEncoding.EncodeToString(privateKey.Seed()),
 		Fingerprint: fingerprint,
 		IsActive:    true,
-		CreatedBy:   userID.(string),
+		CreatedBy:   userIDStr,
 	}
 
 	// Deactivate all existing keys (keep them in DB for verification)

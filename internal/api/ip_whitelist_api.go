@@ -26,6 +26,16 @@ func SetIPWhitelistAPI(api *IPWhitelistAPI) {
 	globalIPWhitelistAPI = api
 }
 
+// getUserIDStr safely extracts user ID string from context
+func getUserIDStr(c *gin.Context) (string, bool) {
+	userID, exists := c.Get(string(auth.UserIDKey))
+	if !exists {
+		return "", false
+	}
+	userIDStr, ok := userID.(string)
+	return userIDStr, ok
+}
+
 // ListIPWhitelist godoc
 // @Summary      List IP whitelist
 // @Description  Get all whitelist entries for the current user
@@ -43,13 +53,13 @@ func ListIPWhitelist(c *gin.Context) {
 		return
 	}
 
-	userID, exists := c.Get(string(auth.UserIDKey))
-	if !exists {
+	userIDStr, ok := getUserIDStr(c)
+	if !ok {
 		respondErrori18n(c, http.StatusUnauthorized, "error.auth.authentication_required")
 		return
 	}
 
-	entries, err := globalIPWhitelistAPI.svc.List(userID.(string))
+	entries, err := globalIPWhitelistAPI.svc.List(userIDStr)
 	if err != nil {
 		respondError(c, http.StatusInternalServerError, "failed to list IP whitelist entries")
 		return
@@ -77,8 +87,8 @@ func AddIPWhitelist(c *gin.Context) {
 		return
 	}
 
-	userID, exists := c.Get(string(auth.UserIDKey))
-	if !exists {
+	userIDStr, ok := getUserIDStr(c)
+	if !ok {
 		respondErrori18n(c, http.StatusUnauthorized, "error.auth.authentication_required")
 		return
 	}
@@ -93,11 +103,11 @@ func AddIPWhitelist(c *gin.Context) {
 	}
 
 	entry, err := globalIPWhitelistAPI.svc.Create(
-		userID.(string),
+		userIDStr,
 		input.Description,
 		input.CIDR,
 		"tenant-default",
-		userID.(string),
+		userIDStr,
 	)
 	if err != nil {
 		respondError(c, http.StatusBadRequest, err.Error())
@@ -126,8 +136,8 @@ func DeleteIPWhitelist(c *gin.Context) {
 		return
 	}
 
-	userID, exists := c.Get(string(auth.UserIDKey))
-	if !exists {
+	userIDStr, ok := getUserIDStr(c)
+	if !ok {
 		respondErrori18n(c, http.StatusUnauthorized, "error.auth.authentication_required")
 		return
 	}
@@ -138,7 +148,7 @@ func DeleteIPWhitelist(c *gin.Context) {
 		return
 	}
 
-	if err := globalIPWhitelistAPI.svc.Delete(id, userID.(string)); err != nil {
+	if err := globalIPWhitelistAPI.svc.Delete(id, userIDStr); err != nil {
 		respondError(c, http.StatusBadRequest, err.Error())
 		return
 	}
@@ -163,15 +173,15 @@ func CheckIPAccess(c *gin.Context) {
 		return
 	}
 
-	userID, exists := c.Get(string(auth.UserIDKey))
-	if !exists {
+	userIDStr, ok := getUserIDStr(c)
+	if !ok {
 		respondErrori18n(c, http.StatusUnauthorized, "error.auth.authentication_required")
 		return
 	}
 
 	clientIP := c.ClientIP()
-	enforced := globalIPWhitelistAPI.svc.IsEnforced(userID.(string))
-	allowed := globalIPWhitelistAPI.svc.Check(clientIP, userID.(string))
+	enforced := globalIPWhitelistAPI.svc.IsEnforced(userIDStr)
+	allowed := globalIPWhitelistAPI.svc.Check(clientIP, userIDStr)
 
 	respondSuccess(c, gin.H{
 		"ip":              clientIP,
@@ -181,7 +191,7 @@ func CheckIPAccess(c *gin.Context) {
 	})
 
 	// Re-respond with full data including count
-	entries, err := globalIPWhitelistAPI.svc.List(userID.(string))
+	entries, err := globalIPWhitelistAPI.svc.List(userIDStr)
 	if err == nil {
 		respondSuccess(c, gin.H{
 			"ip":              clientIP,
