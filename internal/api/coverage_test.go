@@ -391,6 +391,7 @@ func TestDeleteDNSRecord_WithID_Cov(t *testing.T) {
 
 func TestRegister_WithAllFields_Cov(t *testing.T) {
 	gin.SetMode(gin.TestMode)
+	resetRegisterRateLimiter()
 	db := setupTestDB(t)
 	defer db.Exec("VACUUM")
 
@@ -414,6 +415,7 @@ func TestRegister_WithAllFields_Cov(t *testing.T) {
 
 func TestRegister_DuplicateEmail_Cov(t *testing.T) {
 	gin.SetMode(gin.TestMode)
+	resetRegisterRateLimiter()
 	db := setupTestDB(t)
 	defer db.Exec("VACUUM")
 
@@ -1255,6 +1257,7 @@ func TestUpdateDNSRecord_MissingFields(t *testing.T) {
 
 func TestRegister_DBCreateError(t *testing.T) {
 	gin.SetMode(gin.TestMode)
+	resetRegisterRateLimiter()
 	db, _ := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
 	_ = db.Exec("CREATE TABLE roles (id TEXT PRIMARY KEY, name TEXT)")
 	_ = db.Exec("CREATE TABLE users (id TEXT PRIMARY KEY, username TEXT UNIQUE, email TEXT UNIQUE, password_hash TEXT)")
@@ -1765,6 +1768,7 @@ func TestSplitAndTrim_Blanks(t *testing.T) {
 
 func TestRegister_MissingFields(t *testing.T) {
 	gin.SetMode(gin.TestMode)
+	resetRegisterRateLimiter()
 	db := setupTestDB(t)
 	defer db.Exec("VACUUM")
 
@@ -2629,6 +2633,7 @@ func TestListAuditLogs_Success_Cov(t *testing.T) {
 
 func TestRegister_MissingEmail_Cov(t *testing.T) {
 	gin.SetMode(gin.TestMode)
+	resetRegisterRateLimiter()
 	db := setupTestDB(t)
 	defer db.Exec("VACUUM")
 
@@ -2648,6 +2653,7 @@ func TestRegister_MissingEmail_Cov(t *testing.T) {
 
 func TestRegister_InvalidJSON_Cov(t *testing.T) {
 	gin.SetMode(gin.TestMode)
+	resetRegisterRateLimiter()
 	db := setupTestDB(t)
 	defer db.Exec("VACUUM")
 

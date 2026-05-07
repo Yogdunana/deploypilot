@@ -161,6 +161,8 @@ func setupTestRouter(db *gorm.DB) *gin.Engine {
 		c.Set("db", db)
 		c.Next()
 	})
+	// Reset rate limiter state between tests
+	resetRegisterRateLimiter()
 
 	api := r.Group("/api/v1")
 
