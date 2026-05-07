@@ -550,7 +550,7 @@ func downloadFile(ctx context.Context, url, destPath string) error {
 		_ = f.Close()
 		if !success {
 			// Clean up partially written file on error
-			os.Remove(destPath)
+			_ = os.Remove(destPath)
 		}
 	}()
 
