@@ -14,6 +14,8 @@ import (
 	"math/big"
 	"os"
 	"path/filepath"
+	"regexp"
+	"strings"
 	"time"
 )
 
@@ -31,6 +33,49 @@ type CertificateProvider interface {
 type SSLProvider struct {
 	certDir    string
 	accountKey *ecdsa.PrivateKey
+}
+
+// validDomainRegex matches valid domain names (prevents path traversal)
+var validDomainRegex = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9-]{0,62}(\.[a-zA-Z0-9][a-zA-Z0-9-]{0,62})*$`)
+
+// validateDomain checks if the domain is valid and safe to use as a filename
+func validateDomain(domain string) error {
+	if domain == "" {
+		return fmt.Errorf("domain cannot be empty")
+	}
+	// Check for path traversal attempts
+	if strings.Contains(domain, "..") || strings.Contains(domain, "/") || strings.Contains(domain, "\\") {
+		return fmt.Errorf("invalid domain: contains path traversal characters")
+	}
+	// Check for valid domain format
+	if !validDomainRegex.MatchString(domain) {
+		return fmt.Errorf("invalid domain format: %s", domain)
+	}
+	return nil
+}
+
+// safeJoin safely joins a directory with a filename, preventing path traversal
+func safeJoin(dir, filename string) (string, error) {
+	// Clean the path to resolve any .. sequences
+	cleanPath := filepath.Clean(filename)
+	// Check for path traversal after cleaning
+	if strings.HasPrefix(cleanPath, "..") || strings.HasPrefix(cleanPath, "/") || strings.HasPrefix(cleanPath, "\\") {
+		return "", fmt.Errorf("path traversal detected: %s", filename)
+	}
+	// Join and verify the final path is within the directory
+	fullPath := filepath.Join(dir, cleanPath)
+	absDir, err := filepath.Abs(dir)
+	if err != nil {
+		return "", fmt.Errorf("failed to get absolute path for directory: %w", err)
+	}
+	absPath, err := filepath.Abs(fullPath)
+	if err != nil {
+		return "", fmt.Errorf("failed to get absolute path: %w", err)
+	}
+	if !strings.HasPrefix(absPath, absDir+string(filepath.Separator)) && absPath != absDir {
+		return "", fmt.Errorf("path escapes directory: %s", filename)
+	}
+	return fullPath, nil
 }
 
 // NewSSLProvider creates a new SSL provider.
@@ -67,6 +112,11 @@ func (p *SSLProvider) RequestCertificate(ctx context.Context, domain, email stri
 	_ = email
 	slog.Info("requesting SSL certificate", "domain", domain, "email", email)
 
+	// Validate domain to prevent path traversal
+	if err := validateDomain(domain); err != nil {
+		return nil, fmt.Errorf("invalid domain: %w", err)
+	}
+
 	// Generate self-signed certificate as placeholder
 	// In production, replace with ACME flow using go-acme/lego
 	cert, key, err := p.generateSelfSigned(domain)
@@ -74,9 +124,15 @@ func (p *SSLProvider) RequestCertificate(ctx context.Context, domain, email stri
 		return nil, fmt.Errorf("generate certificate: %w", err)
 	}
 
-	// Save to disk
-	certPath := filepath.Join(p.certDir, domain+".crt")
-	keyPath := filepath.Join(p.certDir, domain+".key")
+	// Save to disk using safe path joining
+	certPath, err := safeJoin(p.certDir, domain+".crt")
+	if err != nil {
+		return nil, fmt.Errorf("invalid cert path: %w", err)
+	}
+	keyPath, err := safeJoin(p.certDir, domain+".key")
+	if err != nil {
+		return nil, fmt.Errorf("invalid key path: %w", err)
+	}
 
 	if err := os.WriteFile(certPath, cert, 0600); err != nil {
 		return nil, fmt.Errorf("write cert: %w", err)
@@ -99,13 +155,28 @@ func (p *SSLProvider) RequestCertificate(ctx context.Context, domain, email stri
 // RenewCertificate renews an existing certificate.
 func (p *SSLProvider) RenewCertificate(ctx context.Context, domain string) (*Certificate, error) {
 	slog.Info("renewing SSL certificate", "domain", domain)
+	// Validate domain to prevent path traversal
+	if err := validateDomain(domain); err != nil {
+		return nil, fmt.Errorf("invalid domain: %w", err)
+	}
 	return p.RequestCertificate(ctx, domain, "")
 }
 
 // GetCertificate loads a certificate from disk.
 func (p *SSLProvider) GetCertificate(domain string) (*Certificate, error) {
-	certPath := filepath.Join(p.certDir, domain+".crt")
-	keyPath := filepath.Join(p.certDir, domain+".key")
+	// Validate domain to prevent path traversal
+	if err := validateDomain(domain); err != nil {
+		return nil, fmt.Errorf("invalid domain: %w", err)
+	}
+
+	certPath, err := safeJoin(p.certDir, domain+".crt")
+	if err != nil {
+		return nil, fmt.Errorf("invalid cert path: %w", err)
+	}
+	keyPath, err := safeJoin(p.certDir, domain+".key")
+	if err != nil {
+		return nil, fmt.Errorf("invalid key path: %w", err)
+	}
 
 	certPEM, err := os.ReadFile(certPath)
 	if err != nil {
@@ -136,8 +207,20 @@ func (p *SSLProvider) GetCertificate(domain string) (*Certificate, error) {
 
 // DeleteCertificate removes certificate files from disk.
 func (p *SSLProvider) DeleteCertificate(domain string) error {
-	certPath := filepath.Join(p.certDir, domain+".crt")
-	keyPath := filepath.Join(p.certDir, domain+".key")
+	// Validate domain to prevent path traversal
+	if err := validateDomain(domain); err != nil {
+		return fmt.Errorf("invalid domain: %w", err)
+	}
+
+	certPath, err := safeJoin(p.certDir, domain+".crt")
+	if err != nil {
+		return fmt.Errorf("invalid cert path: %w", err)
+	}
+	keyPath, err := safeJoin(p.certDir, domain+".key")
+	if err != nil {
+		return fmt.Errorf("invalid key path: %w", err)
+	}
+
 	_ = os.Remove(certPath)
 	_ = os.Remove(keyPath)
 	slog.Info("deleted SSL certificate", "domain", domain)
@@ -146,6 +229,11 @@ func (p *SSLProvider) DeleteCertificate(domain string) error {
 
 // CheckExpiry checks if a certificate is expiring soon.
 func (p *SSLProvider) CheckExpiry(domain string) (time.Duration, bool) {
+	// Validate domain to prevent path traversal
+	if err := validateDomain(domain); err != nil {
+		slog.Warn("invalid domain in CheckExpiry", "domain", domain, "error", err)
+		return 0, true
+	}
 	cert, err := p.GetCertificate(domain)
 	if err != nil {
 		return 0, true
@@ -196,6 +284,10 @@ func (p *SSLProvider) generateSelfSigned(domain string) (certPEM, keyPEM []byte,
 
 // GetTLSConfig returns a tls.Config for the given domain.
 func (p *SSLProvider) GetTLSConfig(domain string) (*tls.Config, error) {
+	// Validate domain to prevent path traversal
+	if err := validateDomain(domain); err != nil {
+		return nil, fmt.Errorf("invalid domain: %w", err)
+	}
 	cert, err := p.GetCertificate(domain)
 	if err != nil {
 		return nil, err
