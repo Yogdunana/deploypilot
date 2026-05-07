@@ -18,14 +18,15 @@ type Claims struct {
 }
 
 // getJWTSecret returns the JWT signing secret from the environment.
-// Returns an error if JWT_SECRET is not set or is shorter than 16 characters.
+// Returns an error if JWT_SECRET is not set or is shorter than 32 characters.
+// 32 bytes (256 bits) is the minimum recommended for HMAC-SHA256.
 func getJWTSecret() ([]byte, error) {
 	secret := os.Getenv("JWT_SECRET")
 	if secret == "" {
-		return nil, errors.New("JWT_SECRET environment variable is required and must be at least 16 characters")
+		return nil, errors.New("JWT_SECRET environment variable is required and must be at least 32 characters")
 	}
-	if len(secret) < 16 {
-		return nil, fmt.Errorf("JWT_SECRET must be at least 16 characters, current length: %d", len(secret))
+	if len(secret) < 32 {
+		return nil, fmt.Errorf("JWT_SECRET must be at least 32 characters (256 bits for HMAC-SHA256), current length: %d", len(secret))
 	}
 	return []byte(secret), nil
 }

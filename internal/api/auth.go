@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/Yogdunana/deploypilot/internal/auth"
@@ -24,6 +25,55 @@ var passwordValidator *middleware.PasswordValidator
 
 // auditSvcForAuth is the global audit service for auth events.
 var auditSvcForAuth *service.AuditService
+
+// registerRateLimiter provides per-IP rate limiting for registration attempts.
+// Max 5 registrations per IP per 15 minutes.
+type registerRateLimiter struct {
+	mu       sync.Mutex
+	attempts map[string]*rateLimitEntry
+	max      int
+	window   time.Duration
+}
+
+type rateLimitEntry struct {
+	count    int
+	expireAt time.Time
+}
+
+var registerRL = &registerRateLimiter{
+	attempts: make(map[string]*rateLimitEntry),
+	max:      5,
+	window:   15 * time.Minute,
+}
+
+// Allow checks if the given IP is allowed to register.
+func (rl *registerRateLimiter) Allow(ip string) bool {
+	rl.mu.Lock()
+	defer rl.mu.Unlock()
+	now := time.Now()
+	entry, ok := rl.attempts[ip]
+	if !ok || now.After(entry.expireAt) {
+		rl.attempts[ip] = &rateLimitEntry{count: 1, expireAt: now.Add(rl.window)}
+		return true
+	}
+	if entry.count >= rl.max {
+		return false
+	}
+	entry.count++
+	return true
+}
+
+// Remaining returns the remaining registration attempts for the given IP.
+func (rl *registerRateLimiter) Remaining(ip string) int {
+	rl.mu.Lock()
+	defer rl.mu.Unlock()
+	now := time.Now()
+	entry, ok := rl.attempts[ip]
+	if !ok || now.After(entry.expireAt) {
+		return rl.max
+	}
+	return rl.max - entry.count
+}
 
 // SetPasswordValidator sets the global password validator for registration and password changes.
 func SetPasswordValidator(v *middleware.PasswordValidator) {
@@ -49,6 +99,18 @@ func SetAuditServiceForAuth(svc *service.AuditService) {
 // @Router       /auth/register [post]
 func Register(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		// Rate limit: max 5 registrations per IP per 15 minutes
+		clientIP := c.ClientIP()
+		if !registerRL.Allow(clientIP) {
+			c.Header("X-RateLimit-Remaining", "0")
+			c.JSON(http.StatusTooManyRequests, gin.H{
+				"error": "too many registration attempts, please try again later",
+			})
+			c.Abort()
+			return
+		}
+		c.Header("X-RateLimit-Remaining", fmt.Sprintf("%d", registerRL.Remaining(clientIP)))
+
 		var input struct {
 			Username string `json:"username" binding:"required"`
 			Email    string `json:"email" binding:"required,email"`

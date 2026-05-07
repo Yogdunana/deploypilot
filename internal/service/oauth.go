@@ -6,6 +6,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"time"
 
 	"github.com/Yogdunana/deploypilot/internal/config"
 	"github.com/Yogdunana/deploypilot/internal/crypto"
@@ -160,7 +161,7 @@ func (s *OAuthService) getUserInfo(ctx context.Context, provider, accessToken st
 		return nil, fmt.Errorf("unsupported OAuth provider: %s", provider)
 	}
 
-	client := &http.Client{}
+	client := &http.Client{Timeout: 15 * time.Second}
 	req, err := http.NewRequestWithContext(ctx, "GET", p.UserInfoURL(), nil)
 	if err != nil {
 		return nil, err
