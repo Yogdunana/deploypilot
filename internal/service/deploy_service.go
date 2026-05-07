@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"time"
 
 	"github.com/Yogdunana/deploypilot/internal/engine/builder"
 	"github.com/Yogdunana/deploypilot/internal/engine/deployer"
@@ -206,7 +207,7 @@ func (b *Bridge) Deploy(ctx context.Context, cfg mcp.DeployConfig) (*mcp.Contain
 		Image:     cs.Image,
 		Status:    cs.Status,
 		Ports:     cs.Ports,
-		CreatedAt: cs.CreatedAt.Format(time.RFC3339),
+		CreatedAt: cs.CreatedAt.UTC().Format(time.RFC3339),
 		Labels:    cs.Labels,
 	}, nil
 }
@@ -285,7 +286,7 @@ func (b *Bridge) GetContainerStatus(ctx context.Context, name string) (*mcp.Cont
 		Image:     cs.Image,
 		Status:    cs.Status,
 		Ports:     cs.Ports,
-		CreatedAt: cs.CreatedAt.Format(time.RFC3339),
+		CreatedAt: cs.CreatedAt.UTC().Format(time.RFC3339),
 		Labels:    cs.Labels,
 	}, nil
 }
