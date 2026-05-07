@@ -543,12 +543,22 @@ func downloadFile(ctx context.Context, url, destPath string) error {
 	if err != nil {
 		return fmt.Errorf("create file: %w", err)
 	}
-	defer func() { _ = f.Close() }()
 
-	if _, err := io.Copy(f, resp.Body); err != nil {
+	// Write to file with size limit (500MB max) and cleanup on error.
+	success := false
+	defer func() {
+		_ = f.Close()
+		if !success {
+			// Clean up partially written file on error
+			os.Remove(destPath)
+		}
+	}()
+
+	if _, err := io.Copy(f, io.LimitReader(resp.Body, 500*1024*1024)); err != nil {
 		return fmt.Errorf("write file: %w", err)
 	}
 
+	success = true
 	return nil
 }
 

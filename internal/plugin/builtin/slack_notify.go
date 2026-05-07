@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"time"
 
 	"github.com/Yogdunana/deploypilot/internal/plugin"
 	"github.com/gin-gonic/gin"
@@ -22,7 +23,7 @@ type SlackNotifyPlugin struct {
 // NewSlackNotifyPlugin creates a new SlackNotifyPlugin.
 func NewSlackNotifyPlugin() plugin.EventPlugin {
 	return &SlackNotifyPlugin{
-		client: &http.Client{},
+		client: &http.Client{Timeout: 15 * time.Second},
 	}
 }
 

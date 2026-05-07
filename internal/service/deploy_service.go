@@ -27,11 +27,30 @@ func (b *Bridge) DeployAsync(ctx context.Context, cfg mcp.DeployConfig, appID st
 	traceID := tracing.TraceIDFromContext(ctx)
 	b.updateTask(taskID, "running", 0, "deploy started")
 
-	// Use a detached context so the deploy continues even if the original
-	// HTTP request context is cancelled (e.g. client disconnects).
-	detachedCtx := context.Background()
+	// Use a detached context with timeout so the deploy continues even if
+	// the original HTTP request context is cancelled (e.g. client disconnects),
+	// but still has a reasonable upper bound to prevent runaway goroutines.
+	detachedCtx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
 
 	go func() {
+		defer cancel()
+		defer func() {
+			if r := recover(); r != nil {
+				slog.Error("deploy panicked", "task_id", taskID, "app_id", appID, "panic", r)
+				b.updateTask(taskID, "failed", 100, "deploy panicked: see server logs for details")
+				b.EventBus.Publish(DeployEvent{
+					TaskID:    taskID,
+					AppID:     appID,
+					Step:      "done",
+					Status:    "failed",
+					Progress:  100,
+					Message:   "deploy panicked: see server logs for details",
+					Timestamp: timeutil.FormatRFC3339(),
+					TraceID:   traceID,
+				})
+			}
+		}()
+
 		cs, deployErr := b.Deploy(detachedCtx, cfg)
 		if deployErr != nil {
 			slog.Error("deploy failed", "task_id", taskID, "app_id", appID, "error", deployErr)
