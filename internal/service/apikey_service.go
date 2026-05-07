@@ -18,16 +18,25 @@ import (
 
 // APIKeyService handles API key CRUD and validation.
 type APIKeyService struct {
-	DB *gorm.DB
+	DB   *gorm.DB
+	Salt string
 }
 
 // NewAPIKeyService creates a new APIKeyService.
-func NewAPIKeyService(db *gorm.DB) *APIKeyService {
-	return &APIKeyService{DB: db}
+// If salt is empty, a random salt is generated and logged as a warning.
+func NewAPIKeyService(db *gorm.DB, salt string) *APIKeyService {
+	if salt == "" {
+		b := make([]byte, 32)
+		if _, err := rand.Read(b); err != nil {
+			slog.Error("failed to generate random API key salt, using fallback")
+			salt = fmt.Sprintf("deploypilot-%s", time.Now().Format("20060102150405.999999999"))
+		} else {
+			salt = hex.EncodeToString(b)
+			slog.Warn("API_KEY_SALT not configured, generated a random salt. Set API_KEY_SALT in config for persistence across restarts", "salt_prefix", salt[:8]+"...")
+		}
+	}
+	return &APIKeyService{DB: db, Salt: salt}
 }
-
-// Create generates a new API key. Returns the APIKey model and the raw key (shown only once).
-const apiKeySalt = "deploypilot-apikey-salt-v1"
 
 func (s *APIKeyService) Create(ctx context.Context, userID, tenantID, name string, scopes []string, expiresInDays int) (*model.APIKey, string, error) {
 	// Generate random key: dp_ + 32 hex chars = 35 chars total
@@ -38,7 +47,7 @@ func (s *APIKeyService) Create(ctx context.Context, userID, tenantID, name strin
 	rawKey := "dp_" + hex.EncodeToString(rawBytes)
 
 	// Hash the key for storage
-	hash := sha256.Sum256([]byte(apiKeySalt + rawKey))
+	hash := sha256.Sum256([]byte(s.Salt + rawKey))
 	keyHash := hex.EncodeToString(hash[:])
 
 	// Prefix for identification (first 10 chars)
@@ -79,7 +88,7 @@ func (s *APIKeyService) Create(ctx context.Context, userID, tenantID, name strin
 // Validate checks if a raw API key is valid and not expired.
 // On success, it updates LastUsedAt and returns the APIKey.
 func (s *APIKeyService) Validate(ctx context.Context, rawKey string) (*model.APIKey, error) {
-	hash := sha256.Sum256([]byte(apiKeySalt + rawKey))
+	hash := sha256.Sum256([]byte(s.Salt + rawKey))
 	keyHash := hex.EncodeToString(hash[:])
 
 	var apiKey model.APIKey

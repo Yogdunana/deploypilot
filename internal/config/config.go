@@ -138,6 +138,7 @@ type AuthConfig struct {
 	JWTSecret      string `mapstructure:"jwt_secret"`
 	TokenExpire    string `mapstructure:"token_expire"`
 	WSTicketExpire string `mapstructure:"ws_ticket_expire"`
+	APIKeySalt     string `mapstructure:"api_key_salt"`
 	OAuthProviders []OAuthProviderConfig `mapstructure:"oauth_providers"`
 }
 

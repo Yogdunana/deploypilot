@@ -22,7 +22,7 @@ func setupAPIKeyTestDB(t *testing.T) *gorm.DB {
 
 func TestAPIKeyService_Create(t *testing.T) {
 	db := setupAPIKeyTestDB(t)
-	svc := NewAPIKeyService(db)
+	svc := NewAPIKeyService(db, "test-salt-for-unit-tests")
 
 	apiKey, rawKey, err := svc.Create(context.TODO(), "user-1", "tenant-default", "test-key", []string{"read", "write"}, 30)
 	if err != nil {
@@ -50,7 +50,7 @@ func TestAPIKeyService_Create(t *testing.T) {
 
 func TestAPIKeyService_CreateNoExpiry(t *testing.T) {
 	db := setupAPIKeyTestDB(t)
-	svc := NewAPIKeyService(db)
+	svc := NewAPIKeyService(db, "test-salt-for-unit-tests")
 
 	apiKey, _, err := svc.Create(context.TODO(), "user-1", "tenant-default", "permanent-key", []string{"read"}, 0)
 	if err != nil {
@@ -63,7 +63,7 @@ func TestAPIKeyService_CreateNoExpiry(t *testing.T) {
 
 func TestAPIKeyService_Validate(t *testing.T) {
 	db := setupAPIKeyTestDB(t)
-	svc := NewAPIKeyService(db)
+	svc := NewAPIKeyService(db, "test-salt-for-unit-tests")
 
 	_, rawKey, err := svc.Create(context.TODO(), "user-1", "tenant-default", "test-key", []string{"read"}, 0)
 	if err != nil {
@@ -88,7 +88,7 @@ func TestAPIKeyService_Validate(t *testing.T) {
 
 func TestAPIKeyService_List(t *testing.T) {
 	db := setupAPIKeyTestDB(t)
-	svc := NewAPIKeyService(db)
+	svc := NewAPIKeyService(db, "test-salt-for-unit-tests")
 
 	for i := 0; i < 3; i++ {
 		_, _, err := svc.Create(context.TODO(), "user-1", "tenant-default", "key-"+string(rune('A'+i)), []string{"read"}, 0)
@@ -110,7 +110,7 @@ func TestAPIKeyService_List(t *testing.T) {
 
 func TestAPIKeyService_Delete(t *testing.T) {
 	db := setupAPIKeyTestDB(t)
-	svc := NewAPIKeyService(db)
+	svc := NewAPIKeyService(db, "test-salt-for-unit-tests")
 
 	apiKey, _, err := svc.Create(context.TODO(), "user-1", "tenant-default", "to-delete", []string{"read"}, 0)
 	if err != nil {
