@@ -1,6 +1,7 @@
 package api
 
 import (
+	"fmt"
 	"net/http"
 	"path/filepath"
 	"strconv"
@@ -11,6 +12,28 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
+
+// validateFilePath checks if the path is safe (no path traversal)
+func validateFilePath(path string) error {
+	if path == "" {
+		return fmt.Errorf("path cannot be empty")
+	}
+	// Check for null bytes
+	if strings.Contains(path, "\x00") {
+		return fmt.Errorf("path contains null bytes")
+	}
+	// Clean the path and check for traversal
+	cleanPath := filepath.Clean(path)
+	// Check for absolute paths that might escape intended directory
+	if strings.HasPrefix(cleanPath, "..") {
+		return fmt.Errorf("path traversal detected")
+	}
+	// Additional check for .. in the original path
+	if strings.Contains(path, "..") {
+		return fmt.Errorf("path contains traversal sequence")
+	}
+	return nil
+}
 
 // FileManagerAPI provides HTTP handlers for remote file management.
 type FileManagerAPI struct {
@@ -30,6 +53,12 @@ func (f *FileManagerAPI) ListFiles(c *gin.Context) {
 	serverID := c.Param("server_id")
 	remotePath := c.DefaultQuery("path", "/home")
 
+	// Validate path to prevent traversal
+	if err := validateFilePath(remotePath); err != nil {
+		respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request")
+		return
+	}
+
 	entries, err := f.fileSvc.ListFiles(c.Request.Context(), serverID, remotePath)
 	if err != nil {
 		respondErrori18n(c, http.StatusInternalServerError, "error.common.internal_error")
@@ -45,6 +74,12 @@ func (f *FileManagerAPI) ReadFile(c *gin.Context) {
 	serverID := c.Param("server_id")
 	remotePath := c.Query("path")
 	if remotePath == "" {
+		respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request")
+		return
+	}
+
+	// Validate path to prevent traversal
+	if err := validateFilePath(remotePath); err != nil {
 		respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request")
 		return
 	}
@@ -77,8 +112,8 @@ func (f *FileManagerAPI) WriteFile(c *gin.Context) {
 		return
 	}
 
-	// Reject path traversal attempts
-	if strings.Contains(filepath.Clean(req.Path), "..") {
+	// Validate path to prevent traversal
+	if err := validateFilePath(req.Path); err != nil {
 		respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request")
 		return
 	}
@@ -101,6 +136,12 @@ func (f *FileManagerAPI) DeleteFile(c *gin.Context) {
 		return
 	}
 
+	// Validate path to prevent traversal
+	if err := validateFilePath(remotePath); err != nil {
+		respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request")
+		return
+	}
+
 	if err := f.fileSvc.DeleteFile(c.Request.Context(), serverID, remotePath); err != nil {
 		respondErrori18n(c, http.StatusInternalServerError, "error.common.internal_error")
 		return
@@ -118,6 +159,12 @@ func (f *FileManagerAPI) CreateDirectory(c *gin.Context) {
 		Path string `json:"path" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
+		respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request")
+		return
+	}
+
+	// Validate path to prevent traversal
+	if err := validateFilePath(req.Path); err != nil {
 		respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request")
 		return
 	}
@@ -144,6 +191,16 @@ func (f *FileManagerAPI) MoveFile(c *gin.Context) {
 		return
 	}
 
+	// Validate paths to prevent traversal
+	if err := validateFilePath(req.SrcPath); err != nil {
+		respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request")
+		return
+	}
+	if err := validateFilePath(req.DstPath); err != nil {
+		respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request")
+		return
+	}
+
 	if err := f.fileSvc.MoveFile(c.Request.Context(), serverID, req.SrcPath, req.DstPath); err != nil {
 		respondErrori18n(c, http.StatusInternalServerError, "error.common.internal_error")
 		return
@@ -157,6 +214,12 @@ func (f *FileManagerAPI) MoveFile(c *gin.Context) {
 func (f *FileManagerAPI) GetDiskUsage(c *gin.Context) {
 	serverID := c.Param("server_id")
 	remotePath := c.DefaultQuery("path", "/")
+
+	// Validate path to prevent traversal
+	if err := validateFilePath(remotePath); err != nil {
+		respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request")
+		return
+	}
 
 	usage, err := f.fileSvc.GetDiskUsage(c.Request.Context(), serverID, remotePath)
 	if err != nil {
@@ -177,6 +240,12 @@ func (f *FileManagerAPI) GetFileInfo(c *gin.Context) {
 		return
 	}
 
+	// Validate path to prevent traversal
+	if err := validateFilePath(remotePath); err != nil {
+		respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request")
+		return
+	}
+
 	info, err := f.fileSvc.GetFileInfo(c.Request.Context(), serverID, remotePath)
 	if err != nil {
 		respondErrori18n(c, http.StatusInternalServerError, "error.common.internal_error")
@@ -193,6 +262,12 @@ func (f *FileManagerAPI) SearchFiles(c *gin.Context) {
 	searchPath := c.DefaultQuery("path", "/home")
 	pattern := c.Query("pattern")
 	if pattern == "" {
+		respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request")
+		return
+	}
+
+	// Validate path to prevent traversal
+	if err := validateFilePath(searchPath); err != nil {
 		respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request")
 		return
 	}
