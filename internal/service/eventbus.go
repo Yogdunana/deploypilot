@@ -133,7 +133,15 @@ func (b *InMemoryEventBus) Publish(event DeployEvent) {
 	}
 }
 
-// Close is a no-op for the in-memory implementation.
+// Close closes all subscriber channels and clears the subscriber map.
 func (b *InMemoryEventBus) Close() error {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	for appID, channels := range b.subscribers {
+		for _, ch := range channels {
+			close(ch)
+		}
+		delete(b.subscribers, appID)
+	}
 	return nil
 }

@@ -18,20 +18,21 @@ const confirmPassword = ref('')
 const error = ref('')
 const loading = ref(false)
 
-// Password strength
+// Password strength (aligned with backend PasswordValidator: min 8 chars)
 const passwordStrength = computed(() => {
   const pwd = password.value
   if (!pwd) return { level: 0, label: '', color: '' }
 
   let score = 0
-  if (pwd.length >= 6) score++
-  if (pwd.length >= 10) score++
+  if (pwd.length >= 8) score++
+  if (pwd.length >= 12) score++
+  if (/[a-z]/.test(pwd)) score++
   if (/[A-Z]/.test(pwd)) score++
   if (/[0-9]/.test(pwd)) score++
   if (/[^A-Za-z0-9]/.test(pwd)) score++
 
   if (score <= 2) return { level: 1, label: t('register.weak'), color: 'bg-destructive' }
-  if (score <= 3) return { level: 2, label: t('register.medium'), color: 'bg-warning' }
+  if (score <= 4) return { level: 2, label: t('register.medium'), color: 'bg-warning' }
   return { level: 3, label: t('register.strong'), color: 'bg-success' }
 })
 
@@ -58,7 +59,7 @@ async function handleRegister() {
     error.value = t('register.passwordRequired')
     return
   }
-  if (password.value.length < 6) {
+  if (password.value.length < 8) {
     error.value = t('register.passwordTooShort')
     return
   }

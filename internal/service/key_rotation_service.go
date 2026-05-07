@@ -45,10 +45,12 @@ func (b *Bridge) RotateLicenseKeys(ctx context.Context, userID string) (*KeyRota
 
 	// 4. Deactivate all existing keys
 	now := time.Now()
-	b.DB.Model(&model.LicenseSigningKey{}).Where("is_active = ?", true).Updates(map[string]interface{}{
+	if err := b.DB.Model(&model.LicenseSigningKey{}).Where("is_active = ?", true).Updates(map[string]interface{}{
 		"is_active":  false,
 		"rotated_at": now,
-	})
+	}).Error; err != nil {
+		slog.Error("failed to deactivate existing signing keys", "error", err)
+	}
 
 	// 5. Store new key
 	key := model.LicenseSigningKey{

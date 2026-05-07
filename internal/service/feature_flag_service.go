@@ -392,7 +392,9 @@ func (b *Bridge) SetFeatureFlagOverride(ctx context.Context, flagKey, tenantID s
 	}
 
 	// Update the flag's overridden_by field
-	b.DB.Model(&flag).Update("overridden_by", overriddenBy)
+	if err := b.DB.Model(&flag).Update("overridden_by", overriddenBy).Error; err != nil {
+		slog.Error("failed to update feature flag overridden_by", "flag", flagKey, "error", err)
+	}
 
 	// Invalidate cache
 	b.featureFlagCache.Invalidate()
@@ -419,7 +421,9 @@ func (b *Bridge) DeleteFeatureFlagOverride(ctx context.Context, flagKey, tenantI
 	}
 
 	// Clear overridden_by on the flag
-	b.DB.Model(&model.FeatureFlag{}).Where("key = ?", flagKey).Update("overridden_by", "")
+	if err := b.DB.Model(&model.FeatureFlag{}).Where("key = ?", flagKey).Update("overridden_by", "").Error; err != nil {
+		slog.Error("failed to clear feature flag overridden_by", "flag", flagKey, "error", err)
+	}
 
 	// Invalidate cache
 	b.featureFlagCache.Invalidate()

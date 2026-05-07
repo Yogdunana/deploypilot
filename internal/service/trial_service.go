@@ -72,12 +72,16 @@ func (b *Bridge) InitTrialPeriod(ctx context.Context) error {
 	now := time.Now()
 	if trial.Status == model.TrialActive && now.After(trial.ExpiresAt) {
 		trial.Status = model.TrialExpired
-		b.DB.Save(&trial)
+		if err := b.DB.Save(&trial).Error; err != nil {
+			slog.Error("failed to save expired trial", "machine_id", machineID, "error", err)
+		}
 		slog.Info("trial period expired", "machine_id", machineID, "expired_at", trial.ExpiresAt.Format(time.RFC3339))
 	}
 
 	// Update last checked time
-	b.DB.Model(&trial).Update("last_checked_at", now)
+	if err := b.DB.Model(&trial).Update("last_checked_at", now).Error; err != nil {
+		slog.Error("failed to update trial last_checked_at", "machine_id", machineID, "error", err)
+	}
 	return nil
 }
 
