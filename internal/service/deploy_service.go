@@ -20,12 +20,18 @@ import (
 // ---------- 1. Deploy ----------
 
 // DeployAsync starts a deploy in a goroutine and returns a task ID immediately.
+// It uses a detached context so the deploy is not cancelled when the HTTP request ends.
 func (b *Bridge) DeployAsync(ctx context.Context, cfg mcp.DeployConfig, appID string) (taskID string, err error) {
 	taskID = b.createTask("deploy")
 	traceID := tracing.TraceIDFromContext(ctx)
 	b.updateTask(taskID, "running", 0, "deploy started")
+
+	// Use a detached context so the deploy continues even if the original
+	// HTTP request context is cancelled (e.g. client disconnects).
+	detachedCtx := context.Background()
+
 	go func() {
-		cs, deployErr := b.Deploy(ctx, cfg)
+		cs, deployErr := b.Deploy(detachedCtx, cfg)
 		if deployErr != nil {
 			slog.Error("deploy failed", "task_id", taskID, "app_id", appID, "error", deployErr)
 			b.updateTask(taskID, "failed", 100, "deploy failed: see server logs for details")

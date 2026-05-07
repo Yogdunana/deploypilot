@@ -106,7 +106,7 @@ func New(addr string, db *gorm.DB, bridge *service.Bridge, cfg *config.Config, b
 	})
 
 	// API Key service
-	keySvc := service.NewAPIKeyService(db)
+	keySvc := service.NewAPIKeyService(db, cfg.Auth.APIKeySalt)
 
 	// Per-user IP whitelist service and middleware
 	ipWhitelistSvc := service.NewIPWhitelistService(db)
