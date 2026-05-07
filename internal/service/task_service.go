@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"sort"
 	"time"
+
+	"github.com/Yogdunana/deploypilot/internal/util/timeutil"
 )
 
 // Simple in-memory task tracker.
@@ -29,8 +31,8 @@ func (b *Bridge) createTask(taskType string) string {
 		Type:      taskType,
 		Status:    "pending",
 		Progress:  0,
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
+		CreatedAt: timeutil.Now(),
+		UpdatedAt: timeutil.Now(),
 	}
 	return id
 }
@@ -43,7 +45,7 @@ func (b *Bridge) updateTask(id, status string, progress int, message string) {
 		t.Status = status
 		t.Progress = progress
 		t.Message = message
-		t.UpdatedAt = time.Now()
+		t.UpdatedAt = timeutil.Now()
 	}
 }
 

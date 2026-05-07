@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"time"
 
 	"github.com/Yogdunana/deploypilot/internal/engine/builder"
 	"github.com/Yogdunana/deploypilot/internal/engine/deployer"
@@ -14,6 +13,7 @@ import (
 	"github.com/Yogdunana/deploypilot/internal/metrics"
 	"github.com/Yogdunana/deploypilot/internal/model"
 	"github.com/Yogdunana/deploypilot/internal/tracing"
+	"github.com/Yogdunana/deploypilot/internal/util/timeutil"
 	"gorm.io/gorm"
 )
 
@@ -42,7 +42,7 @@ func (b *Bridge) DeployAsync(ctx context.Context, cfg mcp.DeployConfig, appID st
 				Status:    "failed",
 				Progress:  100,
 				Message:   "deploy failed: see server logs for details",
-				Timestamp: time.Now().Format(time.RFC3339),
+				Timestamp: timeutil.FormatRFC3339(),
 				TraceID:   traceID,
 			})
 		} else {
@@ -54,22 +54,22 @@ func (b *Bridge) DeployAsync(ctx context.Context, cfg mcp.DeployConfig, appID st
 				Status:    "success",
 				Progress:  100,
 				Message:   "deploy completed",
-				Timestamp: time.Now().Format(time.RFC3339),
-				TraceID:   traceID,
-			})
-			b.taskMu.Lock()
-			if t, ok := b.tasks[taskID]; ok {
-				t.Result = cs
-			}
-			b.taskMu.Unlock()
+				Timestamp: timeutil.FormatRFC3339(),
+			TraceID:   traceID,
+		})
+		b.taskMu.Lock()
+		if t, ok := b.tasks[taskID]; ok {
+			t.Result = cs
 		}
+		b.taskMu.Unlock()
+	}
 	}()
 	return taskID, nil
 }
 
 func (b *Bridge) Deploy(ctx context.Context, cfg mcp.DeployConfig) (*mcp.ContainerStatus, error) {
 	// Record deploy start time for metrics
-	deployStart := time.Now()
+	deployStart := timeutil.Now()
 
 	// Determine executor: remote SSH if server_id provided, otherwise local
 	executor := b.Executor
@@ -117,15 +117,15 @@ func (b *Bridge) Deploy(ctx context.Context, cfg mcp.DeployConfig) (*mcp.Contain
 		logPreflightResult(cfg.ContainerName, pfResult)
 
 		b.EventBus.Publish(DeployEvent{
-			TaskID:    "", AppID: cfg.ContainerName,
-			Step: "preflight", Status: "failed", Progress: 20,
-			Message:   pfResult.Message,
-			Timestamp: time.Now().Format(time.RFC3339),
-		})
+		TaskID:    "", AppID: cfg.ContainerName,
+		Step: "preflight", Status: "failed", Progress: 20,
+		Message:   pfResult.Message,
+		Timestamp: timeutil.FormatRFC3339(),
+	})
 
-		// Record preflight failure metric
-		metrics.DeployTotal.WithLabelValues(cfg.ContainerName, cfg.ServerID, "failed").Inc()
-		metrics.DeployDuration.Observe(time.Since(deployStart).Seconds())
+	// Record preflight failure metric
+	metrics.DeployTotal.WithLabelValues(cfg.ContainerName, cfg.ServerID, "failed").Inc()
+	metrics.DeployDuration.Observe(timeutil.Since(deployStart).Seconds())
 
 		return nil, &PreflightError{
 			Code:    pfResult.Code,
@@ -138,7 +138,7 @@ func (b *Bridge) Deploy(ctx context.Context, cfg mcp.DeployConfig) (*mcp.Contain
 		TaskID:    "", AppID: cfg.ContainerName,
 		Step: "preflight", Status: "success", Progress: 20,
 		Message:   "preflight checks passed",
-		Timestamp: time.Now().Format(time.RFC3339),
+		Timestamp: timeutil.FormatRFC3339(),
 	})
 
 	dCfg := deployer.DeployConfig{
@@ -162,7 +162,7 @@ func (b *Bridge) Deploy(ctx context.Context, cfg mcp.DeployConfig) (*mcp.Contain
 		TaskID:    "", AppID: cfg.ContainerName,
 		Step: "pull", Status: "running", Progress: 30,
 		Message:   "pulling image: " + cfg.Image,
-		Timestamp: time.Now().Format(time.RFC3339),
+		Timestamp: timeutil.FormatRFC3339(),
 	})
 
 	cs, err := d.Deploy(ctx, dCfg)
@@ -173,14 +173,14 @@ func (b *Bridge) Deploy(ctx context.Context, cfg mcp.DeployConfig) (*mcp.Contain
 
 		// Record deploy failure metric
 		metrics.DeployTotal.WithLabelValues(cfg.ContainerName, cfg.ServerID, "failed").Inc()
-		metrics.DeployDuration.Observe(time.Since(deployStart).Seconds())
+		metrics.DeployDuration.Observe(timeutil.Since(deployStart).Seconds())
 
 		slog.Error("deploy run failed", "app_id", cfg.ContainerName, "server_id", cfg.ServerID, "error", err)
 		b.EventBus.Publish(DeployEvent{
 			TaskID:    "", AppID: cfg.ContainerName,
 			Step: "run", Status: "failed", Progress: 60,
 			Message:   "deploy failed: see server logs for details",
-			Timestamp: time.Now().Format(time.RFC3339),
+			Timestamp: timeutil.FormatRFC3339(),
 		})
 
 		return nil, err
@@ -191,13 +191,13 @@ func (b *Bridge) Deploy(ctx context.Context, cfg mcp.DeployConfig) (*mcp.Contain
 
 	// Record deploy success metric
 	metrics.DeployTotal.WithLabelValues(cfg.ContainerName, cfg.ServerID, "success").Inc()
-	metrics.DeployDuration.Observe(time.Since(deployStart).Seconds())
+	metrics.DeployDuration.Observe(timeutil.Since(deployStart).Seconds())
 
 	b.EventBus.Publish(DeployEvent{
 		TaskID:    "", AppID: cfg.ContainerName,
 		Step: "run", Status: "success", Progress: 90,
 		Message:   "container deployed successfully",
-		Timestamp: time.Now().Format(time.RFC3339),
+		Timestamp: timeutil.FormatRFC3339(),
 	})
 
 	return &mcp.ContainerStatus{
@@ -511,8 +511,8 @@ func (b *Bridge) saveRollbackRecord(ctx context.Context, cfg mcp.DeployConfig, c
 		ConfigSnapshot: string(snapshotJSON),
 		Status:         status,
 		ErrorMessage:   errMsg,
-		CreatedAt:      time.Now(),
-		UpdatedAt:      time.Now(),
+		CreatedAt:      timeutil.Now(),
+		UpdatedAt:      timeutil.Now(),
 	}
 	if err := b.DB.Create(record).Error; err != nil {
 		slog.Error("failed to save rollback record", "error", err)
@@ -568,8 +568,8 @@ func (b *Bridge) saveDeploymentRecord(ctx context.Context, cfg mcp.DeployConfig,
 		DeployType:     "deploy",
 		ConfigSnapshot: string(snapshotJSON),
 		Status:         status,
-		CreatedAt:      time.Now(),
-		UpdatedAt:      time.Now(),
+		CreatedAt:      timeutil.Now(),
+		UpdatedAt:      timeutil.Now(),
 	}
 	if pfResult != nil {
 		record.PreflightCode = string(pfResult.Code)
