@@ -1,6 +1,6 @@
 #!/bin/bash
 set -euo pipefail
-SCRIPT_VERSION="2.3.0"
+SCRIPT_VERSION="2.4.0"
 DEFAULT_INSTALL_DIR="/opt/deploypilot"
 DEFAULT_PORT="8080"
 GITHUB_REPO="Yogdunana/deploypilot"
@@ -154,13 +154,9 @@ function is_tty() {
     [ -t 0 ] || [ -t 1 ]
 }
 
-# Check if /dev/tty is available for interactive input
-function has_tty() {
-    [ -e /dev/tty ] && [ -r /dev/tty ] && [ -w /dev/tty ] 2>/dev/null
-}
-
-# Auto-detect: if running in pipe mode without /dev/tty, switch to non-interactive
-if [ ! has_tty ]; then
+# Auto-detect: if stdin is not a terminal (pipe mode), switch to non-interactive
+# This handles: curl | bash, wget -O - | bash, etc.
+if [ ! -t 0 ]; then
     NON_INTERACTIVE=true
 fi
 
@@ -179,8 +175,7 @@ function prompt_input() {
         echo -ne " [${YELLOW}${default}${RESET}]"
     fi
     echo -ne ": "
-    result=$(timeout 30 read -r -t 30 2>/dev/null < /dev/tty && cat || echo "")
-    result=$(echo "$result" | head -1 | tr -d '\r\n')
+    read -r result
     if [ -z "$result" ]; then
         result="$default"
     fi
@@ -202,8 +197,7 @@ function prompt_password() {
         echo -ne " [${YELLOW}(generated)${RESET}]"
     fi
     echo -ne ": "
-    result=$(timeout 30 sh -c 'read -s -r line < /dev/tty 2>/dev/null; echo "$line"' || echo "")
-    result=$(echo "$result" | head -1 | tr -d '\r\n')
+    read -s -r result
     echo ""
     if [ -z "$result" ]; then
         result="$default"
@@ -227,8 +221,7 @@ function prompt_confirm() {
 
     while true; do
         echo -ne "${CYAN}${prompt}${RESET} [${YELLOW}${default}${RESET}]: "
-        result=$(timeout 30 read -r -t 30 2>/dev/null < /dev/tty && cat || echo "")
-        result=$(echo "$result" | head -1 | tr -d '\r\n')
+        read -r result
         result=${result:-$default}
         case "$result" in
             [Yy]*) return 0 ;;
