@@ -162,5 +162,6 @@ jobs:
           gitee_release_name: ${{ github.ref_name }}
           gitee_release_body: ${{ github.ref_name }}
           gitee_target_commitish: main
+          gitee_upload_retry_times: 5
           gitee_files: |
             dist/*
