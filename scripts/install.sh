@@ -1,6 +1,6 @@
 #!/bin/bash
 set -euo pipefail
-SCRIPT_VERSION="2.1.0"
+SCRIPT_VERSION="2.2.0"
 DEFAULT_INSTALL_DIR="/opt/deploypilot"
 DEFAULT_PORT="8080"
 GITHUB_REPO="Yogdunana/deploypilot"
@@ -39,11 +39,21 @@ RESET='\033[0m'
 
 function print_banner() {
     echo -e "${CYAN}"
-    echo "  ____                      _        ____  _     _       "
-    echo " |  _ \ _ __ _____  ___   _| |_ __ _| __ )| |   (_) ___  "
-    echo " | |_) | '__/ _ \ \/ / | | | __/ _\` |  _ \| |   | |/ _ \ "
-    echo " |  __/| | | (_) >  <| |_| | || (_| | |_) | |___| | (_) |"
-    echo " |_|   |_|  \___/_/\_\\\\__,_|\\__\\__,_|____/|_____|_|\\___/ "
+    echo " ______   ______   ______   __       ______   __  __"
+    echo "/\\\\____/\\\\ /\\\\____/\\\\ /\\\\____/\\\\ /_\\\\     /\\\\____/\\\\ /_\\\\/_\\\\/_\\\\"
+    echo "\\\\:::_ \\\\ \\\\::::_\/_\\\\:::_ \\\\ \\\\:\\\\\\    \\\\:::_ \\\\ \\\\ \\ \\ \\ \\\\"
+    echo " \\\\:\\\\\\ \\ \\\\:\\\\\/___/\\\\:(_) \\\\ \\\\:\\\\\\    \\\\:\\\\\\ \\ \\\\:\\\\\\_\\\\ \\\\"
+    echo "  \\\\:\\\\\\ \\ \\\\::___\/_\\\\: ___\/ \\\\:\\\\\\ \\____\\\\:\\\\\\ \\ \\\\::::_\/"
+    echo "   \\\\:\/.:| |\\\\:\\\\\\____/\\\\ \\ \\    \\\\:\/___/\\\\:\\\\\\_\\\\ \\\\ \\::\\\\ \\"
+    echo "    \\\\____/_/ \\\\_____\/ \\_\\/     \\\\_____\/ \\\\_____\/  \\__\/"
+    echo ""
+    echo " ______   ________  __       ______   _________"
+    echo "/\\\\____/\\\\ /_______/\\\\/_\\\\     /\\\\____/\\\\ /________/\\\\"
+    echo "\\\\:::_ \\\\ \\\\__.::._\/\\\\:\\\\\\ \\    \\\\:::_ \\\\ \\\\__.::.__\/"
+    echo " \\\\:(_) \\\\ \\  \\\\::\\\\ \\  \\\\:\\\\\\ \\    \\\\:\\\\\\ \\ \\\\  \\\\::\\\\ \\"
+    echo "  \\\\: ___\/  _\\\\::\\\\ \\__\\\\:\\\\\\ \\____\\\\:\\\\\\ \\ \\\\  \\\\::\\\\ \\"
+    echo "   \\\\ \\ \\   /__\\\\::\\\\__/\\\\:\\\\\\___/\\\\:\\\\\\_\\\\ \\\\  \\\\::\\\\ \\"
+    echo "    \\\\_\\/   \\________\/ \\\\_____\/ \\\\_____\/   \\__\/"
     echo ""
     echo -e "                  ${WHITE}一键安装脚本 v${SCRIPT_VERSION}${RESET}"
     echo ""
@@ -148,6 +158,16 @@ function is_tty() {
     [ -t 0 ] || [ -t 1 ]
 }
 
+# Check if /dev/tty is available for interactive input
+function has_tty() {
+    [ -e /dev/tty ] && [ -r /dev/tty ] && [ -w /dev/tty ] 2>/dev/null
+}
+
+# Auto-detect: if running in pipe mode without /dev/tty, switch to non-interactive
+if [ ! has_tty ]; then
+    NON_INTERACTIVE=true
+fi
+
 function prompt_input() {
     local prompt="$1"
     local default="$2"
@@ -164,7 +184,7 @@ function prompt_input() {
         echo -ne " [${YELLOW}${default}${RESET}]"
     fi
     echo -ne ": "
-    read -r result < /dev/tty || true
+    read -r result < /dev/tty 2>/dev/null || result=""
     if [ -z "$result" ]; then
         result="$default"
     fi
@@ -186,7 +206,7 @@ function prompt_password() {
         echo -ne " [${YELLOW}(generated)${RESET}]"
     fi
     echo -ne ": "
-    read -s -r result < /dev/tty || true
+    read -s -r result < /dev/tty 2>/dev/null || result=""
     echo ""
     if [ -z "$result" ]; then
         result="$default"
@@ -210,7 +230,7 @@ function prompt_confirm() {
 
     while true; do
         echo -ne "${CYAN}${prompt}${RESET} [${YELLOW}${default}${RESET}]: "
-        read -r result < /dev/tty || true
+        read -r result < /dev/tty 2>/dev/null || result=""
         result=${result:-$default}
         case "$result" in
             [Yy]*) return 0 ;;
