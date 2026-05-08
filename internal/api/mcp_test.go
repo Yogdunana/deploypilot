@@ -9,6 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
+	"github.com/Yogdunana/deploypilot/internal/model"
 	"github.com/Yogdunana/deploypilot/internal/service"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
@@ -24,12 +25,12 @@ func setupTestMCPHandler(t *testing.T) (*MCPHTTPHandler, *gin.Engine, *gorm.DB) 
 	}
 
 	// Run migrations
-	if err := db.AutoMigrate(&service.User{}, &service.App{}, &service.Server{}); err != nil {
+	if err := db.AutoMigrate(&model.User{}, &model.App{}, &model.Server{}); err != nil {
 		t.Fatalf("failed to migrate: %v", err)
 	}
 
 	// Create test user
-	testUser := &service.User{
+	testUser := &model.User{
 		Username: "testuser",
 		Password: "hashedpassword",
 		Role:     "owner",
