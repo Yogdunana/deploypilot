@@ -1,6 +1,6 @@
 #!/bin/bash
 set -euo pipefail
-SCRIPT_VERSION="2.4.0"
+SCRIPT_VERSION="2.5.0"
 DEFAULT_INSTALL_DIR="/opt/deploypilot"
 DEFAULT_PORT="8080"
 GITHUB_REPO="Yogdunana/deploypilot"
@@ -249,10 +249,16 @@ function install_docker() {
     local os="$1"
     local use_mirror="$2"
     print_info "正在安装 Docker..."
+    # Suppress kernel upgrade prompts and needrestart
+    export DEBIAN_FRONTEND=noninteractive
+    export NEEDRESTART_MODE=a
+    if [ -f /etc/needrestart/needrestart.conf ]; then
+        sed -i 's/#\$nrconf{restart} = .*/\$nrconf{restart} = "a"/' /etc/needrestart/needrestart.conf 2>/dev/null || true
+    fi
     case "$os" in
         ubuntu|debian)
             apt-get update -y
-            apt-get install -y apt-transport-https ca-certificates curl gnupg lsb-release
+            apt-get install -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" apt-transport-https ca-certificates curl gnupg lsb-release
             if [ "$use_mirror" = "true" ]; then
                 curl -fsSL https://mirrors.aliyun.com/docker-ce/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/trusted.gpg.d/docker.gpg
                 echo "deb [arch=$(dpkg --print-architecture)] https://mirrors.aliyun.com/docker-ce/linux/ubuntu $(lsb_release -cs) stable" > /etc/apt/sources.list.d/docker.list
@@ -309,30 +315,56 @@ function download_binaries() {
     local dest_dir="$3"
     local use_mirror="$4"
     local base_url
+
+    # Build list of download sources to try
+    local urls=()
+
     if [ "$use_mirror" = "true" ]; then
-        base_url="https://mirror.ghproxy.com/https://github.com/${GITHUB_REPO}/releases/download/${version}"
-    else
-        base_url="https://github.com/${GITHUB_REPO}/releases/download/${version}"
+        # Gitee Release (most reliable for China)
+        urls+=("https://gitee.com/${GITHUB_REPO}/releases/download/${version}")
+        # GitHub mirror proxies
+        urls+=("https://mirror.ghproxy.com/https://github.com/${GITHUB_REPO}/releases/download/${version}")
+        urls+=("https://ghfast.top/https://github.com/${GITHUB_REPO}/releases/download/${version}")
     fi
+
+    # GitHub direct (always try last)
+    urls+=("https://github.com/${GITHUB_REPO}/releases/download/${version}")
+
     print_info "正在下载 DeployPilot v${version} (${arch}) ..."
     local binaries=("api-server" "mcp-server" "deploypilot")
     local download_success=true
+
     for bin in "${binaries[@]}"; do
         local filename="${bin}-linux-${arch}"
-        local url="${base_url}/${filename}"
         local output="${dest_dir}/${bin}"
-        print_info "  下载 ${filename} ..."
-        if download_file "$url" "$output" "${bin}"; then
-            chmod +x "$output"
-            print_success "  ${bin} 下载完成"
-        else
-            print_error "  ${bin} 下载失败"
+        local bin_downloaded=false
+
+        for url_base in "${urls[@]}"; do
+            local url="${url_base}/${filename}"
+            print_info "  下载 ${filename} ..."
+            print_info "  来源: ${url_base}"
+
+            if download_file "$url" "$output" "${bin}" 2>/dev/null; then
+                chmod +x "$output"
+                print_success "  ${bin} 下载完成"
+                bin_downloaded=true
+                break
+            else
+                print_warning "  从 ${url_base} 下载失败，尝试下一个源"
+            fi
+        done
+
+        if [ "$bin_downloaded" = false ]; then
+            print_error "  ${bin} 下载失败（所有源均不可用）"
             download_success=false
         fi
     done
+
     if [ "$download_success" = false ]; then
-        print_error "二进制文件下载失败，请检查网络连接或版本号"
-        print_info "可手动下载: https://github.com/${GITHUB_REPO}/releases"
+        print_error "二进制文件下载失败"
+        print_info "请检查网络连接或手动下载:"
+        print_info "  GitHub: https://github.com/${GITHUB_REPO}/releases"
+        print_info "  Gitee:  https://gitee.com/${GITHUB_REPO}/releases"
         exit 1
     fi
 }
