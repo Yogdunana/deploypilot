@@ -493,6 +493,31 @@ flowchart LR
 
 ### 3.4 Release 与 Docker 构建流程
 
+#### 发布策略
+
+> 详见 `ai-guide.md` "发布策略" 章节。核心原则：所有开发在 main 分支，通过 tag 区分 beta 和稳定版。
+
+**分支模型**：只用 main 分支，不使用 dev/beta/release 分支。
+
+**两种发布模式**：
+
+| 模式 | 触发方式 | Tag 格式 | Release 标记 |
+|------|----------|----------|-------------|
+| Beta（自动） | PR merge 到 main + CI 通过后自动打 tag | `vX.Y.Z-beta.N` | prerelease=true |
+| 稳定版（手动） | 用户明确确认后手动打 tag | `vX.Y.Z` | prerelease=false |
+
+**Beta 自动发布流程**：
+1. PR squash merge 到 main
+2. 等待 main CI 全部通过
+3. 删除已有的同版本 beta tag + release（如有）
+4. 在当前 main HEAD 创建 beta tag
+5. release.yml 自动触发：构建二进制 → 创建 GitHub Release → 同步 Gitee
+
+**稳定版发布流程**：
+1. 用户明确指示某一版本为稳定版
+2. 打不带 beta/rc/dev 后缀的正式 tag
+3. release.yml 自动触发构建
+
 #### 版本号管理
 
 版本号通过 git tag 和 `-ldflags` 管理，**禁止**直接改 `version.go`（踩坑 #2，默认值 "dev"）。
@@ -520,8 +545,10 @@ go build -ldflags "-X github.com/Yogdunana/deploypilot/internal/version.Version=
 #### 多架构构建与 Docker 发布
 
 - release.yml 自动触发多架构构建：`linux/amd64` + `linux/arm64`
+- arm64 交叉编译需要 `gcc-aarch64-linux-gnu`（踩坑 #36）
 - Docker 镜像发布到：`ghcr.io/yogdunana/deploypilot`
 - 构建产物包含三个二进制：`deploypilot`、`api-server`、`mcp-server`
+- Release 自动同步到 Gitee（`nicennnnnnnlee/action-gitee-release`）
 
 #### 版本完成检查清单（踩坑 #20，6 步）
 
@@ -1141,6 +1168,7 @@ npm audit --audit-level=high
 | #19 | NewSSLProvider 返回接口后测试需类型断言 | SSL Provider 测试文件 | 通过类型断言 `p.(*SSLProvider)` 访问内部字段 |
 | #26 | Go 变量作用域陷阱：if 内 := 声明在外层不可见 | Go 源文件 | 在外层先 `var err error`，if 中用 `err = doSomething()`（赋值而非声明） |
 | #27 | 删除函数后必须检查 import 是否仍被使用 | Go 源文件 | 删除使用特定包的函数后，确认该包的 import 是否变成未使用 |
+| #34 | 前端 API 路径必须与后端路由组前缀一致 | `web/src/api/index.ts`, `web/src/api/modules/*.ts` | 后端路由注册在 `/api/v1` group 下，axios baseURL 必须设为 `/api/v1`，各模块路径用相对路径（如 `/auth/login` 而非 `/api/auth/login`）。**禁止**部分模块用 `/api/`、部分用 `/api/v1/` |
 
 ### 安全
 
@@ -1156,6 +1184,9 @@ npm audit --audit-level=high
 | #20 | 版本完成必须执行完整检查清单 | Milestone, CHANGELOG, Roadmap | 执行 6 步检查清单：Milestone 清理 -> 关闭 -> CHANGELOG 更新 -> Tag + Release -> 孤立 Issue 巡检 -> Roadmap 确认 |
 | #21 | 数据库安装前必须预检测已有实例 | 数据库安装流程 | 先用 `systemctl status` / `docker ps` / `ss -tlnp` 检测，已存在则让用户选择复用或全新安装 |
 | #22 | Web 服务器组件缺失时必须提示用户选择 | Web 服务器安装流程 | **禁止**自行决定安装哪个，必须暂停工作流提示用户选择 Apache/Nginx/OpenResty |
+| #35 | shell 脚本 `set -euo pipefail` 下 `tr | head` 会 SIGPIPE 崩溃 | `scripts/install.sh` | `tr -dc '...' < /dev/urandom | head -c N` 在 pipefail 下，head 关闭管道后 tr 报 SIGPIPE。修复：`result=$(tr ... | head ...) || true` |
+| #36 | CGO 交叉编译 arm64 需要安装 gcc-aarch64-linux-gnu | `.github/workflows/release.yml` | ubuntu-latest (amd64) 上 `CGO_ENABLED=1 GOARCH=arm64` 需要 `sudo apt-get install gcc-aarch64-linux-gnu` + `CC=aarch64-linux-gnu-gcc` |
+| #37 | GitHub `/releases/latest` API 不返回 prerelease 版本 | `scripts/install.sh` | 获取最新版本（含 beta）必须用 `/releases?per_page=5` + `grep tag_name | head -1`，**禁止**用 `/releases/latest` |
 
 ### 架构
 
@@ -1163,6 +1194,7 @@ npm audit --audit-level=high
 |------|------|----------|----------|
 | #23 | DeployPilot 面板使用 Go 内嵌 HTTP 服务器，端口可配置 | `web/embed.go`, `internal/server/server.go` | 面板不依赖 Nginx/Apache/OpenResty，**禁止**假设面板由 Nginx 代理或固定在 8080 端口 |
 | #28 | Redis Pub/Sub 多实例广播必须防止消息回环 | WSHub, WSMessage | 使用 SourceInstance（UUID 前 8 位）标识消息来源，接收时跳过自己发出的消息 |
+| #38 | MCP server stdio 模式下不能反复重启 | `cmd/mcp-server/`, systemd service 配置 | MCP server 使用 stdio transport 时由客户端管理生命周期，**禁止**配置 systemd 自动重启（Restart=always），否则会导致每 5 秒重启一次的循环 |
 
 ### 已知安全漏洞（已全部修复）
 
