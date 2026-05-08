@@ -1,9 +1,10 @@
 #!/bin/bash
 set -euo pipefail
-SCRIPT_VERSION="2.0.0"
+SCRIPT_VERSION="2.1.0"
 DEFAULT_INSTALL_DIR="/opt/deploypilot"
 DEFAULT_PORT="8080"
 GITHUB_REPO="Yogdunana/deploypilot"
+
 # Detect latest version from GitHub
 get_latest_version() {
     local url="https://api.github.com/repos/${GITHUB_REPO}/releases/latest"
@@ -15,6 +16,7 @@ get_latest_version() {
         echo ""
     fi
 }
+
 # Detect if in non-interactive mode
 NON_INTERACTIVE=false
 if [ "${1:-}" = "--non-interactive" ] || [ "${NON_INTERACTIVE_MODE:-false}" = "true" ]; then
@@ -23,6 +25,7 @@ fi
 if [ "${1:-}" = "--interactive" ] || [ "${FORCE_INTERACTIVE:-false}" = "true" ]; then
     NON_INTERACTIVE=false
 fi
+
 # Colors
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -33,57 +36,63 @@ CYAN='\033[0;36m'
 WHITE='\033[1;37m'
 BOLD='\033[1m'
 RESET='\033[0m'
+
 function print_banner() {
     echo -e "${CYAN}"
-    echo "╔═══════════════════════════════════════════════════════════════╗"
-    echo "║                                                               ║"
-    echo "║   ██████╗ ███████╗██████╗ ██╗      ██████╗ ██╗   ██╗ ██████╗ ███████╗██████╗ ║"
-    echo "║   ██╔══██╗██╔════╝██╔══██╗██║     ██╔═══██╗╚██╗ ██╔╝██╔════╝ ██╔════╝██╔══██╗║"
-    echo "║   ██║  ██║█████╗  ██████╔╝██║     ██║   ██║ ╚████╔╝ █████╗  ██████╗ ██████╔╝║"
-    echo "║   ██║  ██║██╔══╝  ██╔═══╝ ██║     ██║   ██║  ╚██╔╝  ██╔══╝  ██╔═══╝ ██╔═══╝ ║"
-    echo "║   ██████╔╝███████╗██║     ███████╗╚██████╔╝   ██║   ███████╗██║     ██║      ║"
-    echo "║   ╚═════╝ ╚══════╝╚═╝     ╚══════╝ ╚═════╝    ╚═╝   ╚══════╝╚═╝     ╚═╝      ║"
-    echo "║                                                               ║"
-    echo "║                     一键安装脚本 v${SCRIPT_VERSION}                      ║"
-    echo "║                                                               ║"
-    echo "╚═══════════════════════════════════════════════════════════════╝"
-    echo -e "${RESET}"
+    echo "  ____                      _        ____  _     _       "
+    echo " |  _ \ _ __ _____  ___   _| |_ __ _| __ )| |   (_) ___  "
+    echo " | |_) | '__/ _ \ \/ / | | | __/ _\` |  _ \| |   | |/ _ \ "
+    echo " |  __/| | | (_) >  <| |_| | || (_| | |_) | |___| | (_) |"
+    echo " |_|   |_|  \___/_/\_\\\\__,_|\\__\\__,_|____/|_____|_|\\___/ "
+    echo ""
+    echo -e "                  ${WHITE}一键安装脚本 v${SCRIPT_VERSION}${RESET}"
+    echo ""
 }
+
 function print_info() {
     echo -e "${BLUE}[INFO]${RESET} $1"
 }
+
 function print_success() {
     echo -e "${GREEN}[SUCCESS]${RESET} $1"
 }
+
 function print_warning() {
     echo -e "${YELLOW}[WARNING]${RESET} $1"
 }
+
 function print_error() {
     echo -e "${RED}[ERROR]${RESET} $1"
 }
+
 function print_step() {
     echo -e ""
     echo -e "${BOLD}${MAGENTA}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
     echo -e "${BOLD}${MAGENTA} 步骤 $1: $2${RESET}"
     echo -e "${BOLD}${MAGENTA}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
 }
+
 function random_string() {
     local length=${1:-12}
     tr -dc 'a-z0-9' < /dev/urandom | head -c "$length"
 }
+
 function generate_password() {
     local length=${1:-16}
     tr -dc 'a-zA-Z0-9!@#$%^&*' < /dev/urandom | head -c "$length"
 }
+
 function generate_username() {
     echo "deploy_$(random_string 8)"
 }
+
 function check_root() {
     if [ "$EUID" -ne 0 ]; then
         print_error "请使用 root 用户或 sudo 运行此脚本"
         exit 1
     fi
 }
+
 function detect_arch() {
     local arch
     arch=$(uname -m)
@@ -100,6 +109,7 @@ function detect_arch() {
             ;;
     esac
 }
+
 function detect_os() {
     local os=""
     if [ -f /etc/os-release ]; then
@@ -107,7 +117,7 @@ function detect_os() {
         os=$ID
     elif [ -f /etc/redhat-release ]; then
         os="centos"
-    elif [ -f /etc/debian_version ]; then
+    elif [ -f /etc/debian-version ]; then
         os="debian"
     else
         print_error "无法检测操作系统"
@@ -115,6 +125,7 @@ function detect_os() {
     fi
     echo "$os"
 }
+
 function detect_systemd() {
     if command -v systemctl >/dev/null 2>&1; then
         echo "true"
@@ -122,6 +133,7 @@ function detect_systemd() {
         echo "false"
     fi
 }
+
 function get_ip_address() {
     local ip
     ip=$(hostname -I | awk '{print $1}')
@@ -130,6 +142,12 @@ function get_ip_address() {
     fi
     echo "$ip"
 }
+
+# Check if stdin is a terminal (not a pipe)
+function is_tty() {
+    [ -t 0 ] || [ -t 1 ]
+}
+
 function prompt_input() {
     local prompt="$1"
     local default="$2"
@@ -140,18 +158,19 @@ function prompt_input() {
         return
     fi
 
+    # Read from /dev/tty to work in pipe mode (curl | bash)
     echo -ne "${CYAN}${prompt}${RESET}"
     if [ -n "$default" ]; then
         echo -ne " [${YELLOW}${default}${RESET}]"
     fi
     echo -ne ": "
-
-    read -r result
+    read -r result < /dev/tty || true
     if [ -z "$result" ]; then
         result="$default"
     fi
     echo "$result"
 }
+
 function prompt_password() {
     local prompt="$1"
     local default="$2"
@@ -167,14 +186,14 @@ function prompt_password() {
         echo -ne " [${YELLOW}(generated)${RESET}]"
     fi
     echo -ne ": "
-
-    read -s -r result
+    read -s -r result < /dev/tty || true
     echo ""
     if [ -z "$result" ]; then
         result="$default"
     fi
     echo "$result"
 }
+
 function prompt_confirm() {
     local prompt="$1"
     local default="${2:-y}"
@@ -191,9 +210,8 @@ function prompt_confirm() {
 
     while true; do
         echo -ne "${CYAN}${prompt}${RESET} [${YELLOW}${default}${RESET}]: "
-        read -r result
+        read -r result < /dev/tty || true
         result=${result:-$default}
-
         case "$result" in
             [Yy]*) return 0 ;;
             [Nn]*) return 1 ;;
@@ -201,11 +219,11 @@ function prompt_confirm() {
         esac
     done
 }
+
 function download_file() {
     local url="$1"
     local output="$2"
     local desc="$3"
-
     if command -v curl >/dev/null 2>&1; then
         curl -fsSL "$url" -o "$output"
     elif command -v wget >/dev/null 2>&1; then
@@ -215,17 +233,15 @@ function download_file() {
         exit 1
     fi
 }
+
 function install_docker() {
     local os="$1"
     local use_mirror="$2"
-
     print_info "正在安装 Docker..."
-
     case "$os" in
         ubuntu|debian)
             apt-get update -y
             apt-get install -y apt-transport-https ca-certificates curl gnupg lsb-release
-
             if [ "$use_mirror" = "true" ]; then
                 curl -fsSL https://mirrors.aliyun.com/docker-ce/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/trusted.gpg.d/docker.gpg
                 echo "deb [arch=$(dpkg --print-architecture)] https://mirrors.aliyun.com/docker-ce/linux/ubuntu $(lsb_release -cs) stable" > /etc/apt/sources.list.d/docker.list
@@ -233,19 +249,16 @@ function install_docker() {
                 curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/trusted.gpg.d/docker.gpg
                 echo "deb [arch=$(dpkg --print-architecture)] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" > /etc/apt/sources.list.d/docker.list
             fi
-
             apt-get update -y
             apt-get install -y docker-ce docker-ce-cli containerd.io
             ;;
         centos|rhel)
             yum install -y yum-utils
-
             if [ "$use_mirror" = "true" ]; then
                 yum-config-manager --add-repo https://mirrors.aliyun.com/docker-ce/linux/centos/docker-ce.repo
             else
                 yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
             fi
-
             yum install -y docker-ce docker-ce-cli containerd.io
             ;;
         *)
@@ -257,16 +270,14 @@ function install_docker() {
             fi
             ;;
     esac
-
     systemctl start docker
     systemctl enable docker
     print_success "Docker 安装成功"
 }
+
 function configure_firewall() {
     local port="$1"
-
     print_info "正在配置防火墙..."
-
     if command -v ufw >/dev/null 2>&1; then
         if ufw status | grep -q "active"; then
             ufw allow "$port"/tcp >/dev/null 2>&1
@@ -280,30 +291,25 @@ function configure_firewall() {
         fi
     fi
 }
+
 function download_binaries() {
     local version="$1"
     local arch="$2"
     local dest_dir="$3"
     local use_mirror="$4"
-
     local base_url
     if [ "$use_mirror" = "true" ]; then
-        # Use GitHub mirror for users in China
         base_url="https://mirror.ghproxy.com/https://github.com/${GITHUB_REPO}/releases/download/${version}"
     else
         base_url="https://github.com/${GITHUB_REPO}/releases/download/${version}"
     fi
-
     print_info "正在下载 DeployPilot v${version} (${arch}) ..."
-
     local binaries=("api-server" "mcp-server" "deploypilot")
     local download_success=true
-
     for bin in "${binaries[@]}"; do
         local filename="${bin}-linux-${arch}"
         local url="${base_url}/${filename}"
         local output="${dest_dir}/${bin}"
-
         print_info "  下载 ${filename} ..."
         if download_file "$url" "$output" "${bin}"; then
             chmod +x "$output"
@@ -313,13 +319,13 @@ function download_binaries() {
             download_success=false
         fi
     done
-
     if [ "$download_success" = false ]; then
         print_error "二进制文件下载失败，请检查网络连接或版本号"
         print_info "可手动下载: https://github.com/${GITHUB_REPO}/releases"
         exit 1
     fi
 }
+
 # Input validation functions to prevent command injection
 validate_port() {
     local port="$1"
@@ -332,7 +338,7 @@ validate_port() {
 validate_install_dir() {
     local dir="$1"
     local bad_chars='[\$\`\|\;\&\>\<\(\)\{\}\[\]\\!~]'
-    if [[ "$dir" =~ ["\']"$bad_chars"["\'] ]] || [[ "$dir" =~ $bad_chars ]]; then
+    if [[ "$dir" =~ $bad_chars ]]; then
         print_error "安装路径包含非法字符"
         exit 1
     fi
@@ -357,17 +363,13 @@ validate_username() {
 # ─── Upgrade Function ────────────────────────────────────────────────
 function do_upgrade() {
     local target_version="${1:-latest}"
-
     print_banner
     check_root
-
     echo -e "${BOLD}${MAGENTA}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
     echo -e "${BOLD}${MAGENTA} 🔄 DeployPilot 升级模式${RESET}"
     echo -e "${BOLD}${MAGENTA}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
 
-    # Step 1: Detect existing installation
     print_step "1/7" "检测现有安装"
-
     INSTALL_DIR="${DEFAULT_INSTALL_DIR}"
     if [ -f "${INSTALL_DIR}/config/config.yaml" ]; then
         print_success "检测到已有安装: ${INSTALL_DIR}"
@@ -375,20 +377,17 @@ function do_upgrade() {
         print_success "检测到安装目录: ${INSTALL_DIR}"
     else
         print_error "未检测到 DeployPilot 安装 (${INSTALL_DIR} 不存在)"
-        print_info "请先运行安装脚本: curl -fsSL https://raw.githubusercontent.com/${GITHUB_REPO}/main/scripts/install.sh | bash"
+        print_info "请先运行安装脚本"
         exit 1
     fi
 
-    # Detect current version
     local current_version="unknown"
     if [ -x "${INSTALL_DIR}/bin/api-server" ]; then
         current_version=$("${INSTALL_DIR}/bin/api-server" --version 2>/dev/null | awk '{print $2}' || echo "unknown")
     fi
     print_info "当前版本: ${current_version}"
 
-    # Step 2: Fetch target version
     print_step "2/7" "获取目标版本"
-
     if [ "$target_version" = "latest" ]; then
         target_version=$(get_latest_version)
         if [ -z "$target_version" ]; then
@@ -403,13 +402,10 @@ function do_upgrade() {
         exit 0
     fi
 
-    # Step 3: Pre-flight checks
     print_step "3/7" "预检查"
-
     ARCH=$(detect_arch)
     print_info "系统架构: ${ARCH}"
 
-    # Check disk space (need at least 100MB)
     local available_mb
     available_mb=$(df -BM "${INSTALL_DIR}" | awk 'NR==2 {print $4}' | tr -d 'M')
     if [ "$available_mb" -lt 100 ]; then
@@ -418,21 +414,11 @@ function do_upgrade() {
     fi
     print_success "磁盘空间充足: ${available_mb}MB 可用"
 
-    # Check services are running
-    local services_stopped=false
-    if systemctl is-active --quiet deploypilot 2>/dev/null; then
-        print_info "API 服务正在运行"
-    fi
-
-    # Step 4: Backup current binaries
     print_step "4/7" "备份当前二进制文件"
-
     local backup_timestamp
     backup_timestamp=$(date +%Y%m%d-%H%M%S)
     local backup_dir="${INSTALL_DIR}/backups/upgrade-${backup_timestamp}"
-
     mkdir -p "$backup_dir"
-
     local backup_count=0
     for binary in api-server mcp-server deploypilot; do
         if [ -f "${INSTALL_DIR}/bin/${binary}" ]; then
@@ -440,37 +426,28 @@ function do_upgrade() {
             backup_count=$((backup_count + 1))
         fi
     done
-
-    # Backup config
     if [ -f "${INSTALL_DIR}/config/config.yaml" ]; then
         cp -f "${INSTALL_DIR}/config/config.yaml" "${backup_dir}/config.yaml"
     fi
-
     print_success "已备份 ${backup_count} 个二进制文件到 ${backup_dir}"
 
-    # Step 5: Download new binaries
     print_step "5/7" "下载新版本二进制文件"
-
     local download_base="https://github.com/${GITHUB_REPO}/releases/download/${target_version}"
     local download_failed=false
-
     for binary in api-server mcp-server deploypilot; do
         local filename="${binary}-linux-${ARCH}"
         local download_url="${download_base}/${filename}"
         local tmp_file="/tmp/${binary}.new"
-
         print_info "正在下载 ${binary}..."
         if ! download_file "$download_url" "$tmp_file" "$binary"; then
             print_error "下载 ${binary} 失败"
             download_failed=true
             break
         fi
-
         chmod +x "$tmp_file"
         mv -f "$tmp_file" "${INSTALL_DIR}/bin/${binary}"
         print_success "${binary} 已更新"
     done
-
     if [ "$download_failed" = true ]; then
         print_error "下载失败，正在回滚..."
         for binary in api-server mcp-server deploypilot; do
@@ -482,9 +459,7 @@ function do_upgrade() {
         exit 1
     fi
 
-    # Step 6: Verify new binaries
     print_step "6/7" "验证新版本"
-
     local verify_failed=false
     for binary in api-server mcp-server deploypilot; do
         if [ -x "${INSTALL_DIR}/bin/${binary}" ]; then
@@ -496,7 +471,6 @@ function do_upgrade() {
             verify_failed=true
         fi
     done
-
     if [ "$verify_failed" = true ]; then
         print_error "验证失败，正在回滚..."
         for binary in api-server mcp-server deploypilot; do
@@ -509,36 +483,22 @@ function do_upgrade() {
         exit 1
     fi
 
-    # Step 7: Restart services
     print_step "7/7" "重启服务"
-
     if systemctl is-active --quiet deploypilot-mcp 2>/dev/null; then
         systemctl restart deploypilot-mcp
         print_success "MCP 服务已重启"
     fi
-
     if systemctl is-active --quiet deploypilot 2>/dev/null; then
         systemctl restart deploypilot
         print_success "API 服务已重启"
     fi
 
-    # Success
     echo ""
-    echo -e "${GREEN}${BOLD}╔═══════════════════════════════════════════════════════════════╗${RESET}"
-    echo -e "${GREEN}${BOLD}║                                                               ║${RESET}"
-    echo -e "${GREEN}${BOLD}║                    🎉 升级成功完成！                           ║${RESET}"
-    echo -e "${GREEN}${BOLD}║                                                               ║${RESET}"
-    echo -e "${GREEN}${BOLD}╚═══════════════════════════════════════════════════════════════╝${RESET}"
+    echo -e "${GREEN}${BOLD}  🎉 升级成功完成！${RESET}"
     echo ""
-    echo -e "${BOLD}${WHITE}  升级信息:${RESET}"
-    echo -e "  ${CYAN}────────────────────────────────────────────────────────────────${RESET}"
     echo -e "  ${CYAN}旧版本:${RESET}      ${current_version}"
     echo -e "  ${CYAN}新版本:${RESET}      ${target_version}"
     echo -e "  ${CYAN}备份位置:${RESET}    ${backup_dir}"
-    echo ""
-    echo -e "${YELLOW}${BOLD}  如需回滚:${RESET}"
-    echo -e "  ${YELLOW}────────────────────────────────────────────────────────────────${RESET}"
-    echo -e "  ${YELLOW}cp ${backup_dir}/* ${INSTALL_DIR}/bin/ && systemctl restart deploypilot deploypilot-mcp${RESET}"
     echo ""
 }
 
@@ -550,23 +510,19 @@ function main() {
     fi
 
     print_banner
-
     check_root
 
     print_step "1/10" "系统环境检测"
-
     ARCH=$(detect_arch)
     OS=$(detect_os)
     HAS_SYSTEMD=$(detect_systemd)
     IP_ADDRESS=$(get_ip_address)
-
     print_info "架构: $ARCH"
     print_info "操作系统: $OS"
     print_info "Systemd: $HAS_SYSTEMD"
     print_info "IP 地址: $IP_ADDRESS"
 
     print_step "2/10" "获取最新版本"
-
     VERSION=$(get_latest_version)
     if [ -z "$VERSION" ]; then
         print_warning "无法获取最新版本，将使用源码构建方式"
@@ -577,13 +533,11 @@ function main() {
     fi
 
     print_step "3/10" "交互式配置"
-
     INSTALL_DIR=$(prompt_input "请输入安装路径" "$DEFAULT_INSTALL_DIR")
     PORT=$(prompt_input "请输入端口" "$DEFAULT_PORT")
     USERNAME=$(prompt_input "请输入用户名" "$(generate_username)")
     PASSWORD=$(prompt_password "请输入密码" "$(generate_password)")
 
-    # Validate user inputs
     validate_install_dir "$INSTALL_DIR"
     validate_port "$PORT"
     validate_username "$USERNAME"
@@ -596,18 +550,14 @@ function main() {
     fi
 
     print_step "4/10" "安装配置确认"
-
     echo ""
-    echo -e "${BOLD}${WHITE}════════════════════════════════════════════════════════════════${RESET}"
     echo -e "${BOLD}${WHITE}  安装配置摘要${RESET}"
-    echo -e "${BOLD}${WHITE}════════════════════════════════════════════════════════════════${RESET}"
     echo -e "  ${CYAN}安装路径:${RESET}    ${INSTALL_DIR}"
     echo -e "  ${CYAN}端口:${RESET}        ${PORT}"
     echo -e "  ${CYAN}用户名:${RESET}      ${USERNAME}"
     echo -e "  ${CYAN}密码:${RESET}        ********"
     echo -e "  ${CYAN}版本:${RESET}        ${VERSION:-source}"
     echo -e "  ${CYAN}国内镜像:${RESET}    ${USE_MIRROR}"
-    echo -e "${BOLD}${WHITE}════════════════════════════════════════════════════════════════${RESET}"
     echo ""
 
     if ! prompt_confirm "确认以上配置并开始安装？" "y"; then
@@ -616,7 +566,6 @@ function main() {
     fi
 
     print_step "5/10" "检查并安装 Docker"
-
     if ! command -v docker >/dev/null 2>&1; then
         install_docker "$OS" "$USE_MIRROR"
     else
@@ -625,56 +574,52 @@ function main() {
     fi
 
     print_step "6/10" "创建安装目录"
-
     print_info "正在创建目录结构..."
     mkdir -p "$INSTALL_DIR"/{bin,data,logs,backups,config}
     print_success "目录创建成功"
 
     print_step "7/10" "下载 DeployPilot 二进制文件"
-
     if [ "$INSTALL_MODE" = "binary" ]; then
         download_binaries "$VERSION" "$ARCH" "$INSTALL_DIR/bin" "$USE_MIRROR"
     else
         print_warning "无法获取 Release 版本，请手动构建或从 GitHub Release 页面下载"
         print_info "GitHub Release: https://github.com/${GITHUB_REPO}/releases"
-        print_info "构建指南: https://github.com/${GITHUB_REPO}#从源码构建"
         exit 1
     fi
 
     print_step "8/10" "创建配置文件"
-
     print_info "正在创建配置文件..."
+
     JWT_SECRET=$(random_string 32)
     API_KEY_SALT=$(random_string 32)
     SSH_KNOWN_HOSTS="${INSTALL_DIR}/data/known_hosts"
+
     cat > "$INSTALL_DIR/config/config.yaml" << EOF
 server:
   port: ${PORT}
   host: 0.0.0.0
+
 database:
   type: sqlite
   dsn: ${INSTALL_DIR}/data/deploypilot.db
+
 auth:
   jwt_secret: ${JWT_SECRET}
   token_expire: 24h
   api_key_salt: ${API_KEY_SALT}
+
 security:
-  # SSH host key verification (TOFU: Trust On First Use)
-  # - New hosts are automatically added to known_hosts on first connection
-  # - Host key mismatch (possible MITM attack) will reject the connection
   ssh_known_hosts_path: "${SSH_KNOWN_HOSTS}"
-  ssh_strict_host_key_checking: false  # true = reject unknown hosts, false = auto-add (TOFU)
+  ssh_strict_host_key_checking: false
 EOF
-    # Create empty known_hosts file with proper permissions
+
     touch "${SSH_KNOWN_HOSTS}"
     chmod 600 "${SSH_KNOWN_HOSTS}"
     chown deploypilot:deploypilot "${SSH_KNOWN_HOSTS}" 2>/dev/null || true
-
     chmod 600 "$INSTALL_DIR/config/config.yaml"
     print_success "配置文件创建成功"
 
     print_step "9/10" "创建用户和初始化"
-
     print_info "正在创建系统用户..."
     if ! id deploypilot >/dev/null 2>&1; then
         useradd -m -s /bin/bash -d "$INSTALL_DIR" deploypilot
@@ -682,11 +627,7 @@ EOF
     usermod -aG docker deploypilot
     chown -R deploypilot:deploypilot "$INSTALL_DIR"
 
-    print_info "正在初始化用户账号..."
-    # Note: Users are created via API after the service starts (see below)
-
     print_step "10/10" "配置系统服务"
-
     if [ "$HAS_SYSTEMD" = "true" ]; then
         print_info "正在创建 systemd 服务..."
 
@@ -745,10 +686,10 @@ EOF
     print_info "正在启动 DeployPilot..."
     systemctl start deploypilot
     sleep 3
+
     if systemctl is-active --quiet deploypilot; then
         print_success "DeployPilot API Server 启动成功"
 
-        # Create admin user via API
         print_info "正在创建管理员账号..."
         REGISTER_RESP=$(curl -s -X POST "http://localhost:${PORT}/api/v1/auth/register" \
             -H "Content-Type: application/json" \
@@ -764,6 +705,7 @@ EOF
 
     systemctl start deploypilot-mcp
     sleep 1
+
     if systemctl is-active --quiet deploypilot-mcp; then
         print_success "DeployPilot MCP Server 启动成功"
     else
@@ -771,23 +713,16 @@ EOF
     fi
 
     echo ""
-    echo -e "${GREEN}${BOLD}╔═══════════════════════════════════════════════════════════════╗${RESET}"
-    echo -e "${GREEN}${BOLD}║                                                               ║${RESET}"
-    echo -e "${GREEN}${BOLD}║                    🎉 安装成功完成！                           ║${RESET}"
-    echo -e "${GREEN}${BOLD}║                                                               ║${RESET}"
-    echo -e "${GREEN}${BOLD}╚═══════════════════════════════════════════════════════════════╝${RESET}"
+    echo -e "${GREEN}${BOLD}  🎉 安装成功完成！${RESET}"
     echo ""
     echo -e "${BOLD}${WHITE}  访问信息:${RESET}"
-    echo -e "  ${CYAN}────────────────────────────────────────────────────────────────${RESET}"
     echo -e "  ${CYAN}面板地址:${RESET}  http://${IP_ADDRESS}:${PORT}"
     echo -e "  ${CYAN}用户名:${RESET}    ${USERNAME}"
     echo -e "  ${CYAN}密码:${RESET}      ********"
     echo -e "  ${CYAN}版本:${RESET}      ${VERSION:-source}"
     echo ""
     echo -e "${BOLD}${WHITE}  MCP 配置 (AI IDE 集成):${RESET}"
-    echo -e "  ${CYAN}────────────────────────────────────────────────────────────────${RESET}"
     echo -e "  ${CYAN}MCP Server 已作为 systemd 服务运行${RESET}"
-    echo -e "  ${CYAN}在 AI IDE 中配置以下内容:${RESET}"
     echo ""
     echo '  {'
     echo '    "mcpServers": {'
@@ -799,7 +734,6 @@ EOF
     echo '  }'
     echo ""
     echo -e "${BOLD}${WHITE}  管理命令:${RESET}"
-    echo -e "  ${CYAN}────────────────────────────────────────────────────────────────${RESET}"
     echo -e "  ${CYAN}启动 API:${RESET}    systemctl start deploypilot"
     echo -e "  ${CYAN}启动 MCP:${RESET}    systemctl start deploypilot-mcp"
     echo -e "  ${CYAN}停止服务:${RESET}    systemctl stop deploypilot deploypilot-mcp"
@@ -808,13 +742,10 @@ EOF
     echo -e "  ${CYAN}查看日志:${RESET}    tail -f ${INSTALL_DIR}/logs/deploypilot.log"
     echo ""
     echo -e "${YELLOW}${BOLD}  ⚠️  安全提示:${RESET}"
-    echo -e "  ${YELLOW}────────────────────────────────────────────────────────────────${RESET}"
     echo -e "  ${YELLOW}• 请妥善保管以上登录信息${RESET}"
     echo -e "  ${YELLOW}• 首次登录后请立即修改密码${RESET}"
     echo -e "  ${YELLOW}• 建议配置防火墙仅允许特定 IP 访问${RESET}"
-    echo -e "  ${YELLOW}• SSH 主机密钥验证已启用 (TOFU 模式):${RESET}"
-    echo -e "    ${YELLOW}  首次连接的服务器会自动添加到 ${SSH_KNOWN_HOSTS}${RESET}"
-    echo -e "    ${YELLOW}  主机密钥变更时会拒绝连接（防止中间人攻击）${RESET}"
     echo ""
 }
+
 main "$@"
