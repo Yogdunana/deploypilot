@@ -5,13 +5,13 @@ DEFAULT_INSTALL_DIR="/opt/deploypilot"
 DEFAULT_PORT="8080"
 GITHUB_REPO="Yogdunana/deploypilot"
 
-# Detect latest version from GitHub
+# Detect latest version from GitHub (includes prereleases like beta)
 get_latest_version() {
-    local url="https://api.github.com/repos/${GITHUB_REPO}/releases/latest"
+    local url="https://api.github.com/repos/${GITHUB_REPO}/releases?per_page=5"
     if command -v curl >/dev/null 2>&1; then
-        curl -fsSL "$url" 2>/dev/null | grep '"tag_name"' | sed -E 's/.*"([^"]+)".*/\1/'
+        curl -fsSL "$url" 2>/dev/null | grep '"tag_name"' | head -1 | sed -E 's/.*"([^"]+)".*/\1/'
     elif command -v wget >/dev/null 2>&1; then
-        wget -qO- "$url" 2>/dev/null | grep '"tag_name"' | sed -E 's/.*"([^"]+)".*/\1/'
+        wget -qO- "$url" 2>/dev/null | grep '"tag_name"' | head -1 | sed -E 's/.*"([^"]+)".*/\1/'
     else
         echo ""
     fi
@@ -39,19 +39,20 @@ RESET='\033[0m'
 
 function print_banner() {
     echo -e "${CYAN}"
-    echo " _____     ______     ______   __         ______     __  __     ______   __"
-    echo "/\\\\  __-.  /\\\\  ___\\\\   /\\\\  == \\\\ /\\\\ \\\\       /\\\\  __ \\\\   /\\\\ \\\\_\\\\ \\\\   /\\\\  == \\\\ /\\\\ \\\\"
-    echo "\\\\ \\\\ \\\\/\\\\ \\\\ \\\\  __\\\\   \\\\ \\\\  _-/ \\\\ \\\\ \\\\____  \\\\ \\\\ \\\\/\\\\ \\\\  \\\\ \\\\____ \\\\  \\\\ \\\\  _-/ \\\\ \\\\ \\\\"
-    echo " \\\\ \\\\____-  \\\\ \\\\_____\\\\  \\\\ \\\\_\\\\    \\\\ \\\\_____\\\\  \\\\ \\\\_____\\\\  \\\\/\\\\_____\\\\  \\\\ \\\\_\\\\    \\\\ \\\\_\\\\"
-    echo "  \\\\/____/   \\\\/_____\\\\   \\\\/_/     \\\\/_____/   \\\\/_____/   \\\\/_____/   \\\\/_/     \\\\/_/"
+    echo " ____             _"
+    echo "|  _ \\  ___ _ __ | | ___  _   _"
+    echo "| | | |/ _ \\ '_ \\| |/ _ \\| | | |"
+    echo "| |_| |  __/ |_) | | (_) | |_| |"
+    echo "|____/ \\___| .__/|_|\\___/ \\__, |"
+    echo "          |_|            |___/"
     echo ""
-    echo " __         ______     ______"
-    echo "/\\\\ \\\\       /\\\\  __ \\\\   /\\\\__  _\\\\"
-    echo "\\\\ \\\\ \\\\____  \\\\ \\\\ \\\\/\\\\ \\\\  \\\\/_/\\\\ \\\\/"
-    echo " \\\\ \\\\_____\\\\  \\\\ \\\\_____\\\\    \\\\ \\\\_\\\\"
-    echo "  \\\\/_____/   \\\\/_____/     \\\\/_/"
+    echo " ____  _ _       _"
+    echo "|  _ \\(_) | ___ | |_"
+    echo "| |_) | | |/ _ \\| __|"
+    echo "|  __/| | | (_) | |_"
+    echo "|_|   |_|_|\\___/ \\__|"
     echo ""
-    echo -e "                  ${WHITE}一键安装脚本 v${SCRIPT_VERSION}${RESET}"
+    echo -e "              ${WHITE}DeployPilot v${SCRIPT_VERSION}${RESET}"
     echo ""
 }
 
@@ -598,7 +599,7 @@ function main() {
     echo -e "  ${CYAN}安装路径:${RESET}    ${INSTALL_DIR}"
     echo -e "  ${CYAN}端口:${RESET}        ${PORT}"
     echo -e "  ${CYAN}用户名:${RESET}      ${USERNAME}"
-    echo -e "  ${CYAN}密码:${RESET}        ********"
+    echo -e "  ${CYAN}密码:${RESET}        ${PASSWORD}"
     echo -e "  ${CYAN}版本:${RESET}        ${VERSION:-source}"
     echo -e "  ${CYAN}国内镜像:${RESET}    ${USE_MIRROR}"
     echo ""
@@ -761,7 +762,7 @@ EOF
     echo -e "${BOLD}${WHITE}  访问信息:${RESET}"
     echo -e "  ${CYAN}面板地址:${RESET}  http://${IP_ADDRESS}:${PORT}"
     echo -e "  ${CYAN}用户名:${RESET}    ${USERNAME}"
-    echo -e "  ${CYAN}密码:${RESET}      ********"
+    echo -e "  ${CYAN}密码:${RESET}      ${PASSWORD}"
     echo -e "  ${CYAN}版本:${RESET}      ${VERSION:-source}"
     echo ""
     echo -e "${BOLD}${WHITE}  MCP 配置 (AI IDE 集成):${RESET}"
