@@ -39,20 +39,20 @@ RESET='\033[0m'
 
 function print_banner() {
     echo -e "${CYAN}"
-    echo " ____             _"
-    echo "|  _ \\  ___ _ __ | | ___  _   _"
-    echo "| | | |/ _ \\ '_ \\| |/ _ \\| | | |"
-    echo "| |_| |  __/ |_) | | (_) | |_| |"
-    echo "|____/ \\___| .__/|_|\\___/ \\__, |"
-    echo "          |_|            |___/"
+    echo "    ____             __"
+    echo "   / __ \___  ____  / /___  __  __"
+    echo "  / / / / _ \/ __ \/ / __ \/ / / /"
+    echo " / /_/ /  __/ /_/ / / /_/ / /_/ /"
+    echo "/_____/\___/ .___/_/\____/\__, /"
+    echo "          /_/            /____/"
     echo ""
-    echo " ____  _ _       _"
-    echo "|  _ \\(_) | ___ | |_"
-    echo "| |_) | | |/ _ \\| __|"
-    echo "|  __/| | | (_) | |_"
-    echo "|_|   |_|_|\\___/ \\__|"
+    echo "    ____  _ __      __"
+    echo "   / __ \(_) /___  / /_"
+    echo "  / /_/ / / / __ \/ __/"
+    echo " / ____/ / / /_/ / /_"
+    echo "/_/   /_/_/\____/\__/"
     echo ""
-    echo -e "              ${WHITE}DeployPilot v${SCRIPT_VERSION}${RESET}"
+    echo -e "          ${WHITE}DeployPilot${RESET}"
     echo ""
 }
 
@@ -81,12 +81,16 @@ function print_step() {
 
 function random_string() {
     local length=${1:-12}
-    tr -dc 'a-z0-9' < /dev/urandom | head -c "$length"
+    local result
+    result=$(tr -dc 'a-z0-9' < /dev/urandom 2>/dev/null | head -c "$length") || true
+    echo -n "$result"
 }
 
 function generate_password() {
     local length=${1:-16}
-    tr -dc 'a-zA-Z0-9!@#$%^&*' < /dev/urandom | head -c "$length"
+    local result
+    result=$(tr -dc 'a-zA-Z0-9!@#$%^&*' < /dev/urandom 2>/dev/null | head -c "$length") || true
+    echo -n "$result"
 }
 
 function generate_username() {
@@ -237,12 +241,13 @@ function download_file() {
     local output="$2"
     local desc="$3"
     if command -v curl >/dev/null 2>&1; then
-        curl -fsSL "$url" -o "$output"
+        # Download with progress bar (-# shows progress as bar)
+        curl -fSL# "$url" -o "$output"
     elif command -v wget >/dev/null 2>&1; then
-        wget -q "$url" -O "$output"
+        wget --show-progress "$url" -O "$output" 2>&1
     else
         print_error "需要 curl 或 wget 来下载文件"
-        exit 1
+        return 1
     fi
 }
 
@@ -345,7 +350,7 @@ function download_binaries() {
             print_info "  下载 ${filename} ..."
             print_info "  来源: ${url_base}"
 
-            if download_file "$url" "$output" "${bin}" 2>/dev/null; then
+            if download_file "$url" "$output" "${bin}"; then
                 chmod +x "$output"
                 print_success "  ${bin} 下载完成"
                 bin_downloaded=true
