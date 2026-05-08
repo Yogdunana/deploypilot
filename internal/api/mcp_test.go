@@ -31,9 +31,9 @@ func setupTestMCPHandler(t *testing.T) (*MCPHTTPHandler, *gin.Engine, *gorm.DB) 
 
 	// Create test user
 	testUser := &model.User{
-		Username: "testuser",
-		Password: "hashedpassword",
-		Role:     "owner",
+		Username:     "testuser",
+		Email:        "test@example.com",
+		PasswordHash: "hashedpassword",
 	}
 	db.Create(testUser)
 
