@@ -154,10 +154,13 @@ jobs:
       - name: Sync Release to Gitee
         uses: nicennnnnnnlee/action-gitee-release@master
         with:
-          gitee_action: upload_asset
+          gitee_action: create_release
           gitee_owner: Yogdunana
           gitee_repo: deploypilot
           gitee_token: ${{ secrets.GITEE_TOKEN }}
           gitee_tag_name: ${{ github.ref_name }}
+          gitee_release_name: ${{ github.ref_name }}
+          gitee_release_body: ${{ github.ref_name }}
+          gitee_target_commitish: main
           gitee_files: |
             dist/*
