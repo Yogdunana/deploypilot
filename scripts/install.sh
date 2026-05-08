@@ -152,6 +152,29 @@ function prompt_input() {
     fi
     echo "$result"
 }
+function prompt_password() {
+    local prompt="$1"
+    local default="$2"
+    local result
+
+    if [ "$NON_INTERACTIVE" = true ]; then
+        echo "$default"
+        return
+    fi
+
+    echo -ne "${CYAN}${prompt}${RESET}"
+    if [ -n "$default" ]; then
+        echo -ne " [${YELLOW}(generated)${RESET}]"
+    fi
+    echo -ne ": "
+
+    read -s -r result
+    echo ""
+    if [ -z "$result" ]; then
+        result="$default"
+    fi
+    echo "$result"
+}
 function prompt_confirm() {
     local prompt="$1"
     local default="${2:-y}"
@@ -558,7 +581,7 @@ function main() {
     INSTALL_DIR=$(prompt_input "请输入安装路径" "$DEFAULT_INSTALL_DIR")
     PORT=$(prompt_input "请输入端口" "$DEFAULT_PORT")
     USERNAME=$(prompt_input "请输入用户名" "$(generate_username)")
-    PASSWORD=$(prompt_input "请输入密码" "$(generate_password)")
+    PASSWORD=$(prompt_password "请输入密码" "$(generate_password)")
 
     # Validate user inputs
     validate_install_dir "$INSTALL_DIR"
@@ -581,7 +604,7 @@ function main() {
     echo -e "  ${CYAN}安装路径:${RESET}    ${INSTALL_DIR}"
     echo -e "  ${CYAN}端口:${RESET}        ${PORT}"
     echo -e "  ${CYAN}用户名:${RESET}      ${USERNAME}"
-    echo -e "  ${CYAN}密码:${RESET}        ${PASSWORD}"
+    echo -e "  ${CYAN}密码:${RESET}        ********"
     echo -e "  ${CYAN}版本:${RESET}        ${VERSION:-source}"
     echo -e "  ${CYAN}国内镜像:${RESET}    ${USE_MIRROR}"
     echo -e "${BOLD}${WHITE}════════════════════════════════════════════════════════════════${RESET}"
@@ -758,7 +781,7 @@ EOF
     echo -e "  ${CYAN}────────────────────────────────────────────────────────────────${RESET}"
     echo -e "  ${CYAN}面板地址:${RESET}  http://${IP_ADDRESS}:${PORT}"
     echo -e "  ${CYAN}用户名:${RESET}    ${USERNAME}"
-    echo -e "  ${CYAN}密码:${RESET}      ${PASSWORD}"
+    echo -e "  ${CYAN}密码:${RESET}      ********"
     echo -e "  ${CYAN}版本:${RESET}      ${VERSION:-source}"
     echo ""
     echo -e "${BOLD}${WHITE}  MCP 配置 (AI IDE 集成):${RESET}"
