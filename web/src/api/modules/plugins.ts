@@ -1,33 +1,33 @@
 import api from '@/api'
 
 export function listPlugins(tenantId?: string, provider?: string) {
-  return api.get('/api/v1/plugins', { params: { tenant_id: tenantId, provider } })
+  return api.get('/plugins', { params: { tenant_id: tenantId, provider } })
 }
 
 export function getPlugin(id: string) {
-  return api.get(`/api/v1/plugins/${id}`)
+  return api.get(`/plugins/${id}`)
 }
 
 export function createPlugin(data: Record<string, unknown>) {
-  return api.post('/api/v1/plugins', data)
+  return api.post('/plugins', data)
 }
 
 export function updatePlugin(id: string, data: Record<string, unknown>) {
-  return api.put(`/api/v1/plugins/${id}`, data)
+  return api.put(`/plugins/${id}`, data)
 }
 
 export function deletePlugin(id: string) {
-  return api.delete(`/api/v1/plugins/${id}`)
+  return api.delete(`/plugins/${id}`)
 }
 
 export function enablePlugin(id: string) {
-  return api.post(`/api/v1/plugins/${id}/enable`)
+  return api.post(`/plugins/${id}/enable`)
 }
 
 export function disablePlugin(id: string) {
-  return api.post(`/api/v1/plugins/${id}/disable`)
+  return api.post(`/plugins/${id}/disable`)
 }
 
 export function reloadPlugin(id: string) {
-  return api.post(`/api/v1/plugins/${id}/reload`)
+  return api.post(`/plugins/${id}/reload`)
 }

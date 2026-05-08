@@ -3,9 +3,9 @@ import type { ApiResponse, PaginatedResponse, PaginationParams } from '@/types/a
 import type { DeploymentRecord } from '@/types/models'
 
 export function list(appId?: number, status?: string, params?: PaginationParams) {
-  return api.get<PaginatedResponse<DeploymentRecord[]>>('/api/deployments', { params: { app_id: appId, status, ...params } })
+  return api.get<PaginatedResponse<DeploymentRecord[]>>('/deployments', { params: { app_id: appId, status, ...params } })
 }
 
 export function get(id: number) {
-  return api.get<ApiResponse<DeploymentRecord>>(`/api/deployments/${id}`)
+  return api.get<ApiResponse<DeploymentRecord>>(`/deployments/${id}`)
 }

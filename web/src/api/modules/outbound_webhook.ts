@@ -42,37 +42,37 @@ export interface PaginatedResponse<T> {
 }
 
 export function listWebhooks(page = 1, pageSize = 20) {
-  return api.get<ApiResponse<PaginatedResponse<OutboundWebhook>>>('/api/v1/webhooks', {
+  return api.get<ApiResponse<PaginatedResponse<OutboundWebhook>>>('/webhooks', {
     params: { page, page_size: pageSize },
   })
 }
 
 export function getWebhook(id: string) {
-  return api.get<ApiResponse<OutboundWebhook>>(`/api/v1/webhooks/${id}`)
+  return api.get<ApiResponse<OutboundWebhook>>(`/webhooks/${id}`)
 }
 
 export function createWebhook(data: Partial<OutboundWebhook>) {
-  return api.post<ApiResponse<OutboundWebhook>>('/api/v1/webhooks', data)
+  return api.post<ApiResponse<OutboundWebhook>>('/webhooks', data)
 }
 
 export function updateWebhook(id: string, data: Partial<OutboundWebhook>) {
-  return api.put<ApiResponse<OutboundWebhook>>(`/api/v1/webhooks/${id}`, data)
+  return api.put<ApiResponse<OutboundWebhook>>(`/webhooks/${id}`, data)
 }
 
 export function deleteWebhook(id: string) {
-  return api.delete(`/api/v1/webhooks/${id}`)
+  return api.delete(`/webhooks/${id}`)
 }
 
 export function testWebhook(id: string) {
-  return api.post<ApiResponse<WebhookDelivery>>(`/api/v1/webhooks/${id}/test`)
+  return api.post<ApiResponse<WebhookDelivery>>(`/webhooks/${id}/test`)
 }
 
 export function listDeliveries(webhookId: string, page = 1, pageSize = 20) {
-  return api.get<ApiResponse<PaginatedResponse<WebhookDelivery>>>(`/api/v1/webhooks/${webhookId}/deliveries`, {
+  return api.get<ApiResponse<PaginatedResponse<WebhookDelivery>>>(`/webhooks/${webhookId}/deliveries`, {
     params: { page, page_size: pageSize },
   })
 }
 
 export function getDelivery(webhookId: string, deliveryId: string) {
-  return api.get<ApiResponse<WebhookDelivery>>(`/api/v1/webhooks/${webhookId}/deliveries/${deliveryId}`)
+  return api.get<ApiResponse<WebhookDelivery>>(`/webhooks/${webhookId}/deliveries/${deliveryId}`)
 }

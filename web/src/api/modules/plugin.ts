@@ -12,21 +12,21 @@ export interface PluginInfo {
 }
 
 export function listPlugins() {
-  return api.get<ApiResponse<PluginInfo[]>>('/api/v1/event-plugins')
+  return api.get<ApiResponse<PluginInfo[]>>('/event-plugins')
 }
 
 export function getPlugin(name: string) {
-  return api.get<ApiResponse<PluginInfo>>(`/api/v1/event-plugins/${name}`)
+  return api.get<ApiResponse<PluginInfo>>(`/event-plugins/${name}`)
 }
 
 export function updatePlugin(name: string, data: { enabled?: boolean; config?: Record<string, unknown> }) {
-  return api.put<ApiResponse<PluginInfo>>(`/api/v1/event-plugins/${name}`, data)
+  return api.put<ApiResponse<PluginInfo>>(`/event-plugins/${name}`, data)
 }
 
 export function startPlugin(name: string) {
-  return api.post<ApiResponse<void>>(`/api/v1/event-plugins/${name}/start`)
+  return api.post<ApiResponse<void>>(`/event-plugins/${name}/start`)
 }
 
 export function stopPlugin(name: string) {
-  return api.post<ApiResponse<void>>(`/api/v1/event-plugins/${name}/stop`)
+  return api.post<ApiResponse<void>>(`/event-plugins/${name}/stop`)
 }

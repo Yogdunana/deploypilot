@@ -16,25 +16,25 @@ export interface BatchOperation {
 }
 
 export function deployApps(data: { app_ids: number[]; branch?: string }) {
-  return api.post<ApiResponse<BatchOperation>>('/api/batch/deploy', data)
+  return api.post<ApiResponse<BatchOperation>>('/batch/deploy', data)
 }
 
 export function restartApps(data: { app_ids: number[] }) {
-  return api.post<ApiResponse<BatchOperation>>('/api/batch/restart', data)
+  return api.post<ApiResponse<BatchOperation>>('/batch/restart', data)
 }
 
 export function stopApps(data: { app_ids: number[] }) {
-  return api.post<ApiResponse<BatchOperation>>('/api/batch/stop', data)
+  return api.post<ApiResponse<BatchOperation>>('/batch/stop', data)
 }
 
 export function deleteServers(data: { server_ids: number[] }) {
-  return api.post<ApiResponse<BatchOperation>>('/api/batch/delete-servers', data)
+  return api.post<ApiResponse<BatchOperation>>('/batch/delete-servers', data)
 }
 
 export function getStatus(id: number) {
-  return api.get<ApiResponse<BatchOperation>>(`/api/batch/${id}`)
+  return api.get<ApiResponse<BatchOperation>>(`/batch/${id}`)
 }
 
 export function listOperations(params?: { page?: number; page_size?: number }) {
-  return api.get<ApiResponse<BatchOperation[]>>('/api/batch', { params })
+  return api.get<ApiResponse<BatchOperation[]>>('/batch', { params })
 }

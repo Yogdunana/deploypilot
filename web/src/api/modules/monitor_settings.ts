@@ -11,9 +11,9 @@ export interface MonitorSettings {
 }
 
 export function getMonitorSettings() {
-  return api.get<ApiResponse<MonitorSettings>>('/api/v1/monitor/settings')
+  return api.get<ApiResponse<MonitorSettings>>('/monitor/settings')
 }
 
 export function updateMonitorSettings(data: Partial<MonitorSettings>) {
-  return api.put<ApiResponse<MonitorSettings>>('/api/v1/monitor/settings', data)
+  return api.put<ApiResponse<MonitorSettings>>('/monitor/settings', data)
 }

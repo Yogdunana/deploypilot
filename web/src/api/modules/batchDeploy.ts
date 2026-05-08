@@ -7,9 +7,9 @@ export function batchDeploy(data: {
   batch_size?: number
   server_ids?: string[]
 }) {
-  return api.post('/api/v1/batch-deploy', data)
+  return api.post('/batch-deploy', data)
 }
 
 export function getBatchDeployStatus(id: string) {
-  return api.get(`/api/v1/batch-deploy/${id}`)
+  return api.get(`/batch-deploy/${id}`)
 }

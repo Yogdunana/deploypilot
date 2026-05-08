@@ -1,21 +1,21 @@
 import api from '@/api'
 
 export function listRegistries(tenantId?: string) {
-  return api.get('/api/v1/registries', { params: { tenant_id: tenantId } })
+  return api.get('/registries', { params: { tenant_id: tenantId } })
 }
 
 export function getRegistry(id: string) {
-  return api.get(`/api/v1/registries/${id}`)
+  return api.get(`/registries/${id}`)
 }
 
 export function createRegistry(data: Record<string, unknown>) {
-  return api.post('/api/v1/registries', data)
+  return api.post('/registries', data)
 }
 
 export function updateRegistry(id: string, data: Record<string, unknown>) {
-  return api.put(`/api/v1/registries/${id}`, data)
+  return api.put(`/registries/${id}`, data)
 }
 
 export function deleteRegistry(id: string) {
-  return api.delete(`/api/v1/registries/${id}`)
+  return api.delete(`/registries/${id}`)
 }
