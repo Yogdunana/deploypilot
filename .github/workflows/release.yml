@@ -150,3 +150,14 @@ jobs:
           files: dist/*
           draft: false
           prerelease: ${{ contains(github.ref_name, 'rc') || contains(github.ref_name, 'beta') }}
+
+      - name: Sync Release to Gitee
+        uses: nicennnnnnnlee/action-gitee-release@master
+        with:
+          gitee_action: upload_asset
+          gitee_owner: Yogdunana
+          gitee_repo: deploypilot
+          gitee_token: ${{ secrets.GITEE_TOKEN }}
+          gitee_tag_name: ${{ github.ref_name }}
+          gitee_files: |
+            dist/*
