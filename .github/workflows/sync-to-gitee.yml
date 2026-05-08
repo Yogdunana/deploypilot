@@ -15,53 +15,22 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Sync to Gitee
-        uses: wearerequired/git-mirror-action@master
-        env:
-          SSH_PRIVATE_KEY: ${{ secrets.GITEE_SSH_PRIVATE_KEY }}
-        with:
-          source-repo: git@github.com:${{ github.repository }}.git
-          destination-repo: git@gitee.com:${{ github.repository }}.git
-
-      - name: Sync Gitee Releases
+      - name: Configure Git
         run: |
-          GITEE_TOKEN="${{ secrets.GITEE_TOKEN }}"
-          if [ -z "$GITEE_TOKEN" ]; then
-            echo "GITEE_TOKEN not set, skipping release sync"
-            exit 0
-          fi
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
 
-          # Get latest release from GitHub
-          LATEST_TAG=$(gh release view --json tagName -q .tagName 2>/dev/null || echo "")
-          if [ -z "$LATEST_TAG" ]; then
-            echo "No GitHub release found, skipping"
-            exit 0
-          fi
+      - name: Sync to Gitee
+        env:
+          GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
+        run: |
+          # Add Gitee remote with token authentication
+          git remote add gitee "https://oauth2:${GITEE_TOKEN}@gitee.com/${{ github.repository }}.git"
 
-          # Check if release exists on Gitee
-          GITEE_RELEASE=$(curl -s \
-            -H "Content-Type: application/json" \
-            "https://gitee.com/api/v5/repos/${{ github.repository }}/releases/tags/${LATEST_TAG}?access_token=${GITEE_TOKEN}" \
-            | jq -r '.tag_name // empty')
+          # Push all branches
+          git push gitee --all --force
 
-          if [ -n "$GITEE_RELEASE" ]; then
-            echo "Release ${LATEST_TAG} already exists on Gitee, skipping"
-            exit 0
-          fi
+          # Push all tags
+          git push gitee --tags --force
 
-          echo "Creating release ${LATEST_TAG} on Gitee..."
-
-          # Get release info from GitHub
-          RELEASE_NAME=$(gh release view "$LATEST_TAG" --json name -q .name)
-          RELEASE_BODY=$(gh release view "$LATEST_TAG" --json body -q .body)
-
-          # Create release on Gitee
-          curl -s -X POST \
-            -H "Content-Type: application/json" \
-            "https://gitee.com/api/v5/repos/${{ github.repository }}/releases?access_token=${GITEE_TOKEN}" \
-            -d "{
-              \"tag_name\": \"${LATEST_TAG}\",
-              \"name\": \"${RELEASE_NAME}\",
-              \"body\": $(echo "$RELEASE_BODY" | jq -Rs .),
-              \"prerelease\": false
-            }" | jq '{tag_name, html_url}'
+          echo "✅ Successfully synced to Gitee"
