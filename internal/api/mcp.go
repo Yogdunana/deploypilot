@@ -1,7 +1,6 @@
 package api
 
 import (
-	"context"
 	"encoding/json"
 	"log/slog"
 	"net/http"
@@ -9,7 +8,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	mcpgo "github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 	"github.com/Yogdunana/deploypilot/internal/mcp"
 	"github.com/Yogdunana/deploypilot/internal/service"
