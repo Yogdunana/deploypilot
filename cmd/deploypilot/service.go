@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net"
@@ -79,13 +80,22 @@ func checkAPIHealth() {
 
 	// Check health endpoint
 	client := &http.Client{Timeout: healthCheckTimeout}
-	url := fmt.Sprintf("http://127.0.0.1:%d%s", port, defaultHealthPath)
-	resp, err := client.Get(url)
+	healthURL := fmt.Sprintf("http://127.0.0.1:%d%s", port, defaultHealthPath)
+	ctx, cancel := context.WithTimeout(context.Background(), healthCheckTimeout)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, healthURL, nil)
 	if err != nil {
 		fmt.Printf("    API: unreachable (%v)\n", err)
 		return
 	}
-	defer resp.Body.Close()
+	resp, err := client.Do(req)
+	if err != nil {
+		fmt.Printf("    API: unreachable (%v)\n", err)
+		return
+	}
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 
 	if resp.StatusCode == http.StatusOK {
 		var result map[string]interface{}
@@ -127,7 +137,9 @@ func isPortListening(port int) bool {
 	if err != nil {
 		return false
 	}
-	conn.Close()
+	if cerr := conn.Close(); cerr != nil {
+		return false
+	}
 	return true
 }
 

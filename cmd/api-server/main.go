@@ -191,7 +191,9 @@ func run(configFilePath, cliDriver, cliDSN, cliAddr string, migrateOnly, migrate
 		})
 		if err := rdb.Ping(context.Background()).Err(); err != nil {
 			slog.Warn("Redis unavailable, falling back to in-memory implementations", "error", err)
-			rdb.Close() // close to prevent background reconnection noise
+			if closeErr := rdb.Close(); closeErr != nil {
+				slog.Debug("failed to close Redis client", "error", closeErr)
+			}
 			rdb = nil
 			eventBus = service.NewInMemoryEventBus()
 			typedBus = service.NewInMemoryTypedEventBus()
