@@ -164,6 +164,37 @@ func DefaultConfig() Config {
 				Description: "Deny moving critical system directories",
 				Enabled:     true,
 			},
+			// Bypass prevention
+			{
+				ID:          "deny-base64-exec",
+				Pattern:     `base64\s+(-d|--decode)`,
+				Description: "Deny base64 decode (command obfuscation bypass)",
+				Enabled:     true,
+			},
+			{
+				ID:          "deny-xxd-exec",
+				Pattern:     `xxd\s+(-r|--revert)`,
+				Description: "Deny xxd reverse (command obfuscation bypass)",
+				Enabled:     true,
+			},
+			{
+				ID:          "deny-shell-escape",
+				Pattern:     `(ba)?sh\s+(-c|--cmd)\s+['\"]`,
+				Description: "Deny shell -c with quoted commands (escape bypass)",
+				Enabled:     true,
+			},
+			{
+				ID:          "deny-find-exec",
+				Pattern:     `find\s+.*-exec\s+`,
+				Description: "Deny find -exec (command execution bypass)",
+				Enabled:     true,
+			},
+			{
+				ID:          "deny-env-exec",
+				Pattern:     `env\s+(-i\s+)?\S+\s*=.*\s+(ba)?sh`,
+				Description: "Deny env variable execution bypass",
+				Enabled:     true,
+			},
 		},
 	}
 }

@@ -216,6 +216,10 @@ func LoadEncryptionKeyFromEnv() ([]byte, error) {
 	}
 
 	// No key file exists — generate a new key and persist it
+	slog.Warn("generating new encryption key - previous encrypted data will be unreadable",
+		"path", keyPath,
+		"hint", "set DEPLOYPILOT_ENCRYPTION_KEY environment variable for production")
+
 	key := NewEncryptionKey()
 	encoded := base64.StdEncoding.EncodeToString(key)
 
@@ -228,5 +232,6 @@ func LoadEncryptionKeyFromEnv() ([]byte, error) {
 		return nil, fmt.Errorf("failed to persist encryption key to %s: %w", keyPath, err)
 	}
 
+	slog.Info("encryption key generated and stored", "path", keyPath)
 	return key, nil
 }

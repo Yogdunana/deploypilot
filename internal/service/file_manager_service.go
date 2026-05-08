@@ -72,14 +72,34 @@ var blockedPaths = []string{
 var blockedPathRegex = regexp.MustCompile(`^/(proc|sys|dev|boot|etc|root|var/log|bin|sbin|usr)(/|$)`)
 
 // isPathBlocked checks if a path is in the blocked list.
+// It also resolves symlinks to prevent bypassing the blocklist via symbolic links.
 func isPathBlocked(path string) bool {
 	cleaned := filepath.Clean(path)
+
+	// Check the original path first
 	for _, bp := range blockedPaths {
 		if cleaned == bp || strings.HasPrefix(cleaned, bp+"/") {
 			return true
 		}
 	}
-	return blockedPathRegex.MatchString(cleaned)
+	if blockedPathRegex.MatchString(cleaned) {
+		return true
+	}
+
+	// Resolve symlinks to prevent bypassing the blocklist
+	realPath, err := filepath.EvalSymlinks(cleaned)
+	if err != nil {
+		// Path doesn't exist or can't be resolved - already checked original path
+		return false
+	}
+
+	// Check the resolved real path
+	for _, bp := range blockedPaths {
+		if realPath == bp || strings.HasPrefix(realPath, bp+"/") {
+			return true
+		}
+	}
+	return blockedPathRegex.MatchString(realPath)
 }
 
 // ListFiles lists files and directories at the given remote path.

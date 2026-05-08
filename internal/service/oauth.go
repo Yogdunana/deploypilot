@@ -16,6 +16,9 @@ import (
 	"gorm.io/gorm"
 )
 
+// ErrUnsupportedProvider is returned when an OAuth provider is not configured.
+var ErrUnsupportedProvider = fmt.Errorf("unsupported OAuth provider")
+
 // OAuthUserInfo represents user information from an OAuth provider.
 type OAuthUserInfo struct {
 	ID        string
@@ -158,26 +161,26 @@ func (s *OAuthService) HandleCallback(ctx context.Context, provider, code string
 func (s *OAuthService) getUserInfo(ctx context.Context, provider, accessToken string) (*OAuthUserInfo, error) {
 	p, ok := s.providers[provider]
 	if !ok {
-		return nil, fmt.Errorf("unsupported OAuth provider: %s", provider)
+		return nil, fmt.Errorf("unsupported OAuth provider %q: %w", provider, ErrUnsupportedProvider)
 	}
 
 	client := &http.Client{Timeout: 15 * time.Second}
 	req, err := http.NewRequestWithContext(ctx, "GET", p.UserInfoURL(), nil)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create OAuth user info request: %w", err)
 	}
 	req.Header.Set("Authorization", "Bearer "+accessToken)
 	req.Header.Set("Accept", "application/json")
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to send OAuth user info request: %w", err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 
 	body, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20)) // 1MB max
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to read OAuth user info response: %w", err)
 	}
 
 	if resp.StatusCode != http.StatusOK {
