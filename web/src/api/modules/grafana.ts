@@ -28,37 +28,37 @@ export interface GrafanaExport {
 }
 
 export function getGrafanaStatus() {
-  return api.get<ApiResponse<GrafanaStatus>>('/api/v1/grafana/status')
+  return api.get<ApiResponse<GrafanaStatus>>('/grafana/status')
 }
 
 export function testGrafanaConnection() {
-  return api.post<ApiResponse<{ success: boolean; version: string }>>('/api/v1/grafana/test')
+  return api.post<ApiResponse<{ success: boolean; version: string }>>('/grafana/test')
 }
 
 export function syncGrafana() {
-  return api.post<ApiResponse<{ synced: number }>>('/api/v1/grafana/sync')
+  return api.post<ApiResponse<{ synced: number }>>('/grafana/sync')
 }
 
 export function listGrafanaDashboards() {
-  return api.get<ApiResponse<GrafanaDashboard[]>>('/api/v1/grafana/dashboards')
+  return api.get<ApiResponse<GrafanaDashboard[]>>('/grafana/dashboards')
 }
 
 export function getGrafanaDashboard(id: string) {
-  return api.get<ApiResponse<GrafanaDashboard>>(`/api/v1/grafana/dashboards/${id}`)
+  return api.get<ApiResponse<GrafanaDashboard>>(`/grafana/dashboards/${id}`)
 }
 
 export function createGrafanaDashboard(data: { name: string; json: string; tags?: string }) {
-  return api.post<ApiResponse<GrafanaDashboard>>('/api/v1/grafana/dashboards', data)
+  return api.post<ApiResponse<GrafanaDashboard>>('/grafana/dashboards', data)
 }
 
 export function updateGrafanaDashboard(id: string, data: { name?: string; json?: string; tags?: string; enabled?: boolean }) {
-  return api.put<ApiResponse<GrafanaDashboard>>(`/api/v1/grafana/dashboards/${id}`, data)
+  return api.put<ApiResponse<GrafanaDashboard>>(`/grafana/dashboards/${id}`, data)
 }
 
 export function deleteGrafanaDashboard(id: string) {
-  return api.delete<ApiResponse<void>>(`/api/v1/grafana/dashboards/${id}`)
+  return api.delete<ApiResponse<void>>(`/grafana/dashboards/${id}`)
 }
 
 export function exportGrafana() {
-  return api.get<ApiResponse<GrafanaExport>>('/api/v1/grafana/export')
+  return api.get<ApiResponse<GrafanaExport>>('/grafana/export')
 }

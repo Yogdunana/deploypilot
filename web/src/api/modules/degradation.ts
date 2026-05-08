@@ -1,13 +1,13 @@
 import api from '@/api'
 
 export function getDegradationStatus() {
-  return api.get('/api/v1/degradation/status')
+  return api.get('/degradation/status')
 }
 
 export function getDegradationAudits(limit?: number) {
-  return api.get('/api/v1/degradation/audits', { params: { limit } })
+  return api.get('/degradation/audits', { params: { limit } })
 }
 
 export function getExportSummary() {
-  return api.get('/api/v1/degradation/export-summary')
+  return api.get('/degradation/export-summary')
 }

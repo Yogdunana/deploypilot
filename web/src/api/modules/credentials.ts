@@ -3,21 +3,21 @@ import type { ApiResponse, PaginatedResponse, PaginationParams } from '@/types/a
 import type { Credential } from '@/types/models'
 
 export function list(tenantId?: number, params?: PaginationParams) {
-  return api.get<PaginatedResponse<Credential[]>>('/api/credentials', { params: { tenant_id: tenantId, ...params } })
+  return api.get<PaginatedResponse<Credential[]>>('/credentials', { params: { tenant_id: tenantId, ...params } })
 }
 
 export function create(data: { name: string; type: string; value: string; expires_in_days?: number }) {
-  return api.post<ApiResponse<Credential>>('/api/credentials', data)
+  return api.post<ApiResponse<Credential>>('/credentials', data)
 }
 
 export function update(id: number, data: { name?: string; type?: string; value?: string }) {
-  return api.put<ApiResponse<Credential>>(`/api/credentials/${id}`, data)
+  return api.put<ApiResponse<Credential>>(`/credentials/${id}`, data)
 }
 
 export function deleteCredential(id: number) {
-  return api.delete<ApiResponse<void>>(`/api/credentials/${id}`)
+  return api.delete<ApiResponse<void>>(`/credentials/${id}`)
 }
 
 export function rotate(id: number, data: { value: string }) {
-  return api.post<ApiResponse<Credential>>(`/api/credentials/${id}/rotate`, data)
+  return api.post<ApiResponse<Credential>>(`/credentials/${id}/rotate`, data)
 }
