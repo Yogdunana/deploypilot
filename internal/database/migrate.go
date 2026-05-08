@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"log/slog"
 	"net/url"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/go-gormigrate/gormigrate/v2"
@@ -15,12 +17,41 @@ import (
 	"gorm.io/gorm"
 )
 
+// migrationsPath resolves the absolute path to the migrations/ directory.
+// It checks multiple locations in order:
+//  1. CWD/migrations (for development)
+//  2. Executable directory/migrations (for installed binaries)
+//  3. /opt/deploypilot/migrations (default install path)
+func migrationsPath() string {
+	candidates := []string{
+		filepath.Join("migrations"),                              // CWD
+		filepath.Join(filepath.Dir(os.Args[0]), "migrations"),  // next to binary
+		filepath.Join("/opt/deploypilot", "migrations"),         // default install
+	}
+	for _, p := range candidates {
+		abs, err := filepath.Abs(p)
+		if err != nil {
+			continue
+		}
+		if info, err := os.Stat(abs); err == nil && info.IsDir() {
+			return abs
+		}
+	}
+	// Fallback: return CWD-relative path (will produce a clear error if missing)
+	return filepath.Join("migrations")
+}
+
+// migrationsURL returns the file:// URL for the migrations directory.
+func migrationsURL() string {
+	return "file://" + migrationsPath()
+}
+
 // RunMigrations runs golang-migrate SQL migrations from the migrations/ directory.
 // This is the primary migration system for new installations.
 func RunMigrations(dsn, driver string) error {
 	dsnURL := buildMigrateURL(dsn, driver)
 
-	m, err := migrate.New("file://migrations", dsnURL)
+	m, err := migrate.New(migrationsURL(), dsnURL)
 	if err != nil {
 		return fmt.Errorf("failed to create migrate instance: %w", err)
 	}
@@ -76,7 +107,7 @@ func RunMigrationsDown(dsn, driver string) error {
 func MigrationStatus(dsn, driver string) (uint, bool, error) {
 	dsnURL := buildMigrateURL(dsn, driver)
 
-	m, err := migrate.New("file://migrations", dsnURL)
+	m, err := migrate.New(migrationsURL(), dsnURL)
 	if err != nil {
 		return 0, false, fmt.Errorf("failed to create migrate instance: %w", err)
 	}
