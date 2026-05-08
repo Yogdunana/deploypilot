@@ -1,9 +1,9 @@
 ---
 title: DeployPilot AI Operations Guide
-version: 2.1.0
+version: 2.2.0
 repository: Yogdunana/deploypilot
 source: 本文件 + ai-guide-reference.md 共同构成唯一权威版本
-last_updated: 2026-05-02
+last_updated: 2026-05-08
 scope: AI 助手操作本项目时的参考指南，避免重复踩坑
 ---
 
@@ -46,6 +46,42 @@ scope: AI 助手操作本项目时的参考指南，避免重复踩坑
 ```
 开发任务 -> brainstorming -> writing-plans -> TDD 实现 -> git-commit -> gh-cli 创建 PR -> 等 CI 通过 -> squash merge -> 等 main CI -> 删分支
 ```
+
+### 发布策略（重要）
+
+> **核心原则**：所有开发在 main 分支上进行，通过 tag 区分 beta 和稳定版。
+
+**分支模型**：
+- **main**：唯一开发分支，所有 PR 合并目标
+- **不使用** dev/beta/release 分支 — 避免分支管理复杂度
+
+**版本与发布流程**：
+
+```
+PR merge 到 main -> main CI 通过 -> 自动打 beta tag (vX.Y.Z-beta.N) -> 自动构建 Release + 同步 Gitee
+                                                                              ↓
+                                                          用户确认稳定 -> 手动打正式 tag (vX.Y.Z) -> 正式 Release
+```
+
+| 阶段 | 触发方式 | Tag 格式 | 示例 | 说明 |
+|------|----------|----------|------|------|
+| Beta | PR 合并到 main 后自动 | `vX.Y.Z-beta.N` | `v1.11.1-beta.1` | 每次 merge 自动递增 N，CI 自动构建 |
+| 稳定版 | 用户手动确认后打 tag | `vX.Y.Z` | `v1.12.0` | 仅在用户明确指定时创建 |
+
+**Beta 自动发布规则**：
+- 每次 PR squash merge 到 main 且 CI 通过后，自动创建/更新 beta tag
+- beta tag 指向当前 main HEAD
+- 如果已有同版本号 beta tag，先删除旧 tag + release，再重新打
+- Release workflow 自动构建二进制 + 同步到 Gitee
+
+**稳定版发布规则**：
+- 由用户明确指示（如"这个版本可以发布了"）
+- 打不带 beta/rc/dev 后缀的正式 tag
+- 正式版 Release 不标记为 prerelease
+
+**安装脚本**：
+- 当前安装脚本获取最新 Release（含 prerelease），即 beta 版
+- 待首个稳定版发布后，提供两套独立脚本：`install.sh`（稳定版）和 `install-beta.sh`（beta 版）
 
 ### 遇到异常怎么办
 
