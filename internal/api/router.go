@@ -84,6 +84,18 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 		sseGroup.GET("/alerts", AlertSSE(bridge))
 	}
 
+	// MCP routes (requires auth) - for cloud AI IDEs (TRAE Solo, Coze, Cursor Cloud)
+	mcpHandler := NewMCPHTTPHandler(bridge)
+	mcpGroup := api.Group("/mcp")
+	mcpGroup.Use(auth.APIKeyMiddleware(keySvc))
+	mcpGroup.Use(auth.AuthMiddleware(blacklist))
+	{
+		mcpGroup.GET("/sse", mcpHandler.HandleSSE)           // SSE endpoint for streaming
+		mcpGroup.POST("/message", mcpHandler.HandleMessage)  // Message endpoint for SSE clients
+		mcpGroup.POST("", mcpHandler.HandleMessageDirect)    // Direct JSON-RPC endpoint
+		mcpGroup.GET("/tools", mcpHandler.HandleListTools)   // List available tools
+	}
+
 	// Public routes
 	authGroup := api.Group("/auth")
 	authGroup.Use(middleware.CSRF())
