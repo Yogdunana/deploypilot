@@ -2,10 +2,12 @@ package api
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
@@ -157,12 +159,15 @@ func TestMCPSSEHeaders(t *testing.T) {
 		sqlDB.Close()
 	}()
 
+	// Use a context with timeout to prevent test hanging
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+
 	w := httptest.NewRecorder()
-	req, _ := http.NewRequest("GET", "/api/v1/mcp/sse", nil)
+	req, _ := http.NewRequestWithContext(ctx, "GET", "/api/v1/mcp/sse", nil)
 	r.ServeHTTP(w, req)
 
-	// SSE should keep connection open, but in test it will close immediately
-	// Check headers were set correctly
+	// Check headers were set correctly before context timeout
 	assert.Equal(t, "text/event-stream", w.Header().Get("Content-Type"))
 	assert.Equal(t, "no-cache", w.Header().Get("Cache-Control"))
 	assert.NotEmpty(t, w.Header().Get("Mcp-Session-Id"))
