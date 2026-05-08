@@ -18,20 +18,6 @@ import (
 // It looks up the server record, finds its credential, decrypts the password/key,
 // and returns an SSH client that satisfies deployer.CommandExecutor.
 
-// withExecutor is a helper that acquires a remote executor, calls fn, and ensures cleanup.
-func (b *Bridge) withExecutor(ctx context.Context, serverID string, fn func(deployer.CommandExecutor) (string, error)) (string, error) {
-	executor, err := b.getRemoteExecutor(ctx, serverID)
-	if err != nil {
-		return "", err
-	}
-	defer func() {
-		if cerr := executor.Close(); cerr != nil {
-			slog.Warn("failed to close remote executor", "error", cerr)
-		}
-	}()
-	return fn(executor)
-}
-
 // ComposeDeploy deploys an app using docker-compose.
 func (b *Bridge) ComposeDeploy(ctx context.Context, appID string) (string, error) {
 	var app model.App
