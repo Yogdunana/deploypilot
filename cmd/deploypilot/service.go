@@ -1,23 +1,31 @@
 package main
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
+	"net"
+	"net/http"
 	"os/exec"
 	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 )
 
 const (
-	defaultInstallDir = "/opt/deploypilot"
-	apiServiceName    = "deploypilot"
-	mcpServiceName    = "deploypilot-mcp"
+	defaultInstallDir  = "/opt/deploypilot"
+	apiServiceName     = "deploypilot"
+	mcpServiceName     = "deploypilot-mcp"
+	defaultAPIPort     = 8080
+	defaultHealthPath  = "/api/v1/system/health"
+	healthCheckTimeout = 3 * time.Second
 )
 
 var statusCmd = &cobra.Command{
 	Use:   "status [service]",
 	Short: "Check DeployPilot service status",
-	Long:  "Check the status of DeployPilot services (api-server and mcp-server).",
+	Long:  "Check the status of DeployPilot services (api-server and mcp-server), including health checks.",
 	Args:  cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		services := []string{apiServiceName, mcpServiceName}
@@ -34,19 +42,105 @@ var statusCmd = &cobra.Command{
 				continue
 			}
 			if running {
-				fmt.Printf("  %s: running ✓\n", svc)
+				fmt.Printf("  %s: running\n", svc)
 			} else {
-				fmt.Printf("  %s: stopped ✗\n", svc)
+				fmt.Printf("  %s: stopped\n", svc)
 				allRunning = false
 			}
 		}
 
-		if !allRunning {
-			return nil
+		// Run health check if api-server is running
+		if allRunning || len(services) == 1 && services[0] == apiServiceName {
+			running, _ := isServiceRunning(apiServiceName)
+			if running {
+				fmt.Println()
+				checkAPIHealth()
+			}
 		}
-		fmt.Println("\nAll services are running.")
+
+		if allRunning {
+			fmt.Println("\nAll services are running.")
+		}
 		return nil
 	},
+}
+
+// checkAPIHealth checks the API server health endpoint and port listening.
+func checkAPIHealth() {
+	fmt.Println("  Health Check:")
+
+	// Check if port is listening
+	port := getAPIPort()
+	listening := isPortListening(port)
+	if listening {
+		fmt.Printf("    Port %d: listening\n", port)
+	} else {
+		fmt.Printf("    Port %d: not listening\n", port)
+	}
+
+	// Check health endpoint
+	client := &http.Client{Timeout: healthCheckTimeout}
+	healthURL := fmt.Sprintf("http://127.0.0.1:%d%s", port, defaultHealthPath)
+	ctx, cancel := context.WithTimeout(context.Background(), healthCheckTimeout)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, healthURL, nil)
+	if err != nil {
+		fmt.Printf("    API: unreachable (%v)\n", err)
+		return
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		fmt.Printf("    API: unreachable (%v)\n", err)
+		return
+	}
+	defer func() {
+		_ = resp.Body.Close()
+	}()
+
+	if resp.StatusCode == http.StatusOK {
+		var result map[string]interface{}
+		if err := json.NewDecoder(resp.Body).Decode(&result); err == nil {
+			if status, ok := result["status"].(string); ok {
+				fmt.Printf("    API: healthy (status: %s)\n", status)
+			} else {
+				fmt.Printf("    API: healthy\n")
+			}
+			if db, ok := result["database"].(map[string]interface{}); ok {
+				if dbStatus, ok := db["status"].(string); ok {
+					fmt.Printf("    Database: %s\n", dbStatus)
+				}
+			}
+		} else {
+			fmt.Printf("    API: healthy (HTTP %d)\n", resp.StatusCode)
+		}
+	} else {
+		fmt.Printf("    API: unhealthy (HTTP %d)\n", resp.StatusCode)
+	}
+}
+
+// getAPIPort reads the configured port from config.yaml.
+func getAPIPort() int {
+	// Try to read port from config file
+	configPath := defaultInstallDir + "/config/config.yaml"
+	if data, err := exec.Command("grep", "-oP", `port:\s*\K\d+`, configPath).Output(); err == nil && len(data) > 0 {
+		var port int
+		if _, err := fmt.Sscanf(string(data), "%d", &port); err == nil && port > 0 {
+			return port
+		}
+	}
+	return defaultAPIPort
+}
+
+// isPortListening checks if a TCP port is accepting connections.
+func isPortListening(port int) bool {
+	conn, err := net.DialTimeout("tcp", fmt.Sprintf("127.0.0.1:%d", port), 1*time.Second)
+	if err != nil {
+		return false
+	}
+	if cerr := conn.Close(); cerr != nil {
+		return false
+	}
+	return true
 }
 
 var startCmd = &cobra.Command{
@@ -65,7 +159,7 @@ var startCmd = &cobra.Command{
 			if err := systemctl("start", svc); err != nil {
 				return fmt.Errorf("failed to start %s: %w", svc, err)
 			}
-			fmt.Printf("  %s started ✓\n", svc)
+			fmt.Printf("  %s started\n", svc)
 		}
 		return nil
 	},
@@ -87,7 +181,7 @@ var stopCmd = &cobra.Command{
 			if err := systemctl("stop", svc); err != nil {
 				return fmt.Errorf("failed to stop %s: %w", svc, err)
 			}
-			fmt.Printf("  %s stopped ✓\n", svc)
+			fmt.Printf("  %s stopped\n", svc)
 		}
 		return nil
 	},
@@ -109,7 +203,7 @@ var restartCmd = &cobra.Command{
 			if err := systemctl("restart", svc); err != nil {
 				return fmt.Errorf("failed to restart %s: %w", svc, err)
 			}
-			fmt.Printf("  %s restarted ✓\n", svc)
+			fmt.Printf("  %s restarted\n", svc)
 		}
 		return nil
 	},
@@ -124,7 +218,7 @@ var reloadCmd = &cobra.Command{
 		if err := systemctl("reload", apiServiceName); err != nil {
 			return fmt.Errorf("failed to reload: %w", err)
 		}
-		fmt.Println("Configuration reloaded ✓")
+		fmt.Println("Configuration reloaded")
 		return nil
 	},
 }
