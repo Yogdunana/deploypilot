@@ -28,7 +28,7 @@ var statusCmd = &cobra.Command{
 	Long:  "Check the status of DeployPilot services (api-server and mcp-server), including health checks.",
 	Args:  cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		services := []string{apiServiceName, mcpServiceName}
+		services := []string{apiServiceName}
 		if len(args) > 0 {
 			services = []string{args[0]}
 		}
@@ -46,6 +46,20 @@ var statusCmd = &cobra.Command{
 			} else {
 				fmt.Printf("  %s: stopped\n", svc)
 				allRunning = false
+			}
+		}
+
+		// Show MCP server status (stdio mode - not a persistent service)
+		if len(args) == 0 || args[0] == mcpServiceName {
+			fmt.Println()
+			fmt.Println("  MCP Server:")
+			fmt.Println("    Mode: stdio (on-demand)")
+			fmt.Println("    Status: launched by AI IDE when needed")
+			mcpPath := "/opt/deploypilot/bin/mcp-server"
+			if _, err := exec.LookPath(mcpPath); err == nil {
+				fmt.Println("    Binary: installed")
+			} else {
+				fmt.Println("    Binary: not found")
 			}
 		}
 
