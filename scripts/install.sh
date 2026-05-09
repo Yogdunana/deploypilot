@@ -741,22 +741,90 @@ EOF
     if systemctl is-active --quiet deploypilot; then
         print_success "DeployPilot API Server 启动成功"
 
-        print_info "正在创建管理员账号..."
-        REGISTER_RESP=$(curl -s -X POST "http://localhost:${PORT}/api/v1/auth/register" \
-            -H "Content-Type: application/json" \
-            -d "{\"username\": \"${USERNAME}\", \"email\": \"admin@example.com\", \"password\": \"${PASSWORD}\"}" 2>&1)
-        if echo "$REGISTER_RESP" | grep -q '"id"'; then
-            print_success "管理员账号创建成功"
-        elif echo "$REGISTER_RESP" | grep -q 'registration is disabled'; then
-            print_warning "检测到已有用户，跳过管理员创建"
-            print_info "请使用之前创建的管理员账号登录"
-            print_info "登录后可在「服务器」页面手动添加当前服务器"
-            # Keep USERNAME/PASSWORD for display, but skip server registration with these creds
-            SKIP_SERVER_REG=1
+        DB_FILE="${INSTALL_DIR}/data/deploypilot.db"
+        if [ -f "$DB_FILE" ]; then
+            # Reinstall detected
+            echo ""
+            print_warning "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            print_warning "  检测到已有 DeployPilot 数据"
+            print_warning "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            echo ""
+            echo "  请选择操作："
+            echo "    1) 重置管理员密码（保留所有数据）"
+            echo "    2) 清空所有数据，重新开始"
+            echo "    3) 保留现有数据，不修改"
+            echo ""
+            REINSTALL_CHOICE=$(prompt_input "请输入选项 (1/2/3)" "1")
+
+            case "$REINSTALL_CHOICE" in
+                1)
+                    print_info "正在重置管理员密码..."
+                    RESET_RESP=$(curl -s -X POST "http://localhost:${PORT}/api/v1/auth/reset-password" \
+                        -H "Content-Type: application/json" \
+                        -d "{\"username\": \"${USERNAME}\", \"password\": \"${PASSWORD}\"}" 2>&1)
+                    if echo "$RESET_RESP" | grep -q 'password_reset'; then
+                        print_success "管理员密码重置成功"
+                        SKIP_SERVER_REG=0
+                    elif echo "$RESET_RESP" | grep -q 'user_not_found\|not found'; then
+                        print_warning "用户 '${USERNAME}' 不存在，正在创建新管理员..."
+                        REGISTER_RESP=$(curl -s -X POST "http://localhost:${PORT}/api/v1/auth/register" \
+                            -H "Content-Type: application/json" \
+                            -d "{\"username\": \"${USERNAME}\", \"email\": \"admin@example.com\", \"password\": \"${PASSWORD}\"}" 2>&1)
+                        if echo "$REGISTER_RESP" | grep -q '"id"'; then
+                            print_success "管理员账号创建成功"
+                            SKIP_SERVER_REG=0
+                        else
+                            print_warning "管理员创建失败: $(echo "$REGISTER_RESP" | grep -o '"message":"[^"]*"' | cut -d'"' -f4)"
+                            SKIP_SERVER_REG=1
+                        fi
+                    else
+                        print_warning "密码重置失败: $(echo "$RESET_RESP" | grep -o '"message":"[^"]*"' | cut -d'"' -f4)"
+                        print_info "请手动登录面板修改密码"
+                        SKIP_SERVER_REG=1
+                    fi
+                    ;;
+                2)
+                    print_warning "正在清空所有数据..."
+                    systemctl stop deploypilot
+                    rm -f "$DB_FILE"
+                    rm -f "${DB_FILE}-wal" "${DB_FILE}-shm"
+                    systemctl start deploypilot
+                    sleep 2
+                    print_info "正在创建管理员账号..."
+                    REGISTER_RESP=$(curl -s -X POST "http://localhost:${PORT}/api/v1/auth/register" \
+                        -H "Content-Type: application/json" \
+                        -d "{\"username\": \"${USERNAME}\", \"email\": \"admin@example.com\", \"password\": \"${PASSWORD}\"}" 2>&1)
+                    if echo "$REGISTER_RESP" | grep -q '"id"'; then
+                        print_success "管理员账号创建成功"
+                        SKIP_SERVER_REG=0
+                    else
+                        print_warning "管理员创建失败: $(echo "$REGISTER_RESP" | grep -o '"message":"[^"]*"' | cut -d'"' -f4)"
+                        SKIP_SERVER_REG=1
+                    fi
+                    ;;
+                3)
+                    print_info "保留现有数据，跳过管理员配置"
+                    print_info "请使用已有账号登录"
+                    SKIP_SERVER_REG=1
+                    ;;
+                *)
+                    print_warning "无效选项，保留现有数据"
+                    SKIP_SERVER_REG=1
+                    ;;
+            esac
         else
-            print_warning "管理员账号创建失败: $(echo "$REGISTER_RESP" | grep -o '"message":"[^"]*"' | cut -d'"' -f4)"
-            print_info "请手动创建账号或使用已有账号: http://${IP_ADDRESS}:${PORT}"
-            SKIP_SERVER_REG=1
+            # Fresh install
+            print_info "正在创建管理员账号..."
+            REGISTER_RESP=$(curl -s -X POST "http://localhost:${PORT}/api/v1/auth/register" \
+                -H "Content-Type: application/json" \
+                -d "{\"username\": \"${USERNAME}\", \"email\": \"admin@example.com\", \"password\": \"${PASSWORD}\"}" 2>&1)
+            if echo "$REGISTER_RESP" | grep -q '"id"'; then
+                print_success "管理员账号创建成功"
+            else
+                print_warning "管理员账号创建失败: $(echo "$REGISTER_RESP" | grep -o '"message":"[^"]*"' | cut -d'"' -f4)"
+                print_info "请手动创建账号或使用已有账号: http://${IP_ADDRESS}:${PORT}"
+                SKIP_SERVER_REG=1
+            fi
         fi
     else
         print_warning "DeployPilot API Server 启动失败，请检查日志: ${INSTALL_DIR}/logs/deploypilot.err.log"

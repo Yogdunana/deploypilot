@@ -398,6 +398,12 @@ export default {
     detectFailed: '环境检测失败',
     hostPort: '主机:端口',
     tags: '标签',
+    createServerName: '服务器名称',
+    createHost: '主机地址',
+    createPort: 'SSH 端口',
+    createSshUser: 'SSH 用户',
+    createSuccess: '服务器添加成功',
+    createFailed: '服务器添加失败',
   },
 
   serverDetail: {

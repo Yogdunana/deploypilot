@@ -400,6 +400,12 @@ export default {
     detectFailed: 'Environment detection failed',
     hostPort: 'Host:Port',
     tags: 'Tags',
+    createServerName: 'Server Name',
+    createHost: 'Host Address',
+    createPort: 'SSH Port',
+    createSshUser: 'SSH User',
+    createSuccess: 'Server added successfully',
+    createFailed: 'Failed to add server',
   },
 
   serverDetail: {

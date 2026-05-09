@@ -491,6 +491,45 @@ func Login(db *gorm.DB, bf *bruteforce.Protector) gin.HandlerFunc {
 }
 
 
+// ResetPassword resets a user's password. Only allowed from localhost (for install script).
+func ResetPassword(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// Only allow from localhost
+		if c.ClientIP() != "127.0.0.1" && c.ClientIP() != "::1" {
+			respondErrori18n(c, http.StatusForbidden, "error.common.forbidden")
+			return
+		}
+
+		var input struct {
+			Username string `json:"username" binding:"required"`
+			Password string `json:"password" binding:"required,min=8"`
+		}
+		if err := c.ShouldBindJSON(&input); err != nil {
+			respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request")
+			return
+		}
+
+		var user model.User
+		if err := db.Where("username = ?", input.Username).First(&user).Error; err != nil {
+			respondErrori18n(c, http.StatusNotFound, "error.auth.user_not_found")
+			return
+		}
+
+		hash, err := crypto.HashPassword(input.Password)
+		if err != nil {
+			respondErrori18n(c, http.StatusInternalServerError, "error.auth.failed_to_generate_token")
+			return
+		}
+
+		if err := db.Model(&user).Update("password_hash", hash).Error; err != nil {
+			respondErrori18n(c, http.StatusInternalServerError, "error.common.internal_error")
+			return
+		}
+
+		respondSuccess(c, gin.H{"message": "password_reset"})
+	}
+}
+
 // OAuthLogin initiates an OAuth2 login flow.
 // @Summary      OAuth login
 // @Description  Redirect to OAuth provider for authentication

@@ -102,6 +102,7 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 		// Registration endpoint - only allows creating the first admin user
 		// After that, users must be created by admins in the management panel
 		authGroup.POST("/register", Register(db))
+		authGroup.POST("/reset-password", ResetPassword(db))
 		authGroup.POST("/login", Login(db, func() *bruteforce.Protector {
 			if bridge != nil {
 				return bridge.BFProtector
