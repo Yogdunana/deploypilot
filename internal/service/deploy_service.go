@@ -75,14 +75,14 @@ func (b *Bridge) DeployAsync(ctx context.Context, cfg mcp.DeployConfig, appID st
 				Progress:  100,
 				Message:   "deploy completed",
 				Timestamp: timeutil.FormatRFC3339(),
-			TraceID:   traceID,
-		})
-		b.taskMu.Lock()
-		if t, ok := b.tasks[taskID]; ok {
-			t.Result = cs
+				TraceID:   traceID,
+			})
+			b.taskMu.Lock()
+			if t, ok := b.tasks[taskID]; ok {
+				t.Result = cs
+			}
+			b.taskMu.Unlock()
 		}
-		b.taskMu.Unlock()
-	}
 	}()
 	return taskID, nil
 }
