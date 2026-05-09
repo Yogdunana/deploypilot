@@ -79,6 +79,12 @@ const router = createRouter({
           meta: { titleKey: 'routes.appBackups' },
         },
         {
+          path: 'servers/create',
+          name: 'ServerCreate',
+          component: () => import('@/views/ServerCreate.vue'),
+          meta: { titleKey: 'routes.servers' },
+        },
+        {
           path: 'servers',
           name: 'Servers',
           component: () => import('@/views/Servers.vue'),
