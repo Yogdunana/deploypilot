@@ -742,7 +742,7 @@ EOF
         print_info "正在创建管理员账号..."
         REGISTER_RESP=$(curl -s -X POST "http://localhost:${PORT}/api/v1/auth/register" \
             -H "Content-Type: application/json" \
-            -d "{\"username\": \"${USERNAME}\", \"email\": \"admin@localhost\", \"password\": \"${PASSWORD}\"}" 2>&1)
+            -d "{\"username\": \"${USERNAME}\", \"email\": \"admin@example.com\", \"password\": \"${PASSWORD}\"}" 2>&1)
         if echo "$REGISTER_RESP" | grep -q '"id"'; then
             print_success "管理员账号创建成功"
         elif echo "$REGISTER_RESP" | grep -q '"registration is disabled"'; then

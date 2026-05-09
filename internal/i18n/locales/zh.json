@@ -93,7 +93,7 @@
   "error.backup.not_found": "备份未找到",
   "error.backup.delete_failed": "删除备份失败",
 
-  "error.common.invalid_request": "无效请求: %s",
+  "error.common.invalid_request": "无效请求",
   "error.common.internal_error": "服务器内部错误",
   "error.system.health_check_failed": "健康检查失败",
 

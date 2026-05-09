@@ -93,7 +93,7 @@
   "error.backup.not_found": "backup not found",
   "error.backup.delete_failed": "failed to delete backup",
 
-  "error.common.invalid_request": "invalid request: %s",
+  "error.common.invalid_request": "invalid request",
   "error.common.internal_error": "internal server error",
   "error.system.health_check_failed": "health check failed",
 
