@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { useToast } from '@/composables/useToast'
 import { useI18n } from 'vue-i18n'
-import { inject } from 'vue'
+
 import { Database, Plus, Trash2, ExternalLink } from 'lucide-vue-next'
 import PageHeader from '@/components/common/PageHeader.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
@@ -10,7 +11,7 @@ import Card from '@/components/ui/Card.vue'
 import { listRegistries, createRegistry, updateRegistry, deleteRegistry } from '@/api/modules/registries'
 
 const { t } = useI18n()
-const toast: (msg: string, type?: string) => void = inject<any>('toast')
+const { toast } = useToast()
 
 interface Registry {
   id: string

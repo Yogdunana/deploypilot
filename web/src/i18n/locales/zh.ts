@@ -187,6 +187,7 @@ export default {
     browseTemplates: '浏览模板',
     browseTemplatesDesc: '从模板快速创建应用',
     rule: '规则',
+    viewAll: '查看全部',
   },
 
   apps: {
@@ -1068,6 +1069,9 @@ export default {
     oauth2_apps: 'OAuth2 应用',
     grafana_settings: 'Grafana 设置',
     grafana_dashboards: 'Grafana 仪表盘',
+    monitorSettings: '监控设置',
+    monitorExport: '监控导出',
+    webhooks: 'Webhooks',
   },
 
   clusters: {

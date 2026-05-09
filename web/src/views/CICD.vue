@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, inject } from 'vue'
+import { ref } from 'vue'
+import { useToast } from '@/composables/useToast'
 import { Rocket, Search, CheckCircle, XCircle, Loader2, Clock } from 'lucide-vue-next'
 import PageHeader from '@/components/common/PageHeader.vue'
 import Badge from '@/components/ui/Badge.vue'
@@ -11,7 +12,7 @@ import * as cicdApi from '@/api/modules/cicd'
 import type { CICDBuild } from '@/types/models'
 import { useI18n } from 'vue-i18n'
 
-const { toast } = inject<any>('toast')!
+const { toast } = useToast()
 const { t } = useI18n()
 
 // 触发构建表单

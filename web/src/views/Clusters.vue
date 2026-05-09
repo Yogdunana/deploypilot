@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { useToast } from '@/composables/useToast'
 import { useI18n } from 'vue-i18n'
-import { inject } from 'vue'
+
 import { Server, Plus, Globe, Trash2, RefreshCw, Settings } from 'lucide-vue-next'
 import PageHeader from '@/components/common/PageHeader.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
@@ -11,7 +12,7 @@ import Badge from '@/components/ui/Badge.vue'
 import { listClusters, createCluster, updateCluster, deleteCluster, testClusterConnection } from '@/api/modules/clusters'
 
 const { t } = useI18n()
-const toast: (msg: string, type?: string) => void = inject<any>('toast')
+const { toast } = useToast()
 
 interface Cluster {
   id: string

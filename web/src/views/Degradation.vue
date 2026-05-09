@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { useToast } from '@/composables/useToast'
 import { useI18n } from 'vue-i18n'
-import { inject } from 'vue'
+
 import { getDegradationStatus, getDegradationAudits, getExportSummary } from '@/api/modules/degradation'
 
 const { t } = useI18n()
-const toast: (msg: string, type?: string) => void = inject<any>('toast')
+const { toast } = useToast()
 
 interface DegradationStatus {
   level: string

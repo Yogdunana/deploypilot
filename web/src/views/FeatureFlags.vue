@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
+import { useToast } from '@/composables/useToast'
 import { useI18n } from 'vue-i18n'
-import { inject } from 'vue'
+
 import type { Ref } from 'vue'
 import { getFeatureFlags, updateFeatureFlag, setFeatureFlagOverride, deleteFeatureFlagOverride, getFeatureFlagOverrides } from '@/api/modules/featureFlags'
 
 const { t } = useI18n()
-const toast: (msg: string, type?: string) => void = inject<any>('toast')
+const { toast } = useToast()
 
 interface FeatureFlag {
   id: string

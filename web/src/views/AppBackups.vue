@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, computed, inject, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import { useToast } from '@/composables/useToast'
 import { useRouter } from 'vue-router'
 import { ArrowLeft, Plus, RotateCcw, Trash2, Loader2 } from 'lucide-vue-next'
 import PageHeader from '@/components/common/PageHeader.vue'
@@ -14,7 +15,7 @@ import { useI18n } from 'vue-i18n'
 const props = defineProps<{ id: string }>()
 const router = useRouter()
 const { t } = useI18n()
-const { toast } = inject<any>('toast')!
+const { toast } = useToast()
 
 const appName = ref('')
 const loading = ref(true)

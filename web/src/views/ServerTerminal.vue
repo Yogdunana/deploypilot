@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, inject, onMounted, onBeforeUnmount } from 'vue'
+import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { useToast } from '@/composables/useToast'
 import { useRouter } from 'vue-router'
 import { ArrowLeft, Unplug, Plus, Maximize2, Minimize2, Trash2, Terminal as TerminalIcon } from 'lucide-vue-next'
 import Button from '@/components/ui/Button.vue'
@@ -11,7 +12,7 @@ import { useI18n } from 'vue-i18n'
 const props = defineProps<{ id: string }>()
 const router = useRouter()
 const { t } = useI18n()
-const { toast } = inject<any>('toast')!
+const { toast } = useToast()
 
 const serverName = ref('')
 const loading = ref(true)

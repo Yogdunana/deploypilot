@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, inject, onMounted, computed } from 'vue'
+import { ref, onMounted, computed } from 'vue'
+import { useToast } from '@/composables/useToast'
 import { RefreshCw, Key, ShieldCheck } from 'lucide-vue-next'
 import PageHeader from '@/components/common/PageHeader.vue'
 import Button from '@/components/ui/Button.vue'
@@ -18,7 +19,7 @@ import ActivateDialog from './ActivateDialog.vue'
 import IssueDialog from './IssueDialog.vue'
 import IssuedLicensesTable from './IssuedLicensesTable.vue'
 
-const { toast } = inject<any>('toast')!
+const { toast } = useToast()
 const { t } = useI18n()
 const authStore = useAuthStore()
 

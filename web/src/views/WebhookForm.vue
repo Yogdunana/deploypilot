@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, inject } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import { useToast } from '@/composables/useToast'
 import { useRouter, useRoute } from 'vue-router'
 import {
   ArrowLeft,
@@ -19,7 +20,7 @@ import type { OutboundWebhook } from '@/api/modules/outbound_webhook'
 
 const router = useRouter()
 const route = useRoute()
-const { toast } = inject<any>('toast')!
+const { toast } = useToast()
 
 const isEdit = computed(() => !!route.params.id)
 const pageTitle = computed(() => (isEdit.value ? 'Edit Webhook' : 'Create Webhook'))

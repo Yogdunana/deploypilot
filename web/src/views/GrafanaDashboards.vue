@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, onMounted, inject } from 'vue'
+import { ref, onMounted } from 'vue'
+import { useToast } from '@/composables/useToast'
 import {
   LayoutDashboard,
   Plus,
@@ -25,7 +26,7 @@ import {
 } from '@/api/modules/grafana'
 import type { GrafanaDashboard } from '@/api/modules/grafana'
 
-const { toast } = inject<any>('toast')!
+const { toast } = useToast()
 
 const dashboards = ref<GrafanaDashboard[]>([])
 const loading = ref(false)

@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, inject, onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
+import { useToast } from '@/composables/useToast'
 import { useRouter } from 'vue-router'
 import { Plus, Pencil, Trash2, Rocket, FileCode } from 'lucide-vue-next'
 import PageHeader from '@/components/common/PageHeader.vue'
@@ -19,7 +20,7 @@ import { useI18n } from 'vue-i18n'
 
 const router = useRouter()
 const { t } = useI18n()
-const { toast } = inject<any>('toast')!
+const { toast } = useToast()
 
 // State
 const templates = ref<Template[]>([])

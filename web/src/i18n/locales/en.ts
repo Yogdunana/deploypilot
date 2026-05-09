@@ -189,6 +189,7 @@ export default {
     browseTemplates: 'Browse Templates',
     browseTemplatesDesc: 'Quickly create apps from templates',
     rule: 'Rule',
+    viewAll: 'View All',
   },
 
   apps: {
@@ -1072,6 +1073,9 @@ export default {
     oauth2_apps: 'OAuth2 Apps',
     grafana_settings: 'Grafana Settings',
     grafana_dashboards: 'Grafana Dashboards',
+    monitorSettings: 'Monitor Settings',
+    monitorExport: 'Monitor Export',
+    webhooks: 'Webhooks',
   },
 
   clusters: {

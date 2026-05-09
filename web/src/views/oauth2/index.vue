@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, onMounted, inject } from 'vue'
+import { ref, onMounted } from 'vue'
+import { useToast } from '@/composables/useToast'
 import {
   KeyRound,
   Plus,
@@ -19,7 +20,7 @@ import type { OAuth2Client } from '@/api/modules/oauth2'
 import OAuth2ClientTable from './OAuth2ClientTable.vue'
 import OAuth2SecretDialog from './OAuth2SecretDialog.vue'
 
-const { toast } = inject<any>('toast')!
+const { toast } = useToast()
 
 const clients = ref<OAuth2Client[]>([])
 const loading = ref(false)

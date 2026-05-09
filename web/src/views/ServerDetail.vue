@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, inject, onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
+import { useToast } from '@/composables/useToast'
 import { useRouter } from 'vue-router'
 import {
   ArrowLeft, Zap, Cpu, Terminal, Server as ServerIcon, Globe, Hash,
@@ -20,7 +21,7 @@ import { useI18n } from 'vue-i18n'
 const props = defineProps<{ id: string }>()
 const router = useRouter()
 const { t } = useI18n()
-const { toast } = inject<any>('toast')!
+const { toast } = useToast()
 
 // State
 const server = ref<Server | null>(null)
