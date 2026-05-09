@@ -1,0 +1,177 @@
+# DeployPilot Configuration
+# Copy this file to config.yaml and customize as needed
+
+server:
+  host: 0.0.0.0
+  port: 8080
+  mcp_port: 9090           # MCP server port
+  web_port: 3000           # Web dashboard port (dev mode)
+  cors_allowed_origins: [] # CORS allowed origins (empty = no CORS)
+  cors_allow_credentials: false
+  cors_allow_methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+  cors_allow_headers: ["Authorization", "Content-Type", "X-Request-ID"]
+
+database:
+  type: sqlite
+  dsn: ./data/deploypilot.db
+  # For PostgreSQL:
+  # type: postgres
+  # dsn: host=localhost port=5432 user=deploypilot password=secret dbname=deploypilot sslmode=disable
+
+redis:
+  addr: localhost:6379
+  password: ""
+  db: 0
+
+auth:
+  jwt_secret: ""           # REQUIRED: set a strong random string (min 16 chars)
+  token_expire: 24h        # JWT token expiration
+  # OAuth providers (optional)
+  # oauth_providers:
+  #   - provider: github
+  #     client_id: ""
+  #     client_secret: ""
+  #     redirect_url: "http://localhost:8080/api/v1/auth/oauth/github/callback"
+
+security:
+  rate_limit_default: 100
+  rate_limit_owner: 200
+  rate_limit_admin: 150
+  rate_limit_dev: 100
+  rate_limit_viewer: 50
+  security_entrance: ""    # Panel security entrance path
+  allowed_domains: []      # Allowed domains for panel access
+  allowed_ips: []          # Allowed IPs for panel access
+  password_min_length: 8
+  password_require_uppercase: true
+  password_require_lowercase: true
+  password_require_digit: true
+  password_require_special: true
+  force_2fa_for_admin: false
+  force_2fa_for_dev: false
+  # SSH host key verification (TOFU: Trust On First Use)
+  # - When ssh_known_hosts_path is set, DeployPilot will verify server host keys
+  # - New hosts are automatically added to known_hosts on first connection
+  # - Host key mismatch (possible MITM attack) will reject the connection
+  # - If left empty, host key verification is disabled (warning logged)
+  ssh_known_hosts_path: "~/.ssh/known_hosts_deploypilot"  # default: empty (disabled)
+  ssh_strict_host_key_checking: false  # true = reject unknown hosts, false = auto-add (TOFU)
+
+audit:
+  external_log_path: ""    # Optional: path for external audit log (JSON Lines)
+  retention_days: 90       # Audit log retention period (days)
+
+log:
+
+# Notification configuration
+notify:
+  default_channels: ["webhook"]  # Default notification channels
+
+# Kubernetes configuration
+kubernetes:
+  enabled: false
+  default_namespace: "default"
+  clusters: []
+
+# License configuration
+license:
+  public_key_file: ""        # Path to license public key file
+  public_key_base64: ""      # Base64 encoded public key
+  grace_days: 7              # Grace period days for license expiration
+  license_key: ""            # License key (prefer env var DEPLOYPILOT_LICENSE_KEY)
+
+# API Version configuration
+api_version:
+  current_version: "v1"
+  supported_versions: ["v1"]
+  deprecated_versions: {}
+  level: info               # debug, info, warn, error
+  format: json              # json or text
+  file: ./logs/deploypilot.log
+  max_size: 100MB
+  max_backups: 10
+  enable_tracing: true
+
+deploy:
+  default_mode: api
+  build_timeout: 10m
+  health_check_interval: 30s
+  health_check_retries: 3
+  rollback_on_failure: true
+
+monitor:
+  enabled: true
+  metrics_public: false
+
+# 备份配置
+backup:
+  enabled: true
+  interval: "6h"
+  retention_count: 10
+  retention_days: 30
+  backup_dir: "data/backups"
+  cloud_enabled: false
+  cloud_type: ""           # s3, oss, cos, minio
+  cloud_endpoint: ""
+  cloud_region: ""
+  cloud_bucket: ""
+  cloud_access_key: ""
+  cloud_secret_key: ""     # Prefer env var
+  cloud_path_prefix: ""
+
+# 暴力破解防护
+bruteforce:
+  max_attempts: 5
+  lockout_duration: "15m"
+  window_duration: "15m"
+  progressive_delay: true
+  base_delay: "1s"
+  max_delay: "30s"
+  ip_max_attempts: 20
+  ip_lockout_duration: "30m"
+
+# Grafana 集成
+grafana:
+  enabled: false
+  url: "http://localhost:3000"
+  api_key: ""
+  admin_user: ""
+  admin_password: ""
+  annotations_enabled: true
+  sync_interval: 60
+  prometheus_url: "http://localhost:9090"  # Prometheus URL for metrics
+
+# API 开放平台 (OAuth2)
+api_platform:
+  enabled: true
+  max_clients_per_user: 10
+  token_expire_hours: 24
+  code_expire_minutes: 10
+
+# Cache configuration
+cache:
+  build_cache_ttl: "720h"    # Build cache time-to-live
+  build_cache_max: 50        # Maximum number of cached builds
+
+# Notification configuration
+notify:
+  default_channels: ["webhook"]  # Default notification channels
+
+# Kubernetes configuration
+kubernetes:
+  enabled: false
+  default_namespace: "default"
+  clusters: []
+
+# License configuration
+license:
+  public_key_file: ""        # Path to license public key file
+  public_key_base64: ""      # Base64 encoded public key
+  grace_days: 7              # Grace period days for license expiration
+  license_key: ""            # License key (prefer env var DEPLOYPILOT_LICENSE_KEY)
+
+# API Version configuration
+api_version:
+  current_version: "v1"
+  supported_versions: ["v1"]
+  deprecated_versions: {}

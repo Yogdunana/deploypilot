@@ -1,0 +1,3 @@
+-- Credential lifecycle fields are already included in 000001_init_schema
+-- This migration is a no-op for new installations using golang-migrate
+-- Kept for version numbering consistency with gormigrate migrations

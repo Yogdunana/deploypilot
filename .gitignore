@@ -1,0 +1,42 @@
+# Binaries
+bin/
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Test
+*.test
+*.out
+c.out
+coverage.out
+*.prof
+
+# IDE
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.local
+.env.dev
+.env.*.local
+
+# Frontend
+web/node_modules/
+web/dist/
+
+# Build cache
+/tmp/
+
+# Build artifacts
+/api-server
+/deploypilot
+/mcp-server
+*.exe

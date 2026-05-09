@@ -1,0 +1,54 @@
+services:
+  deploypilot:
+    image: ghcr.io/yogdunana/deploypilot:latest
+    container_name: deploypilot
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      - DEPLOYPILOT_DATABASE_TYPE=sqlite
+      - DEPLOYPILOT_DATABASE_DSN=/app/data/deploypilot.db
+      # JWT secret (min 16 chars). Generate: openssl rand -base64 24
+      - JWT_SECRET=${JWT_SECRET:?JWT_SECRET environment variable is required}
+      # API Key salt (min 16 chars). Generate: openssl rand -base64 24
+      - DEPLOYPILOT_AUTH_API_KEY_SALT=${API_KEY_SALT:-}
+      - DEPLOYPILOT_SERVER_PORT=8080
+      - DEPLOYPILOT_LOG_LEVEL=info
+      - DEPLOYPILOT_LOG_FORMAT=json
+      # Redis (optional, for Pub/Sub and token blacklist)
+      - DEPLOYPILOT_REDIS_ADDR=redis:6379
+      - DEPLOYPILOT_REDIS_PASSWORD=${REDIS_PASSWORD:-}
+      # SSH host key verification (TOFU mode)
+      - DEPLOYPILOT_SECURITY_SSH_KNOWN_HOSTS_PATH=/app/data/known_hosts
+      - DEPLOYPILOT_SECURITY_SSH_STRICT_HOST_KEY_CHECKING=false
+    volumes:
+      - deploypilot-data:/app/data
+      # SSH known_hosts for host key verification (TOFU mode)
+      # First connection adds host, key mismatch rejects (MITM protection)
+      - ./known_hosts:/app/data/known_hosts:rw
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8080/api/v1/system/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    depends_on:
+      - redis
+
+  # Redis (for Pub/Sub event bus and token blacklist)
+  redis:
+    image: redis:7-alpine
+    container_name: deploypilot-redis
+    restart: unless-stopped
+    # SECURITY: Redis port is NOT exposed to host.
+    # Only accessible from within the Docker network.
+    volumes:
+      - redis-data:/data
+    command: >
+      sh -c "if [ -n \"$${REDIS_PASSWORD}\" ]; then redis-server --appendonly yes --requirepass \"$${REDIS_PASSWORD}\"; else redis-server --appendonly yes; fi"
+    environment:
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
+
+volumes:
+  deploypilot-data:
+  redis-data:

@@ -1,0 +1,15 @@
+DROP TABLE IF EXISTS heartbeats;
+DROP TABLE IF EXISTS monitor_check_results;
+DROP TABLE IF EXISTS monitors;
+DROP TABLE IF EXISTS toolbox_scripts;
+DROP TABLE IF EXISTS system_snapshots;
+DROP TABLE IF EXISTS process_rules;
+DROP TABLE IF EXISTS ssh_authorizations;
+DROP TABLE IF EXISTS ssh_key_pairs;
+DROP TABLE IF EXISTS event_logs;
+DROP TABLE IF EXISTS alert_groups;
+DROP TABLE IF EXISTS alert_escalations;
+DROP TABLE IF EXISTS alert_silences;
+DROP TABLE IF EXISTS task_executions;
+DROP TABLE IF EXISTS scheduled_tasks;
+DROP TABLE IF EXISTS alert_rules;

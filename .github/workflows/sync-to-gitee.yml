@@ -1,0 +1,36 @@
+name: Sync to Gitee
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure Git
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+
+      - name: Sync to Gitee
+        env:
+          GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
+        run: |
+          # Add Gitee remote with token authentication
+          git remote add gitee "https://oauth2:${GITEE_TOKEN}@gitee.com/${{ github.repository }}.git"
+
+          # Push all branches
+          git push gitee --all --force
+
+          # Push all tags
+          git push gitee --tags --force
+
+          echo "✅ Successfully synced to Gitee"

@@ -1,0 +1,3 @@
+DROP TABLE IF EXISTS plugins;
+DROP TABLE IF EXISTS clusters;
+DROP TABLE IF EXISTS registries;

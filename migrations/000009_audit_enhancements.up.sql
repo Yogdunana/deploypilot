@@ -1,0 +1,3 @@
+-- Audit enhancements (trace_id, record_hash, log_type, archived, archived_at)
+-- are already included in 000003_audit_logs for new installations using golang-migrate
+-- This migration is a no-op for version numbering consistency

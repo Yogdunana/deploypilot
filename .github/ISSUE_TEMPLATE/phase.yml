@@ -1,0 +1,57 @@
+name: Phase Issue (Roadmap)
+description: Create a new Roadmap Phase issue with standardized format
+title: "[vX.X] "
+labels: ["enhancement", "in progress"]
+assignees: ["Yogdunana"]
+body:
+  - type: dropdown
+    id: version
+    attributes:
+      label: Version
+      description: Which version does this Phase belong to?
+      options:
+        - v1.5
+        - v1.6
+        - v1.7
+        - v1.8
+        - v1.9
+        - v1.10
+        - v1.11+
+    validations:
+      required: true
+
+  - type: input
+    id: phase
+    attributes:
+      label: Phase Number
+      description: e.g., 5.7
+      placeholder: "X.X"
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Phase Description
+      description: What does this Phase implement?
+      placeholder: Brief description of the feature...
+    validations:
+      required: true
+
+  - type: textarea
+    id: tasks
+    attributes:
+      label: Tasks
+      description: List of specific tasks (use - [ ] for checkboxes)
+      placeholder: |
+        - [ ] Task 1
+        - [ ] Task 2
+        - [ ] Task 3
+    validations:
+      required: true
+
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notes / Constraints
+      description: Any technical notes, dependencies, or constraints.

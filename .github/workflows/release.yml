@@ -1,0 +1,167 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-binaries:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      matrix:
+        include:
+          - goos: linux
+            goarch: amd64
+          - goos: linux
+            goarch: arm64
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version: "1.24"
+
+      - name: Cache Go modules
+        uses: actions/cache@v5
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: ${{ runner.os }}-go-
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Cache npm modules
+        uses: actions/cache@v5
+        with:
+          path: web/node_modules
+          key: ${{ runner.os }}-node-${{ hashFiles('web/package-lock.json') }}
+          restore-keys: ${{ runner.os }}-node-
+
+      - name: Build frontend
+        working-directory: web
+        run: |
+          npm ci
+          npm run build
+
+      - name: Ensure go.sum is up to date
+        run: go mod tidy
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Install cross-compiler for arm64
+        if: matrix.goarch == 'arm64'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-aarch64-linux-gnu
+
+      - name: Build binaries
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: 1
+          CC: ${{ matrix.goarch == 'arm64' && 'aarch64-linux-gnu-gcc' || 'gcc' }}
+          VERSION: ${{ github.ref_name }}
+          GIT_COMMIT: ${{ github.sha }}
+          BUILD_TIME: ${{ needs.build-binaries.result != 'skipped' && steps.build.outputs.build_time || '' }}
+        run: |
+          BUILD_TIME="${BUILD_TIME:-$(date -u '+%Y-%m-%dT%H:%M:%SZ')}"
+          mkdir -p dist
+          LDFLAGS="-s -w \
+            -X github.com/Yogdunana/deploypilot/internal/version.Version=${VERSION} \
+            -X github.com/Yogdunana/deploypilot/internal/version.GitCommit=${GIT_COMMIT:0:8} \
+            -X github.com/Yogdunana/deploypilot/internal/version.BuildTime=${BUILD_TIME}"
+          for cmd in deploypilot api-server mcp-server; do
+            go build -ldflags="${LDFLAGS}" -o dist/${cmd}-${{ matrix.goos }}-${{ matrix.goarch }} ./cmd/${cmd}/
+          done
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: binaries-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: dist/
+
+  create-release:
+    needs: build-binaries
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist/
+          merge-multiple: true
+
+      - name: Generate checksums
+        run: cd dist && sha256sum * > checksums-sha256.txt
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+          if [ -n "$PREV_TAG" ]; then
+            CHANGES=$(git log --pretty=format:"- %s (%h)" "${PREV_TAG}..HEAD")
+          else
+            CHANGES=$(git log --pretty=format:"- %s (%h)" HEAD)
+          fi
+          echo "changes<<EOF" >> $GITHUB_OUTPUT
+          echo "$CHANGES" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v3
+        with:
+          body: |
+            ## Changes
+
+            ${{ steps.changelog.outputs.changes }}
+
+            ## Assets
+
+            ### Linux amd64
+            - `deploypilot-linux-amd64` — CLI tool
+            - `api-server-linux-amd64` — REST API + Web Dashboard
+            - `mcp-server-linux-amd64` — MCP Server
+
+            ### Linux arm64
+            - `deploypilot-linux-arm64` — CLI tool
+            - `api-server-linux-arm64` — REST API + Web Dashboard
+            - `mcp-server-linux-arm64` — MCP Server
+
+            ## Docker
+
+            ```bash
+            docker pull ghcr.io/yogdunana/deploypilot:${{ github.ref_name }}
+            ```
+          files: dist/*
+          draft: false
+          prerelease: ${{ contains(github.ref_name, 'rc') || contains(github.ref_name, 'beta') }}
+
+      - name: Sync Release to Gitee
+        uses: nicennnnnnnlee/action-gitee-release@master
+        with:
+          gitee_action: create_release
+          gitee_owner: Yogdunana
+          gitee_repo: deploypilot
+          gitee_token: ${{ secrets.GITEE_TOKEN }}
+          gitee_tag_name: ${{ github.ref_name }}
+          gitee_release_name: ${{ github.ref_name }}
+          gitee_release_body: ${{ github.ref_name }}
+          gitee_target_commitish: main
+          gitee_upload_retry_times: 5
+          gitee_files: |
+            dist/*

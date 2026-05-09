@@ -1,0 +1,350 @@
+package mcp
+
+import (
+	"context"
+
+	"github.com/Yogdunana/deploypilot/internal/model"
+)
+
+// PreflightErrorInfo is an interface used to detect preflight errors from the deployer.
+// The service package's PreflightError implements this interface.
+type PreflightErrorInfo interface {
+	error
+	PreflightCode() string
+	PreflightMessage() string
+	PreflightChecks() interface{}
+}
+
+// ============================================================================
+// Sub-interfaces (Interface Segregation, fixes #116)
+// Each sub-interface corresponds to a register_*.go / handler_*.go file pair.
+// ============================================================================
+
+// ContainerDeployer handles container lifecycle, compose, and preflight operations.
+type ContainerDeployer interface {
+	Deploy(ctx context.Context, cfg DeployConfig) (*ContainerStatus, error)
+	GetContainerStatus(ctx context.Context, name string) (*ContainerStatus, error)
+	ListApps(ctx context.Context) ([]ContainerStatus, error)
+	CreateApp(ctx context.Context, cfg CreateAppConfig) (string, error)
+	DeleteApp(ctx context.Context, appID string) error
+	Stop(ctx context.Context, name string) error
+	Remove(ctx context.Context, name string) error
+	Rollback(ctx context.Context, containerName, previousImage string) (*ContainerStatus, error)
+	BuildAndDeploy(ctx context.Context, cfg BuildAndDeployConfig) (*BuildAndDeployResult, error)
+	CheckDeployReadiness(ctx context.Context, appConfig map[string]interface{}) (interface{}, error)
+	BatchDeploy(ctx context.Context, apps []map[string]interface{}) (interface{}, error)
+	BatchDeployWithConfig(ctx context.Context, config BatchDeployConfig) (*BatchDeployResult, error)
+	GetAppDetail(ctx context.Context, appID string) (interface{}, error)
+	UpdateApp(ctx context.Context, appID string, config map[string]interface{}) (interface{}, error)
+	HealContainer(ctx context.Context, containerName string) (interface{}, error)
+	GetLatestDeploymentRecord(ctx context.Context, containerName string) (*model.DeploymentRecord, error)
+	// Compose operations
+	ComposeDeploy(ctx context.Context, appID string) (string, error)
+	ComposeStop(ctx context.Context, appID string) (string, error)
+	ComposePs(ctx context.Context, appID string) (string, error)
+	ComposeLogs(ctx context.Context, appID, service, tail string) (string, error)
+	ComposeRestart(ctx context.Context, appID, service string) (string, error)
+	// Preflight
+	RunPreflightFull(ctx context.Context, serverID string, portMappings string) (interface{}, error)
+	// Server-side operations used by deploy handlers
+	ListImages(ctx context.Context, serverID, filter string) (string, error)
+}
+
+// ServerManager handles server registration and remote execution.
+type ServerManager interface {
+	ListServers(ctx context.Context) ([]ServerInfo, error)
+	AddServer(ctx context.Context, name, host string, port int, user string) (*ServerInfo, error)
+	RemoveServer(ctx context.Context, serverID string) error
+	TestServer(ctx context.Context, serverID string) (interface{}, error)
+	UpdateServer(ctx context.Context, serverID string, config map[string]interface{}) (interface{}, error)
+	ExecCommand(ctx context.Context, serverID, command string, timeout int) (string, error)
+}
+
+// CredentialManager handles credential CRUD and rotation.
+type CredentialManager interface {
+	CreateCredential(ctx context.Context, tenantID, name, credType, plainValue string) (interface{}, error)
+	ListCredentials(ctx context.Context, tenantID string) (interface{}, error)
+	DeleteCredential(ctx context.Context, credID string) error
+	UpdateCredential(ctx context.Context, credID string, value string) (interface{}, error)
+}
+
+// DNSManager handles DNS record management.
+type DNSManager interface {
+	DNSCreateRecord(ctx context.Context, domain, recordType, name, value string) (interface{}, error)
+	DNSDeleteRecord(ctx context.Context, recordID string) error
+	DNSListRecords(ctx context.Context, domain string) (interface{}, error)
+	UpdateDNSRecord(ctx context.Context, domain, subdomain, recordType, newValue string) (interface{}, error)
+	BatchDNS(ctx context.Context, records []map[string]interface{}) (interface{}, error)
+}
+
+// BackupManager handles backup and restore operations.
+type BackupManager interface {
+	Backup(ctx context.Context, appID string) (string, error)
+	Restore(ctx context.Context, backupID string) (*ContainerStatus, error)
+	BatchBackup(ctx context.Context, appIDs []string) (interface{}, error)
+}
+
+// MonitorService handles metrics, alerts, health checks, and container healing.
+type MonitorService interface {
+	DetectEnv(ctx context.Context, level int, ports []int, services []string) (interface{}, error)
+	HealthCheck(ctx context.Context, target, healthType string) (interface{}, error)
+	HealContainer(ctx context.Context, containerName string) (interface{}, error)
+	GetContainerMetrics(ctx context.Context, containerName string) (interface{}, error)
+	GetSystemMetrics(ctx context.Context) (interface{}, error)
+	GetRemoteSystemMetrics(ctx context.Context, serverID string) (interface{}, error)
+	ListAlerts(ctx context.Context) (interface{}, error)
+	ListAlertRules(ctx context.Context) (interface{}, error)
+	QueryMetricHistory(ctx context.Context, metricType string, duration string) (interface{}, error)
+	QueryAlertHistory(ctx context.Context, status string, limit int) (interface{}, error)
+}
+
+// LogService handles container and application log retrieval.
+type LogService interface {
+	GetContainerLogs(ctx context.Context, name string, tail int) (string, error)
+	SearchAppLogs(ctx context.Context, appID, keyword string, limit int) (interface{}, error)
+}
+
+// NotificationService handles multi-channel notifications.
+type NotificationService interface {
+	SendNotification(ctx context.Context, nType, appName, server, status, message string) (interface{}, error)
+}
+
+// TemplateService handles deployment and environment templates.
+type TemplateService interface {
+	ListTemplates(ctx context.Context) (interface{}, error)
+	GetTemplate(ctx context.Context, tmplType string) (interface{}, error)
+	ListEnvTemplates(ctx context.Context) (interface{}, error)
+	GetEnvTemplate(ctx context.Context, serviceType string) (interface{}, error)
+}
+
+// TaskManager handles async task status queries.
+type TaskManager interface {
+	GetTaskStatus(ctx context.Context, taskID string) (interface{}, error)
+	ListTasks(ctx context.Context, limit int, statusFilter string) (interface{}, error)
+}
+
+// SSLService handles SSL certificate management.
+type SSLService interface {
+	ListSSLCertificates(ctx context.Context) (interface{}, error)
+	RequestSSLCertificate(ctx context.Context, domain, email string) (interface{}, error)
+	RenewSSLCertificate(ctx context.Context, domain string) (interface{}, error)
+	DeleteSSLCertificate(ctx context.Context, domain string) (interface{}, error)
+}
+
+// CICDService handles CI/CD build operations.
+type CICDService interface {
+	TriggerCIBuild(ctx context.Context, provider, repo, branch string) (interface{}, error)
+	GetCIBuildStatus(ctx context.Context, provider, runID string) (interface{}, error)
+}
+
+// RegistryService handles container registry operations.
+type RegistryService interface {
+	RegistryOps(registryID string, operation string, args map[string]interface{}) (interface{}, error)
+}
+
+// PluginService handles plugin lifecycle management.
+type PluginService interface {
+	PluginOps(pluginID string, action string) (interface{}, error)
+	ListPlugins(provider string) (interface{}, error)
+	GetPluginInfo(pluginID string) (interface{}, error)
+}
+
+// K8sService handles Kubernetes cluster and deployment operations.
+type K8sService interface {
+	CreateCluster(ctx context.Context, cluster *model.Cluster) (*model.Cluster, error)
+	GetCluster(ctx context.Context, id string) (*model.Cluster, error)
+	ListClusters(ctx context.Context, tenantID string) ([]model.Cluster, error)
+	UpdateCluster(ctx context.Context, id string, updates map[string]interface{}) (*model.Cluster, error)
+	DeleteCluster(ctx context.Context, id string) error
+	TestClusterConnection(ctx context.Context, id string) (interface{}, error)
+	K8sDeploy(ctx context.Context, clusterID string, app *K8sDeployConfig) error
+	K8sListDeployments(ctx context.Context, clusterID string) (interface{}, error)
+	K8sGetPods(ctx context.Context, clusterID, labelSelector string) (interface{}, error)
+}
+
+// SystemService handles system-level operations.
+type SystemService interface {
+	CheckSystemUpdate(ctx context.Context) (interface{}, error)
+}
+
+// PortForwardService handles SSH port forwarding.
+type PortForwardService interface {
+	PortForward(ctx context.Context, action, serverID string, localPort, remotePort int, remoteHost string) (string, error)
+}
+
+// SchedulerService handles scheduled task management.
+type SchedulerService interface {
+	CreateScheduledTask(ctx context.Context, name, cronExpr, taskType, command string, serverID string) (interface{}, error)
+	ListScheduledTasks(ctx context.Context) (interface{}, error)
+	GetTaskExecutions(ctx context.Context, taskID string, limit int) (interface{}, error)
+	ToggleScheduledTask(ctx context.Context, taskID string, enabled bool) (interface{}, error)
+	DeleteScheduledTask(ctx context.Context, taskID string) (interface{}, error)
+}
+
+// UptimeService handles uptime monitoring and heartbeat detection.
+type UptimeService interface {
+	CreateUptimeMonitor(ctx context.Context, name, monType, target string, interval, timeout int) (interface{}, error)
+	ListUptimeMonitors(ctx context.Context) (interface{}, error)
+	CheckUptimeMonitor(ctx context.Context, monitorID string) (interface{}, error)
+	GetMonitorSLA(ctx context.Context, monitorID string, days int) (interface{}, error)
+	DeleteUptimeMonitor(ctx context.Context, monitorID string) error
+	CreateHeartbeat(ctx context.Context, name string, interval, timeout int) (interface{}, error)
+	ListHeartbeats(ctx context.Context) (interface{}, error)
+	DeleteHeartbeat(ctx context.Context, heartbeatID string) error
+}
+
+// ============================================================================
+// Deployer — composed interface for backward compatibility (fixes #116)
+// Embeds all sub-interfaces. Existing code using Deployer continues to work.
+// New code can depend on specific sub-interfaces for better testability.
+// ============================================================================
+
+// Deployer abstracts all deployment operations for the MCP server.
+// It composes all domain-specific sub-interfaces for backward compatibility.
+type Deployer interface {
+	ContainerDeployer
+	ServerManager
+	CredentialManager
+	DNSManager
+	BackupManager
+	MonitorService
+	LogService
+	NotificationService
+	TemplateService
+	TaskManager
+	SSLService
+	CICDService
+	RegistryService
+	PluginService
+	K8sService
+	SystemService
+	PortForwardService
+	SchedulerService
+	UptimeService
+}
+
+// ============================================================================
+// Value types (unchanged)
+// ============================================================================
+
+// DeployConfig mirrors deployer.DeployConfig to avoid circular imports.
+type DeployConfig struct {
+	Image         string            `json:"image"`
+	AppName       string            `json:"app_name,omitempty"`
+	ContainerName string            `json:"container_name"`
+	Ports         string            `json:"ports,omitempty"`
+	EnvVars       map[string]string `json:"env_vars,omitempty"`
+	RestartPolicy string            `json:"restart_policy,omitempty"`
+	Network       string            `json:"network,omitempty"`
+	Volumes       string            `json:"volumes,omitempty"`
+	Labels        map[string]string `json:"labels,omitempty"`
+	CPU           string            `json:"cpu,omitempty"`
+	Memory        string            `json:"memory,omitempty"`
+	ServerID      string            `json:"server_id,omitempty"`
+}
+
+// ContainerStatus mirrors deployer.ContainerStatus.
+type ContainerStatus struct {
+	ID        string            `json:"id"`
+	Name      string            `json:"name"`
+	Image     string            `json:"image"`
+	Status    string            `json:"status"`
+	Ports     string            `json:"ports,omitempty"`
+	CreatedAt string            `json:"created_at,omitempty"`
+	Labels    map[string]string `json:"labels,omitempty"`
+}
+
+// DeployStrategy defines the deployment strategy type.
+type DeployStrategy string
+
+const (
+	StrategySequential DeployStrategy = "sequential"
+	StrategyParallel   DeployStrategy = "parallel"
+	StrategyRolling    DeployStrategy = "rolling"
+)
+
+// BatchDeployConfig holds configuration for batch deployment.
+type BatchDeployConfig struct {
+	Apps          []map[string]interface{} `json:"apps"`
+	Strategy      DeployStrategy           `json:"strategy"`
+	MaxConcurrent int                      `json:"max_concurrent"`
+	BatchSize     int                      `json:"batch_size"`
+	ServerIDs     []string                 `json:"server_ids"`
+}
+
+// BatchDeployResult holds the result of a batch deployment.
+type BatchDeployResult struct {
+	Total    int                     `json:"total"`
+	Success  int                     `json:"success"`
+	Failed   int                     `json:"failed"`
+	Results  []BatchDeployItemResult `json:"results"`
+	Duration float64                 `json:"duration_seconds"`
+}
+
+// BatchDeployItemResult holds the result of a single app deployment within a batch.
+type BatchDeployItemResult struct {
+	Index   int    `json:"index"`
+	AppName string `json:"app_name"`
+	Success bool   `json:"success"`
+	Error   string `json:"error,omitempty"`
+}
+
+// ServerInfo represents a registered server.
+type ServerInfo struct {
+	ID     string `json:"id"`
+	Name   string `json:"name"`
+	Host   string `json:"host"`
+	Port   int    `json:"port"`
+	Status string `json:"status"`
+}
+
+// CreateAppConfig holds parameters for creating a new application.
+type CreateAppConfig struct {
+	Name        string `json:"name"`
+	RepoURL     string `json:"repo_url"`
+	Branch      string `json:"branch,omitempty"`
+	Domain      string `json:"domain,omitempty"`
+	TechStack   string `json:"tech_stack,omitempty"`
+	DeployMode  string `json:"deploy_mode,omitempty"`
+	ServerID    string `json:"server_id,omitempty"`
+	Environment string `json:"environment,omitempty"`
+}
+
+// BuildAndDeployConfig holds parameters for a build-and-deploy operation.
+type BuildAndDeployConfig struct {
+	RepoURL             string            `json:"repo_url"`
+	Branch              string            `json:"branch,omitempty"`
+	TechStack           string            `json:"tech_stack,omitempty"`
+	AppName             string            `json:"app_name"`
+	ProjectDir          string            `json:"project_dir,omitempty"`
+	BuildArgs           map[string]string `json:"build_args,omitempty"`
+	EnvVars             map[string]string `json:"env_vars,omitempty"`
+	Ports               string            `json:"ports,omitempty"`
+	ServerID            string            `json:"server_id,omitempty"`
+	DockerfileOverrides map[string]string `json:"dockerfile_overrides,omitempty"`
+	RegistryID          string            `json:"registry_id,omitempty"`
+	PushImage           bool              `json:"push_image,omitempty"`
+	ImageTag            string            `json:"image_tag,omitempty"`
+}
+
+// BuildAndDeployResult holds the result of a build-and-deploy operation.
+type BuildAndDeployResult struct {
+	Image      string  `json:"image"`
+	Digest     string  `json:"digest,omitempty"`
+	Size       string  `json:"size,omitempty"`
+	BuildLog   string  `json:"build_log"`
+	Duration   float64 `json:"duration_seconds"`
+	TechStack  string  `json:"tech_stack"`
+	CommitHash string  `json:"commit_hash"`
+}
+
+// K8sDeployConfig holds parameters for deploying an application to a Kubernetes cluster.
+type K8sDeployConfig struct {
+	Name      string            `json:"name"`
+	Image     string            `json:"image"`
+	Replicas  int32             `json:"replicas"`
+	Ports     []int32           `json:"ports"`
+	EnvVars   map[string]string `json:"env_vars"`
+	Labels    map[string]string `json:"labels"`
+	Namespace string            `json:"namespace"`
+}

@@ -1,0 +1,108 @@
+@import "tailwindcss";
+
+@theme inline {
+  --color-background: oklch(0.145 0 0);
+  --color-foreground: oklch(0.985 0 0);
+  --color-card: oklch(0.178 0 0);
+  --color-card-hover: oklch(0.20 0 0);
+  --color-border: oklch(0.25 0 0);
+  --color-muted: oklch(0.55 0 0);
+  --color-muted-foreground: oklch(0.55 0 0);
+  --color-primary: oklch(0.7 0.15 250);
+  --color-primary-foreground: oklch(0.145 0 0);
+  --color-destructive: oklch(0.65 0.2 25);
+  --color-destructive-foreground: oklch(0.985 0 0);
+  --color-success: oklch(0.72 0.19 150);
+  --color-warning: oklch(0.8 0.18 80);
+  --color-accent: oklch(0.25 0 0);
+  --color-accent-foreground: oklch(0.985 0 0);
+  --color-ring: oklch(0.7 0.15 250);
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+}
+
+* {
+  border-color: var(--color-border);
+}
+
+body {
+  background-color: var(--color-background);
+  color: var(--color-foreground);
+  font-family: var(--font-sans);
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Smooth scrolling on mobile */
+@media (max-width: 1023px) {
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
+/* Minimum touch target size for interactive elements */
+@media (pointer: coarse) {
+  button,
+  a,
+  [role="button"],
+  input[type="checkbox"],
+  input[type="radio"],
+  select,
+  summary {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* Remove hover effects on touch devices - only apply hover where pointer is available */
+  .hover\:bg-accent\/50:hover,
+  .hover\:bg-accent:hover,
+  .hover\:bg-accent\/80:hover,
+  .hover\:text-foreground:hover,
+  .hover\:text-accent-foreground:hover,
+  .hover\:bg-primary\/90:hover,
+  .hover\:bg-destructive\/90:hover,
+  .hover\:shadow-md:hover {
+    /* Reset hover styles on touch-only devices */
+  }
+}
+
+/* Only apply hover effects on devices that support hover */
+@media (hover: hover) and (pointer: fine) {
+  .hover\:bg-accent\/50:hover {
+    background-color: oklch(0.25 0 0 / 0.5);
+  }
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: oklch(0.3 0 0);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: oklch(0.4 0 0);
+}
+
+/* Prevent text selection on interactive elements on touch */
+@media (pointer: coarse) {
+  button,
+  [role="button"] {
+    -webkit-user-select: none;
+    user-select: none;
+  }
+}
+
+/* Safe area insets for notched devices */
+@supports (padding: env(safe-area-inset-bottom)) {
+  body {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}

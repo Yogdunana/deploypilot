@@ -1,0 +1,210 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-frontend:
+    name: Build Frontend
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Cache npm modules
+        uses: actions/cache@v5
+        with:
+          path: web/node_modules
+          key: ${{ runner.os }}-node-${{ hashFiles('web/package-lock.json') }}
+          restore-keys: ${{ runner.os }}-node-
+
+      - name: Install dependencies
+        working-directory: web
+        run: npm ci
+
+      - name: Build frontend
+        working-directory: web
+        run: npm run build
+
+      - name: Run frontend tests
+        working-directory: web
+        run: npm test
+
+      - name: Upload frontend dist
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: web/dist/
+          retention-days: 1
+
+  test:
+    name: Test (race + coverage)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [build-frontend]
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version: "1.24"
+
+      - name: Download frontend dist
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-dist
+          path: web/dist/
+
+      - name: Run go mod tidy
+        run: go mod tidy
+
+      - name: Run tests with race detector
+        run: go test -race -coverprofile=coverage.out -count=1 ./...
+
+      - name: Check coverage threshold (80%)
+        run: |
+          COVERAGE=$(go tool cover -func=coverage.out | grep 'total' | awk '{print $3}' | sed 's/%//')
+          echo "Total coverage: ${COVERAGE}%"
+          THRESHOLD=80
+          if (( $(echo "$COVERAGE < $THRESHOLD" | bc -l) )); then
+            echo "::warning::Coverage ${COVERAGE}% is below threshold ${THRESHOLD}% (cmd/ entry points excluded from unit tests)"
+          else
+            echo "Coverage ${COVERAGE}% meets threshold ${THRESHOLD}%"
+          fi
+
+  lint:
+    name: Lint (golangci-lint)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [build-frontend]
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version: "1.24"
+
+      - name: Download frontend dist
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-dist
+          path: web/dist/
+
+      - name: Run go mod tidy
+        run: go mod tidy
+
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@v7
+        with:
+          version: v2.1.0
+
+  vuln:
+    name: Vulnerability Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version: "1.24"
+
+      - name: Run govulncheck
+        run: |
+          go mod tidy
+          govulncheck ./... || {
+            echo "::warning::Vulnerabilities found. Review https://pkg.go.dev/vuln/ for details."
+            exit 0
+          }
+
+  frontend-audit:
+    name: Frontend Dependency Audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    if: always()
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        working-directory: web
+        run: npm ci
+
+      - name: Run npm audit
+        working-directory: web
+        run: npm audit --audit-level=high
+
+  secret-scan:
+    name: Secret Scanning
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    if: always()
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Gitleaks scan
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [test, lint]
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version: "1.24"
+
+      - name: Cache Go modules
+        uses: actions/cache@v5
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: ${{ runner.os }}-go-
+
+      - name: Run go mod tidy
+        run: go mod tidy
+
+      - name: Build deploypilot CLI
+        run: go build -o bin/deploypilot ./cmd/deploypilot/
+
+      - name: Build MCP server
+        run: go build -o bin/mcp-server ./cmd/mcp-server/
+
+  commitlint:
+    name: Commitlint
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install -g @commitlint/cli @commitlint/config-conventional
+      - run: npx commitlint --from ${{ github.event.pull_request.base.sha }} --to ${{ github.event.pull_request.head.sha }} --verbose

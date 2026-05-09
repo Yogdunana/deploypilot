@@ -1,0 +1,32 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: deploypilot-postgres-dev
+    environment:
+      POSTGRES_DB: deploypilot
+      POSTGRES_USER: deploypilot
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-deploypilot_dev}
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - pgdata_dev:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U deploypilot"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: deploypilot-redis-dev
+    command: redis-server --requirepass ${REDIS_PASSWORD:-dev_redis_pass}
+    ports:
+      - "127.0.0.1:6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-dev_redis_pass}", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pgdata_dev:

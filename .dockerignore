@@ -1,0 +1,15 @@
+.git
+.github
+.claude
+.cursor
+.trae
+.vscode
+web/node_modules
+web/dist
+*.md
+docs/
+tests/
+scripts/
+.env
+.env.*
+!configs/
