@@ -98,7 +98,6 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 
 	// Public routes
 	authGroup := api.Group("/auth")
-	authGroup.Use(middleware.CSRF())
 	{
 		authGroup.POST("/register", Register(db))
 		authGroup.POST("/login", Login(db, func() *bruteforce.Protector {
@@ -108,9 +107,10 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, bridge *service.Bridge, wsHub *W
 			return nil
 		}()))
 		authGroup.POST("/ws-ticket", WSTicket(ticketStore, 30*time.Second))
-		authGroup.POST("/revoke", RevokeToken(blacklist))
+		// CSRF-protected endpoints (require authenticated session)
+		authGroup.POST("/revoke", middleware.CSRF(), RevokeToken(blacklist))
 		authGroup.POST("/2fa/verify", Check2FARateLimit(), Verify2FA(db, auditSvc))
-		authGroup.POST("/refresh", RefreshToken())
+		authGroup.POST("/refresh", middleware.CSRF(), RefreshToken())
 		if oauthSvc != nil {
 			stateStore := auth.NewMemoryStateStore()
 			go stateStore.StartCleanup(context.Background(), 5*time.Minute)
