@@ -677,6 +677,8 @@ EOF
     chown -R deploypilot:deploypilot "$INSTALL_DIR"
 
     print_step "10/10" "配置系统服务"
+    # Create CLI symlink
+    ln -sf ${INSTALL_DIR}/bin/deploypilot /usr/local/bin/deploypilot
     if [ "$HAS_SYSTEMD" = "true" ]; then
         print_info "正在创建 systemd 服务..."
 
@@ -763,6 +765,30 @@ EOF
     # Users should configure their AI IDE to run the MCP server directly
     print_info "MCP Server 配置: 请在 AI IDE 中配置 MCP server 路径"
 
+    # Register this server as a DeployPilot node
+    if systemctl is-active --quiet deploypilot; then
+        print_info "正在注册当前服务器..."
+        # Login to get JWT token
+        LOGIN_RESP=$(curl -s -X POST "http://localhost:${PORT}/api/v1/auth/login" \
+            -H "Content-Type: application/json" \
+            -d "{\"username\": \"${USERNAME}\", \"password\": \"${PASSWORD}\"}" 2>&1)
+        TOKEN=$(echo "$LOGIN_RESP" | grep -o '"token":"[^"]*"' | head -1 | cut -d'"' -f4)
+        if [ -n "$TOKEN" ]; then
+            SERVER_NAME=$(hostname -s 2>/dev/null || echo "deploy-server")
+            SERVER_RESP=$(curl -s -X POST "http://localhost:${PORT}/api/v1/servers" \
+                -H "Content-Type: application/json" \
+                -H "Authorization: Bearer ${TOKEN}" \
+                -d "{\"name\": \"${SERVER_NAME}\", \"host\": \"127.0.0.1\", \"port\": 22, \"user\": \"root\"}" 2>&1)
+            if echo "$SERVER_RESP" | grep -q '"id"'; then
+                print_success "当前服务器已注册为 DeployPilot 节点 (${SERVER_NAME})"
+            else
+                print_warning "服务器注册失败（可能已注册）"
+            fi
+        else
+            print_warning "无法登录以注册服务器（请使用已有账号登录面板添加）"
+        fi
+    fi
+
     echo ""
     echo -e "${GREEN}${BOLD}  🎉 安装成功完成！${RESET}"
     echo ""
@@ -773,23 +799,14 @@ EOF
     echo -e "  ${CYAN}版本:${RESET}      ${VERSION:-source}"
     echo ""
     echo -e "${BOLD}${WHITE}  MCP 配置 (AI IDE 集成):${RESET}"
-    echo -e "  ${CYAN}MCP Server 已作为 systemd 服务运行${RESET}"
-    echo ""
-    echo '  {'
-    echo '    "mcpServers": {'
-    echo '      "deploypilot": {'
-    echo "        \"command\": \"${INSTALL_DIR}/bin/mcp-server\","
-    echo "        \"args\": [\"--config\", \"${INSTALL_DIR}/config/config.yaml\"]"
-    echo '      }'
-    echo '    }'
-    echo '  }'
+    echo -e "  ${CYAN}MCP Server 通过 SSE 传输运行${RESET}"
+    echo -e "  ${CYAN}SSE 地址:${RESET}  http://${IP_ADDRESS}:${PORT}/api/v1/mcp/sse"
     echo ""
     echo -e "${BOLD}${WHITE}  管理命令:${RESET}"
-    echo -e "  ${CYAN}启动 API:${RESET}    systemctl start deploypilot"
-    echo -e "  ${CYAN}启动 MCP:${RESET}    systemctl start deploypilot-mcp"
-    echo -e "  ${CYAN}停止服务:${RESET}    systemctl stop deploypilot deploypilot-mcp"
-    echo -e "  ${CYAN}重启服务:${RESET}    systemctl restart deploypilot deploypilot-mcp"
-    echo -e "  ${CYAN}查看状态:${RESET}    systemctl status deploypilot"
+    echo -e "  ${CYAN}启动服务:${RESET}    systemctl start deploypilot"
+    echo -e "  ${CYAN}停止服务:${RESET}    systemctl stop deploypilot"
+    echo -e "  ${CYAN}重启服务:${RESET}    systemctl restart deploypilot"
+    echo -e "  ${CYAN}查看状态:${RESET}    deploypilot status"
     echo -e "  ${CYAN}查看日志:${RESET}    tail -f ${INSTALL_DIR}/logs/deploypilot.log"
     echo ""
     echo -e "${YELLOW}${BOLD}  ⚠️  安全提示:${RESET}"

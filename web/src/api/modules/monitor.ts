@@ -3,7 +3,7 @@ import type { ApiResponse, PaginatedResponse, PaginationParams } from '@/types/a
 import type { SystemMetrics, ContainerMetrics, Alert, AlertRule } from '@/types/models'
 
 export function getSystemMetrics() {
-  return api.get<ApiResponse<SystemMetrics>>('/monitor/metrics')
+  return api.get<ApiResponse<SystemMetrics>>('/monitor/system')
 }
 
 export function getContainerMetrics(name: string) {
