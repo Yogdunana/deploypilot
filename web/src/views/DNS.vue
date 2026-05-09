@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, computed, inject, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import { useToast } from '@/composables/useToast'
 import { Plus, MoreHorizontal, Pencil, Trash2, Search, Globe } from 'lucide-vue-next'
 import PageHeader from '@/components/common/PageHeader.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
@@ -18,7 +19,7 @@ import * as dnsApi from '@/api/modules/dns'
 import type { DNSRecord } from '@/types/models'
 import { useI18n } from 'vue-i18n'
 
-const { toast } = inject<any>('toast')!
+const { toast } = useToast()
 const { t } = useI18n()
 
 // State

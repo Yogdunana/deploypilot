@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, computed, inject, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import { useToast } from '@/composables/useToast'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import {
@@ -24,7 +25,7 @@ import type { App } from '@/types/models'
 
 const router = useRouter()
 const { t } = useI18n()
-const { toast } = inject<any>('toast')!
+const { toast } = useToast()
 
 // State
 const apps = ref<App[]>([])

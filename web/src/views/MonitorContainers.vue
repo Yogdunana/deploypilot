@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, computed, inject, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import { useToast } from '@/composables/useToast'
 import { RefreshCw, HeartPulse, Wrench } from 'lucide-vue-next'
 import PageHeader from '@/components/common/PageHeader.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
@@ -14,7 +15,7 @@ import * as monitorApi from '@/api/modules/monitor'
 import type { App, ContainerMetrics } from '@/types/models'
 import { useI18n } from 'vue-i18n'
 
-const { toast } = inject<any>('toast')!
+const { toast } = useToast()
 const { t } = useI18n()
 
 const loading = ref(true)

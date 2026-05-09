@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, computed, inject, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import { useToast } from '@/composables/useToast'
 import {
   Search, Rocket,
 } from 'lucide-vue-next'
@@ -16,7 +17,7 @@ import * as deploymentsApi from '@/api/modules/deployments'
 import type { DeploymentRecord } from '@/types/models'
 import { useI18n } from 'vue-i18n'
 
-const { toast } = inject<any>('toast')!
+const { toast } = useToast()
 const { t } = useI18n()
 
 // State

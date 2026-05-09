@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, inject } from 'vue'
+import { computed } from 'vue'
+import { useToast } from '@/composables/useToast'
 import { RefreshCw, Cpu, MemoryStick, HardDrive, ArrowUp, ArrowDown, Clock } from 'lucide-vue-next'
 import PageHeader from '@/components/common/PageHeader.vue'
 import Button from '@/components/ui/Button.vue'
@@ -11,7 +12,7 @@ import * as monitorApi from '@/api/modules/monitor'
 import type { SystemMetrics } from '@/types/models'
 import { useI18n } from 'vue-i18n'
 
-const { toast } = inject<any>('toast')!
+const { toast } = useToast()
 const { t } = useI18n()
 
 // 轮询系统指标，每 30 秒刷新

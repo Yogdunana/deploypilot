@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, onMounted, inject } from 'vue'
+import { ref, onMounted } from 'vue'
+import { useToast } from '@/composables/useToast'
 import PageHeader from '@/components/common/PageHeader.vue'
 import RelativeTime from '@/components/common/RelativeTime.vue'
 import Button from '@/components/ui/Button.vue'
@@ -24,7 +25,7 @@ import {
 } from '@/api/modules/grafana'
 import type { GrafanaStatus } from '@/api/modules/grafana'
 
-const { toast } = inject<any>('toast')!
+const { toast } = useToast()
 
 const status = ref<GrafanaStatus | null>(null)
 const loading = ref(false)

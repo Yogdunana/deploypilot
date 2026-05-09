@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, computed, inject, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import { useToast } from '@/composables/useToast'
 import { ShieldCheck, ShieldOff, Copy } from 'lucide-vue-next'
 import PageHeader from '@/components/common/PageHeader.vue'
 import Button from '@/components/ui/Button.vue'
@@ -13,7 +14,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useI18n } from 'vue-i18n'
 const { t } = useI18n()
 const authStore = useAuthStore()
-const toast = inject<any>('toast')!
+const { toast } = useToast()
 const twoFAEnabled = ref(false)
 const loadingStatus = ref(true)
 const setupStep = ref<'idle' | 'qr'>('idle')

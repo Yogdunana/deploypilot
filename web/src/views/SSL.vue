@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, inject, onMounted, computed } from 'vue'
+import { ref, onMounted, computed } from 'vue'
+import { useToast } from '@/composables/useToast'
 import { Plus, RefreshCw, RotateCcw, Trash2 } from 'lucide-vue-next'
 import PageHeader from '@/components/common/PageHeader.vue'
 import Badge from '@/components/ui/Badge.vue'
@@ -16,7 +17,7 @@ import * as sslApi from '@/api/modules/ssl'
 import type { SSLCertificate } from '@/types/models'
 import { useI18n } from 'vue-i18n'
 
-const { toast } = inject<any>('toast')!
+const { toast } = useToast()
 const { t } = useI18n()
 
 const loading = ref(true)

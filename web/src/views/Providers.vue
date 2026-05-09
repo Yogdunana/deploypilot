@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, computed, inject, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
+import { useToast } from '@/composables/useToast'
 import { Plus, MoreHorizontal, Pencil, Trash2, Server } from 'lucide-vue-next'
 import PageHeader from '@/components/common/PageHeader.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
@@ -20,7 +21,7 @@ import * as providersApi from '@/api/modules/providers'
 import type { Provider } from '@/types/models'
 import { useI18n } from 'vue-i18n'
 
-const { toast } = inject<any>('toast')!
+const { toast } = useToast()
 const { t } = useI18n()
 
 // State

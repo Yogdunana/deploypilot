@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, onMounted, inject } from 'vue'
+import { ref, onMounted } from 'vue'
+import { useToast } from '@/composables/useToast'
 import { useRouter } from 'vue-router'
 import {
   Webhook,
@@ -20,7 +21,7 @@ import * as webhookApi from '@/api/modules/outbound_webhook'
 import type { OutboundWebhook } from '@/api/modules/outbound_webhook'
 
 const router = useRouter()
-const { toast } = inject<any>('toast')!
+const { toast } = useToast()
 
 const webhooks = ref<OutboundWebhook[]>([])
 const loading = ref(false)

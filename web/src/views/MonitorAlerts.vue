@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, inject, onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
+import { useToast } from '@/composables/useToast'
 import { RefreshCw } from 'lucide-vue-next'
 import PageHeader from '@/components/common/PageHeader.vue'
 import RelativeTime from '@/components/common/RelativeTime.vue'
@@ -13,7 +14,7 @@ import * as monitorApi from '@/api/modules/monitor'
 import type { Alert } from '@/types/models'
 import { useI18n } from 'vue-i18n'
 
-const { toast } = inject<any>('toast')!
+const { toast } = useToast()
 const { t } = useI18n()
 
 // 轮询告警列表，每 30 秒刷新

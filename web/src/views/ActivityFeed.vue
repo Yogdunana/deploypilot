@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
+import { useToast } from '@/composables/useToast'
 import { useI18n } from 'vue-i18n'
-import { inject } from 'vue'
+
 import { Activity, Filter } from 'lucide-vue-next'
 import PageHeader from '@/components/common/PageHeader.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
@@ -9,7 +10,7 @@ import Button from '@/components/ui/Button.vue'
 import { listEvents, getEventStats } from '@/api/modules/events'
 
 const { t } = useI18n()
-const toast: (msg: string, type?: string) => void = inject<any>('toast')
+const { toast } = useToast()
 
 interface EventItem {
   id: string

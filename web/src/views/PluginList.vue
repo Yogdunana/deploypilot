@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, onMounted, inject } from 'vue'
+import { ref, onMounted } from 'vue'
+import { useToast } from '@/composables/useToast'
 import {
   Puzzle,
   Play,
@@ -17,7 +18,7 @@ import Switch from '@/components/ui/Switch.vue'
 import * as pluginApi from '@/api/modules/plugin'
 import type { PluginInfo } from '@/api/modules/plugin'
 
-const { toast } = inject<any>('toast')!
+const { toast } = useToast()
 
 const plugins = ref<PluginInfo[]>([])
 const loading = ref(false)

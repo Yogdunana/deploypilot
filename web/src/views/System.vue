@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, inject, onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
+import { useToast } from '@/composables/useToast'
 import { Info, HeartPulse, RefreshCw, CheckCircle, XCircle, Download, ArrowUpCircle, AlertTriangle } from 'lucide-vue-next'
 import PageHeader from '@/components/common/PageHeader.vue'
 import Card from '@/components/ui/Card.vue'
@@ -8,7 +9,7 @@ import Button from '@/components/ui/Button.vue'
 import * as systemApi from '@/api/modules/system'
 import { useI18n } from 'vue-i18n'
 
-const { toast } = inject<any>('toast')!
+const { toast } = useToast()
 const { t } = useI18n()
 
 // State
