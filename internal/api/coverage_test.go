@@ -442,9 +442,9 @@ func TestRegister_DuplicateEmail_Cov(t *testing.T) {
 	w2 := httptest.NewRecorder()
 	r.ServeHTTP(w2, req2)
 
-	// Should fail with duplicate
-	if w2.Code != http.StatusConflict {
-		t.Errorf("expected 409 on duplicate register, got %d: %s", w2.Code, w2.Body.String())
+	// Should fail with 403 (registration disabled after first user)
+	if w2.Code != http.StatusForbidden {
+		t.Errorf("expected 403 on registration disabled, got %d: %s", w2.Code, w2.Body.String())
 	}
 }
 
