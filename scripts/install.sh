@@ -747,15 +747,16 @@ EOF
             -d "{\"username\": \"${USERNAME}\", \"email\": \"admin@example.com\", \"password\": \"${PASSWORD}\"}" 2>&1)
         if echo "$REGISTER_RESP" | grep -q '"id"'; then
             print_success "管理员账号创建成功"
-        elif echo "$REGISTER_RESP" | grep -q '"registration is disabled"'; then
-            print_warning "管理员账号已存在，跳过创建"
+        elif echo "$REGISTER_RESP" | grep -q 'registration is disabled'; then
+            print_warning "检测到已有用户，跳过管理员创建"
             print_info "请使用之前创建的管理员账号登录"
-            # Don't show new credentials since account already exists
-            USERNAME="(请使用已有账号)"
-            PASSWORD="(请使用已有密码)"
+            print_info "登录后可在「服务器」页面手动添加当前服务器"
+            # Keep USERNAME/PASSWORD for display, but skip server registration with these creds
+            SKIP_SERVER_REG=1
         else
             print_warning "管理员账号创建失败: $(echo "$REGISTER_RESP" | grep -o '"message":"[^"]*"' | cut -d'"' -f4)"
             print_info "请手动创建账号或使用已有账号: http://${IP_ADDRESS}:${PORT}"
+            SKIP_SERVER_REG=1
         fi
     else
         print_warning "DeployPilot API Server 启动失败，请检查日志: ${INSTALL_DIR}/logs/deploypilot.err.log"
@@ -766,7 +767,7 @@ EOF
     print_info "MCP Server 配置: 请在 AI IDE 中配置 MCP server 路径"
 
     # Register this server as a DeployPilot node
-    if systemctl is-active --quiet deploypilot; then
+    if systemctl is-active --quiet deploypilot && [ "${SKIP_SERVER_REG:-0}" != "1" ]; then
         print_info "正在注册当前服务器..."
         # Login to get JWT token
         LOGIN_RESP=$(curl -s -X POST "http://localhost:${PORT}/api/v1/auth/login" \
