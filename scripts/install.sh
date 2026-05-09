@@ -712,8 +712,8 @@ User=deploypilot
 WorkingDirectory=${INSTALL_DIR}
 Environment="CONFIG_PATH=${INSTALL_DIR}/config/config.yaml"
 ExecStart=${INSTALL_DIR}/bin/mcp-server --config ${INSTALL_DIR}/config/config.yaml
-Restart=always
-RestartSec=5
+# MCP server uses stdio transport - it exits when idle, so don't auto-restart
+Restart=no
 StandardOutput=append:${INSTALL_DIR}/logs/deploypilot-mcp.log
 StandardError=append:${INSTALL_DIR}/logs/deploypilot-mcp.err.log
 
@@ -742,24 +742,26 @@ EOF
         print_info "正在创建管理员账号..."
         REGISTER_RESP=$(curl -s -X POST "http://localhost:${PORT}/api/v1/auth/register" \
             -H "Content-Type: application/json" \
-            -d "{\"username\": \"${USERNAME}\", \"password\": \"${PASSWORD}\"}" 2>&1)
+            -d "{\"username\": \"${USERNAME}\", \"email\": \"admin@localhost\", \"password\": \"${PASSWORD}\"}" 2>&1)
         if echo "$REGISTER_RESP" | grep -q '"id"'; then
             print_success "管理员账号创建成功"
+        elif echo "$REGISTER_RESP" | grep -q '"registration is disabled"'; then
+            print_warning "管理员账号已存在，跳过创建"
+            print_info "请使用之前创建的管理员账号登录"
+            # Don't show new credentials since account already exists
+            USERNAME="(请使用已有账号)"
+            PASSWORD="(请使用已有密码)"
         else
-            print_warning "管理员账号创建失败（可能已存在），请手动注册: http://${IP_ADDRESS}:${PORT}"
+            print_warning "管理员账号创建失败: $(echo "$REGISTER_RESP" | grep -o '"message":"[^"]*"' | cut -d'"' -f4)"
+            print_info "请手动创建账号或使用已有账号: http://${IP_ADDRESS}:${PORT}"
         fi
     else
         print_warning "DeployPilot API Server 启动失败，请检查日志: ${INSTALL_DIR}/logs/deploypilot.err.log"
     fi
 
-    systemctl start deploypilot-mcp
-    sleep 1
-
-    if systemctl is-active --quiet deploypilot-mcp; then
-        print_success "DeployPilot MCP Server 启动成功"
-    else
-        print_warning "DeployPilot MCP Server 启动失败，请检查日志: ${INSTALL_DIR}/logs/deploypilot-mcp.err.log"
-    fi
+    # MCP server uses stdio transport - it exits when idle, so we don't start it as a service
+    # Users should configure their AI IDE to run the MCP server directly
+    print_info "MCP Server 配置: 请在 AI IDE 中配置 MCP server 路径"
 
     echo ""
     echo -e "${GREEN}${BOLD}  🎉 安装成功完成！${RESET}"

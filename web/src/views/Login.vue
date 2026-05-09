@@ -99,10 +99,6 @@ function handleKeydown(e: KeyboardEvent) {
           </div>
           <p v-if="error" class="text-sm text-destructive">{{ error }}</p>
           <Button type="submit" class="w-full" size="lg" :loading="loading" :disabled="loading">{{ t('login.submit') }}</Button>
-          <p class="text-center text-sm text-muted-foreground pt-2">
-            {{ t('login.noAccount') }}
-            <RouterLink to="/register" class="text-primary hover:underline font-medium">{{ t('login.signupNow') }}</RouterLink>
-          </p>
         </form>
 
         <form v-else class="space-y-4" @submit.prevent="handle2FAVerify">

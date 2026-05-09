@@ -107,6 +107,18 @@ func SetAuditServiceForAuth(svc *service.AuditService) {
 // @Router       /auth/register [post]
 func Register(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		// Security check: Only allow registration if no users exist yet
+		// This is for initial setup only. After that, users must be created by admins.
+		var userCount int64
+		db.Model(&model.User{}).Count(&userCount)
+		if userCount > 0 {
+			c.JSON(http.StatusForbidden, gin.H{
+				"status":  "error",
+				"message": "registration is disabled. Please contact an administrator to create an account.",
+			})
+			return
+		}
+
 		// Rate limit: max 5 registrations per IP per 15 minutes
 		clientIP := c.ClientIP()
 		if !registerRL.Allow(clientIP) {
@@ -169,10 +181,11 @@ func Register(db *gorm.DB) gin.HandlerFunc {
 			return
 		}
 
+		// First user becomes admin
 		user := model.User{
 			ID:           uuid.New().String(),
 			TenantID:     "tenant-default",
-			RoleID:       "role-viewer",
+			RoleID:       "role-admin", // First user is admin
 			Username:     input.Username,
 			Email:        input.Email,
 			PasswordHash: hash,

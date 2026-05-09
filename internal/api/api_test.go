@@ -384,10 +384,10 @@ func TestRegister_DuplicateUser(t *testing.T) {
 		t.Fatalf("first registration failed: %d", w1.Code)
 	}
 
-	// Second registration should fail with 409
+	// Second registration should fail with 403 (registration disabled after first user)
 	w2 := makeRequest(r, "POST", "/api/v1/auth/register", body, "")
-	if w2.Code != http.StatusConflict {
-		t.Fatalf("expected 409 for duplicate, got %d: %s", w2.Code, w2.Body.String())
+	if w2.Code != http.StatusForbidden {
+		t.Fatalf("expected 403 for registration disabled, got %d: %s", w2.Code, w2.Body.String())
 	}
 }
 
