@@ -204,8 +204,10 @@ describe('useAuthStore', () => {
       expect(store.user).toEqual(mockUser)
     })
 
-    it('获取失败时调用 logout', async () => {
-      vi.mocked(getMe).mockRejectedValue(new Error('Unauthorized'))
+    it('401 错误时调用 logout', async () => {
+      const err = new Error('Unauthorized')
+      ;(err as any).response = { status: 401 }
+      vi.mocked(getMe).mockRejectedValue(err)
 
       const store = useAuthStore()
       store.token = 'some-token'
@@ -215,6 +217,21 @@ describe('useAuthStore', () => {
 
       expect(store.token).toBe('')
       expect(store.user).toBeNull()
+    })
+
+    it('非 401 错误时不调用 logout', async () => {
+      const err = new Error('Network Error')
+      ;(err as any).response = { status: 500 }
+      vi.mocked(getMe).mockRejectedValue(err)
+
+      const store = useAuthStore()
+      store.token = 'some-token'
+      store.user = mockUser
+
+      await store.fetchMe()
+
+      expect(store.token).toBe('some-token')
+      expect(store.user).toEqual(mockUser)
     })
   })
 
