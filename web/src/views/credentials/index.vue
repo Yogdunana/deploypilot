@@ -34,7 +34,7 @@ const total = ref(0)
 // Dialog
 const dialogOpen = ref(false)
 const dialogTitle = ref(t('credentials.createTitle'))
-const editingId = ref<number | null>(null)
+const editingId = ref<string | null>(null)
 const formName = ref('')
 const formType = ref('')
 const formValue = ref('')

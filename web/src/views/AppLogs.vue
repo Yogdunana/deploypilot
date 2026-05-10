@@ -49,7 +49,7 @@ function toggleRealtime() {
 async function loadHistory() {
   loadingHistory.value = true
   try {
-    const res = await appsApi.getLogs(Number(props.id), 500)
+    const res = await appsApi.getLogs(props.id, 500)
     if (res.data.status === 'success') {
       const logText = res.data.data
       if (logText && typeof logText === 'string') {
@@ -77,7 +77,7 @@ function clearLogs() {
 // 获取应用信息
 async function fetchApp() {
   try {
-    const res = await appsApi.get(Number(props.id))
+    const res = await appsApi.get(props.id)
     if (res.data.status === 'success') {
       appName.value = res.data.data.name
     }

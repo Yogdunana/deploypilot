@@ -10,11 +10,11 @@ export function list(params?: PaginationParams) {
   return api.get<PaginatedResponse<User[]>>('/users', { params })
 }
 
-export function deleteUser(id: number) {
+export function deleteUser(id: string) {
   return api.delete<ApiResponse<void>>(`/users/${id}`)
 }
 
-export function updateRole(id: number, roleId: number) {
+export function updateRole(id: string, roleId: string) {
   return api.put<ApiResponse<User>>(`/users/${id}/role`, { role_id: roleId })
 }
 

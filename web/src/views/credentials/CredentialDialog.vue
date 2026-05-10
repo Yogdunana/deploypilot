@@ -13,7 +13,7 @@ const { t } = useI18n()
 const props = defineProps<{
   open: boolean
   title: string
-  editingId: number | null
+  editingId: string | null
   formName: string
   formType: string
   formValue: string

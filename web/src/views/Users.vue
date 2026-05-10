@@ -81,7 +81,7 @@ function getUserRoleName(user: User): string {
 }
 
 // Change role
-async function handleChangeRole(user: User, roleId: number) {
+async function handleChangeRole(user: User, roleId: string) {
   try {
     await usersApi.updateRole(user.id, roleId)
     toast(t('users.roleUpdated', { username: user.username }), 'success')

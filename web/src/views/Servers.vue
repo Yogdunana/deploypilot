@@ -40,7 +40,7 @@ const deletingServer = ref<Server | null>(null)
 const deleting = ref(false)
 
 // Testing connection
-const testingId = ref<number | null>(null)
+const testingId = ref<string | null>(null)
 
 // Table columns
 const columns = computed(() => [
