@@ -110,7 +110,7 @@ func (b *Bridge) CheckSystemUpdate(ctx context.Context) (interface{}, error) {
 
 // fetchLatestRelease fetches the latest release from GitHub API.
 func fetchLatestRelease(ctx context.Context) (*GitHubRelease, error) {
-	url := "https://api.github.com/repos/Yogdunana/deploypilot/releases/latest"
+	url := "https://api.github.com/repos/Yogdunana/deploypilot/releases?per_page=5"
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
@@ -125,17 +125,21 @@ func fetchLatestRelease(ctx context.Context) (*GitHubRelease, error) {
 	}
 	defer func() { _ = resp.Body.Close() }()
 
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("GitHub API returned %d: %s", resp.StatusCode, string(body))
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("read response: %w", err)
 	}
 
-	var release GitHubRelease
-	if err := json.NewDecoder(resp.Body).Decode(&release); err != nil {
-		return nil, fmt.Errorf("decode response: %w", err)
+	var releases []GitHubRelease
+	if err := json.Unmarshal(body, &releases); err != nil {
+		return nil, fmt.Errorf("parse response: %w", err)
 	}
 
-	return &release, nil
+	if len(releases) == 0 {
+		return nil, fmt.Errorf("no releases found")
+	}
+
+	return &releases[0], nil
 }
 
 // compareVersions compares two semantic version strings.

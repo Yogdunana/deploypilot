@@ -25,9 +25,17 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      - name: Verify annotated tag
+        run: |
+          TAG_TYPE=$(git cat-file -t ${{ github.ref_name }})
+          if [ "$TAG_TYPE" != "tag" ]; then
+            echo "::error::Tag ${{ github.ref_name }} is a lightweight tag ($TAG_TYPE). Only annotated tags are allowed."
+            exit 1
+          fi
+
       - uses: actions/setup-go@v6
         with:
-          go-version: "1.24"
+          go-version: "1.24.13"
 
       - name: Cache Go modules
         uses: actions/cache@v5
@@ -76,7 +84,7 @@ jobs:
           CC: ${{ matrix.goarch == 'arm64' && 'aarch64-linux-gnu-gcc' || 'gcc' }}
           VERSION: ${{ github.ref_name }}
           GIT_COMMIT: ${{ github.sha }}
-          BUILD_TIME: ${{ needs.build-binaries.result != 'skipped' && steps.build.outputs.build_time || '' }}
+          BUILD_TIME: ''
         run: |
           BUILD_TIME="${BUILD_TIME:-$(date -u '+%Y-%m-%dT%H:%M:%SZ')}"
           mkdir -p dist
