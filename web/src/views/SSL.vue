@@ -194,7 +194,6 @@ async function confirmDelete() {
 // 刷新
 async function handleRefresh() {
   await fetchCertificates()
-  toast(t('ssl.dataRefreshed'), 'success')
 }
 
 onMounted(() => {

@@ -63,7 +63,7 @@ async function fetchPlugins() {
   try {
     const res = await listPlugins(undefined, providerFilter.value || undefined)
     if (res.data.status === 'success') plugins.value = res.data.data || []
-  } catch { toast(t('plugins.fetchFailed'), 'error') }
+  } catch { toast(t('plugins.fetchFailed'), 'destructive') }
   finally { loading.value = false }
 }
 
@@ -85,13 +85,13 @@ async function save() {
     if (isEdit.value) { await updatePlugin(selectedId.value, form.value); toast(t('plugins.updated'), 'success') }
     else { await createPlugin(form.value); toast(t('plugins.created'), 'success') }
     dialogOpen.value = false; await fetchPlugins()
-  } catch { toast(isEdit.value ? t('plugins.updateFailed') : t('plugins.createFailed'), 'error') }
+  } catch { toast(isEdit.value ? t('plugins.updateFailed') : t('plugins.createFailed'), 'destructive') }
 }
 
 async function remove(id: string) {
   if (!confirm(t('plugins.confirmDelete'))) return
   try { await deletePlugin(id); toast(t('plugins.deleted'), 'success'); await fetchPlugins() }
-  catch { toast(t('plugins.deleteFailed'), 'error') }
+  catch { toast(t('plugins.deleteFailed'), 'destructive') }
 }
 
 async function toggleEnable(p: Plugin) {
@@ -99,12 +99,12 @@ async function toggleEnable(p: Plugin) {
     if (p.enabled) { await disablePlugin(p.id); toast(t('plugins.disabled'), 'success') }
     else { await enablePlugin(p.id); toast(t('plugins.enabled'), 'success') }
     await fetchPlugins()
-  } catch { toast(t('plugins.toggleFailed'), 'error') }
+  } catch { toast(t('plugins.toggleFailed'), 'destructive') }
 }
 
 async function reload(p: Plugin) {
   try { await reloadPlugin(p.id); toast(t('plugins.reloaded'), 'success'); await fetchPlugins() }
-  catch { toast(t('plugins.reloadFailed'), 'error') }
+  catch { toast(t('plugins.reloadFailed'), 'destructive') }
 }
 
 onMounted(fetchPlugins)

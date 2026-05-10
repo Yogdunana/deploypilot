@@ -758,25 +758,19 @@ EOF
 
             case "$REINSTALL_CHOICE" in
                 1)
-                    print_info "正在重置管理员密码..."
+                    print_info "请输入要重置密码的用户名（直接回车使用默认: admin）"
+                    RESET_USERNAME=$(prompt_input "用户名" "admin")
+                    print_info "正在重置用户 '${RESET_USERNAME}' 的密码..."
                     RESET_RESP=$(curl -s -X POST "http://localhost:${PORT}/api/v1/auth/reset-password" \
                         -H "Content-Type: application/json" \
-                        -d "{\"username\": \"${USERNAME}\", \"password\": \"${PASSWORD}\"}" 2>&1)
+                        -d "{\"username\": \"${RESET_USERNAME}\", \"password\": \"${PASSWORD}\"}" 2>&1)
                     if echo "$RESET_RESP" | grep -q 'password_reset'; then
                         print_success "管理员密码重置成功"
                         SKIP_SERVER_REG=0
                     elif echo "$RESET_RESP" | grep -q 'user_not_found\|not found'; then
-                        print_warning "用户 '${USERNAME}' 不存在，正在创建新管理员..."
-                        REGISTER_RESP=$(curl -s -X POST "http://localhost:${PORT}/api/v1/auth/register" \
-                            -H "Content-Type: application/json" \
-                            -d "{\"username\": \"${USERNAME}\", \"email\": \"admin@example.com\", \"password\": \"${PASSWORD}\"}" 2>&1)
-                        if echo "$REGISTER_RESP" | grep -q '"id"'; then
-                            print_success "管理员账号创建成功"
-                            SKIP_SERVER_REG=0
-                        else
-                            print_warning "管理员创建失败: $(echo "$REGISTER_RESP" | grep -o '"message":"[^"]*"' | cut -d'"' -f4)"
-                            SKIP_SERVER_REG=1
-                        fi
+                        print_warning "用户 '${RESET_USERNAME}' 不存在"
+                        print_info "请检查用户名后重试，或选择选项 2 清空数据重新开始"
+                        SKIP_SERVER_REG=1
                     else
                         print_warning "密码重置失败: $(echo "$RESET_RESP" | grep -o '"message":"[^"]*"' | cut -d'"' -f4)"
                         print_info "请手动登录面板修改密码"
