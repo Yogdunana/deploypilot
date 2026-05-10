@@ -74,7 +74,7 @@ jobs:
 
       - name: Trigger release workflow
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.AUTO_BETA_PAT }}
         run: |
           TAG="${{ steps.version.outputs.tag }}"
           curl -s -X POST \
