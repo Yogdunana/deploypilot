@@ -49,7 +49,7 @@ async function fetchRegistries() {
   try {
     const res = await listRegistries()
     if (res.data.status === 'success') registries.value = res.data.data || []
-  } catch { toast(t('registries.fetchFailed'), 'error') }
+  } catch { toast(t('registries.fetchFailed'), 'destructive') }
   finally { loading.value = false }
 }
 
@@ -77,13 +77,13 @@ async function save() {
     }
     dialogOpen.value = false
     await fetchRegistries()
-  } catch { toast(isEdit.value ? t('registries.updateFailed') : t('registries.createFailed'), 'error') }
+  } catch { toast(isEdit.value ? t('registries.updateFailed') : t('registries.createFailed'), 'destructive') }
 }
 
 async function remove(id: string) {
   if (!confirm(t('registries.confirmDelete'))) return
   try { await deleteRegistry(id); toast(t('registries.deleted'), 'success'); await fetchRegistries() }
-  catch { toast(t('registries.deleteFailed'), 'error') }
+  catch { toast(t('registries.deleteFailed'), 'destructive') }
 }
 
 onMounted(fetchRegistries)

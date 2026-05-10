@@ -351,7 +351,7 @@ onMounted(fetchCredentials)
             <div class="space-y-1">
               <p class="text-sm text-muted-foreground">{{ t('credentials.rotationDays') }}</p>
               <p class="text-sm font-medium">
-                {{ detailItem.rotation_days || 0 === 0 ? t('credentials.neverExpires') : detailItem.rotation_days + ' ' + t('common.days') }}
+                {{ (detailItem.rotation_days || 0) === 0 ? t('credentials.neverExpires') : detailItem.rotation_days + ' ' + t('common.days') }}
               </p>
             </div>
             <div class="space-y-1">

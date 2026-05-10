@@ -67,7 +67,7 @@ async function fetchClusters() {
       clusters.value = res.data.data || []
     }
   } catch {
-    toast(t('clusters.fetchFailed'), 'error')
+    toast(t('clusters.fetchFailed'), 'destructive')
   } finally {
     loading.value = false
   }
@@ -101,7 +101,7 @@ async function saveCreate() {
     createDialogOpen.value = false
     await fetchClusters()
   } catch {
-    toast(t('clusters.createFailed'), 'error')
+    toast(t('clusters.createFailed'), 'destructive')
   }
 }
 
@@ -113,7 +113,7 @@ async function saveEdit() {
     editDialogOpen.value = false
     await fetchClusters()
   } catch {
-    toast(t('clusters.updateFailed'), 'error')
+    toast(t('clusters.updateFailed'), 'destructive')
   }
 }
 
@@ -124,7 +124,7 @@ async function removeCluster(id: string) {
     toast(t('clusters.deleted'), 'success')
     await fetchClusters()
   } catch {
-    toast(t('clusters.deleteFailed'), 'error')
+    toast(t('clusters.deleteFailed'), 'destructive')
   }
 }
 
@@ -135,10 +135,10 @@ async function testConnection(id: string) {
     if (res.data.status === 'success') {
       toast(t('clusters.connectionOk'), 'success')
     } else {
-      toast(t('clusters.connectionFailed'), 'error')
+      toast(t('clusters.connectionFailed'), 'destructive')
     }
   } catch {
-    toast(t('clusters.connectionFailed'), 'error')
+    toast(t('clusters.connectionFailed'), 'destructive')
   } finally {
     testingId.value = null
   }
