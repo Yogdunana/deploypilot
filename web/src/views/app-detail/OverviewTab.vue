@@ -14,6 +14,15 @@ import type { App } from '@/types/models'
 const props = defineProps<{ app: App }>()
 const { t } = useI18n()
 
+const parsedResourceLimits = computed(() => {
+  if (!props.app.resource_limits) return null
+  try {
+    return JSON.parse(props.app.resource_limits)
+  } catch {
+    return null
+  }
+})
+
 const infoItems = computed(() => {
   return [
     { label: t('appDetail.appName'), value: props.app.name, icon: Layers },
@@ -71,11 +80,11 @@ const infoItems = computed(() => {
       <div class="grid grid-cols-2 gap-4">
         <div>
           <p class="text-xs text-muted-foreground">{{ t('appDetail.memory') }}</p>
-          <p class="text-sm text-foreground mt-0.5">{{ app.resource_limits?.memory || '-' }}</p>
+          <p class="text-sm text-foreground mt-0.5">{{ parsedResourceLimits?.memory || '-' }}</p>
         </div>
         <div>
           <p class="text-xs text-muted-foreground">{{ t('appDetail.cpu') }}</p>
-          <p class="text-sm text-foreground mt-0.5">{{ app.resource_limits?.cpu || '-' }}</p>
+          <p class="text-sm text-foreground mt-0.5">{{ parsedResourceLimits?.cpu || '-' }}</p>
         </div>
       </div>
     </Card>
