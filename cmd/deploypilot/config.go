@@ -94,8 +94,14 @@ var configSetCmd = &cobra.Command{
 			return fmt.Errorf("config file not found: %s", configPath)
 		}
 
-		// Use sed to replace the value
-		pattern := fmt.Sprintf("s/^  %s:\\s*.*/  %s: %s/", field, field, value)
+		// Escape special sed replacement characters from user input
+		safeValue := strings.NewReplacer(
+			`\`, `\\`,
+			`/`, `\/`,
+			`&`, `\&`,
+			`\n`, `\\n`,
+		).Replace(value)
+		pattern := fmt.Sprintf("s/^  %s:\\s*.*/  %s: %s/", field, field, safeValue)
 		cmdExec := exec.Command("sed", "-i", pattern, configPath)
 		if output, err := cmdExec.CombinedOutput(); err != nil {
 			return fmt.Errorf("failed to set config: %s (%s)", err, strings.TrimSpace(string(output)))

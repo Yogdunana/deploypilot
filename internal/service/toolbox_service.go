@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/Yogdunana/deploypilot/internal/util"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
@@ -122,7 +123,7 @@ func (t *ToolboxService) DetectEnvironment(ctx context.Context, serverID string)
 	// Services detection
 	services := []string{"nginx", "apache2", "mysql", "mysqld", "postgresql", "redis-server", "docker", "supervisord", "cron", "sshd"}
 	for _, svc := range services {
-		if output, err := exec.RunCommand(ctx, fmt.Sprintf("systemctl is-active %s 2>/dev/null", svc)); err == nil {
+		if output, err := exec.RunCommand(ctx, fmt.Sprintf("systemctl is-active %s 2>/dev/null", util.ShellQuote(svc))); err == nil {
 			info.Services[svc] = strings.TrimSpace(output) == "active"
 		}
 	}
@@ -139,7 +140,7 @@ func (t *ToolboxService) DetectEnvironment(ctx context.Context, serverID string)
 
 	// Package manager
 	for _, pm := range []string{"apt", "yum", "dnf", "pacman", "apk"} {
-		if output, err := exec.RunCommand(ctx, fmt.Sprintf("which %s 2>/dev/null", pm)); err == nil && output != "" {
+		if output, err := exec.RunCommand(ctx, fmt.Sprintf("which %s 2>/dev/null", util.ShellQuote(pm))); err == nil && output != "" {
 			info.PackageMgr = pm
 			break
 		}
