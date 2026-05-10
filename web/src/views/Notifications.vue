@@ -30,7 +30,7 @@ const loading = ref(true)
 // Dialog
 const dialogOpen = ref(false)
 const dialogTitle = ref(t('notifications.createTitle'))
-const editingId = ref<number | null>(null)
+const editingId = ref<string | null>(null)
 const formName = ref('')
 const formType = ref('')
 const formConfig = ref('')

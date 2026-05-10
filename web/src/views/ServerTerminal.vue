@@ -76,7 +76,7 @@ async function fetchServer() {
   try {
     const res = await serversApi.list({ page: 1, page_size: 1000 })
     if (res.data.status === 'success') {
-      const found = (res.data.data as Server[]).find((s) => s.id === Number(props.id))
+      const found = (res.data.data as Server[]).find((s) => s.id === props.id)
       if (found) {
         serverName.value = found.name
       } else {

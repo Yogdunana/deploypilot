@@ -49,7 +49,7 @@ const columns = computed(() => [
 async function fetchBackups() {
   loading.value = true
   try {
-    const res = await appsApi.listBackups(Number(props.id))
+    const res = await appsApi.listBackups(props.id)
     if (res.data.status === 'success') {
       backups.value = res.data.data || []
     }
@@ -64,7 +64,7 @@ async function fetchBackups() {
 async function createBackup() {
   creating.value = true
   try {
-    await appsApi.backup(Number(props.id))
+    await appsApi.backup(props.id)
     toast(t('appBackups.backupCreated'), 'success')
     fetchBackups()
   } catch (err: any) {
@@ -84,7 +84,7 @@ async function confirmRestore() {
   if (!selectedBackup.value) return
   restoring.value = true
   try {
-    await appsApi.restore(Number(props.id), { backup_id: selectedBackup.value.id })
+    await appsApi.restore(props.id, { backup_id: selectedBackup.value.id })
     toast(t('appBackups.restored'), 'success')
     restoreDialogOpen.value = false
   } catch (err: any) {
@@ -104,7 +104,7 @@ async function confirmDelete() {
   if (!selectedBackup.value) return
   deleting.value = true
   try {
-    await appsApi.deleteBackup(Number(props.id), selectedBackup.value.id)
+    await appsApi.deleteBackup(props.id, selectedBackup.value.id)
     toast(t('appBackups.deleted'), 'success')
     deleteDialogOpen.value = false
     fetchBackups()
@@ -118,7 +118,7 @@ async function confirmDelete() {
 // 获取应用信息
 async function fetchApp() {
   try {
-    const res = await appsApi.get(Number(props.id))
+    const res = await appsApi.get(props.id)
     if (res.data.status === 'success') {
       appName.value = res.data.data.name
     }

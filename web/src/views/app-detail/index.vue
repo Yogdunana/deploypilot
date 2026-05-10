@@ -84,7 +84,7 @@ function toggleRealtime(value: boolean) {
 async function loadHistory() {
   loadingHistory.value = true
   try {
-    const res = await appsApi.getLogs(Number(props.id), 500)
+    const res = await appsApi.getLogs(props.id, 500)
     if (res.data.status === 'success') {
       const logText = res.data.data
       if (logText && typeof logText === 'string') {
@@ -116,7 +116,7 @@ const envSaving = ref(false)
 async function fetchEnv() {
   envLoading.value = true
   try {
-    const res = await appsApi.getEnv(Number(props.id))
+    const res = await appsApi.getEnv(props.id)
     if (res.data.status === 'success') {
       const envData = res.data.data || {}
       envList.value = Object.entries(envData).map(([key, value]) => ({
@@ -165,7 +165,7 @@ async function saveEnv() {
         envObject[item.key.trim()] = item.value
       }
     })
-    await appsApi.updateEnv(Number(props.id), { env_vars: JSON.stringify(envObject) })
+    await appsApi.updateEnv(props.id, { env_vars: JSON.stringify(envObject) })
     toast(t('appDetail.envSaved'), 'success')
   } catch (err: any) {
     toast(err.response?.data?.message || t('appDetail.envSaveFailed'), 'destructive')
@@ -202,7 +202,7 @@ const backupColumns = computed(() => [
 async function fetchBackups() {
   backupsLoading.value = true
   try {
-    const res = await appsApi.listBackups(Number(props.id))
+    const res = await appsApi.listBackups(props.id)
     if (res.data.status === 'success') {
       backups.value = res.data.data || []
     }
@@ -216,7 +216,7 @@ async function fetchBackups() {
 async function createBackup() {
   creating.value = true
   try {
-    await appsApi.backup(Number(props.id))
+    await appsApi.backup(props.id)
     toast(t('appDetail.backupCreated'), 'success')
     fetchBackups()
   } catch (err: any) {
@@ -235,7 +235,7 @@ async function confirmRestore() {
   if (!selectedBackup.value) return
   restoring.value = true
   try {
-    await appsApi.restore(Number(props.id), { backup_id: selectedBackup.value.id })
+    await appsApi.restore(props.id, { backup_id: selectedBackup.value.id })
     toast(t('appDetail.backupRestored'), 'success')
     restoreDialogOpen.value = false
   } catch (err: any) {
@@ -254,7 +254,7 @@ async function confirmDelete() {
   if (!selectedBackup.value) return
   deleting.value = true
   try {
-    await appsApi.deleteBackup(Number(props.id), selectedBackup.value.id)
+    await appsApi.deleteBackup(props.id, selectedBackup.value.id)
     toast(t('appDetail.backupDeleted'), 'success')
     deleteDialogOpen.value = false
     fetchBackups()
@@ -278,7 +278,7 @@ const detailTabs = computed(() => [
 async function fetchApp() {
   loading.value = true
   try {
-    const res = await appsApi.get(Number(props.id))
+    const res = await appsApi.get(props.id)
     if (res.data.status === 'success') {
       app.value = res.data.data
     }
@@ -293,7 +293,7 @@ async function fetchApp() {
 async function fetchDeployments() {
   deploymentsLoading.value = true
   try {
-    const res = await deploymentsApi.list(Number(props.id))
+    const res = await deploymentsApi.list(props.id)
     if (res.data.status === 'success') {
       deployments.value = res.data.data
     }

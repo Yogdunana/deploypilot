@@ -44,7 +44,7 @@ async function fetchServer() {
     // Use list and filter since there's no single get endpoint
     const res = await serversApi.list({ page: 1, page_size: 1000 })
     if (res.data.status === 'success') {
-      const found = res.data.data.find((s: Server) => s.id === Number(props.id))
+      const found = res.data.data.find((s: Server) => s.id === props.id)
       if (found) {
         server.value = found
       } else {

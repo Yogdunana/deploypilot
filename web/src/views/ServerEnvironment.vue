@@ -74,7 +74,7 @@ const infoSections = computed(() => {
 async function fetchEnvironment() {
   loading.value = true
   try {
-    const res = await serversApi.getEnvironment(Number(props.id))
+    const res = await serversApi.getEnvironment(props.id)
     if (res.data.status === 'success') {
       envInfo.value = res.data.data || null
     }
@@ -92,7 +92,7 @@ async function handleRedetect() {
     // 先获取服务器信息
     const serverRes = await serversApi.list({ page: 1, page_size: 1000 })
     if (serverRes.data.status === 'success') {
-      const found = (serverRes.data.data as Server[]).find((s) => s.id === Number(props.id))
+      const found = (serverRes.data.data as Server[]).find((s) => s.id === props.id)
       if (found) {
         await serversApi.detect(found.id, { host: found.host, port: found.port })
         toast(t('serverEnvironment.detectTriggered'), 'success')
@@ -114,7 +114,7 @@ async function fetchServer() {
   try {
     const res = await serversApi.list({ page: 1, page_size: 1000 })
     if (res.data.status === 'success') {
-      const found = (res.data.data as Server[]).find((s) => s.id === Number(props.id))
+      const found = (res.data.data as Server[]).find((s) => s.id === props.id)
       if (found) {
         serverName.value = found.name
       } else {

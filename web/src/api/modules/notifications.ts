@@ -10,10 +10,10 @@ export function create(data: { type: string; name: string; config: Record<string
   return api.post<ApiResponse<Notification>>('/notifications', data)
 }
 
-export function update(id: number, data: Partial<Notification>) {
+export function update(id: string, data: Partial<Notification>) {
   return api.put<ApiResponse<Notification>>(`/notifications/${id}`, data)
 }
 
-export function deleteNotification(id: number) {
+export function deleteNotification(id: string) {
   return api.delete<ApiResponse<void>>(`/notifications/${id}`)
 }

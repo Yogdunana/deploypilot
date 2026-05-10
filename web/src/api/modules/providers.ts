@@ -10,10 +10,10 @@ export function create(data: { type: string; name: string; config: Record<string
   return api.post<ApiResponse<Provider>>('/providers', data)
 }
 
-export function update(id: number, data: Partial<Provider>) {
+export function update(id: string, data: Partial<Provider>) {
   return api.put<ApiResponse<Provider>>(`/providers/${id}`, data)
 }
 
-export function deleteProvider(id: number) {
+export function deleteProvider(id: string) {
   return api.delete<ApiResponse<void>>(`/providers/${id}`)
 }

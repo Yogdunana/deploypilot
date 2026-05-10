@@ -33,7 +33,7 @@ const envList = ref<EnvItem[]>([])
 async function fetchEnv() {
   loading.value = true
   try {
-    const res = await appsApi.getEnv(Number(props.id))
+    const res = await appsApi.getEnv(props.id)
     if (res.data.status === 'success') {
       const envData = res.data.data || {}
       envList.value = Object.entries(envData).map(([key, value]) => ({
@@ -95,7 +95,7 @@ async function saveEnv() {
       }
     })
 
-    await appsApi.updateEnv(Number(props.id), { env_vars: JSON.stringify(envObject) })
+    await appsApi.updateEnv(props.id, { env_vars: JSON.stringify(envObject) })
     toast(t('appEnv.saved'), 'success')
   } catch (err: any) {
     toast(err.response?.data?.message || t('appEnv.saveFailed'), 'destructive')
@@ -107,7 +107,7 @@ async function saveEnv() {
 // 获取应用信息
 async function fetchApp() {
   try {
-    const res = await appsApi.get(Number(props.id))
+    const res = await appsApi.get(props.id)
     if (res.data.status === 'success') {
       appName.value = res.data.data.name
     }
