@@ -38,7 +38,7 @@ func ListDeployments(db *gorm.DB) gin.HandlerFunc {
 		query := db.Model(&model.DeploymentRecord{})
 
 		if appID := c.Query("app_id"); appID != "" {
-			query = query.Where("app_name = ?", appID)
+			query = query.Where("app_id = ?", appID)
 		}
 		if status := c.Query("status"); status != "" {
 			query = query.Where("status = ?", status)

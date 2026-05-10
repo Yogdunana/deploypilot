@@ -15,7 +15,7 @@ export interface ActivityItem {
 }
 
 export function list(params?: PaginationParams & { type?: string }) {
-  return api.get<PaginatedResponse<ActivityItem[]>>('/activity', { params })
+  return api.get<PaginatedResponse<ActivityItem[]>>('/events', { params })
 }
 
 export function getStats() {
@@ -23,5 +23,5 @@ export function getStats() {
     today_count: number
     week_count: number
     by_type: Record<string, number>
-  }>>('/activity/stats')
+  }>>('/events/stats')
 }

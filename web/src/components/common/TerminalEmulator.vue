@@ -49,7 +49,7 @@ const { connected, reconnecting, send, disconnect, connect } = useWebSocket({
     }
   },
   onOpen() {
-    props.onStatusChange?.('connecting')
+    props.onStatusChange?.('connected')
   },
   onClose() {
     if (terminal) {

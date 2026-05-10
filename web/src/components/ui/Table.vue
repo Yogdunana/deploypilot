@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { cn } from '@/lib/utils'
 import { Loader2 } from 'lucide-vue-next'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 interface TableColumn {
   key: string
@@ -12,6 +15,7 @@ interface Props {
   columns?: TableColumn[]
   data?: Record<string, any>[]
   loading?: boolean
+  noDataText?: string
   class?: string
 }
 
@@ -19,6 +23,7 @@ const props = withDefaults(defineProps<Props>(), {
   columns: () => [],
   data: () => [],
   loading: false,
+  noDataText: undefined,
 })
 </script>
 
@@ -45,7 +50,7 @@ const props = withDefaults(defineProps<Props>(), {
         </tr>
         <tr v-else-if="data.length === 0">
           <td :colspan="columns.length" class="h-24 text-center text-muted-foreground">
-            暂无数据
+            {{ noDataText || t('common.noData') }}
           </td>
         </tr>
         <template v-else>

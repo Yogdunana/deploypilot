@@ -96,10 +96,7 @@ func GenerateDemoData(db *gorm.DB) gin.HandlerFunc {
 		var existingCount int64
 		db.Model(&model.Server{}).Where("tenant_id = ? AND name LIKE ?", user.TenantID, "Demo%").Count(&existingCount)
 		if existingCount > 0 {
-			c.JSON(http.StatusConflict, gin.H{
-				"status":  "error",
-				"message": "demo data already exists",
-			})
+			respondErrori18n(c, http.StatusConflict, "error.demo.already_exists")
 			return
 		}
 

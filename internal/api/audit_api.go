@@ -8,6 +8,7 @@ import (
 
 	"github.com/Yogdunana/deploypilot/internal/audit"
 	"github.com/Yogdunana/deploypilot/internal/config"
+	"github.com/Yogdunana/deploypilot/internal/auth"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
@@ -140,7 +141,7 @@ func GDPRExportUserData(c *gin.Context) {
 		return
 	}
 
-	userIDVal, exists := c.Get("userID")
+	userIDVal, exists := c.Get(string(auth.UserIDKey))
 	if !exists {
 		respondError(c, http.StatusUnauthorized, "user not authenticated")
 		return

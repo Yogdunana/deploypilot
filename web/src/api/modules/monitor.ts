@@ -7,7 +7,7 @@ export function getSystemMetrics() {
 }
 
 export function getContainerMetrics(name: string) {
-  return api.get<ApiResponse<ContainerMetrics>>(`/monitor/containers/${name}/metrics`)
+  return api.get<ApiResponse<ContainerMetrics>>(`/monitor/container/${name}`)
 }
 
 export function listAlerts(params?: PaginationParams) {
@@ -19,9 +19,9 @@ export function listAlertRules(params?: PaginationParams) {
 }
 
 export function heal(name: string) {
-  return api.post<ApiResponse<void>>(`/monitor/containers/${name}/heal`)
+  return api.post<ApiResponse<void>>(`/monitor/heal/${name}`)
 }
 
 export function check(name: string) {
-  return api.post<ApiResponse<{ healthy: boolean; message: string }>>(`/monitor/containers/${name}/check`)
+  return api.post<ApiResponse<{ healthy: boolean; message: string }>>(`/monitor/check/${name}`)
 }

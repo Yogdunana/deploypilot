@@ -197,7 +197,7 @@ func Register(db *gorm.DB) gin.HandlerFunc {
 		}
 
 		// Generate token
-		token, err := auth.GenerateToken(user.ID, "viewer")
+		token, err := auth.GenerateToken(user.ID, "owner")
 		if err != nil {
 			respondErrori18n(c, http.StatusInternalServerError, "error.auth.failed_to_generate_token")
 			return

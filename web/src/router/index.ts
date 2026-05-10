@@ -303,7 +303,7 @@ const router = createRouter({
         },
         {
           path: 'dashboard-tv',
-          name: 'DashboardTV',
+          name: 'DashboardTVMain',
           component: () => import('@/views/DashboardTV.vue'),
           meta: { titleKey: 'routes.dashboardTV' },
         },

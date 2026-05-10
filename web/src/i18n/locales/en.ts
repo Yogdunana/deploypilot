@@ -150,7 +150,7 @@ export default {
     emailRequired: 'Please enter email',
     emailInvalid: 'Please enter a valid email address',
     passwordRequired: 'Please enter password',
-    passwordTooShort: 'Password must be at least 6 characters',
+    passwordTooShort: 'Password must be at least 8 characters',
     confirmPasswordRequired: 'Please confirm password',
     passwordMismatch: 'Passwords do not match',
     failed: 'Registration failed, please try again later',
@@ -833,6 +833,9 @@ export default {
     healConfirmDesc: 'Are you sure you want to perform self-heal on container "{name}"? This will attempt to automatically fix container issues.',
     confirmHeal: 'Confirm Self-Heal',
     fetchAppsFailed: 'Failed to fetch app list',
+    refresh: 'Refresh',
+    healTriggered: 'Self-heal triggered for container "{name}"',
+    healFailed: 'Failed to trigger self-heal for container "{name}"',
   },
 
   ssl: {
