@@ -56,19 +56,17 @@ function formatBytes(bytes: number): string {
 }
 
 // 获取容器指标数据（用于表格展示）
-function getTableData() {
-  return apps.value.map((app) => {
-    const metrics = containerMetricsMap.value[app.container_name || app.name]
-    return {
-      container_name: app.container_name || app.name,
-      app_name: app.name,
-      cpu_usage: metrics?.cpu_usage ?? 0,
-      memory_usage: metrics?.memory_usage ?? 0,
-      memory_limit: metrics?.memory_limit ?? 0,
-      status: metrics?.status || app.status,
-    }
-  })
-}
+const tableData = computed(() => apps.value.map((app) => {
+  const metrics = containerMetricsMap.value[app.container_name || app.name]
+  return {
+    container_name: app.container_name || app.name,
+    app_name: app.name,
+    cpu_usage: metrics?.cpu_usage ?? 0,
+    memory_usage: metrics?.memory_usage ?? 0,
+    memory_limit: metrics?.memory_limit ?? 0,
+    status: metrics?.status || app.status,
+  }
+}))
 
 // 获取应用列表
 async function fetchApps() {
@@ -169,7 +167,7 @@ onMounted(async () => {
     <!-- 容器列表 -->
     <Table
       :columns="columns"
-      :data="getTableData()"
+      :data="tableData"
       :loading="loading"
     >
       <template #cell-container_name="{ row }">

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useToast } from '@/composables/useToast'
 import { RefreshCw } from 'lucide-vue-next'
 import PageHeader from '@/components/common/PageHeader.vue'
@@ -18,7 +18,7 @@ const { toast } = useToast()
 const { t } = useI18n()
 
 // 轮询告警列表，每 30 秒刷新
-const { data: alerts, loading, refresh } = usePolling<Alert[]>({
+const { data: alertsRef, loading, refresh } = usePolling<Alert[]>({
   fetchFn: async () => {
     const res = await monitorApi.listAlerts()
     if (res.data.status === 'success') {
@@ -29,6 +29,9 @@ const { data: alerts, loading, refresh } = usePolling<Alert[]>({
   interval: 30000,
   autoStart: true,
 })
+
+// Unwrap ref for template (Vue auto-unwraps in templates but TS needs help)
+const alerts = computed(() => alertsRef.value)
 
 // 告警严重程度样式映射
 function getLevelBadge(level: string) {
@@ -84,21 +87,21 @@ async function handleRefresh() {
     </PageHeader>
 
     <!-- 加载状态 -->
-    <div v-if="loading && !alerts.value" class="space-y-3">
+    <div v-if="loading && !alerts" class="space-y-3">
       <Skeleton v-for="i in 3" :key="i" class="h-24" />
     </div>
 
     <!-- 空状态 -->
     <EmptyState
-      v-else-if="alerts.value && alerts.value.length === 0"
+      v-else-if="alerts && alerts.length === 0"
       :title="t('monitorAlerts.noAlerts')"
       :description="t('monitorAlerts.noAlertsDesc')"
     />
 
     <!-- 告警列表 -->
-    <div v-else-if="alerts.value && alerts.value.length > 0" class="space-y-3">
+    <div v-else-if="alerts && alerts.length > 0" class="space-y-3">
       <Card
-        v-for="alert in alerts.value"
+        v-for="alert in alerts"
         :key="alert.id"
         class="border-l-4"
         :class="getLevelBorderColor(alert.level)"
