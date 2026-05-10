@@ -25,25 +25,17 @@ jobs:
       - name: Determine next beta version
         id: version
         run: |
-          # Get the latest tag that matches version pattern
           LATEST_TAG=$(git tag --sort=-v:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+(-beta\.[0-9]+)?$' | head -1)
 
           if [ -z "$LATEST_TAG" ]; then
-            # No existing version tags, start with v0.1.0-beta.1
             NEW_TAG="v0.1.0-beta.1"
-            echo "No existing tags found, starting at ${NEW_TAG}"
           else
-            echo "Latest tag: ${LATEST_TAG}"
-
-            # Extract base version (X.Y.Z) and beta number
             if echo "$LATEST_TAG" | grep -qE '-beta\.[0-9]+$'; then
-              # Beta tag: increment beta number
               BASE=$(echo "$LATEST_TAG" | sed -E 's/-beta\.[0-9]+$//')
               BETA_NUM=$(echo "$LATEST_TAG" | grep -oE 'beta\.[0-9]+$' | grep -oE '[0-9]+$')
               NEW_BETA_NUM=$((BETA_NUM + 1))
               NEW_TAG="${BASE}-beta.${NEW_BETA_NUM}"
             else
-              # Stable tag (vX.Y.Z): bump patch and start beta.1
               BASE=$(echo "$LATEST_TAG" | sed -E 's/^v//')
               MAJOR=$(echo "$BASE" | cut -d. -f1)
               MINOR=$(echo "$BASE" | cut -d. -f2)
@@ -56,13 +48,39 @@ jobs:
           echo "tag=${NEW_TAG}" >> "$GITHUB_OUTPUT"
           echo "New beta tag: ${NEW_TAG}"
 
-      - name: Create annotated tag
+      - name: Create annotated tag via API
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           TAG="${{ steps.version.outputs.tag }}"
-          # Create annotated tag with auto-generated message
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git tag -a "${TAG}" -m "Release ${TAG}
+          COMMIT_SHA="${{ github.sha }}"
+          MESSAGE="Release ${TAG}
 
-          Auto-generated beta release from commit ${{ github.sha }}"
-          git push origin "${TAG}"
+          Auto-generated beta release from commit ${COMMIT_SHA}"
+
+          curl -s -X POST \
+            -H "Authorization: token ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${{ github.repository }}/git/tags" \
+            -d "{\"tag\":\"${TAG}\",\"message\":\"${MESSAGE}\",\"object\":\"${COMMIT_SHA}\",\"type\":\"commit\"}" > /dev/null
+
+          curl -s -X POST \
+            -H "Authorization: token ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${{ github.repository }}/git/refs" \
+            -d "{\"ref\":\"refs/tags/${TAG}\",\"sha\":\"${COMMIT_SHA}\"}" > /dev/null
+
+          echo "Created annotated tag: ${TAG}"
+
+      - name: Trigger release workflow
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ steps.version.outputs.tag }}"
+          curl -s -X POST \
+            -H "Authorization: token ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${{ github.repository }}/actions/workflows/release.yml/dispatches" \
+            -d "{\"ref\":\"refs/tags/${TAG}\"}"
+
+          echo "Triggered release workflow for ${TAG}"
