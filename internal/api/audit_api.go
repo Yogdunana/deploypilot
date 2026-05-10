@@ -147,16 +147,10 @@ func GDPRExportUserData(c *gin.Context) {
 		return
 	}
 
-	var userID uint
+	var userID string
 	switch v := userIDVal.(type) {
-	case uint:
+	case string:
 		userID = v
-	case uint64:
-		userID = uint(v)
-	case int:
-		userID = uint(v)
-	case float64:
-		userID = uint(v)
 	default:
 		respondError(c, http.StatusInternalServerError, "invalid user ID type")
 		return

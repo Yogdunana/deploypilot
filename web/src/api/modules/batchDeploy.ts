@@ -9,7 +9,3 @@ export function batchDeploy(data: {
 }) {
   return api.post('/batch-deploy', data)
 }
-
-export function getBatchDeployStatus(id: string) {
-  return api.get(`/batch-deploy/${id}`)
-}

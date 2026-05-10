@@ -160,8 +160,8 @@ func (DeploymentRecord) TableName() string { return "deployments" }
 
 // AuditLog records system actions for compliance and debugging.
 type AuditLog struct {
-	ID            uint       `json:"id" gorm:"primaryKey"`
-	UserID       uint       `json:"user_id" gorm:"index"`
+	ID            string     `json:"id" gorm:"primaryKey;size:36"`
+	UserID       string     `json:"user_id" gorm:"index;size:36"`
 	Username     string     `json:"username"`
 	Action       string     `json:"action" gorm:"index;size:100"`
 	ResourceType string     `json:"resource_type" gorm:"size:50"`

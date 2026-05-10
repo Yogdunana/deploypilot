@@ -185,11 +185,11 @@ func UpdateApp(db *gorm.DB) gin.HandlerFunc {
 
 		// Filter updates to only allowed fields
 		allowedFields := map[string]bool{
-			"name": true, "description": true, "git_repo": true,
-			"git_branch": true, "build_cmd": true, "deploy_path": true,
-			"env_vars": true, "auto_deploy": true, "dockerfile_path": true,
-			"docker_image": true, "compose_path": true, "health_check_path": true,
-			"health_check_interval": true, "notification_id": true,
+			"name": true, "repo_url": true, "branch": true,
+			"domain": true, "tech_stack": true, "deploy_mode": true,
+			"container_name": true, "env_vars": true, "resource_limits": true,
+			"compose_content": true, "compose_project_name": true,
+			"environment": true,
 		}
 		filtered := make(map[string]interface{})
 		for k, v := range updates {

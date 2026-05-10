@@ -28,7 +28,7 @@ type ComplianceReport struct {
 
 // ExportUserData collects all user-related data for GDPR data export.
 // It returns a map containing audit logs, API keys, sessions, and other user data.
-func ExportUserData(db *gorm.DB, userID uint) (map[string]interface{}, error) {
+func ExportUserData(db *gorm.DB, userID string) (map[string]interface{}, error) {
 	result := make(map[string]interface{})
 	result["user_id"] = userID
 	result["exported_at"] = time.Now().UTC().Format(time.RFC3339)
@@ -200,7 +200,7 @@ func GenerateComplianceReport(db *gorm.DB, tenantID string, startTime, endTime t
 	}
 
 	// Unique users
-	userQuery := db.Model(&model.AuditLog{}).Where("user_id > 0")
+	userQuery := db.Model(&model.AuditLog{}).Where("user_id != ''")
 	if tenantID != "" {
 		userQuery = userQuery.Where("tenant_id = ?", tenantID)
 	}

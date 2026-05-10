@@ -224,8 +224,8 @@ func TestProviderModel(t *testing.T) {
 func TestAuditLogModel(t *testing.T) {
 	now := time.Now()
 	al := &AuditLog{
-		ID:           1,
-		UserID:       42,
+		ID:           "audit-uuid-001",
+		UserID:       "user-uuid-042",
 		Username:     "admin",
 		Action:       "app.create",
 		ResourceType: "app",
@@ -236,11 +236,11 @@ func TestAuditLogModel(t *testing.T) {
 		CreatedAt:    now,
 	}
 
-	if al.ID != 1 {
-		t.Errorf("AuditLog.ID = %d, want 1", al.ID)
+	if al.ID != "audit-uuid-001" {
+		t.Errorf("AuditLog.ID = %s, want audit-uuid-001", al.ID)
 	}
-	if al.UserID != 42 {
-		t.Errorf("AuditLog.UserID = %d, want 42", al.UserID)
+	if al.UserID != "user-uuid-042" {
+		t.Errorf("AuditLog.UserID = %s, want user-uuid-042", al.UserID)
 	}
 	if al.Action != "app.create" {
 		t.Errorf("AuditLog.Action = %q, want %q", al.Action, "app.create")

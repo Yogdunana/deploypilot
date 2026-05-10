@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -34,7 +35,7 @@ func TestAuditService_Record(t *testing.T) {
 	svc := NewAuditService(db)
 
 	err := svc.Record(context.TODO(), AuditEntry{
-		UserID:       1,
+		UserID:       "user-1",
 		Username:     "testuser",
 		Action:       "app.create",
 		ResourceType: "app",
@@ -106,12 +107,12 @@ func TestAuditService_ListWithFilter(t *testing.T) {
 	db := setupAuditTestDB(t)
 	svc := NewAuditService(db)
 
-	_ = svc.Record(context.TODO(), AuditEntry{UserID: 1, Action: "app.create", ResourceType: "app"})
-	_ = svc.Record(context.TODO(), AuditEntry{UserID: 2, Action: "server.create", ResourceType: "server"})
-	_ = svc.Record(context.TODO(), AuditEntry{UserID: 1, Action: "app.delete", ResourceType: "app"})
+	_ = svc.Record(context.TODO(), AuditEntry{UserID: "user-1", Action: "app.create", ResourceType: "app"})
+	_ = svc.Record(context.TODO(), AuditEntry{UserID: "user-2", Action: "server.create", ResourceType: "server"})
+	_ = svc.Record(context.TODO(), AuditEntry{UserID: "user-1", Action: "app.delete", ResourceType: "app"})
 
 	// Filter by user_id
-	_, total, err := svc.List(context.TODO(), AuditFilter{UserID: 1, Page: 1, PageSize: 10})
+	_, total, err := svc.List(context.TODO(), AuditFilter{UserID: "user-1", Page: 1, PageSize: 10})
 	if err != nil {
 		t.Fatalf("List() error = %v", err)
 	}
@@ -295,7 +296,7 @@ func TestAuditService_VerifyRecords(t *testing.T) {
 	svc := NewAuditService(db)
 
 	for i := 0; i < 5; i++ {
-		_ = svc.Record(context.TODO(), AuditEntry{UserID: uint(i), Action: "app.create"})
+		_ = svc.Record(context.TODO(), AuditEntry{UserID: fmt.Sprintf("user-%d", i), Action: "app.create"})
 	}
 
 	logs, _, _ := svc.List(context.TODO(), AuditFilter{Page: 1, PageSize: 10})

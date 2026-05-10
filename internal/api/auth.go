@@ -221,7 +221,7 @@ func Register(db *gorm.DB) gin.HandlerFunc {
 		// Record register audit event
 		if auditSvcForAuth != nil {
 			if err := auditSvcForAuth.Record(c.Request.Context(), service.AuditEntry{
-				UserID:       parseUserID(user.ID),
+				UserID:       user.ID,
 				Username:     user.Username,
 				Action:       "user.register",
 				ResourceType: "user",
@@ -455,7 +455,7 @@ func Login(db *gorm.DB, bf *bruteforce.Protector) gin.HandlerFunc {
 		// Record login audit event
 		if auditSvcForAuth != nil {
 			if err := auditSvcForAuth.Record(c.Request.Context(), service.AuditEntry{
-				UserID:       parseUserID(user.ID),
+				UserID:       user.ID,
 				Username:     user.Username,
 				Action:       "user.login",
 				ResourceType: "user",
