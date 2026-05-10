@@ -19,7 +19,7 @@ func TestFileAuditWriter_Write(t *testing.T) {
 	defer writer.Close()
 
 	entry := AuditEntry{
-		UserID:       1,
+		UserID:       "user-1",
 		Username:     "testuser",
 		Action:       "login",
 		ResourceType: "auth",
@@ -69,7 +69,7 @@ func TestFileAuditWriter_MultipleWrites(t *testing.T) {
 	}
 
 	for i := 0; i < 3; i++ {
-		if err := writer.Write(AuditEntry{Action: "test", UserID: 1}); err != nil {
+		if err := writer.Write(AuditEntry{Action: "test", UserID: "user-1"}); err != nil {
 			t.Fatalf("Write() error = %v", err)
 		}
 	}
@@ -105,7 +105,7 @@ func TestMultiAuditWriter(t *testing.T) {
 	w2, _ := NewFileAuditWriter(filePath2)
 	multi := NewMultiAuditWriter(w1, w2)
 
-	entry := AuditEntry{Action: "multi-test", UserID: 1}
+	entry := AuditEntry{Action: "multi-test", UserID: "user-1"}
 	if err := multi.Write(entry); err != nil {
 		t.Fatalf("MultiAuditWriter.Write() error = %v", err)
 	}

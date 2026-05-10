@@ -98,7 +98,7 @@ func (s *AuditService) Close() {
 
 // AuditEntry represents an audit event to record.
 type AuditEntry struct {
-	UserID       uint
+	UserID       string
 	Username     string
 	Action       string       // "app.create", "app.deploy", "server.delete", "user.login", etc.
 	ResourceType string       // "app", "server", "user", "credential", etc.
@@ -112,7 +112,7 @@ type AuditEntry struct {
 
 // AuditFilter defines filtering options for listing audit logs.
 type AuditFilter struct {
-	UserID       uint
+	UserID       string
 	Username     string
 	Action       string
 	ResourceType string
@@ -144,7 +144,7 @@ func classifyAction(action string) string {
 
 // computeRecordHash generates an HMAC-SHA256 hash of the audit log fields.
 func (s *AuditService) computeRecordHash(log *model.AuditLog) string {
-	data := fmt.Sprintf("%d|%s|%s|%s|%s|%s|%s|%s",
+	data := fmt.Sprintf("%s|%s|%s|%s|%s|%s|%s|%s",
 		log.UserID,
 		log.Username,
 		log.Action,
@@ -220,18 +220,18 @@ func (s *AuditService) Record(ctx context.Context, entry AuditEntry) error {
 // VerifyRecord checks whether an audit log record has been tampered with.
 func (s *AuditService) VerifyRecord(log model.AuditLog) error {
 	if log.RecordHash == "" {
-		return fmt.Errorf("audit log record %d has no integrity hash (pre-integrity record)", log.ID)
+		return fmt.Errorf("audit log record %s has no integrity hash (pre-integrity record)", log.ID)
 	}
 	expected := s.computeRecordHash(&log)
 	if !hmac.Equal([]byte(expected), []byte(log.RecordHash)) {
-		return fmt.Errorf("audit log record %d integrity check failed: hash mismatch (possible tampering)", log.ID)
+		return fmt.Errorf("audit log record %s integrity check failed: hash mismatch (possible tampering)", log.ID)
 	}
 	return nil
 }
 
 // VerifyRecords checks a batch of audit log records for integrity.
-func (s *AuditService) VerifyRecords(logs []model.AuditLog) []uint {
-	var failed []uint
+func (s *AuditService) VerifyRecords(logs []model.AuditLog) []string {
+	var failed []string
 	for _, log := range logs {
 		if err := s.VerifyRecord(log); err != nil {
 			failed = append(failed, log.ID)
@@ -247,7 +247,7 @@ func (s *AuditService) List(ctx context.Context, filter AuditFilter) ([]model.Au
 
 	query := s.db.WithContext(ctx).Model(&model.AuditLog{})
 
-	if filter.UserID != 0 {
+	if filter.UserID != "" {
 		query = query.Where("user_id = ?", filter.UserID)
 	}
 	if filter.Action != "" {
@@ -355,8 +355,8 @@ func (s *AuditService) exportCSV(logs []model.AuditLog) ([]byte, error) {
 
 	for _, log := range logs {
 		_ = w.Write([]string{
-			fmt.Sprintf("%d", log.ID),
-			fmt.Sprintf("%d", log.UserID),
+			log.ID,
+			log.UserID,
 			log.Username,
 			log.Action,
 			log.ResourceType,

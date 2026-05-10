@@ -2,7 +2,6 @@ package service
 
 import (
 	"encoding/json"
-	"fmt"
 	"os"
 	"path/filepath"
 	"sync"
@@ -42,7 +41,7 @@ func (w *FileAuditWriter) Write(entry AuditEntry) error {
 	// Add timestamp
 	data := map[string]interface{}{
 		"timestamp":    time.Now().UTC().Format(time.RFC3339Nano),
-		"user_id":      fmt.Sprintf("%d", entry.UserID),
+		"user_id":      entry.UserID,
 		"username":     entry.Username,
 		"action":       entry.Action,
 		"resource_type": entry.ResourceType,

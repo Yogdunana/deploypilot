@@ -26,7 +26,7 @@ func TestComputeHash(t *testing.T) {
 	_, chain := setupAuditTestDB(t)
 
 	record := &model.AuditLog{
-		ID:        1,
+		ID:        "audit-init",
 		Action:    "user.login",
 		CreatedAt: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
 	}
@@ -52,8 +52,8 @@ func TestComputeHash(t *testing.T) {
 func TestComputeHash_DifferentRecords(t *testing.T) {
 	_, chain := setupAuditTestDB(t)
 
-	record1 := &model.AuditLog{ID: 1, Action: "user.login", CreatedAt: time.Now()}
-	record2 := &model.AuditLog{ID: 2, Action: "user.logout", CreatedAt: time.Now()}
+	record1 := &model.AuditLog{ID: "audit-1", Action: "user.login", CreatedAt: time.Now()}
+	record2 := &model.AuditLog{ID: "audit-2", Action: "user.logout", CreatedAt: time.Now()}
 
 	hash1 := chain.ComputeHash("prev", record1)
 	hash2 := chain.ComputeHash("prev", record2)

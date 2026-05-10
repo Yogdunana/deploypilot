@@ -1,7 +1,7 @@
 export interface App {
-  id: number
-  tenant_id: number
-  server_id: number
+  id: string
+  tenant_id: string
+  server_id: string
   name: string
   repo_url: string
   branch: string
@@ -11,22 +11,17 @@ export interface App {
   status: string
   current_version: string
   container_name: string
-  env_vars: Record<string, string>
-  resource_limits: ResourceLimits
+  env_vars: string
+  resource_limits: string
   created_at: string
   updated_at: string
 }
 
-export interface ResourceLimits {
-  memory: string
-  cpu: string
-}
-
 export interface Server {
-  id: number
-  tenant_id: number
-  credential_id: number
-  provider_id: number
+  id: string
+  tenant_id: string
+  credential_id: string
+  provider_id: string
   name: string
   host: string
   port: number
@@ -49,8 +44,8 @@ export interface DetectedInfo {
 }
 
 export interface Credential {
-  id: number
-  tenant_id: number
+  id: string
+  tenant_id: string
   name: string
   type: string
   expires_at?: string
@@ -63,8 +58,8 @@ export interface Credential {
 }
 
 export interface Provider {
-  id: number
-  tenant_id: number
+  id: string
+  tenant_id: string
   type: string
   name: string
   config: Record<string, string>
@@ -74,10 +69,11 @@ export interface Provider {
 }
 
 export interface DeploymentRecord {
-  id: number
-  tenant_id: number
-  server_id: number
+  id: string
+  tenant_id: string
+  server_id: string
   app_name: string
+  app_id?: string
   container_name: string
   image: string
   status: string
@@ -96,8 +92,8 @@ export interface PreflightCheck {
 }
 
 export interface AuditLog {
-  id: number
-  user_id: number
+  id: string
+  user_id: string
   username: string
   action: string
   resource_type: string
@@ -127,9 +123,9 @@ export interface SSLCertificate {
 }
 
 export interface User {
-  id: number
-  tenant_id: number
-  role_id: number
+  id: string
+  tenant_id: string
+  role_id: string
   username: string
   email: string
   totp_enabled?: boolean
@@ -140,14 +136,14 @@ export interface User {
 }
 
 export interface Role {
-  id: number
+  id: string
   name: string
   permissions: string[]
   created_at: string
 }
 
 export interface Tenant {
-  id: number
+  id: string
   name: string
   created_at: string
   updated_at: string
@@ -166,8 +162,8 @@ export interface DNSRecord {
 }
 
 export interface Notification {
-  id: number
-  tenant_id: number
+  id: string
+  tenant_id: string
   type: string
   name: string
   config: Record<string, string>

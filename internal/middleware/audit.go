@@ -26,7 +26,7 @@ func AuditMiddleware(auditSvc *service.AuditService) gin.HandlerFunc {
 
 		action := mapMethodToAction(method, c.Request.URL.Path)
 		if err := auditSvc.Record(c.Request.Context(), service.AuditEntry{
-			UserID:       toUint(userID),
+			UserID:       toString(userID),
 			Username:     toString(username),
 			Action:       action,
 			ResourceType: extractResourceType(c.Request.URL.Path),

@@ -81,65 +81,74 @@ onBeforeUnmount(() => {
   document.body.style.overflow = ''
 })
 
-const navGroups = computed(() => [
-  {
-    label: t('layout.overview'),
-    items: [
-      { path: '/', label: t('layout.dashboard'), icon: LayoutDashboard },
-    ],
-  },
-  {
-    label: t('layout.apps'),
-    items: [
-      { path: '/apps', label: t('layout.apps'), icon: Rocket },
-      { path: '/servers', label: t('layout.servers'), icon: Server },
-      { path: '/deployments', label: t('layout.deployments'), icon: GitBranch },
-    ],
-  },
-  {
-    label: t('layout.infrastructure'),
-    items: [
-      { path: '/credentials', label: t('layout.credentials'), icon: Key },
-      { path: '/dns', label: t('layout.dns'), icon: Globe },
-      { path: '/ssl', label: t('layout.ssl'), icon: Shield },
-      { path: '/providers', label: t('layout.providers'), icon: Cloud },
-      { path: '/clusters', label: t('layout.clusters'), icon: Server },
-      { path: '/registries', label: t('layout.registries'), icon: Container },
-    ],
-  },
-  {
-    label: t('layout.ops'),
-    items: [
-      { path: '/cicd', label: t('layout.cicd'), icon: FileCode },
-      { path: '/monitor', label: t('layout.monitor'), icon: Activity },
-      { path: '/monitor/uptime', label: t('layout.uptimeMonitors'), icon: HeartPulse },
-      { path: '/monitor/heartbeats', label: t('layout.heartbeats'), icon: Activity },
-      { path: '/monitor/settings', label: t('layout.monitorSettings'), icon: Settings },
-      { path: '/monitor/export', label: t('layout.monitorExport'), icon: Download },
-      { path: '/webhooks', label: t('layout.webhooks'), icon: Webhook },
-      { path: '/settings/grafana', label: t('layout.grafana_settings'), icon: BarChart3 },
-      { path: '/grafana/dashboards', label: t('layout.grafana_dashboards'), icon: LayoutDashboard },
-      { path: '/settings/oauth2', label: t('layout.oauth2_apps'), icon: KeyRound },
-      { path: '/settings/plugins', label: t('layout.plugins'), icon: Puzzle },
-      { path: '/dashboard-tv', label: t('layout.dashboardTV'), icon: Tv },
-      { path: '/notifications', label: t('layout.notifications'), icon: Bell },
-      { path: '/templates', label: t('layout.templates'), icon: FileCode },
-      { path: '/plugins', label: t('layout.plugins'), icon: Puzzle },
-      { path: '/batch', label: t('layout.batch'), icon: Layers },
-    ],
-  },
-  {
-    label: t('layout.management'),
-    items: [
-      { path: '/activity', label: t('layout.activity'), icon: Activity },
-      { path: '/users', label: t('layout.users'), icon: Users },
-      { path: '/audit', label: t('layout.audit'), icon: ScrollText },
-      { path: '/api-keys', label: t('layout.apiKeys'), icon: KeyRound },
-      { path: '/system', label: t('layout.system'), icon: Settings },
-      { path: '/settings/security', label: t('layout.security'), icon: ShieldCheck },
-    ],
-  },
-])
+const navGroups = computed(() => {
+  const role = authStore.userRole?.toLowerCase() || ''
+  const groups = [
+    {
+      label: t('layout.overview'),
+      roles: ['viewer', 'editor', 'admin', 'owner'],
+      items: [
+        { path: '/', label: t('layout.dashboard'), icon: LayoutDashboard },
+      ],
+    },
+    {
+      label: t('layout.apps'),
+      roles: ['editor', 'admin', 'owner'],
+      items: [
+        { path: '/apps', label: t('layout.apps'), icon: Rocket },
+        { path: '/servers', label: t('layout.servers'), icon: Server },
+        { path: '/deployments', label: t('layout.deployments'), icon: GitBranch },
+      ],
+    },
+    {
+      label: t('layout.infrastructure'),
+      roles: ['admin', 'owner'],
+      items: [
+        { path: '/credentials', label: t('layout.credentials'), icon: Key },
+        { path: '/dns', label: t('layout.dns'), icon: Globe },
+        { path: '/ssl', label: t('layout.ssl'), icon: Shield },
+        { path: '/providers', label: t('layout.providers'), icon: Cloud },
+        { path: '/clusters', label: t('layout.clusters'), icon: Server },
+        { path: '/registries', label: t('layout.registries'), icon: Container },
+      ],
+    },
+    {
+      label: t('layout.ops'),
+      roles: ['admin', 'owner'],
+      items: [
+        { path: '/cicd', label: t('layout.cicd'), icon: FileCode },
+        { path: '/monitor', label: t('layout.monitor'), icon: Activity },
+        { path: '/monitor/uptime', label: t('layout.uptimeMonitors'), icon: HeartPulse },
+        { path: '/monitor/heartbeats', label: t('layout.heartbeats'), icon: Activity },
+        { path: '/monitor/settings', label: t('layout.monitorSettings'), icon: Settings },
+        { path: '/monitor/export', label: t('layout.monitorExport'), icon: Download },
+        { path: '/webhooks', label: t('layout.webhooks'), icon: Webhook },
+        { path: '/settings/grafana', label: t('layout.grafana_settings'), icon: BarChart3 },
+        { path: '/grafana/dashboards', label: t('layout.grafana_dashboards'), icon: LayoutDashboard },
+        { path: '/settings/oauth2', label: t('layout.oauth2_apps'), icon: KeyRound },
+        { path: '/settings/plugins', label: t('layout.plugins'), icon: Puzzle },
+        { path: '/dashboard-tv', label: t('layout.dashboardTV'), icon: Tv },
+        { path: '/notifications', label: t('layout.notifications'), icon: Bell },
+        { path: '/templates', label: t('layout.templates'), icon: FileCode },
+        { path: '/plugins', label: t('layout.plugins'), icon: Puzzle },
+        { path: '/batch', label: t('layout.batch'), icon: Layers },
+      ],
+    },
+    {
+      label: t('layout.management'),
+      roles: ['owner'],
+      items: [
+        { path: '/activity', label: t('layout.activity'), icon: Activity },
+        { path: '/users', label: t('layout.users'), icon: Users },
+        { path: '/audit', label: t('layout.audit'), icon: ScrollText },
+        { path: '/api-keys', label: t('layout.apiKeys'), icon: KeyRound },
+        { path: '/system', label: t('layout.system'), icon: Settings },
+        { path: '/settings/security', label: t('layout.security'), icon: ShieldCheck },
+      ],
+    },
+  ]
+  return groups.filter((group) => !group.roles || group.roles.includes(role))
+})
 
 const commandOpen = ref(false)
 

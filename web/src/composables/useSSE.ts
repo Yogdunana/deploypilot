@@ -84,11 +84,11 @@ export function useSSE(options: UseSSEOptions) {
         const { done, value } = await reader.read()
         if (done) break
 
-        buffer += decoder.decode(value, { stream: true })
-
-        // 解析 SSE 格式：event: xxx\ndata: xxx\n\n
-        const lines = buffer.split('\n')
-        buffer = ''
+        // Prepend buffer to chunk and split by newlines
+        const text = buffer + decoder.decode(value, { stream: true })
+        const lines = text.split('\n')
+        // Last element might be incomplete, keep as buffer
+        buffer = lines.pop() || ''
 
         let currentEvent = ''
         let currentData = ''
@@ -97,14 +97,20 @@ export function useSSE(options: UseSSEOptions) {
           if (line.startsWith('event:')) {
             currentEvent = line.slice(6).trim()
           } else if (line.startsWith('data:')) {
-            currentData = line.slice(5).trim()
+            // Multi-line data: concatenate with newline per SSE spec
+            const dataLine = line.slice(5).trim()
+            if (currentData) {
+              currentData += '\n' + dataLine
+            } else {
+              currentData = dataLine
+            }
           } else if (line === '' && currentData) {
-            // 空行表示事件结束
+            // Empty line signals end of event
             try {
               const parsed = JSON.parse(currentData)
               onEvent?.(currentEvent || 'message', parsed)
 
-              // step=done 时自动关闭
+              // step=done triggers auto-close
               if (parsed.step === 'done') {
                 close()
                 return
@@ -114,9 +120,6 @@ export function useSSE(options: UseSSEOptions) {
             }
             currentEvent = ''
             currentData = ''
-          } else if (line !== '') {
-            // 未完成的行，放回 buffer
-            buffer = line + '\n'
           }
         }
       }
