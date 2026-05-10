@@ -21,14 +21,14 @@ import { verify as apiVerify2FA } from '@/api/modules/twofa'
 import { getMe } from '@/api/modules/users'
 
 const mockUser = {
-  id: 1,
-  tenant_id: 1,
-  role_id: 1,
+  id: 'user-uuid-001',
+  tenant_id: 'tenant-uuid-001',
+  role_id: 'role-uuid-001',
   username: 'testuser',
   email: 'test@example.com',
   created_at: '2026-01-01T00:00:00Z',
   updated_at: '2026-01-01T00:00:00Z',
-  role: { id: 1, name: 'admin', permissions: ['*'], created_at: '2026-01-01T00:00:00Z' },
+  role: { id: 'role-uuid-001', name: 'admin', permissions: ['*'], created_at: '2026-01-01T00:00:00Z' },
 }
 
 describe('useAuthStore', () => {
