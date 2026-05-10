@@ -16,7 +16,7 @@ const { toast } = useToast()
 const { t } = useI18n()
 
 // 轮询告警规则列表
-const { data: rules, loading, refresh } = usePolling<AlertRule[]>({
+const { data: rulesRef, loading, refresh } = usePolling<AlertRule[]>({
   fetchFn: async () => {
     const res = await monitorApi.listAlertRules()
     if (res.data.status === 'success') {
@@ -27,6 +27,9 @@ const { data: rules, loading, refresh } = usePolling<AlertRule[]>({
   interval: 60000,
   autoStart: true,
 })
+
+// Unwrap ref for template
+const rules = computed(() => rulesRef.value)
 
 // 表格列
 const columns = computed(() => [
@@ -94,7 +97,7 @@ async function handleRefresh() {
     <!-- 规则表格 -->
     <Table
       :columns="columns"
-      :data="rules.value || []"
+      :data="rules || []"
       :loading="loading"
     >
       <template #cell-name="{ row }">

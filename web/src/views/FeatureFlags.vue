@@ -3,7 +3,6 @@ import { ref, onMounted, computed } from 'vue'
 import { useToast } from '@/composables/useToast'
 import { useI18n } from 'vue-i18n'
 
-import type { Ref } from 'vue'
 import { getFeatureFlags, updateFeatureFlag, setFeatureFlagOverride, deleteFeatureFlagOverride, getFeatureFlagOverrides } from '@/api/modules/featureFlags'
 
 const { t } = useI18n()
