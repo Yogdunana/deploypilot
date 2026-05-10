@@ -12,5 +12,5 @@ export interface AuditLogParams extends PaginationParams {
 }
 
 export function listLogs(params?: AuditLogParams) {
-  return api.get<PaginatedResponse<AuditLog[]>>('/audit/logs', { params })
+  return api.get<PaginatedResponse<AuditLog[]>>('/audit-logs', { params })
 }

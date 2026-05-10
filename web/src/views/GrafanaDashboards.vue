@@ -7,7 +7,6 @@ import {
   Pencil,
   Trash2,
   RefreshCw,
-  Loader2,
   Tag,
 } from 'lucide-vue-next'
 import PageHeader from '@/components/common/PageHeader.vue'

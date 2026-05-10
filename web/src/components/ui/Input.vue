@@ -2,6 +2,8 @@
 import { computed } from 'vue'
 import { cn } from '@/lib/utils'
 
+defineOptions({ inheritAttrs: false })
+
 interface Props {
   modelValue?: string | number
   type?: string
@@ -39,6 +41,7 @@ function onInput(event: Event) {
 
 <template>
   <input
+    v-bind="$attrs"
     :class="classes"
     :type="type"
     :value="modelValue"

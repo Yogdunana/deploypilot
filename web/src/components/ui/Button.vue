@@ -37,6 +37,7 @@ interface Props {
   size?: NonNullable<ButtonVariants['size']>
   disabled?: boolean
   loading?: boolean
+  type?: 'button' | 'reset' | 'submit'
   class?: string
 }
 
@@ -45,6 +46,7 @@ const props = withDefaults(defineProps<Props>(), {
   size: 'default',
   disabled: false,
   loading: false,
+  type: 'button',
 })
 
 const classes = computed(() =>
@@ -53,7 +55,7 @@ const classes = computed(() =>
 </script>
 
 <template>
-  <button :class="classes" :disabled="disabled || loading">
+  <button :class="classes" :type="type" :disabled="disabled || loading">
     <Loader2 v-if="loading" class="w-4 h-4 animate-spin" />
     <slot name="icon" />
     <slot />

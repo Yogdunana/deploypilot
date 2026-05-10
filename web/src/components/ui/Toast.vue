@@ -30,6 +30,9 @@ const variantClasses: Record<string, string> = {
   default: 'border-border bg-card text-foreground',
   success: 'border-success/30 bg-success/10 text-success',
   destructive: 'border-destructive/30 bg-destructive/10 text-destructive',
+  error: 'border-destructive/30 bg-destructive/10 text-destructive',
+  warning: 'bg-yellow-50 text-yellow-900 border-yellow-200 dark:bg-yellow-950 dark:text-yellow-200 dark:border-yellow-800',
+  info: 'bg-blue-50 text-blue-900 border-blue-200 dark:bg-blue-950 dark:text-blue-200 dark:border-blue-800',
 }
 </script>
 

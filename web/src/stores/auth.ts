@@ -69,7 +69,11 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       const res = await getMe()
       user.value = res.data.data
-    } catch { logout() }
+    } catch (err: any) {
+      if (err.response?.status === 401) {
+        logout()
+      }
+    }
   }
 
   return {

@@ -148,7 +148,7 @@ export default {
     emailRequired: '请输入邮箱',
     emailInvalid: '请输入有效的邮箱地址',
     passwordRequired: '请输入密码',
-    passwordTooShort: '密码长度至少为 6 位',
+    passwordTooShort: '密码长度至少为 8 位',
     confirmPasswordRequired: '请确认密码',
     passwordMismatch: '两次输入的密码不一致',
     failed: '注册失败，请稍后重试',
@@ -829,6 +829,9 @@ export default {
     healConfirmDesc: '确定要对容器「{name}」执行自愈操作吗？此操作将尝试自动修复容器问题。',
     confirmHeal: '确认自愈',
     fetchAppsFailed: '获取应用列表失败',
+    refresh: '刷新',
+    healTriggered: '已触发容器 "{name}" 自愈',
+    healFailed: '触发容器 "{name}" 自愈失败',
   },
 
   ssl: {

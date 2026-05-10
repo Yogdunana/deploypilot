@@ -3,7 +3,7 @@ import { ref } from 'vue'
 import { useToast } from '@/composables/useToast'
 import { useI18n } from 'vue-i18n'
 
-import { Layers, Play, CheckCircle, XCircle } from 'lucide-vue-next'
+import { Play, CheckCircle, XCircle } from 'lucide-vue-next'
 import PageHeader from '@/components/common/PageHeader.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import Button from '@/components/ui/Button.vue'

@@ -39,7 +39,7 @@ export function rollback(id: number, data: RollbackConfig) {
 }
 
 export function getLogs(id: number, tail?: number) {
-  return api.get<ApiResponse<string>>(`/apps/${id}/logs`, { params: { tail } })
+  return api.get<ApiResponse<string>>(`/apps/${id}/logs/container`, { params: { tail } })
 }
 
 export function backup(id: number) {

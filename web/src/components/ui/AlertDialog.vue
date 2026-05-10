@@ -1,8 +1,11 @@
 <script setup lang="ts">
 import { watch, onMounted, onBeforeUnmount } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { cn } from '@/lib/utils'
 import { X } from 'lucide-vue-next'
 import Button from './Button.vue'
+
+const { t } = useI18n()
 
 interface Props {
   open?: boolean
@@ -16,8 +19,8 @@ interface Props {
 
 const props = withDefaults(defineProps<Props>(), {
   open: false,
-  confirmText: '确认',
-  cancelText: '取消',
+  confirmText: undefined,
+  cancelText: undefined,
   variant: 'default',
 })
 
@@ -104,14 +107,14 @@ onBeforeUnmount(() => {
             </div>
             <div class="flex justify-end gap-2">
               <Button variant="outline" size="sm" @click="cancel">
-                {{ cancelText }}
+                {{ cancelText || t('common.cancel') }}
               </Button>
               <Button
                 :variant="variant === 'destructive' ? 'destructive' : 'default'"
                 size="sm"
                 @click="confirm"
               >
-                {{ confirmText }}
+                {{ confirmText || t('common.confirm') }}
               </Button>
             </div>
           </div>
