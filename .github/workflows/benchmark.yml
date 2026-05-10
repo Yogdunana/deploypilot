@@ -40,7 +40,7 @@ jobs:
         run: |
           # Install benchstat version compatible with Go 1.24
           # Latest benchstat requires Go 1.25+, so we use an older version
-          go install golang.org/x/perf/cmd/benchstat@v0.0.0-20250305200910-02a15fd477ba
+          go install golang.org/x/perf/cmd/benchstat@v0.0.0-20241209152558-5a4a8cd6e6dd
 
       - name: Compare benchmarks
         run: |
