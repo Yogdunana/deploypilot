@@ -169,6 +169,19 @@ jobs:
           draft: false
           prerelease: ${{ contains(github.ref_name, 'rc') || contains(github.ref_name, 'beta') }}
 
+      - name: Delete old Gitee releases
+        env:
+          GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
+        run: |
+          # Get all releases and delete them (keep only latest)
+          releases=$(curl -s -H "Authorization: token ${GITEE_TOKEN}" \
+            "https://gitee.com/api/v5/repos/Yogdunana/deploypilot/releases" | jq -r '.[].id')
+          for release_id in $releases; do
+            echo "Deleting Gitee release $release_id"
+            curl -s -X DELETE -H "Authorization: token ${GITEE_TOKEN}" \
+              "https://gitee.com/api/v5/repos/Yogdunana/deploypilot/releases/$release_id"
+          done
+
       - name: Sync Release to Gitee
         uses: nicennnnnnnlee/action-gitee-release@master
         with:
