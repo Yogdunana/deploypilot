@@ -3,7 +3,7 @@ package service
 import (
 	"context"
 	"crypto/hmac"
-	"crypto/rand"
+	crypto_rand "crypto/rand"
 	"crypto/sha256"
 	"encoding/csv"
 	"encoding/hex"
@@ -72,7 +72,7 @@ func (s *AuditService) OnRecord(fn func(AuditEntry)) {
 // Optionally accepts an external AuditWriter for writing audit entries to external storage.
 func NewAuditService(db *gorm.DB, externalWriter ...AuditWriter) *AuditService {
 	key := make([]byte, 32)
-	if _, err := rand.Read(key); err != nil {
+	if _, err := crypto_rand.Read(key); err != nil {
 		key = make([]byte, 32)
 	}
 	svc := &AuditService{db: db, hmacKey: key}
@@ -142,6 +142,16 @@ func classifyAction(action string) string {
 	}
 }
 
+// generateUUID creates a random UUID v4 string.
+func generateUUID() string {
+	b := make([]byte, 16)
+	_, _ = crypto_rand.Read(b)
+	b[6] = (b[6] & 0x0f) | 0x40 // version 4
+	b[8] = (b[8] & 0x3f) | 0x80 // variant 10
+	return fmt.Sprintf("%08x-%04x-%04x-%04x-%012x",
+		b[0:4], b[4:6], b[6:8], b[8:10], b[10:16])
+}
+
 // computeRecordHash generates an HMAC-SHA256 hash of the audit log fields.
 func (s *AuditService) computeRecordHash(log *model.AuditLog) string {
 	data := fmt.Sprintf("%s|%s|%s|%s|%s|%s|%s|%s",
@@ -179,6 +189,7 @@ func (s *AuditService) Record(ctx context.Context, entry AuditEntry) error {
 	}
 
 	log := &model.AuditLog{
+		ID:           generateUUID(),
 		UserID:       entry.UserID,
 		Username:     entry.Username,
 		Action:       entry.Action,
