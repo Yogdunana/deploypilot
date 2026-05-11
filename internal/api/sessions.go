@@ -196,7 +196,7 @@ func ListLoginHistory(auditSvc *service.AuditService) gin.HandlerFunc {
 		}
 
 		type loginEntry struct {
-			ID        uint      `json:"id"`
+			ID        string    `json:"id"`
 			IPAddress string    `json:"ip_address"`
 			UserAgent string    `json:"user_agent"`
 			Detail    string    `json:"detail,omitempty"`
