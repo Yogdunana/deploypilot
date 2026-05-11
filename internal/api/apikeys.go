@@ -106,7 +106,7 @@ func CreateAPIKey(keySvc *service.APIKeyService, auditSvc *service.AuditService)
 				ResourceID:   apiKey.ID,
 				Detail:       map[string]string{"name": input.Name, "prefix": apiKey.KeyPrefix},
 			}); err != nil {
-				slog.WarnContext(c.Request.Context(), "failed to record audit log", "error", err)
+				slog.ErrorContext(c.Request.Context(), "failed to record audit log", "error", err)
 			}
 		}
 
@@ -157,7 +157,7 @@ func DeleteAPIKey(keySvc *service.APIKeyService, auditSvc *service.AuditService)
 				ResourceType: "apikey",
 				ResourceID:   keyID,
 			}); err != nil {
-				slog.WarnContext(c.Request.Context(), "failed to record audit log", "error", err)
+				slog.ErrorContext(c.Request.Context(), "failed to record audit log", "error", err)
 			}
 		}
 
@@ -279,7 +279,7 @@ func UpdateAPIKey(keySvc *service.APIKeyService, auditSvc *service.AuditService)
 				ResourceType: "apikey",
 				ResourceID:   keyID,
 			}); err != nil {
-				slog.WarnContext(c.Request.Context(), "failed to record audit log", "error", err)
+				slog.ErrorContext(c.Request.Context(), "failed to record audit log", "error", err)
 			}
 		}
 

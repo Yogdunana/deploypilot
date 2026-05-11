@@ -229,7 +229,7 @@ func Register(db *gorm.DB) gin.HandlerFunc {
 				IPAddress:    c.ClientIP(),
 				UserAgent:    c.GetHeader("User-Agent"),
 			}); err != nil {
-				slog.Warn("failed to record audit log", "error", err)
+				slog.Error("failed to record audit log", "error", err)
 			}
 		}
 
@@ -463,7 +463,7 @@ func Login(db *gorm.DB, bf *bruteforce.Protector) gin.HandlerFunc {
 				IPAddress:    c.ClientIP(),
 				UserAgent:    c.GetHeader("User-Agent"),
 			}); err != nil {
-				slog.Warn("failed to record audit log", "error", err)
+				slog.Error("failed to record audit log", "error", err)
 			}
 		}
 
