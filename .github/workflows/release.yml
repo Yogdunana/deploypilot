@@ -182,8 +182,8 @@ jobs:
       - name: Download binaries
         uses: actions/download-artifact@v4
         with:
-          name: binaries
-          path: dist
+          path: dist/
+          merge-multiple: true
 
       - name: Delete old Gitee releases
         env:
