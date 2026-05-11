@@ -13,7 +13,7 @@ import (
 // @Tags         Registries
 // @Produce      json
 // @Security     BearerAuth
-// @Param        tenant_id query string false "Tenant ID" default("tenant-default")
+// @Param        tenant_id query string false "Tenant ID" default(model.DefaultTenantID)
 // @Success      200 {object} map[string]interface{} "status, data (array of Registry)"
 // @Failure      401 {object} map[string]interface{} "unauthorized"
 // @Failure      500 {object} map[string]interface{} "internal error"
@@ -22,7 +22,7 @@ func ListRegistries() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		tenantID := c.Query("tenant_id")
 		if tenantID == "" {
-			tenantID = "tenant-default"
+			tenantID = model.DefaultTenantID
 		}
 
 		registries, err := model.ListRegistries(tenantID)
@@ -65,7 +65,7 @@ func CreateRegistry() gin.HandlerFunc {
 			return
 		}
 		if input.TenantID == "" {
-			input.TenantID = "tenant-default"
+			input.TenantID = model.DefaultTenantID
 		}
 		if len(input.Name) > 255 || len(input.URL) > 2048 || len(input.Username) > 255 || len(input.Password) > 255 {
 			respondErrori18n(c, http.StatusBadRequest, "error.common.input_too_long")

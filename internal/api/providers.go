@@ -92,7 +92,7 @@ func CreateProvider(db *gorm.DB) gin.HandlerFunc {
 
 		input.ID = uuid.New().String()
 		if input.TenantID == "" {
-			input.TenantID = "tenant-default"
+			input.TenantID = model.DefaultTenantID
 		}
 		input.Enabled = true
 

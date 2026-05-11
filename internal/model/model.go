@@ -2,6 +2,9 @@ package model
 
 import "time"
 
+// DefaultTenantID is the default tenant identifier used when no multi-tenancy is configured.
+const DefaultTenantID = "tenant-default"
+
 // Tenant represents a multi-tenant organization.
 type Tenant struct {
 	ID         string    `gorm:"primaryKey" json:"id"`

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/Yogdunana/deploypilot/internal/auth"
+	"github.com/Yogdunana/deploypilot/internal/model"
 	"github.com/Yogdunana/deploypilot/internal/service"
 	"github.com/gin-gonic/gin"
 )
@@ -82,7 +83,7 @@ func CreateAPIKey(keySvc *service.APIKeyService, auditSvc *service.AuditService)
 			}
 		}
 
-		apiKey, rawKey, err := keySvc.Create(c.Request.Context(), uid, "tenant-default", input.Name, input.Scopes, input.ExpiresInDays)
+		apiKey, rawKey, err := keySvc.Create(c.Request.Context(), uid, model.DefaultTenantID, input.Name, input.Scopes, input.ExpiresInDays)
 		if err != nil {
 			respondErrori18n(c, http.StatusInternalServerError, "error.common.internal_error")
 			return

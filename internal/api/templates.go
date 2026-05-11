@@ -3,6 +3,7 @@ package api
 import (
 	"net/http"
 
+	"github.com/Yogdunana/deploypilot/internal/model"
 	"github.com/Yogdunana/deploypilot/internal/service"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -62,7 +63,7 @@ func CreateTemplate(db *gorm.DB) gin.HandlerFunc {
 		// Store custom templates in the providers table with type "template"
 		if err := db.Exec(
 			`INSERT INTO providers (id, tenant_id, type, name, config, enabled) VALUES (?, ?, 'template', ?, ?, 1)`,
-			id, "tenant-default", input.Name,
+			id, model.DefaultTenantID, input.Name,
 			map[string]interface{}{
 				"type":        input.Type,
 				"description": input.Description,

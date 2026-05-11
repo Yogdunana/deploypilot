@@ -143,7 +143,7 @@ func (a *EventPluginAPI) UpdateEventPlugin(c *gin.Context) {
 	// Also persist config to DB
 	tenantID := c.Query("tenant_id")
 	if tenantID == "" {
-		tenantID = "tenant-default"
+		tenantID = model.DefaultTenantID
 	}
 	if input.Config != nil {
 		configJSON, _ := json.Marshal(input.Config)

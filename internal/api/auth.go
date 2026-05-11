@@ -184,7 +184,7 @@ func Register(db *gorm.DB) gin.HandlerFunc {
 		// First user becomes admin
 		user := model.User{
 			ID:           uuid.New().String(),
-			TenantID:     "tenant-default",
+			TenantID:     model.DefaultTenantID,
 			RoleID:       "role-admin", // First user is admin
 			Username:     input.Username,
 			Email:        input.Email,

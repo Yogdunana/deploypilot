@@ -521,7 +521,7 @@ func (b *Bridge) saveRollbackRecord(ctx context.Context, cfg mcp.DeployConfig, c
 
 	record := &model.DeploymentRecord{
 		ID:             generateID(),
-		TenantID:       "tenant-default",
+		TenantID:       model.DefaultTenantID,
 		ServerID:       cfg.ServerID,
 		AppName:        cfg.AppName,
 		ContainerName:  cfg.ContainerName,
@@ -579,7 +579,7 @@ func (b *Bridge) saveDeploymentRecord(ctx context.Context, cfg mcp.DeployConfig,
 
 	record := &model.DeploymentRecord{
 		ID:             generateID(),
-		TenantID:       "tenant-default",
+		TenantID:       model.DefaultTenantID,
 		ServerID:       cfg.ServerID,
 		AppName:        cfg.AppName,
 		AppID:          appID,

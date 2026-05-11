@@ -3,6 +3,7 @@ package database
 import (
 	"fmt"
 
+	"github.com/Yogdunana/deploypilot/internal/model"
 	"gorm.io/gorm"
 )
 
@@ -32,7 +33,7 @@ func Seed(db *gorm.DB) error {
 	// Seed default tenant
 	result := db.Exec(
 		`INSERT OR IGNORE INTO tenants (id, name, slug, plan) VALUES (?, ?, ?, ?)`,
-		"tenant-default", "Default", "default", "free",
+		model.DefaultTenantID, "Default", "default", "free",
 	)
 	if result.Error != nil {
 		return fmt.Errorf("failed to seed default tenant: %w", result.Error)

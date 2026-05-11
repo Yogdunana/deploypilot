@@ -17,7 +17,7 @@ import (
 // @Tags         Credentials
 // @Produce      json
 // @Security     BearerAuth
-// @Param        tenant_id query string false "Tenant ID" default("tenant-default")
+// @Param        tenant_id query string false "Tenant ID" default(model.DefaultTenantID)
 // @Success      200 {object} map[string]interface{} "status, data (array of Credential)"
 // @Failure      401 {object} map[string]interface{} "unauthorized"
 // @Failure      500 {object} map[string]interface{} "internal error"
@@ -26,7 +26,7 @@ func ListCredentials(bridge *service.Bridge) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		tenantID := c.Query("tenant_id")
 		if tenantID == "" {
-			tenantID = "tenant-default"
+			tenantID = model.DefaultTenantID
 		}
 
 		creds, err := bridge.ListCredentials(c.Request.Context(), tenantID)
@@ -98,7 +98,7 @@ func CreateCredential(bridge *service.Bridge, auditSvc *service.AuditService) gi
 			return
 		}
 		if input.TenantID == "" {
-			input.TenantID = "tenant-default"
+			input.TenantID = model.DefaultTenantID
 		}
 
 		cred, err := bridge.CreateCredentialWithExpiry(c.Request.Context(), input.TenantID, input.Name, input.Type, input.Value, input.ExpiresInDays)
