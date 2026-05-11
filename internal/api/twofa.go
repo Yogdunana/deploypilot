@@ -90,7 +90,7 @@ func Verify2FA(db *gorm.DB, auditSvc *service.AuditService) gin.HandlerFunc {
 				ResourceType: "user",
 				ResourceID:   user.ID,
 			}); err != nil {
-				slog.WarnContext(c.Request.Context(), "failed to record audit log", "error", err)
+				slog.ErrorContext(c.Request.Context(), "failed to record audit log", "error", err)
 			}
 		}
 
@@ -169,7 +169,7 @@ func Setup2FA(db *gorm.DB, auditSvc *service.AuditService) gin.HandlerFunc {
 				ResourceType: "user",
 				ResourceID:   uid,
 			}); err != nil {
-				slog.WarnContext(c.Request.Context(), "failed to record audit log", "error", err)
+				slog.ErrorContext(c.Request.Context(), "failed to record audit log", "error", err)
 			}
 		}
 
@@ -239,7 +239,7 @@ func Confirm2FA(db *gorm.DB, auditSvc *service.AuditService) gin.HandlerFunc {
 				ResourceType: "user",
 				ResourceID:   uid,
 			}); err != nil {
-				slog.WarnContext(c.Request.Context(), "failed to record audit log", "error", err)
+				slog.ErrorContext(c.Request.Context(), "failed to record audit log", "error", err)
 			}
 		}
 
@@ -311,7 +311,7 @@ func Disable2FA(db *gorm.DB, auditSvc *service.AuditService) gin.HandlerFunc {
 				ResourceType: "user",
 				ResourceID:   uid,
 			}); err != nil {
-				slog.WarnContext(c.Request.Context(), "failed to record audit log", "error", err)
+				slog.ErrorContext(c.Request.Context(), "failed to record audit log", "error", err)
 			}
 		}
 
@@ -388,7 +388,7 @@ func RegenerateBackupCodes(db *gorm.DB, auditSvc *service.AuditService) gin.Hand
 				ResourceType: "user",
 				ResourceID:   uid,
 			}); err != nil {
-				slog.WarnContext(c.Request.Context(), "failed to record audit log", "error", err)
+				slog.ErrorContext(c.Request.Context(), "failed to record audit log", "error", err)
 			}
 		}
 
@@ -488,7 +488,7 @@ func ResetUser2FA(db *gorm.DB, auditSvc *service.AuditService) gin.HandlerFunc {
 				ResourceID:   targetUserID,
 				Detail:       "admin reset 2FA for user " + user.Username,
 			}); err != nil {
-				slog.WarnContext(c.Request.Context(), "failed to record audit log", "error", err)
+				slog.ErrorContext(c.Request.Context(), "failed to record audit log", "error", err)
 			}
 		}
 
