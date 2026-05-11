@@ -85,8 +85,7 @@ func ListAuditLogs(auditSvc *service.AuditService) gin.HandlerFunc {
 			PageSize: pageSize,
 		}
 		if userID := c.Query("user_id"); userID != "" {
-			uid, _ := strconv.ParseUint(userID, 10, 64)
-			filter.UserID = uint(uid)
+			filter.UserID = userID
 		}
 		if action := c.Query("action"); action != "" {
 			filter.Action = action

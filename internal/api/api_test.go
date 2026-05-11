@@ -92,14 +92,14 @@ func setupTestDB(t *testing.T) *gorm.DB {
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 	)`)
 	db.Exec(`CREATE TABLE IF NOT EXISTS audit_logs (
-		id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, username TEXT,
+		id TEXT PRIMARY KEY, user_id TEXT, username TEXT,
 		action TEXT, resource_type TEXT, resource_id TEXT, detail TEXT,
 		ip_address TEXT, user_agent TEXT, record_hash TEXT,
 		trace_id TEXT,
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 	)`)
 	db.Exec(`CREATE TABLE IF NOT EXISTS audit_hashes (
-		id INTEGER PRIMARY KEY AUTOINCREMENT, audit_id INTEGER UNIQUE NOT NULL,
+		id INTEGER PRIMARY KEY AUTOINCREMENT, audit_id TEXT UNIQUE NOT NULL,
 		hash TEXT NOT NULL, previous_hash TEXT,
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 	)`)

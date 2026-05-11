@@ -3,7 +3,6 @@ package api
 import (
 	"fmt"
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/Yogdunana/deploypilot/internal/auth"
@@ -262,8 +261,7 @@ func RotateCredential(bridge *service.Bridge, auditSvc *service.AuditService) gi
 	}
 }
 
-// parseUserID converts a string user ID to uint for audit logging.
-func parseUserID(s string) uint {
-	n, _ := strconv.ParseUint(s, 10, 64)
-	return uint(n)
+// parseUserID returns the string user ID as-is (IDs are now UUID strings).
+func parseUserID(s string) string {
+	return s
 }

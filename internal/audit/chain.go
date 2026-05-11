@@ -34,7 +34,7 @@ func NewAuditChain(db *gorm.DB, secretKey []byte) *AuditChain {
 // ComputeHash computes an HMAC-SHA256 hash for a chain link.
 // The hash is derived from prevHash + record.ID + record.Action + record.Timestamp.
 func (ac *AuditChain) ComputeHash(prevHash string, record *model.AuditLog) string {
-	data := fmt.Sprintf("%s|%d|%s|%s",
+	data := fmt.Sprintf("%s|%s|%s|%s",
 		prevHash,
 		record.ID,
 		record.Action,
