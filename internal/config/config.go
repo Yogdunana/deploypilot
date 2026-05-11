@@ -102,8 +102,9 @@ type GrafanaConfig struct {
 
 // AuditConfig holds configuration for audit logging.
 type AuditConfig struct {
-	RetentionDays int    `mapstructure:"retention_days"` // default: 90
+	RetentionDays   int    `mapstructure:"retention_days"`    // default: 90
 	ExternalLogPath string `mapstructure:"external_log_path"`
+	HMACSigningKey string `mapstructure:"hmac_signing_key"` // 32-byte hex-encoded key for audit log integrity
 }
 
 // RedisConfig holds Redis connection settings for Pub/Sub.

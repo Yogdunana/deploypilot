@@ -72,17 +72,18 @@ func New(addr string, db *gorm.DB, bridge *service.Bridge, cfg *config.Config, b
 
 	// Audit logging — optionally enable external file writer
 	var auditSvc *service.AuditService
+	hmacKey := parseHMACKey(cfg.Audit.HMACSigningKey)
 	if cfg.Audit.ExternalLogPath != "" {
 		fileWriter, err := service.NewFileAuditWriter(cfg.Audit.ExternalLogPath)
 		if err != nil {
 			slog.Warn("failed to create external audit writer", "error", err)
-			auditSvc = service.NewAuditService(db)
+			auditSvc = service.NewAuditService(db, hmacKey)
 		} else {
-			auditSvc = service.NewAuditService(db, fileWriter)
+			auditSvc = service.NewAuditService(db, hmacKey, fileWriter)
 			slog.Info("external audit logging enabled", "path", cfg.Audit.ExternalLogPath)
 		}
 	} else {
-		auditSvc = service.NewAuditService(db)
+		auditSvc = service.NewAuditService(db, hmacKey)
 	}
 	r.Use(middleware.AuditMiddleware(auditSvc))
 

@@ -331,8 +331,8 @@ func MigrateLegacy(db *gorm.DB) error {
 			ID: "202604240001",
 			Migrate: func(tx *gorm.DB) error {
 				return tx.Exec(`CREATE TABLE IF NOT EXISTS audit_logs (
-					id INTEGER PRIMARY KEY AUTOINCREMENT,
-					user_id INTEGER,
+					id TEXT PRIMARY KEY,
+					user_id TEXT,
 					username TEXT,
 					action TEXT,
 					resource_type TEXT,
@@ -340,6 +340,11 @@ func MigrateLegacy(db *gorm.DB) error {
 					detail TEXT,
 					ip_address TEXT,
 					user_agent TEXT,
+					trace_id TEXT DEFAULT '',
+					record_hash TEXT DEFAULT '',
+					log_type TEXT DEFAULT 'operation',
+					archived BOOLEAN DEFAULT false,
+					archived_at DATETIME,
 					created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 				)`).Error
 			},

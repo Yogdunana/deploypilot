@@ -1,7 +1,7 @@
 -- Create audit_logs table with all enhancement columns
 CREATE TABLE IF NOT EXISTS audit_logs (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER,
+    id TEXT PRIMARY KEY,
+    user_id TEXT,
     username TEXT,
     action TEXT,
     resource_type TEXT,

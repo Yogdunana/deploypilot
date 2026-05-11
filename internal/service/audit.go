@@ -68,12 +68,16 @@ func (s *AuditService) OnRecord(fn func(AuditEntry)) {
 	s.onRecord = append(s.onRecord, fn)
 }
 
-// NewAuditService creates a new AuditService with a randomly generated HMAC key.
-// Optionally accepts an external AuditWriter for writing audit entries to external storage.
-func NewAuditService(db *gorm.DB, externalWriter ...AuditWriter) *AuditService {
-	key := make([]byte, 32)
-	if _, err := crypto_rand.Read(key); err != nil {
+// NewAuditService creates a new AuditService.
+// The hmacKey should be a 32-byte key (nil or empty generates a random key for testing only).
+// For production, provide a persistent key via audit.HMACSigningKey config.
+func NewAuditService(db *gorm.DB, hmacKey []byte, externalWriter ...AuditWriter) *AuditService {
+	key := hmacKey
+	if len(key) == 0 {
 		key = make([]byte, 32)
+		if _, err := crypto_rand.Read(key); err != nil {
+			key = make([]byte, 32)
+		}
 	}
 	svc := &AuditService{db: db, hmacKey: key}
 	if len(externalWriter) > 0 && externalWriter[0] != nil {
