@@ -142,6 +142,8 @@ func New(addr string, db *gorm.DB, bridge *service.Bridge, cfg *config.Config, b
 	// Set audit service for auth event logging
 	if auditSvc != nil {
 		api.SetAuditServiceForAuth(auditSvc)
+	} else {
+		slog.Warn("audit service is nil, auth event logging will be disabled")
 	}
 
 	// Initialize refresh token store
