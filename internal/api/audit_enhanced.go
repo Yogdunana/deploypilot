@@ -123,9 +123,7 @@ func buildAuditFilter(c *gin.Context) service.AuditFilter {
 	filter := service.AuditFilter{}
 
 	if v := c.Query("user_id"); v != "" {
-		if uid, err := strconv.ParseUint(v, 10, 64); err == nil {
-			filter.UserID = uint(uid)
-		}
+		filter.UserID = v
 	}
 	filter.Username = c.Query("username")
 	filter.Action = c.Query("action")

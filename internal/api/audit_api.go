@@ -3,7 +3,6 @@ package api
 import (
 	"io"
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/Yogdunana/deploypilot/internal/audit"
@@ -54,7 +53,7 @@ func VerifyAuditChain(c *gin.Context) {
 
 	validCount := 0
 	invalidCount := 0
-	var failedIDs []uint
+	var failedIDs []string
 	for _, r := range results {
 		if r.Valid {
 			validCount++
@@ -191,12 +190,6 @@ func GDPRDeleteUserData(c *gin.Context) {
 		return
 	}
 
-	uid, err := strconv.ParseUint(userIDStr, 10, 64)
-	if err != nil {
-		respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request", "invalid user_id")
-		return
-	}
-
 	if err := audit.DeleteUserData(globalAuditVerificationAPI.db, userIDStr); err != nil {
 		respondError(c, http.StatusInternalServerError, "failed to delete user data")
 		return
@@ -204,7 +197,7 @@ func GDPRDeleteUserData(c *gin.Context) {
 
 	respondSuccess(c, gin.H{
 		"message": "user data anonymized successfully",
-		"user_id": uid,
+		"user_id": userIDStr,
 	})
 }
 

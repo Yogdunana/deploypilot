@@ -47,7 +47,7 @@ func setupPluginTestDB(t *testing.T) *gorm.DB {
 		UNIQUE(tenant_id, name)
 	)`)
 	db.Exec(`CREATE TABLE IF NOT EXISTS audit_logs (
-		id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, username TEXT,
+		id TEXT PRIMARY KEY, user_id TEXT, username TEXT,
 		action TEXT, resource_type TEXT, resource_id TEXT, detail TEXT,
 		ip_address TEXT, user_agent TEXT, record_hash TEXT,
 		trace_id TEXT,

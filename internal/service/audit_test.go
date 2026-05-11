@@ -18,7 +18,7 @@ func setupAuditTestDB(t *testing.T) *gorm.DB {
 		t.Fatal(err)
 	}
 	db.Exec(`CREATE TABLE IF NOT EXISTS audit_logs (
-		id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, username TEXT,
+		id TEXT PRIMARY KEY, user_id TEXT, username TEXT,
 		action TEXT, resource_type TEXT, resource_id TEXT, detail TEXT,
 		log_type TEXT DEFAULT 'operation',
 		ip_address TEXT, user_agent TEXT, record_hash TEXT,

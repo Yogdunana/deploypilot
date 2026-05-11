@@ -61,8 +61,8 @@ func ExportCSV(db *gorm.DB, tenantID string, startTime, endTime time.Time) (io.R
 
 	for _, r := range records {
 		row := []string{
-			fmt.Sprintf("%d", r.ID),
-			fmt.Sprintf("%d", r.UserID),
+			r.ID,
+			r.UserID,
 			r.Username,
 			r.Action,
 			r.ResourceType,

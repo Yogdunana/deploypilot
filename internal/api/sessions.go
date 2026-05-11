@@ -180,11 +180,11 @@ func ListLoginHistory(auditSvc *service.AuditService) gin.HandlerFunc {
 			pageSize = 20
 		}
 
-		// Parse user ID to uint for audit filter
-		uidUint := parseUserID(uid)
+		// Get user ID string for audit filter
+		uidStr := parseUserID(uid)
 
 		logs, total, err := auditSvc.List(c.Request.Context(), service.AuditFilter{
-			UserID:   uidUint,
+			UserID:   uidStr,
 			Action:   "user.login",
 			Page:     page,
 			PageSize: pageSize,
