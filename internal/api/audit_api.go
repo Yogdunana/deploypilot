@@ -197,7 +197,7 @@ func GDPRDeleteUserData(c *gin.Context) {
 		return
 	}
 
-	if err := audit.DeleteUserData(globalAuditVerificationAPI.db, uint(uid)); err != nil {
+	if err := audit.DeleteUserData(globalAuditVerificationAPI.db, userIDStr); err != nil {
 		respondError(c, http.StatusInternalServerError, "failed to delete user data")
 		return
 	}
