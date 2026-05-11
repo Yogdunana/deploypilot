@@ -51,8 +51,8 @@ func TestFileAuditWriter_Write(t *testing.T) {
 	if result["action"] != "login" {
 		t.Errorf("expected action 'login', got %v", result["action"])
 	}
-	if result["user_id"] != "1" {
-		t.Errorf("expected user_id '1', got %v", result["user_id"])
+	if result["user_id"] != "user-1" {
+		t.Errorf("expected user_id 'user-1', got %v", result["user_id"])
 	}
 	if result["timestamp"] == nil {
 		t.Error("expected timestamp to be set")
