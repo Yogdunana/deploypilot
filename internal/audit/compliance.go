@@ -81,7 +81,7 @@ func ExportUserData(db *gorm.DB, userID string) (map[string]interface{}, error) 
 
 // DeleteUserData performs GDPR right-to-be-forgotten by anonymizing user data.
 // Audit logs are preserved but anonymized (username, IP, user agent are cleared).
-func DeleteUserData(db *gorm.DB, userID uint) error {
+func DeleteUserData(db *gorm.DB, userID string) error {
 	// Anonymize audit logs: keep the record but remove personal identifiers
 	result := db.Model(&model.AuditLog{}).
 		Where("user_id = ?", userID).
@@ -89,7 +89,7 @@ func DeleteUserData(db *gorm.DB, userID uint) error {
 			"username":  "[GDPR-DELETED]",
 			"ip_address": "[GDPR-DELETED]",
 			"user_agent": "[GDPR-DELETED]",
-			"user_id":    0,
+			"user_id":    "",
 		})
 	if result.Error != nil {
 		return fmt.Errorf("failed to anonymize audit logs: %w", result.Error)
@@ -121,7 +121,7 @@ func DataRetentionPolicy(db *gorm.DB, cfg *config.AuditConfig) error {
 	}
 
 	// Also clean up associated hash entries for deleted audit logs
-	var deletedAuditIDs []uint
+	var deletedAuditIDs []string
 	if err := db.Model(&model.AuditLog{}).
 		Select("id").
 		Where("created_at < ?", cutoff).

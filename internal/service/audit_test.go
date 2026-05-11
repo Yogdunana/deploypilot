@@ -85,7 +85,7 @@ func TestAuditService_List(t *testing.T) {
 	// Create multiple entries
 	for i := uint(0); i < 5; i++ {
 		_ = svc.Record(context.TODO(), AuditEntry{
-			UserID:   i,
+			UserID:   fmt.Sprintf("user-%d", i),
 			Username: "user",
 			Action:   "app.create",
 		})
@@ -190,7 +190,7 @@ func TestAuditService_RecordWithNilDetail(t *testing.T) {
 	svc := NewAuditService(db)
 
 	err := svc.Record(context.TODO(), AuditEntry{
-		UserID: 1,
+		UserID: "1",
 		Action: "app.create",
 		Detail: nil,
 	})
@@ -270,7 +270,7 @@ func TestAuditService_VerifyRecord(t *testing.T) {
 	svc := NewAuditService(db)
 
 	_ = svc.Record(context.TODO(), AuditEntry{
-		UserID: 1, Username: "test", Action: "app.create",
+		UserID: "1", Username: "test", Action: "app.create",
 		ResourceType: "app", ResourceID: "1", IPAddress: "1.2.3.4",
 	})
 

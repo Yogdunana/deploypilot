@@ -12,7 +12,7 @@ import (
 
 // ChainVerificationResult holds the result of verifying a single chain link.
 type ChainVerificationResult struct {
-	RecordID     uint   `json:"record_id"`
+	RecordID     string `json:"record_id"`
 	Valid        bool   `json:"valid"`
 	ExpectedHash string `json:"expected_hash"`
 	ActualHash   string `json:"actual_hash"`
@@ -47,7 +47,7 @@ func (ac *AuditChain) ComputeHash(prevHash string, record *model.AuditLog) strin
 
 // AppendHash stores the hash for a new audit record in the chain.
 // It looks up the previous record's hash to maintain chain continuity.
-func (ac *AuditChain) AppendHash(recordID uint, hash string) error {
+func (ac *AuditChain) AppendHash(recordID string, hash string) error {
 	// Find the previous audit record's hash
 	var prevHash string
 	var prevEntry model.AuditHash
@@ -69,7 +69,7 @@ func (ac *AuditChain) AppendHash(recordID uint, hash string) error {
 }
 
 // GetRecordHash retrieves the stored hash for an audit record.
-func (ac *AuditChain) GetRecordHash(recordID uint) (string, error) {
+func (ac *AuditChain) GetRecordHash(recordID string) (string, error) {
 	var entry model.AuditHash
 	if err := ac.db.Where("audit_id = ?", recordID).First(&entry).Error; err != nil {
 		return "", err
@@ -97,7 +97,7 @@ func (ac *AuditChain) VerifyChain() ([]ChainVerificationResult, error) {
 	}
 
 	// Build a map of auditID -> AuditHash
-	hashMap := make(map[uint]model.AuditHash, len(hashes))
+	hashMap := make(map[string]model.AuditHash, len(hashes))
 	for _, h := range hashes {
 		hashMap[h.AuditID] = h
 	}

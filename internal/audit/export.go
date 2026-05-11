@@ -15,8 +15,8 @@ import (
 // AuditExportRecord is an enriched audit log record for export,
 // including hash verification status.
 type AuditExportRecord struct {
-	ID               uint   `json:"id"`
-	UserID           uint   `json:"user_id"`
+	ID               string `json:"id"`
+	UserID           string `json:"user_id"`
 	Username         string `json:"username"`
 	Action           string `json:"action"`
 	ResourceType     string `json:"resource_type"`
@@ -137,13 +137,13 @@ func queryAuditLogs(db *gorm.DB, tenantID string, startTime, endTime time.Time) 
 }
 
 // buildHashMap builds a map of auditID -> hash from the audit_hashes table.
-func buildHashMap(db *gorm.DB) (map[uint]model.AuditHash, error) {
+func buildHashMap(db *gorm.DB) (map[string]model.AuditHash, error) {
 	var hashes []model.AuditHash
 	if err := db.Find(&hashes).Error; err != nil {
 		return nil, fmt.Errorf("failed to query audit hashes: %w", err)
 	}
 
-	hashMap := make(map[uint]model.AuditHash, len(hashes))
+	hashMap := make(map[string]model.AuditHash, len(hashes))
 	for _, h := range hashes {
 		hashMap[h.AuditID] = h
 	}
@@ -151,7 +151,7 @@ func buildHashMap(db *gorm.DB) (map[uint]model.AuditHash, error) {
 }
 
 // enrichExportRecords converts audit logs to export records with verification status.
-func enrichExportRecords(logs []model.AuditLog, hashMap map[uint]model.AuditHash) []AuditExportRecord {
+func enrichExportRecords(logs []model.AuditLog, hashMap map[string]model.AuditHash) []AuditExportRecord {
 	records := make([]AuditExportRecord, 0, len(logs))
 	for _, log := range logs {
 		_, hasChainHash := hashMap[log.ID]
