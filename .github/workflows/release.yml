@@ -169,11 +169,26 @@ jobs:
           draft: false
           prerelease: ${{ contains(github.ref_name, 'rc') || contains(github.ref_name, 'beta') }}
 
+  sync-gitee:
+    name: Sync Release to Gitee
+    needs: [build-binaries, create-release]
+    if: always() && needs.create-release.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Download binaries
+        uses: actions/download-artifact@v4
+        with:
+          name: binaries
+          path: dist
+
       - name: Delete old Gitee releases
         env:
           GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
         run: |
-          # Get all releases and delete them (keep only latest)
           releases=$(curl -s -H "Authorization: token ${GITEE_TOKEN}" \
             "https://gitee.com/api/v5/repos/Yogdunana/deploypilot/releases" | jq -r '.[].id')
           for release_id in $releases; do
