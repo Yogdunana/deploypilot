@@ -7,6 +7,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/Yogdunana/deploypilot/internal/model"
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 )
@@ -54,7 +55,7 @@ Examples:
 			credType = "password"
 		}
 		if tenantID == "" {
-			tenantID = "tenant-default"
+			tenantID = model.DefaultTenantID
 		}
 
 		// Read value
@@ -113,7 +114,7 @@ Examples:
 }
 
 func init() {
-	credentialAddCmd.Flags().String("tenant-id", "tenant-default", "tenant ID (default: tenant-default)")
+	credentialAddCmd.Flags().String("tenant-id", model.DefaultTenantID, "tenant ID (default: "+model.DefaultTenantID+")")
 	credentialAddCmd.Flags().StringP("name", "n", "", "credential name (required)")
 	credentialAddCmd.Flags().StringP("type", "t", "password", "credential type: password, ssh_key, token")
 	credentialAddCmd.Flags().Bool("value-stdin", false, "read value from stdin")

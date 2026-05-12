@@ -52,7 +52,7 @@ func (s *DeviceService) RegisterDevice(userID, userAgent, ip, name string, trust
 	// New device
 	device := model.Device{
 		ID:         uuid.New().String(),
-		TenantID:   "tenant-default",
+		TenantID:   model.DefaultTenantID,
 		UserID:     userID,
 		DeviceID:   deviceID,
 		DeviceName: name,

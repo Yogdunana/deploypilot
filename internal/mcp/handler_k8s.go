@@ -5,10 +5,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+
+	"github.com/Yogdunana/deploypilot/internal/model"
 	"github.com/mark3labs/mcp-go/mcp"
 )
 func handleListClusters(ctx context.Context, d K8sService, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	tenantID := request.GetString("tenant_id", "tenant-default")
+	tenantID := request.GetString("tenant_id", model.DefaultTenantID)
 
 	clusters, err := d.ListClusters(ctx, tenantID)
 	if err != nil {

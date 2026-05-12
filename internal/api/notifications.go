@@ -61,7 +61,7 @@ func CreateNotification(db *gorm.DB) gin.HandlerFunc {
 		input.ID = uuid.New().String()
 		input.Type = "notify"
 		if input.TenantID == "" {
-			input.TenantID = "tenant-default"
+			input.TenantID = model.DefaultTenantID
 		}
 		input.Enabled = true
 

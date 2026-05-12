@@ -25,7 +25,7 @@ func NewPluginHandler(lifecycleManager *plugin.Manager) *PluginHandler {
 // @Tags         Plugins
 // @Produce      json
 // @Security     BearerAuth
-// @Param        tenant_id query string false "Tenant ID" default("tenant-default")
+// @Param        tenant_id query string false "Tenant ID" default(model.DefaultTenantID)
 // @Param        provider query string false "Filter by provider (dns, notify, registry, cicd, server, ssl)"
 // @Success      200 {object} map[string]interface{} "status, data (array of Plugin)"
 // @Failure      401 {object} map[string]interface{} "unauthorized"
@@ -35,7 +35,7 @@ func (h *PluginHandler) ListPlugins() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		tenantID := c.Query("tenant_id")
 		if tenantID == "" {
-			tenantID = "tenant-default"
+			tenantID = model.DefaultTenantID
 		}
 		provider := c.Query("provider")
 
@@ -82,7 +82,7 @@ func (h *PluginHandler) CreatePlugin() gin.HandlerFunc {
 			return
 		}
 		if input.TenantID == "" {
-			input.TenantID = "tenant-default"
+			input.TenantID = model.DefaultTenantID
 		}
 		if input.Version == "" {
 			input.Version = "1.0.0"

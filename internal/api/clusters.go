@@ -41,7 +41,7 @@ func CreateCluster(bridge *service.Bridge) gin.HandlerFunc {
 			return
 		}
 		if input.TenantID == "" {
-			input.TenantID = "tenant-default"
+			input.TenantID = model.DefaultTenantID
 		}
 
 		cluster, err := bridge.CreateCluster(c.Request.Context(), &model.Cluster{
@@ -71,7 +71,7 @@ func CreateCluster(bridge *service.Bridge) gin.HandlerFunc {
 // @Tags         Clusters
 // @Produce      json
 // @Security     BearerAuth
-// @Param        tenant_id query string false "Tenant ID" default("tenant-default")
+// @Param        tenant_id query string false "Tenant ID" default(model.DefaultTenantID)
 // @Success      200 {object} map[string]interface{} "status, data (array of Cluster)"
 // @Failure      401 {object} map[string]interface{} "unauthorized"
 // @Failure      500 {object} map[string]interface{} "internal error"
@@ -80,7 +80,7 @@ func ListClusters(bridge *service.Bridge) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		tenantID := c.Query("tenant_id")
 		if tenantID == "" {
-			tenantID = "tenant-default"
+			tenantID = model.DefaultTenantID
 		}
 
 		clusters, err := bridge.ListClusters(c.Request.Context(), tenantID)

@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/Yogdunana/deploypilot/internal/auth"
+	"github.com/Yogdunana/deploypilot/internal/model"
 	"github.com/Yogdunana/deploypilot/internal/service"
 	"github.com/gin-gonic/gin"
 )
@@ -106,7 +107,7 @@ func AddIPWhitelist(c *gin.Context) {
 		userIDStr,
 		input.Description,
 		input.CIDR,
-		"tenant-default",
+		model.DefaultTenantID,
 		userIDStr,
 	)
 	if err != nil {

@@ -124,7 +124,7 @@ func (s *OAuthService) HandleCallback(ctx context.Context, provider, code string
 			// Create new user
 			user = model.User{
 				ID:           uuid.New().String(),
-				TenantID:     "tenant-default",
+				TenantID:     model.DefaultTenantID,
 				RoleID:       "role-viewer",
 				Username:     userInfo.Username,
 				Email:        userInfo.Email,

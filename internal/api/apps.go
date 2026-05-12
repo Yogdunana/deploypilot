@@ -46,7 +46,7 @@ func CreateApp(db *gorm.DB) gin.HandlerFunc {
 		id := uuid.New().String()
 		tenantID := c.GetString(string(auth.UserIDKey))
 		if tenantID == "" {
-			tenantID = "tenant-default"
+			tenantID = model.DefaultTenantID
 		}
 
 		app := model.App{

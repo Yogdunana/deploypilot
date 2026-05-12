@@ -60,7 +60,7 @@ func (b *Bridge) ListPlugins(provider string) (interface{}, error) {
 		return nil, fmt.Errorf("database not available")
 	}
 
-	plugins, err := model.ListPlugins("tenant-default", provider)
+	plugins, err := model.ListPlugins(model.DefaultTenantID, provider)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list plugins: %w", err)
 	}

@@ -82,7 +82,7 @@ func seedDemoData(db *gorm.DB, adminPassword string) error {
 
 	adminUser := model.User{
 		ID:           "user-admin-demo",
-		TenantID:     "tenant-default",
+		TenantID:     model.DefaultTenantID,
 		RoleID:       "role-owner",
 		Username:     "admin",
 		Email:        "admin@deploypilot.dev",
@@ -104,7 +104,7 @@ func seedDemoData(db *gorm.DB, adminPassword string) error {
 	// ── Demo Credential (SSH) ──────────────────────────────────
 	demoCred := model.Credential{
 		ID:             "cred-demo-ssh",
-		TenantID:       "tenant-default",
+		TenantID:       model.DefaultTenantID,
 		Name:           "Local SSH Key",
 		Type:           "ssh",
 		EncryptedValue: "demo-ssh-key-placeholder",
@@ -125,7 +125,7 @@ func seedDemoData(db *gorm.DB, adminPassword string) error {
 	// ── Demo Provider (SSH) ────────────────────────────────────
 	demoProvider := model.Provider{
 		ID:       "provider-demo-ssh",
-		TenantID: "tenant-default",
+		TenantID: model.DefaultTenantID,
 		Type:     "ssh",
 		Name:     "Local SSH Provider",
 		Config:   `{"host":"localhost","port":22,"user":"root"}`,
@@ -147,7 +147,7 @@ func seedDemoData(db *gorm.DB, adminPassword string) error {
 	// ── Demo Server ────────────────────────────────────────────
 	demoServer := model.Server{
 		ID:           "server-demo-local",
-		TenantID:     "tenant-default",
+		TenantID:     model.DefaultTenantID,
 		CredentialID: demoCred.ID,
 		ProviderID:   demoProvider.ID,
 		Name:         "Local Dev Server",
@@ -172,7 +172,7 @@ func seedDemoData(db *gorm.DB, adminPassword string) error {
 	// ── Demo Application ───────────────────────────────────────
 	demoApp := model.App{
 		ID:             "app-demo-001",
-		TenantID:       "tenant-default",
+		TenantID:       model.DefaultTenantID,
 		ServerID:       demoServer.ID,
 		Name:           "demo-app",
 		RepoURL:        "https://github.com/example/demo-app",
@@ -202,7 +202,7 @@ func seedDemoData(db *gorm.DB, adminPassword string) error {
 	// ── Demo Alert Rule (CPU) ──────────────────────────────────
 	cpuAlertRule := model.AlertRuleRecord{
 		ID:              "alert-rule-cpu-demo",
-		TenantID:        "tenant-default",
+		TenantID:        model.DefaultTenantID,
 		Name:            "Demo CPU Alert",
 		MetricType:      "cpu",
 		Condition:       "gt",
@@ -229,7 +229,7 @@ func seedDemoData(db *gorm.DB, adminPassword string) error {
 	// ── Demo Alert Rule (Memory) ───────────────────────────────
 	memAlertRule := model.AlertRuleRecord{
 		ID:              "alert-rule-mem-demo",
-		TenantID:        "tenant-default",
+		TenantID:        model.DefaultTenantID,
 		Name:            "Demo Memory Alert",
 		MetricType:      "memory",
 		Condition:       "gt",
