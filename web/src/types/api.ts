@@ -39,6 +39,9 @@ export interface LoginResponse {
     email: string
     role: string
   }
+  requires_2fa?: boolean
+  two_fa_token?: string
+  user_id?: string
 }
 
 export interface DeployConfig {
