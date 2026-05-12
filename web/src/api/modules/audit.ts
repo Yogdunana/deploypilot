@@ -1,16 +1,19 @@
 import api from '@/api'
 import type { AuditLog } from '@/types/models'
 
-export interface AuditQuery {
-  user_id?: string
-  action?: string
-  resource_type?: string
-  start_time?: string
-  end_time?: string
+export interface AuditLogParams {
   page?: number
   page_size?: number
+  username?: string
+  action?: string
+  resource_type?: string
+  start_date?: string
+  end_date?: string
 }
 
-export function list(params?: AuditQuery) {
+export function list(params?: AuditLogParams) {
   return api.get<AuditLog[]>('/audit', { params })
 }
+
+// Alias for backward compatibility
+export const listLogs = list
