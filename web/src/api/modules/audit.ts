@@ -1,5 +1,6 @@
 import api from '@/api'
 import type { AuditLog } from '@/types/models'
+import type { ApiResponse, PaginatedResponse } from '@/types/api'
 
 export interface AuditLogParams {
   page?: number
@@ -12,7 +13,7 @@ export interface AuditLogParams {
 }
 
 export function list(params?: AuditLogParams) {
-  return api.get<AuditLog[]>('/audit', { params })
+  return api.get<ApiResponse<PaginatedResponse<AuditLog>>>('/audit', { params })
 }
 
 // Alias for backward compatibility

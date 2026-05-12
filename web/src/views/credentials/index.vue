@@ -193,7 +193,7 @@ async function fetchDetailAudit(item: any) {
   try {
     const res = await auditApi.listLogs({ resource_type: 'credential', page: 1, page_size: 10 })
     if (res.data.status === 'success') {
-      detailAuditLogs.value = res.data.data.filter(
+      detailAuditLogs.value = res.data.data.data.filter(
         (log: any) => log.detail?.includes(item.name) || String(log.resource_id) === String(item.id)
       )
     }
