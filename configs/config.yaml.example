@@ -62,6 +62,12 @@ audit:
   retention_days: 90       # Audit log retention period (days)
 
 log:
+  level: "info"              # Log level: debug, info, warn, error
+  format: "json"             # Log format: json, text
+  file: "/var/log/deploypilot/app.log"  # Optional: log file path (enables file logging)
+  max_size: "100MB"          # Max size per log file (e.g., 100MB, 1GB)
+  max_backups: 5             # Number of old log files to keep
+  enable_tracing: false      # Enable distributed tracing in logs
 
 # Notification configuration
 notify:
