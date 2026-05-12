@@ -28,10 +28,11 @@ export function setupRouterGuards(router: Router) {
         }
       }
 
-      const userRole = authStore.userRole?.toLowerCase()
+      const userRole = authStore.userRole?.toLowerCase() || ''
       const requiredRoles = to.meta.roles as string[]
 
-      if (userRole && !requiredRoles.includes(userRole)) {
+      // 修复：即使 userRole 为空也要检查权限
+      if (!requiredRoles.includes(userRole)) {
         return next({ name: 'Forbidden' })
       }
     }

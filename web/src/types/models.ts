@@ -77,9 +77,9 @@ export interface DeploymentRecord {
   container_name: string
   image: string
   status: string
-  preflight_code: number
+  preflight_code: string
   preflight_message: string
-  preflight_checks: PreflightCheck[]
+  preflight_checks: string // JSON string from backend
   error_message: string
   created_at: string
   updated_at: string

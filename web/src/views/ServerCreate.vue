@@ -25,7 +25,7 @@ async function handleSubmit() {
   }
   loading.value = true
   try {
-    await serversApi.create({ name: name.value, host: host.value, port: port.value } as any)
+    await serversApi.create({ name: name.value, host: host.value, port: port.value, user: user.value } as any)
     toast(t('servers.createSuccess') || '服务器添加成功', 'success')
     router.push('/servers')
   } catch (err: any) {
