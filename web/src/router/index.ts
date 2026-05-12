@@ -27,11 +27,12 @@ const router = createRouter({
       component: () => import('@/views/Forbidden.vue'),
       meta: { titleKey: 'common.forbidden' },
     },
+    // DashboardTV as standalone route (not in MainLayout) for TV display
     {
       path: '/dashboard-tv',
       name: 'DashboardTV',
       component: () => import('@/views/DashboardTV.vue'),
-      meta: { requiresAuth: true },
+      meta: { requiresAuth: true, titleKey: 'routes.dashboardTV' },
     },
     {
       path: '/',
@@ -269,44 +270,27 @@ const router = createRouter({
           path: 'settings/grafana',
           name: 'GrafanaSettings',
           component: () => import('@/views/GrafanaSettings.vue'),
-          meta: { titleKey: 'layout.grafana_settings', roles: ['owner', 'admin', 'dev'] },
+          meta: { titleKey: 'routes.grafanaSettings', roles: ['owner', 'admin', 'dev'] },
         },
         {
           path: 'grafana/dashboards',
           name: 'GrafanaDashboards',
           component: () => import('@/views/GrafanaDashboards.vue'),
-          meta: { titleKey: 'layout.grafana_dashboards' },
+          meta: { titleKey: 'routes.grafanaDashboards' },
         },
         {
           path: 'settings/oauth2',
           name: 'OAuth2Apps',
           component: () => import('@/views/oauth2/index.vue'),
-          meta: { titleKey: 'layout.oauth2_apps', roles: ['owner', 'admin'] },
+          meta: { titleKey: 'routes.oauth2Apps', roles: ['owner', 'admin'] },
         },
         {
           path: 'settings/plugins',
           name: 'PluginList',
           component: () => import('@/views/PluginList.vue'),
-          meta: { titleKey: 'layout.plugins', roles: ['owner', 'admin', 'dev'] },
+          meta: { titleKey: 'routes.pluginSettings', roles: ['owner', 'admin', 'dev'] },
         },
-        {
-          path: 'monitors',
-          name: 'UptimeMonitors',
-          component: () => import('@/views/UptimeMonitors.vue'),
-          meta: { titleKey: 'routes.uptimeMonitors' },
-        },
-        {
-          path: 'heartbeats',
-          name: 'Heartbeats',
-          component: () => import('@/views/Heartbeats.vue'),
-          meta: { titleKey: 'routes.heartbeats' },
-        },
-        {
-          path: 'dashboard-tv',
-          name: 'DashboardTVMain',
-          component: () => import('@/views/DashboardTV.vue'),
-          meta: { titleKey: 'routes.dashboardTV' },
-        },
+        // Removed duplicate routes: /monitors, /heartbeats (use /monitor/uptime, /monitor/heartbeats)
         {
           path: 'notifications',
           name: 'Notifications',

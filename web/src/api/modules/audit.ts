@@ -1,16 +1,16 @@
 import api from '@/api'
-import type { PaginatedResponse, PaginationParams } from '@/types/api'
 import type { AuditLog } from '@/types/models'
 
-export interface AuditLogParams extends PaginationParams {
-  user_id?: number
+export interface AuditQuery {
+  user_id?: string
   action?: string
   resource_type?: string
-  username?: string
-  start_date?: string
-  end_date?: string
+  start_time?: string
+  end_time?: string
+  page?: number
+  page_size?: number
 }
 
-export function listLogs(params?: AuditLogParams) {
-  return api.get<PaginatedResponse<AuditLog[]>>('/audit-logs', { params })
+export function list(params?: AuditQuery) {
+  return api.get<AuditLog[]>('/audit', { params })
 }
