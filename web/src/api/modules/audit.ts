@@ -11,21 +11,19 @@ export interface AuditLogParams {
   end_date?: string
 }
 
-export interface AuditLogResponse {
+export interface AuditLogListResponse {
   status: string
-  data: {
-    data: AuditLog[]
-    pagination: {
-      total: number
-      page: number
-      page_size: number
-      total_pages: number
-    }
+  data: AuditLog[]
+  pagination: {
+    total: number
+    page: number
+    page_size: number
+    total_pages: number
   }
 }
 
 export function list(params?: AuditLogParams) {
-  return api.get<AuditLogResponse>('/audit', { params })
+  return api.get<AuditLogListResponse>('/audit', { params })
 }
 
 // Alias for backward compatibility
