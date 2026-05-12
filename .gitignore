@@ -31,6 +31,7 @@ Thumbs.db
 # Frontend
 web/node_modules/
 web/dist/
+web/tsconfig.tsbuildinfo
 
 # Build cache
 /tmp/
