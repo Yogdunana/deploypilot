@@ -81,8 +81,8 @@ async function fetchLogs() {
     if (filterEndDate.value) params.end_date = filterEndDate.value
     const res = await auditApi.listLogs(params)
     if (res.data.status === 'success') {
-      logs.value = res.data.data
-      total.value = res.data.pagination?.total || 0
+      logs.value = res.data.data.data
+      total.value = res.data.data.pagination?.total || 0
     }
   } catch (err: any) {
     toast(err.response?.data?.message || t('audit.fetchFailed'), 'destructive')
