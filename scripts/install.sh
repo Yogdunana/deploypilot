@@ -240,15 +240,29 @@ function download_file() {
     local url="$1"
     local output="$2"
     local desc="$3"
-    if command -v curl >/dev/null 2>&1; then
-        # Download with progress bar (-# shows progress as bar)
-        curl -fSL# "$url" -o "$output"
-    elif command -v wget >/dev/null 2>&1; then
-        wget --show-progress "$url" -O "$output" 2>&1
-    else
-        print_error "需要 curl 或 wget 来下载文件"
-        return 1
-    fi
+    local max_attempts="${4:-2}"
+    
+    for attempt in $(seq 1 $max_attempts); do
+        if command -v curl >/dev/null 2>&1; then
+            # Download with timeout (60s) and retry
+            if curl -fsSL --connect-timeout 30 --max-time 300 "$url" -o "$output" 2>/dev/null; then
+                return 0
+            fi
+        elif command -v wget >/dev/null 2>&1; then
+            if wget --timeout=300 -q "$url" -O "$output" 2>/dev/null; then
+                return 0
+            fi
+        else
+            print_error "需要 curl 或 wget 来下载文件"
+            return 1
+        fi
+        
+        if [ $attempt -lt $max_attempts ]; then
+            sleep 5
+        fi
+    done
+    
+    return 1
 }
 
 function install_docker() {
@@ -326,11 +340,10 @@ function download_binaries() {
     local urls=()
 
     if [ "$use_mirror" = "true" ]; then
-        # Gitee Release (most reliable for China)
-        urls+=("https://gitee.com/${GITHUB_REPO}/releases/download/${version}")
-        # GitHub mirror proxies
-        urls+=("https://mirror.ghproxy.com/https://github.com/${GITHUB_REPO}/releases/download/${version}")
+        # GitHub mirror proxies (most reliable for China)
         urls+=("https://ghfast.top/https://github.com/${GITHUB_REPO}/releases/download/${version}")
+        # Gitee Release (backup)
+        urls+=("https://gitee.com/${GITHUB_REPO}/releases/download/${version}")
     fi
 
     # GitHub direct (always try last)
@@ -685,8 +698,8 @@ EOF
         cat > /etc/systemd/system/deploypilot.service << EOF
 [Unit]
 Description=DeployPilot API Server
-After=network.target docker.service
-Requires=docker.service
+After=network.target
+Wants=docker.service
 
 [Service]
 Type=simple
