@@ -174,7 +174,7 @@ jobs:
     needs: [build-binaries, create-release]
     if: always() && needs.create-release.result == 'success'
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 120
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -197,17 +197,50 @@ jobs:
               "https://gitee.com/api/v5/repos/Yogdunana/deploypilot/releases/$release_id"
           done
 
-      - name: Sync Release to Gitee
-        uses: nicennnnnnnlee/action-gitee-release@master
-        with:
-          gitee_action: create_release
-          gitee_owner: Yogdunana
-          gitee_repo: deploypilot
-          gitee_token: ${{ secrets.GITEE_TOKEN }}
-          gitee_tag_name: ${{ github.ref_name }}
-          gitee_release_name: ${{ github.ref_name }}
-          gitee_release_body: ${{ github.ref_name }}
-          gitee_target_commitish: main
-          gitee_upload_retry_times: 5
-          gitee_files: |
-            dist/*
+      - name: Create Gitee Release
+        env:
+          GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
+        run: |
+          TAG="${{ github.ref_name }}"
+          
+          # Create release
+          echo "Creating Gitee release for tag $TAG"
+          release_response=$(curl -s -X POST \
+            -H "Authorization: token ${GITEE_TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d "{\"tag_name\": \"$TAG\", \"name\": \"$TAG\", \"body\": \"Release $TAG\", \"target_commitish\": \"main\"}" \
+            "https://gitee.com/api/v5/repos/Yogdunana/deploypilot/releases")
+          
+          release_id=$(echo "$release_response" | jq -r '.id')
+          if [ "$release_id" = "null" ] || [ -z "$release_id" ]; then
+            echo "Failed to create release: $release_response"
+            exit 1
+          fi
+          echo "Created release ID: $release_id"
+          
+          # Upload assets with retry
+          for file in dist/*; do
+            filename=$(basename "$file")
+            echo "Uploading $filename..."
+            
+            for attempt in 1 2 3; do
+              response=$(curl -s -X POST \
+                -H "Authorization: token ${GITEE_TOKEN}" \
+                -F "file=@$file" \
+                "https://gitee.com/api/v5/repos/Yogdunana/deploypilot/releases/$release_id/attach_files")
+              
+              if echo "$response" | jq -e '.id' > /dev/null 2>&1; then
+                echo "  ✓ $filename uploaded successfully"
+                break
+              else
+                echo "  ✗ Attempt $attempt failed: $response"
+                if [ $attempt -eq 3 ]; then
+                  echo "  Failed to upload $filename after 3 attempts"
+                else
+                  sleep 30
+                fi
+              fi
+            done
+          done
+          
+          echo "Gitee release sync completed"
