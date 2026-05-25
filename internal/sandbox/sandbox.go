@@ -164,17 +164,11 @@ func DefaultConfig() Config {
 				Description: "Deny moving critical system directories",
 				Enabled:     true,
 			},
-			// Bypass prevention
+			// Bypass prevention - block obfuscated command execution via pipes
 			{
-				ID:          "deny-base64-exec",
-				Pattern:     `base64\s+(-d|--decode)`,
-				Description: "Deny base64 decode (command obfuscation bypass)",
-				Enabled:     true,
-			},
-			{
-				ID:          "deny-xxd-exec",
-				Pattern:     `xxd\s+(-r|--revert)`,
-				Description: "Deny xxd reverse (command obfuscation bypass)",
+				ID:          "deny-base64-pipe-sh",
+				Pattern:     `base64\s+(-d|--decode).*\|\s*(ba)?sh`,
+				Description: "Deny base64 decode piped to shell (command obfuscation)",
 				Enabled:     true,
 			},
 			{
