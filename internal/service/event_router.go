@@ -204,6 +204,10 @@ func (r *EventRouter) routeEvent(event BusEvent) {
 
 // matchRule checks if an event matches a routing rule.
 func (r *EventRouter) matchRule(rule EventRouteRule, event BusEvent) bool {
+	if !rule.Enabled {
+		return false
+	}
+
 	// Match event type
 	if rule.EventType != "" && rule.EventType != event.Type {
 		return false
