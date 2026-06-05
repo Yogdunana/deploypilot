@@ -185,17 +185,23 @@ jobs:
           path: dist/
           merge-multiple: true
 
-      - name: Delete old Gitee releases
+      - name: Delete existing release if exists
         env:
           GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
         run: |
-          releases=$(curl -s -H "Authorization: token ${GITEE_TOKEN}" \
-            "https://gitee.com/api/v5/repos/Yogdunana/deploypilot/releases" | jq -r '.[].id')
-          for release_id in $releases; do
-            echo "Deleting Gitee release $release_id"
+          TAG="${{ github.ref_name }}"
+          # Check if release with this tag already exists and delete it
+          release_info=$(curl -s -H "Authorization: token ${GITEE_TOKEN}" \
+            "https://gitee.com/api/v5/repos/Yogdunana/deploypilot/releases/tags/$TAG")
+          release_id=$(echo "$release_info" | jq -r '.id')
+          if [ "$release_id" != "null" ] && [ -n "$release_id" ]; then
+            echo "Deleting existing release $release_id for tag $TAG"
             curl -s -X DELETE -H "Authorization: token ${GITEE_TOKEN}" \
               "https://gitee.com/api/v5/repos/Yogdunana/deploypilot/releases/$release_id"
-          done
+            sleep 5
+          else
+            echo "No existing release found for tag $TAG"
+          fi
 
       - name: Create Gitee Release
         env:
