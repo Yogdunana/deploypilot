@@ -11,32 +11,41 @@ import (
 )
 
 // CheckResourceAccess checks if a user has access to a specific resource.
-// Resource types: "app", "server", "credential", "cluster"
-// owner and admin roles can access all resources.
-// viewer and dev roles can only access resources they created (user_id match),
-// except for clusters which are tenant-level resources (tenant_id match).
+// Resource types: "app", "server", "credential", "cluster", "registry".
+// owner and admin roles can access all resources within their tenant.
+// Non-admin roles (viewer, dev) can only access resources belonging to their tenant.
 func CheckResourceAccess(db *gorm.DB, resourceType, resourceID, role, userID string) bool {
-	// owner and admin can access all resources
+	// Empty role or userID means unauthenticated — deny access.
+	if role == "" || userID == "" {
+		return false
+	}
+
+	// owner and admin can access all resources within their tenant
 	if role == "owner" || role == "admin" {
 		return true
 	}
 
-	// viewer and dev can only access their own resources
+	// Resolve the user's tenant_id once for all tenant-scoped lookups.
+	var tenantID string
+	if err := db.Table("users").Where("id = ?", userID).Pluck("tenant_id", &tenantID).Error; err != nil || tenantID == "" {
+		return false
+	}
+
+	// All resource tables (apps, servers, credentials, clusters, registries)
+	// are scoped by tenant_id, not user_id. Check that the resource exists
+	// and belongs to the user's tenant.
 	var count int64
 	switch resourceType {
 	case "app":
-		db.Table("apps").Where("id = ? AND user_id = ?", resourceID, userID).Count(&count)
+		db.Table("apps").Where("id = ? AND tenant_id = ?", resourceID, tenantID).Count(&count)
 	case "server":
-		db.Table("servers").Where("id = ? AND user_id = ?", resourceID, userID).Count(&count)
+		db.Table("servers").Where("id = ? AND tenant_id = ?", resourceID, tenantID).Count(&count)
 	case "credential":
-		db.Table("credentials").Where("id = ? AND user_id = ?", resourceID, userID).Count(&count)
+		db.Table("credentials").Where("id = ? AND tenant_id = ?", resourceID, tenantID).Count(&count)
 	case "cluster":
-		// Clusters are tenant-level resources: check tenant_id match
-		var tenantID string
-		if err := db.Table("users").Where("id = ?", userID).Pluck("tenant_id", &tenantID).Error; err != nil {
-			return false
-		}
 		db.Table("clusters").Where("id = ? AND tenant_id = ?", resourceID, tenantID).Count(&count)
+	case "registry":
+		db.Table("registries").Where("id = ? AND tenant_id = ?", resourceID, tenantID).Count(&count)
 	default:
 		return false
 	}
