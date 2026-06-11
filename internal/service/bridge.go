@@ -89,8 +89,9 @@ type Bridge struct {
 	taskCounter int64
 
 	// Backup tracking (moved from package-level globals, Issue #117)
-	backupMu   sync.RWMutex
-	backupApps map[string]string // backupID -> appID
+	backupMu        sync.RWMutex
+	backupApps      map[string]string // backupID -> appID
+	backupFilePaths map[string]string // backupID -> backupFilePath
 
 	// Port forwarding (moved from package-level globals, Issue #117)
 	portForwardMu sync.RWMutex
@@ -127,6 +128,7 @@ func NewBridge(db *gorm.DB, executor deployer.CommandExecutor, encryptionKey []b
 		featureFlagCache: NewFeatureFlagCache(5 * time.Minute),
 		tasks:            make(map[string]*taskInfo),
 		backupApps:       make(map[string]string),
+		backupFilePaths:  make(map[string]string),
 		portForwards:     make(map[string]*portForwardEntry),
 	}
 }

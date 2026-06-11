@@ -30,9 +30,8 @@ func (b *Bridge) Backup(ctx context.Context, appID string) (string, error) {
 
 	backupID := uuid.New().String()
 
-	// Attempt a docker-based backup: exec into the container and create a timestamped archive
-	timestamp := time.Now().Format("20060102-150405")
-	backupFile := fmt.Sprintf("/tmp/backup-%s-%s.tar.gz", containerName, timestamp)
+	// Use backupID in filename to ensure restore can find the correct file
+	backupFile := fmt.Sprintf("/tmp/backup-%s-%s.tar.gz", containerName, backupID[:8])
 	cmd := fmt.Sprintf("docker exec %s sh -c 'tar czf - /app /data 2>/dev/null' > %s 2>/dev/null || echo 'no_backup_paths'", util.ShellQuote(containerName), util.ShellQuote(backupFile))
 	out, err := b.Executor.RunCommand(ctx, cmd)
 	if err != nil {
@@ -41,9 +40,10 @@ func (b *Bridge) Backup(ctx context.Context, appID string) (string, error) {
 
 	slog.Info("backup completed", "app_id", appID, "container", containerName, "backup_id", backupID, "file", backupFile)
 
-	// Store backup-to-app mapping for Restore
+	// Store backup-to-app mapping and file path for Restore
 	b.backupMu.Lock()
 	b.backupApps[backupID] = appID
+	b.backupFilePaths[backupID] = backupFile
 	b.backupMu.Unlock()
 
 	return backupID, nil
@@ -56,11 +56,12 @@ func (b *Bridge) Restore(ctx context.Context, backupID string) (*mcp.ContainerSt
 		return nil, fmt.Errorf("database not available")
 	}
 
-	// Look up the appID from the backup mapping
+	// Look up the appID and backup file path from the backup mapping
 	b.backupMu.RLock()
 	appID, ok := b.backupApps[backupID]
+	backupFile, filePathOk := b.backupFilePaths[backupID]
 	b.backupMu.RUnlock()
-	if !ok {
+	if !ok || !filePathOk {
 		return nil, fmt.Errorf("backup %s not found", backupID)
 	}
 
@@ -84,9 +85,7 @@ func (b *Bridge) Restore(ctx context.Context, backupID string) (*mcp.ContainerSt
 		slog.WarnContext(ctx, "failed to remove container during restore", "container", containerName, "error", err)
 	}
 
-	// Restore from backup
-	timestamp := time.Now().Format("20060102-150405")
-	backupFile := fmt.Sprintf("/tmp/backup-%s-%s.tar.gz", containerName, timestamp)
+	// Restore from backup using the stored file path
 	cmd := fmt.Sprintf("docker run --rm -v /tmp:/backup -v %s-data:/data alpine sh -c 'cd /data && tar xzf /backup/%s 2>/dev/null || true'",
 		util.ShellQuote(containerName), util.ShellQuote(filepath.Base(backupFile)))
 	output, err := exec.RunCommand(ctx, cmd)

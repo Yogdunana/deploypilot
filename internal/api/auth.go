@@ -517,7 +517,7 @@ func ResetPassword(db *gorm.DB) gin.HandlerFunc {
 
 		hash, err := crypto.HashPassword(input.Password)
 		if err != nil {
-			respondErrori18n(c, http.StatusInternalServerError, "error.auth.failed_to_generate_token")
+			respondErrori18n(c, http.StatusInternalServerError, "error.auth.failed_to_hash_password")
 			return
 		}
 
