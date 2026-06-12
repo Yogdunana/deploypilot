@@ -107,7 +107,7 @@ func extractAPIKey(c *gin.Context) string {
 	}
 
 	// Try Authorization: Bearer dp_xxx
-	authHeader := c.GetHeader("Authorization")
+	authHeader := strings.TrimSpace(c.GetHeader("Authorization"))
 	if authHeader == "" {
 		return ""
 	}

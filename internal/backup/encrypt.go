@@ -9,14 +9,14 @@ import (
 )
 
 const (
-	// Encryption header: "DPENC01" (8 bytes) + nonce (12 bytes) + ciphertext
+	// Encryption header: "DPENC01" (7 bytes) + nonce (12 bytes) + ciphertext
 	encryptionHeader = "DPENC01"
-	headerSize       = 8
+	headerSize       = 7
 	nonceSize        = 12
 )
 
 // EncryptBackup encrypts data using AES-256-GCM.
-// The output format is: header (8 bytes) + nonce (12 bytes) + ciphertext + tag.
+// The output format is: header (7 bytes) + nonce (12 bytes) + ciphertext + tag.
 // The key must be exactly 32 bytes (AES-256).
 func EncryptBackup(key, plaintext []byte) ([]byte, error) {
 	if len(key) != 32 {
