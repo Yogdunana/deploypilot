@@ -9,8 +9,8 @@ import (
 )
 
 const (
-	// Encryption header: "DPENC01" (8 bytes) + nonce (12 bytes) + ciphertext
-	encryptionHeader = "DPENC01"
+	// Encryption header: "DPENC001" (8 bytes) + nonce (12 bytes) + ciphertext
+	encryptionHeader = "DPENC001"
 	headerSize       = 8
 	nonceSize        = 12
 )
