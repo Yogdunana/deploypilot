@@ -341,7 +341,7 @@ function download_binaries() {
 
     if [ "$use_mirror" = "true" ]; then
         # GitHub mirror proxies (most reliable for China)
-        urls+=("https://ghfast.top/https://github.com/${GITHUB_REPO}/releases/download/${version}")
+        urls+=("https://ghfast.top/github.com/${GITHUB_REPO}/releases/download/${version}")
         # Gitee Release (backup)
         urls+=("https://gitee.com/${GITHUB_REPO}/releases/download/${version}")
     fi
