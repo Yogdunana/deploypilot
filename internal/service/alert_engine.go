@@ -278,11 +278,13 @@ func (e *AlertEngine) GroupAlert(ruleID, groupKey, severity string) (*model.Aler
 
 	// Update existing group
 	if err := e.db.Model(&group).Updates(map[string]interface{}{
-		"alert_count": gorm.Expr("alert_count + 1"),
+		"alert_count":  gorm.Expr("alert_count + 1"),
 		"last_alert_at": time.Now(),
 		"updated_at":   time.Now(),
 	}).Error; err != nil {
 		slog.Error("failed to update alert group", "group", group.GroupKey, "error", err)
+	} else {
+		group.AlertCount++
 	}
 
 	return &group, nil

@@ -36,6 +36,10 @@ func NewScheduler(db *gorm.DB, bridge *Bridge) *Scheduler {
 
 // Start loads enabled tasks from DB and starts the cron scheduler.
 func (s *Scheduler) Start(ctx context.Context) {
+	if s.db == nil {
+		slog.Warn("scheduler started without database")
+		return
+	}
 	// Load tasks from DB
 	var tasks []model.ScheduledTask
 	if err := s.db.Where("enabled = ?", true).Find(&tasks).Error; err != nil {
@@ -59,10 +63,13 @@ func (s *Scheduler) Stop() {
 
 // AddTask registers a new scheduled task and starts it.
 func (s *Scheduler) AddTask(ctx context.Context, task model.ScheduledTask) error {
+	if s.db == nil {
+		return fmt.Errorf("scheduler has no database")
+	}
 	if err := s.db.Create(&task).Error; err != nil {
 		return fmt.Errorf("failed to create task: %w", err)
 	}
-	if task.Enabled {
+	if task.Enabled != nil && *task.Enabled {
 		s.addTask(ctx, task)
 	}
 	return nil
@@ -82,11 +89,17 @@ func (s *Scheduler) RemoveTask(taskID string) error {
 
 // ToggleTask enables or disables a task.
 func (s *Scheduler) ToggleTask(ctx context.Context, taskID string, enabled bool) error {
-	if err := s.db.Model(&model.ScheduledTask{}).Where("id = ?", taskID).Update("enabled", enabled).Error; err != nil {
-		return err
+	result := s.db.Model(&model.ScheduledTask{}).Where("id = ?", taskID).Update("enabled", enabled)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return fmt.Errorf("task not found: %s", taskID)
 	}
 
 	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	if !enabled {
 		if entryID, ok := s.entryMap[taskID]; ok {
 			s.cron.Remove(entryID)
@@ -95,10 +108,9 @@ func (s *Scheduler) ToggleTask(ctx context.Context, taskID string, enabled bool)
 	} else {
 		var task model.ScheduledTask
 		if err := s.db.First(&task, "id = ?", taskID).Error; err == nil {
-			s.addTask(ctx, task)
+			s.addTaskLocked(ctx, task)
 		}
 	}
-	s.mu.Unlock()
 	return nil
 }
 
@@ -122,6 +134,13 @@ func (s *Scheduler) GetTaskExecutions(taskID string, limit int) ([]model.TaskExe
 
 // addTask adds a task to the cron scheduler.
 func (s *Scheduler) addTask(ctx context.Context, task model.ScheduledTask) {
+	s.mu.Lock()
+	s.addTaskLocked(ctx, task)
+	s.mu.Unlock()
+}
+
+// addTaskLocked adds a task to the cron scheduler. Caller must hold s.mu.
+func (s *Scheduler) addTaskLocked(ctx context.Context, task model.ScheduledTask) {
 	entryID, err := s.cron.AddFunc(task.CronExpr, func() {
 		s.executeTask(ctx, task)
 	})
@@ -130,9 +149,7 @@ func (s *Scheduler) addTask(ctx context.Context, task model.ScheduledTask) {
 		return
 	}
 
-	s.mu.Lock()
 	s.entryMap[task.ID] = entryID
-	s.mu.Unlock()
 }
 
 // executeTask runs a scheduled task and records the result.

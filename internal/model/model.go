@@ -266,7 +266,7 @@ type ScheduledTask struct {
 	TaskType    string     `gorm:"size:30;index" json:"task_type"`    // shell, backup, health_check, log_cleanup
 	Command     string     `gorm:"type:text" json:"command"`          // shell command or task-specific config
 	ServerID    string     `gorm:"index" json:"server_id,omitempty"`
-	Enabled     bool       `gorm:"default:true" json:"enabled"`
+	Enabled     *bool      `gorm:"default:true" json:"enabled"`
 	Timeout     int        `gorm:"default:300" json:"timeout"`        // seconds
 	LastRunAt   *time.Time `json:"last_run_at,omitempty"`
 	LastStatus  string     `gorm:"size:20" json:"last_status,omitempty"` // success, failed, running
