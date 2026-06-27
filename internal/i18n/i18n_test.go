@@ -1,69 +1,111 @@
 package i18n
 
-import "testing"
+import (
+	"testing"
+)
 
-func TestTReturnsKnownKey(t *testing.T) {
-	result := T("en", "error.auth.authorization_header_required")
-	if result == "" {
-		t.Error("T() should return a non-empty translation for a known key")
-	}
-	if result == "error.auth.authorization_header_required" {
-		t.Error("T() should return the translated value, not the key itself")
+func TestT_English(t *testing.T) {
+	result := T("en", "error.auth.insufficient_permissions")
+	if result == "error.auth.insufficient_permissions" {
+		t.Error("expected translated message, got key")
 	}
 }
 
-func TestTReturnsKeyForUnknownKey(t *testing.T) {
-	key := "nonexistent.key.that.does.not.exist"
-	result := T("en", key)
-	if result != key {
-		t.Errorf("T() should return the key itself for unknown keys, got %q", result)
+func TestT_Chinese(t *testing.T) {
+	result := T("zh", "error.auth.insufficient_permissions")
+	if result == "error.auth.insufficient_permissions" {
+		t.Error("expected translated message, got key")
 	}
 }
 
-func TestTFWithFormatArgs(t *testing.T) {
-	result := Tf("en", "error.app.invalid_request", "test error")
-	if result == "" {
-		t.Error("Tf() should return a non-empty formatted translation")
-	}
-	// The template is "invalid request: %s", so it should contain the arg
-	if result == "error.app.invalid_request" {
-		t.Error("Tf() should return the formatted translation, not the key")
+func TestT_FallbackToDefault(t *testing.T) {
+	result := T("nonexistent", "error.auth.insufficient_permissions")
+	if result == "error.auth.insufficient_permissions" {
+		t.Error("expected fallback to default locale, got key")
 	}
 }
 
-func TestTChineseLocale(t *testing.T) {
-	result := T("zh", "error.auth.authorization_header_required")
-	if result == "" {
-		t.Error("T() should return a non-empty translation for zh locale")
+func TestT_UnknownKey(t *testing.T) {
+	result := T("en", "unknown.key.that.does.not.exist")
+	if result != "unknown.key.that.does.not.exist" {
+		t.Errorf("expected key as fallback, got %q", result)
 	}
 }
 
-func TestTFallbackToDefaultLocale(t *testing.T) {
-	// Request a nonexistent locale; should fall back to "en"
-	result := T("fr", "error.auth.authorization_header_required")
-	if result == "" {
-		t.Error("T() should fall back to default locale when requested locale is not found")
+func TestT_EmptyKey(t *testing.T) {
+	result := T("en", "")
+	if result != "" {
+		t.Errorf("expected empty string for empty key, got %q", result)
 	}
 }
 
-func TestGetLocaleReturnsMap(t *testing.T) {
-	m := GetLocale("en")
-	if m == nil {
-		t.Error("GetLocale('en') should return a non-nil map")
+func TestT_EmptyLocale(t *testing.T) {
+	result := T("", "error.auth.insufficient_permissions")
+	if result == "error.auth.insufficient_permissions" {
+		t.Error("expected fallback to default locale for empty locale")
 	}
-	if len(m) == 0 {
-		t.Error("GetLocale('en') should return a non-empty map")
+}
+
+func TestTf_Formatting(t *testing.T) {
+	result := Tf("en", "%s %d", "hello", 42)
+	if result != "hello 42" {
+		t.Errorf("expected formatted string, got %q", result)
+	}
+}
+
+func TestTf_UnknownKeyWithFormat(t *testing.T) {
+	result := Tf("en", "unknown.key %s", "test")
+	expected := "unknown.key test"
+	if result != expected {
+		t.Errorf("expected %q, got %q", expected, result)
+	}
+}
+
+func TestGetLocale(t *testing.T) {
+	locale := GetLocale("en")
+	if locale == nil {
+		t.Error("expected non-nil locale map for 'en'")
+	}
+	if len(locale) == 0 {
+		t.Error("expected non-empty locale map")
+	}
+}
+
+func TestGetLocale_Nonexistent(t *testing.T) {
+	locale := GetLocale("nonexistent")
+	if locale == nil {
+		t.Error("expected fallback to default locale for nonexistent locale")
+	}
+}
+
+func TestGetLocale_Empty(t *testing.T) {
+	locale := GetLocale("")
+	if locale == nil {
+		t.Error("expected default locale for empty locale")
 	}
 }
 
 func TestSetDefaultLocale(t *testing.T) {
-	original := "en"
-	SetDefaultLocale("zh")
-	defer SetDefaultLocale(original)
+	original := defaultLocale
+	defer func() {
+		SetDefaultLocale(original)
+	}()
 
-	// After changing default, unknown locale should fall back to zh
-	result := T("nonexistent", "error.auth.authorization_header_required")
-	if result == "" {
-		t.Error("T() should fall back to zh locale after SetDefaultLocale('zh')")
+	SetDefaultLocale("zh")
+	if defaultLocale != "zh" {
+		t.Errorf("expected default locale 'zh', got %q", defaultLocale)
+	}
+}
+
+func TestSetDefaultLocale_Invalid(t *testing.T) {
+	original := defaultLocale
+	defer func() {
+		SetDefaultLocale(original)
+	}()
+
+	SetDefaultLocale("nonexistent")
+	result := T("en", "error.auth.insufficient_permissions")
+	if result == "error.auth.insufficient_permissions" {
+		t.Error("expected translation for valid locale even when default is invalid")
 	}
 }
