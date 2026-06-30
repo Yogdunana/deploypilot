@@ -27,9 +27,17 @@ func (b *Bridge) getRemoteExecutor(ctx context.Context, serverID string) (*sshCl
 		credRow := make(map[string]interface{})
 		if err := b.DB.Table("credentials").Where("id = ?", credID).Take(&credRow).Error; err == nil {
 			encrypted := toString(credRow["encrypted_value"])
+			credType := toString(credRow["type"])
 			if b.EncryptionKey != nil && encrypted != "" {
 				if decrypted, err := crypto.Decrypt(b.EncryptionKey, encrypted); err == nil {
-					password = decrypted
+					// Route decrypted value based on credential type
+					// Type "ssh_key" -> KeyBytes (SSH private key)
+					// Type "ssh" (password) or others -> Password field
+					if credType == "ssh_key" {
+						keyStr = decrypted
+					} else {
+						password = decrypted
+					}
 				}
 			}
 		}
