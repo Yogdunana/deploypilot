@@ -1,6 +1,7 @@
 package api
 
 import (
+	"errors"
 	"math"
 	"net/http"
 	"strconv"
@@ -9,6 +10,7 @@ import (
 
 	"github.com/Yogdunana/deploypilot/internal/i18n"
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 // respondSuccess returns a standardized success response.
@@ -47,6 +49,11 @@ func respondErrori18n(c *gin.Context, code int, key string, args ...interface{})
 // If the AppError has an I18nKey, it uses i18n.Tf to translate the message and suggestion.
 // Otherwise, it falls back to the static Message and Suggestion fields.
 func RespondAppError(c *gin.Context, appErr *appErrors.AppError) {
+	if appErr == nil {
+		respondErrori18n(c, http.StatusInternalServerError, "error.common.internal_error")
+		return
+	}
+
 	locale := i18n.GetLocaleFromContext(c)
 
 	var message, suggestion string
@@ -58,12 +65,23 @@ func RespondAppError(c *gin.Context, appErr *appErrors.AppError) {
 		suggestion = appErr.Suggestion
 	}
 
-	c.JSON(http.StatusInternalServerError, gin.H{
+	status := http.StatusInternalServerError
+	if appErr != nil {
+		status = appErr.HTTPStatus()
+	}
+
+	c.JSON(status, gin.H{
 		"status":     "error",
 		"code":       appErr.Code,
 		"message":    message,
 		"suggestion": suggestion,
 	})
+}
+
+// isRecordNotFound reports whether err is a GORM record-not-found error,
+// including errors wrapped by model helpers.
+func isRecordNotFound(err error) bool {
+	return errors.Is(err, gorm.ErrRecordNotFound)
 }
 
 // respondPaginated returns a paginated response with metadata.
@@ -87,14 +105,20 @@ func respondPaginated(c *gin.Context, data interface{}, total, page, pageSize in
 // parsePaginationParams extracts and validates pagination parameters from query string.
 // Returns page (1-based) and pageSize with sensible defaults.
 func parsePaginationParams(c *gin.Context) (page, pageSize int) {
-	page, _ = strconv.Atoi(c.DefaultQuery("page", "1"))
-	pageSize, _ = strconv.Atoi(c.DefaultQuery("page_size", "20"))
+	page = 1
+	pageSize = 20
 
-	if page < 1 {
-		page = 1
+	if raw := c.Query("page"); raw != "" {
+		parsed, err := strconv.Atoi(raw)
+		if err == nil && parsed >= 1 {
+			page = parsed
+		}
 	}
-	if pageSize < 1 || pageSize > 100 {
-		pageSize = 20
+	if raw := c.Query("page_size"); raw != "" {
+		parsed, err := strconv.Atoi(raw)
+		if err == nil && parsed >= 1 && parsed <= 100 {
+			pageSize = parsed
+		}
 	}
 	return
 }

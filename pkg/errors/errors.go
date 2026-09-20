@@ -1,6 +1,9 @@
 package errors
 
-import "fmt"
+import (
+	"fmt"
+	"net/http"
+)
 
 // AppError is the unified application error type with code, message, suggestion, and cause.
 type AppError struct {
@@ -22,6 +25,28 @@ func (e *AppError) Error() string {
 // Unwrap implements errors.Unwrap for error chain traversal.
 func (e *AppError) Unwrap() error {
 	return e.Err
+}
+
+// HTTPStatus maps the application error code to an HTTP status.
+// Not-found and client errors must not be reported as 500.
+func (e *AppError) HTTPStatus() int {
+	if e == nil {
+		return http.StatusInternalServerError
+	}
+	switch e.Code {
+	case "E003", "E007", "E011", "E013", "E015":
+		return http.StatusNotFound
+	case "E008":
+		return http.StatusBadRequest
+	case "E012":
+		return http.StatusConflict
+	case "E017":
+		return http.StatusForbidden
+	case "E002", "E009":
+		return http.StatusBadGateway
+	default:
+		return http.StatusInternalServerError
+	}
 }
 
 // WithCause sets the underlying error cause and returns the AppError for chaining.

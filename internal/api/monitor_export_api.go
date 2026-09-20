@@ -25,8 +25,20 @@ func ExportMonitorData(db *gorm.DB) gin.HandlerFunc {
 
 		startStr := c.DefaultQuery("start", time.Now().Add(-7*24*time.Hour).Format(time.RFC3339))
 		endStr := c.DefaultQuery("end", time.Now().Format(time.RFC3339))
-		start, _ := time.Parse(time.RFC3339, startStr)
-		end, _ := time.Parse(time.RFC3339, endStr)
+		start, err := time.Parse(time.RFC3339, startStr)
+		if err != nil {
+			respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_time_range")
+			return
+		}
+		end, err := time.Parse(time.RFC3339, endStr)
+		if err != nil {
+			respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_time_range")
+			return
+		}
+		if end.Before(start) {
+			respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_time_range")
+			return
+		}
 
 		var results []map[string]interface{}
 		db.Table("monitor_check_results").

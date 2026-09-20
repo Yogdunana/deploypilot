@@ -37,6 +37,10 @@ func AddServer(bridge *service.Bridge) gin.HandlerFunc {
 		if input.Port == 0 {
 			input.Port = 22
 		}
+		if input.Port < 1 || input.Port > 65535 {
+			respondErrori18n(c, http.StatusBadRequest, "error.server.invalid_port")
+			return
+		}
 		if input.User == "" {
 			input.User = "root"
 		}

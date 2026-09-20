@@ -26,11 +26,24 @@ func NewGrafanaAPI(db *gorm.DB, cfg *config.GrafanaConfig) *GrafanaAPI {
 	return &GrafanaAPI{db: db, cfg: cfg}
 }
 
+// grafanaService returns a Grafana service using the handler DB.
+// It writes an error response and returns nil when the DB is unavailable
+// instead of panicking via MustGet.
+func (a *GrafanaAPI) grafanaService(c *gin.Context) *service.GrafanaService {
+	if a == nil || a.db == nil {
+		respondErrori18n(c, http.StatusInternalServerError, "error.user.database_not_available")
+		return nil
+	}
+	return service.NewGrafanaService(a.db, a.cfg, nil)
+}
+
 // GetStatus returns the current Grafana integration status.
 // GET /api/v1/grafana/status
 func (a *GrafanaAPI) GetStatus(c *gin.Context) {
-	db := c.MustGet("db").(*gorm.DB)
-	svc := service.NewGrafanaService(db, a.cfg, nil)
+	svc := a.grafanaService(c)
+	if svc == nil {
+		return
+	}
 	status := svc.GetStatus()
 	respondSuccess(c, status)
 }
@@ -38,8 +51,10 @@ func (a *GrafanaAPI) GetStatus(c *gin.Context) {
 // TestConnection tests the connection to the Grafana server.
 // POST /api/v1/grafana/test
 func (a *GrafanaAPI) TestConnection(c *gin.Context) {
-	db := c.MustGet("db").(*gorm.DB)
-	svc := service.NewGrafanaService(db, a.cfg, nil)
+	svc := a.grafanaService(c)
+	if svc == nil {
+		return
+	}
 	result, err := svc.TestConnection()
 	if err != nil {
 		respondErrori18n(c, http.StatusServiceUnavailable, "error.common.internal_error")
@@ -51,8 +66,10 @@ func (a *GrafanaAPI) TestConnection(c *gin.Context) {
 // SyncAll performs a full sync of datasources, folder, and dashboards.
 // POST /api/v1/grafana/sync
 func (a *GrafanaAPI) SyncAll(c *gin.Context) {
-	db := c.MustGet("db").(*gorm.DB)
-	svc := service.NewGrafanaService(db, a.cfg, nil)
+	svc := a.grafanaService(c)
+	if svc == nil {
+		return
+	}
 	count, err := svc.SyncAll()
 	if err != nil {
 		respondErrori18n(c, http.StatusInternalServerError, "error.common.internal_error")
@@ -64,8 +81,10 @@ func (a *GrafanaAPI) SyncAll(c *gin.Context) {
 // ListDashboards returns all Grafana dashboards.
 // GET /api/v1/grafana/dashboards
 func (a *GrafanaAPI) ListDashboards(c *gin.Context) {
-	db := c.MustGet("db").(*gorm.DB)
-	svc := service.NewGrafanaService(db, a.cfg, nil)
+	svc := a.grafanaService(c)
+	if svc == nil {
+		return
+	}
 	dashboards, err := svc.ListDashboards()
 	if err != nil {
 		respondErrori18n(c, http.StatusInternalServerError, "error.common.internal_error")
@@ -77,9 +96,11 @@ func (a *GrafanaAPI) ListDashboards(c *gin.Context) {
 // GetDashboard returns a single dashboard by ID.
 // GET /api/v1/grafana/dashboards/:id
 func (a *GrafanaAPI) GetDashboard(c *gin.Context) {
-	db := c.MustGet("db").(*gorm.DB)
+	svc := a.grafanaService(c)
+	if svc == nil {
+		return
+	}
 	id := c.Param("id")
-	svc := service.NewGrafanaService(db, a.cfg, nil)
 	dashboard, err := svc.GetDashboard(id)
 	if err != nil {
 		respondErrori18n(c, http.StatusNotFound, "error.common.not_found")
@@ -91,7 +112,10 @@ func (a *GrafanaAPI) GetDashboard(c *gin.Context) {
 // CreateDashboard creates a new custom Grafana dashboard.
 // POST /api/v1/grafana/dashboards
 func (a *GrafanaAPI) CreateDashboard(c *gin.Context) {
-	db := c.MustGet("db").(*gorm.DB)
+	svc := a.grafanaService(c)
+	if svc == nil {
+		return
+	}
 
 	var req struct {
 		Name string `json:"name" binding:"required"`
@@ -103,7 +127,6 @@ func (a *GrafanaAPI) CreateDashboard(c *gin.Context) {
 		return
 	}
 
-	svc := service.NewGrafanaService(db, a.cfg, nil)
 	dashboard, err := svc.CreateCustomDashboard(req.Name, req.JSON, req.Tags)
 	if err != nil {
 		respondErrori18n(c, http.StatusInternalServerError, "error.common.internal_error")
@@ -119,7 +142,10 @@ func (a *GrafanaAPI) CreateDashboard(c *gin.Context) {
 // UpdateDashboard updates an existing Grafana dashboard.
 // PUT /api/v1/grafana/dashboards/:id
 func (a *GrafanaAPI) UpdateDashboard(c *gin.Context) {
-	db := c.MustGet("db").(*gorm.DB)
+	svc := a.grafanaService(c)
+	if svc == nil {
+		return
+	}
 	id := c.Param("id")
 
 	var req struct {
@@ -138,7 +164,6 @@ func (a *GrafanaAPI) UpdateDashboard(c *gin.Context) {
 		enabled = *req.Enabled
 	}
 
-	svc := service.NewGrafanaService(db, a.cfg, nil)
 	if err := svc.UpdateCustomDashboard(id, req.Name, req.JSON, req.Tags, enabled); err != nil {
 		respondErrori18n(c, http.StatusInternalServerError, "error.common.internal_error")
 		return
@@ -150,10 +175,12 @@ func (a *GrafanaAPI) UpdateDashboard(c *gin.Context) {
 // DeleteDashboard deletes a Grafana dashboard.
 // DELETE /api/v1/grafana/dashboards/:id
 func (a *GrafanaAPI) DeleteDashboard(c *gin.Context) {
-	db := c.MustGet("db").(*gorm.DB)
+	svc := a.grafanaService(c)
+	if svc == nil {
+		return
+	}
 	id := c.Param("id")
 
-	svc := service.NewGrafanaService(db, a.cfg, nil)
 	if err := svc.DeleteCustomDashboard(id); err != nil {
 		respondErrori18n(c, http.StatusInternalServerError, "error.common.internal_error")
 		return
@@ -165,8 +192,10 @@ func (a *GrafanaAPI) DeleteDashboard(c *gin.Context) {
 // ExportAll exports all dashboards and datasource configuration.
 // GET /api/v1/grafana/export
 func (a *GrafanaAPI) ExportAll(c *gin.Context) {
-	db := c.MustGet("db").(*gorm.DB)
-	svc := service.NewGrafanaService(db, a.cfg, nil)
+	svc := a.grafanaService(c)
+	if svc == nil {
+		return
+	}
 	result, err := svc.ExportAll()
 	if err != nil {
 		respondErrori18n(c, http.StatusInternalServerError, "error.common.internal_error")

@@ -212,6 +212,36 @@ func TestFormatForLog_Nil(t *testing.T) {
 	}
 }
 
+func TestHTTPStatus(t *testing.T) {
+	tests := []struct {
+		err  *AppError
+		want int
+	}{
+		{ErrContainerNotFound, 404},
+		{ErrConfigNotFound, 404},
+		{ErrAppNotFound, 404},
+		{ErrCredentialNotFound, 404},
+		{ErrDNSRecordNotFound, 404},
+		{ErrConfigInvalid, 400},
+		{ErrAppAlreadyExists, 409},
+		{ErrPermissionDenied, 403},
+		{ErrSSHConnectFailed, 502},
+		{ErrDBConnectionFailed, 502},
+		{ErrDeployFailed, 500},
+		{nil, 500},
+	}
+	for _, tc := range tests {
+		got := tc.err.HTTPStatus()
+		if got != tc.want {
+			code := "<nil>"
+			if tc.err != nil {
+				code = tc.err.Code
+			}
+			t.Errorf("HTTPStatus(%s) = %d, want %d", code, got, tc.want)
+		}
+	}
+}
+
 func TestAppError_WithCauseReturnsSelf(t *testing.T) {
 	err := New("E001", "test", "fix")
 	cause := stdlibError("cause")

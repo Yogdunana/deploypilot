@@ -34,9 +34,9 @@ type sessionResponse struct {
 // @Router       /sessions [get]
 func ListSessions() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		userID, _ := c.Get(string(auth.UserIDKey))
-		uid, _ := userID.(string)
-		if uid == "" {
+		userID, exists := c.Get(string(auth.UserIDKey))
+		uid, ok := userID.(string)
+		if !exists || !ok || uid == "" {
 			respondError(c, http.StatusUnauthorized, "unauthorized")
 			return
 		}
@@ -99,9 +99,9 @@ func ListSessions() gin.HandlerFunc {
 // @Router       /sessions/{token_id} [delete]
 func KickSession() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		userID, _ := c.Get(string(auth.UserIDKey))
-		uid, _ := userID.(string)
-		if uid == "" {
+		userID, exists := c.Get(string(auth.UserIDKey))
+		uid, ok := userID.(string)
+		if !exists || !ok || uid == "" {
 			respondError(c, http.StatusUnauthorized, "unauthorized")
 			return
 		}
@@ -158,9 +158,9 @@ func KickSession() gin.HandlerFunc {
 // @Router       /login-history [get]
 func ListLoginHistory(auditSvc *service.AuditService) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		userID, _ := c.Get(string(auth.UserIDKey))
-		uid, _ := userID.(string)
-		if uid == "" {
+		userID, exists := c.Get(string(auth.UserIDKey))
+		uid, ok := userID.(string)
+		if !exists || !ok || uid == "" {
 			respondError(c, http.StatusUnauthorized, "unauthorized")
 			return
 		}

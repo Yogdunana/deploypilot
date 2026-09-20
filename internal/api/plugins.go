@@ -126,7 +126,11 @@ func (h *PluginHandler) GetPlugin() gin.HandlerFunc {
 
 		plug, err := model.GetPlugin(id)
 		if err != nil {
-			respondErrori18n(c, http.StatusInternalServerError, "error.plugin.not_found")
+			if isRecordNotFound(err) {
+				respondErrori18n(c, http.StatusNotFound, "error.plugin.not_found")
+				return
+			}
+			respondErrori18n(c, http.StatusInternalServerError, "error.common.internal_error")
 			return
 		}
 
@@ -159,7 +163,11 @@ func (h *PluginHandler) UpdatePlugin() gin.HandlerFunc {
 
 		plug, err := model.UpdatePlugin(id, input)
 		if err != nil {
-			respondErrori18n(c, http.StatusInternalServerError, "error.plugin.not_found")
+			if isRecordNotFound(err) {
+				respondErrori18n(c, http.StatusNotFound, "error.plugin.not_found")
+				return
+			}
+			respondErrori18n(c, http.StatusInternalServerError, "error.common.internal_error")
 			return
 		}
 
@@ -188,7 +196,11 @@ func (h *PluginHandler) DeletePlugin() gin.HandlerFunc {
 		}
 
 		if err := model.DeletePlugin(id); err != nil {
-			respondErrori18n(c, http.StatusInternalServerError, "error.plugin.not_found")
+			if isRecordNotFound(err) {
+				respondErrori18n(c, http.StatusNotFound, "error.plugin.not_found")
+				return
+			}
+			respondErrori18n(c, http.StatusInternalServerError, "error.common.internal_error")
 			return
 		}
 

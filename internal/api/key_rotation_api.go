@@ -15,13 +15,18 @@ func RotateLicenseKeysHandler(b *service.Bridge) gin.HandlerFunc {
 			N int `json:"n"` // total shares for Shamir backup (optional)
 			M int `json:"m"` // threshold shares for Shamir backup (optional)
 		}
-		_ = c.ShouldBindJSON(&input)
+		if c.Request.ContentLength != 0 {
+			if err := c.ShouldBindJSON(&input); err != nil {
+				respondErrori18n(c, http.StatusBadRequest, "error.common.invalid_request")
+				return
+			}
+		}
 
 		userID, _ := c.Get("user_id")
 		uidStr := fmt.Sprintf("%v", userID)
 		result, err := b.RotateLicenseKeys(c.Request.Context(), uidStr)
 		if err != nil {
-			respondErrori18n(c, http.StatusInternalServerError, err.Error())
+			respondErrori18n(c, http.StatusInternalServerError, "error.common.internal_error")
 			return
 		}
 		respondSuccess(c, result)
@@ -33,7 +38,7 @@ func ListLicenseKeysHandler(b *service.Bridge) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		result, err := b.ListLicenseKeys(c.Request.Context())
 		if err != nil {
-			respondErrori18n(c, http.StatusInternalServerError, err.Error())
+			respondErrori18n(c, http.StatusInternalServerError, "error.common.internal_error")
 			return
 		}
 		respondSuccess(c, result)
@@ -45,7 +50,7 @@ func GetKeyVersionHandler(b *service.Bridge) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		result, err := b.GetCurrentKeyVersion(c.Request.Context())
 		if err != nil {
-			respondErrori18n(c, http.StatusInternalServerError, err.Error())
+			respondErrori18n(c, http.StatusInternalServerError, "error.common.internal_error")
 			return
 		}
 		respondSuccess(c, result)
@@ -66,7 +71,7 @@ func BackupKeyShamirHandler(b *service.Bridge) gin.HandlerFunc {
 
 		result, err := b.BackupKeyWithShamir(c.Request.Context(), input.N, input.M)
 		if err != nil {
-			respondErrori18n(c, http.StatusInternalServerError, err.Error())
+			respondErrori18n(c, http.StatusInternalServerError, "error.common.internal_error")
 			return
 		}
 		respondSuccess(c, result)

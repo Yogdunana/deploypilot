@@ -25,10 +25,22 @@ func NewOutboundWebhookAPI(db *gorm.DB) *OutboundWebhookAPI {
 	return &OutboundWebhookAPI{db: db}
 }
 
+// dbOrAbort returns the handler DB or writes a 500 and returns nil.
+func (a *OutboundWebhookAPI) dbOrAbort(c *gin.Context) *gorm.DB {
+	if a == nil || a.db == nil {
+		respondErrori18n(c, http.StatusInternalServerError, "error.user.database_not_available")
+		return nil
+	}
+	return a.db
+}
+
 // CreateWebhook creates a new outbound webhook.
 // POST /api/v1/webhooks
 func (a *OutboundWebhookAPI) CreateWebhook(c *gin.Context) {
-	db := c.MustGet("db").(*gorm.DB)
+	db := a.dbOrAbort(c)
+	if db == nil {
+		return
+	}
 
 	var webhook model.OutboundWebhook
 	if err := c.ShouldBindJSON(&webhook); err != nil {
@@ -51,7 +63,10 @@ func (a *OutboundWebhookAPI) CreateWebhook(c *gin.Context) {
 // ListWebhooks lists all outbound webhooks with pagination.
 // GET /api/v1/webhooks?page=1&page_size=20
 func (a *OutboundWebhookAPI) ListWebhooks(c *gin.Context) {
-	db := c.MustGet("db").(*gorm.DB)
+	db := a.dbOrAbort(c)
+	if db == nil {
+		return
+	}
 
 	page, pageSize := parsePaginationParams(c)
 
@@ -68,7 +83,10 @@ func (a *OutboundWebhookAPI) ListWebhooks(c *gin.Context) {
 // GetWebhook gets a webhook by ID.
 // GET /api/v1/webhooks/:id
 func (a *OutboundWebhookAPI) GetWebhook(c *gin.Context) {
-	db := c.MustGet("db").(*gorm.DB)
+	db := a.dbOrAbort(c)
+	if db == nil {
+		return
+	}
 	id := c.Param("id")
 
 	svc := service.NewOutboundWebhookService(db, nil)
@@ -84,7 +102,10 @@ func (a *OutboundWebhookAPI) GetWebhook(c *gin.Context) {
 // UpdateWebhook updates an existing webhook.
 // PUT /api/v1/webhooks/:id
 func (a *OutboundWebhookAPI) UpdateWebhook(c *gin.Context) {
-	db := c.MustGet("db").(*gorm.DB)
+	db := a.dbOrAbort(c)
+	if db == nil {
+		return
+	}
 	id := c.Param("id")
 
 	var webhook model.OutboundWebhook
@@ -106,7 +127,10 @@ func (a *OutboundWebhookAPI) UpdateWebhook(c *gin.Context) {
 // DeleteWebhook deletes a webhook by ID.
 // DELETE /api/v1/webhooks/:id
 func (a *OutboundWebhookAPI) DeleteWebhook(c *gin.Context) {
-	db := c.MustGet("db").(*gorm.DB)
+	db := a.dbOrAbort(c)
+	if db == nil {
+		return
+	}
 	id := c.Param("id")
 
 	svc := service.NewOutboundWebhookService(db, nil)
@@ -121,7 +145,10 @@ func (a *OutboundWebhookAPI) DeleteWebhook(c *gin.Context) {
 // TestWebhook sends a test delivery to a webhook.
 // POST /api/v1/webhooks/:id/test
 func (a *OutboundWebhookAPI) TestWebhook(c *gin.Context) {
-	db := c.MustGet("db").(*gorm.DB)
+	db := a.dbOrAbort(c)
+	if db == nil {
+		return
+	}
 	id := c.Param("id")
 
 	svc := service.NewOutboundWebhookService(db, nil)
@@ -137,7 +164,10 @@ func (a *OutboundWebhookAPI) TestWebhook(c *gin.Context) {
 // ListDeliveries lists delivery records for a webhook with pagination.
 // GET /api/v1/webhooks/:id/deliveries?page=1&page_size=20
 func (a *OutboundWebhookAPI) ListDeliveries(c *gin.Context) {
-	db := c.MustGet("db").(*gorm.DB)
+	db := a.dbOrAbort(c)
+	if db == nil {
+		return
+	}
 	webhookID := c.Param("id")
 
 	page, pageSize := parsePaginationParams(c)
@@ -163,7 +193,10 @@ func (a *OutboundWebhookAPI) ListDeliveries(c *gin.Context) {
 // GetDelivery gets a single delivery record.
 // GET /api/v1/webhooks/:id/deliveries/:did
 func (a *OutboundWebhookAPI) GetDelivery(c *gin.Context) {
-	db := c.MustGet("db").(*gorm.DB)
+	db := a.dbOrAbort(c)
+	if db == nil {
+		return
+	}
 	deliveryID := c.Param("did")
 	webhookID := c.Param("id")
 
