@@ -95,6 +95,11 @@
 
   "error.common.invalid_request": "invalid request",
   "error.common.internal_error": "internal server error",
+  "error.common.not_found": "resource not found",
+  "error.common.invalid_time_range": "invalid start or end time, expected RFC3339",
+  "error.server.invalid_port": "port must be between 1 and 65535",
+  "error.ssh.invalid_key_bits": "SSH key size must be 2048 or 4096 bits",
+  "error.batch.invalid_strategy": "strategy must be sequential, parallel, or rolling",
   "error.system.health_check_failed": "health check failed",
 
   "error.rate_limit.exceeded": "rate limit exceeded",

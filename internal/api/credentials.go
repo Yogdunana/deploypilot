@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/Yogdunana/deploypilot/internal/auth"
 	"github.com/Yogdunana/deploypilot/internal/model"
 	"github.com/Yogdunana/deploypilot/internal/service"
 	"github.com/gin-gonic/gin"
@@ -108,8 +107,7 @@ func CreateCredential(bridge *service.Bridge, auditSvc *service.AuditService) gi
 		}
 		// Record audit log
 		if auditSvc != nil {
-			userID, _ := c.Get(string(auth.UserIDKey))
-			uid, _ := userID.(string)
+			uid, _ := getUserIDStrFromCtx(c)
 			_ = auditSvc.Record(c.Request.Context(), service.AuditEntry{
 				UserID:       parseUserID(uid),
 				Username:     uid,
@@ -156,8 +154,7 @@ func UpdateCredential(bridge *service.Bridge, auditSvc *service.AuditService) gi
 		}
 		// Record audit log
 		if auditSvc != nil {
-			userID, _ := c.Get(string(auth.UserIDKey))
-			uid, _ := userID.(string)
+			uid, _ := getUserIDStrFromCtx(c)
 			_ = auditSvc.Record(c.Request.Context(), service.AuditEntry{
 				UserID:       parseUserID(uid),
 				Username:     uid,
@@ -191,8 +188,7 @@ func DeleteCredential(bridge *service.Bridge, auditSvc *service.AuditService) gi
 		}
 		// Record audit log
 		if auditSvc != nil {
-			userID, _ := c.Get(string(auth.UserIDKey))
-			uid, _ := userID.(string)
+			uid, _ := getUserIDStrFromCtx(c)
 			_ = auditSvc.Record(c.Request.Context(), service.AuditEntry{
 				UserID:       parseUserID(uid),
 				Username:     uid,
@@ -239,8 +235,7 @@ func RotateCredential(bridge *service.Bridge, auditSvc *service.AuditService) gi
 
 		// Record audit log
 		if auditSvc != nil {
-			userID, _ := c.Get(string(auth.UserIDKey))
-			uid, _ := userID.(string)
+			uid, _ := getUserIDStrFromCtx(c)
 			name, _ := result.(string)
 			_ = auditSvc.Record(c.Request.Context(), service.AuditEntry{
 				UserID:       parseUserID(uid),
@@ -253,9 +248,9 @@ func RotateCredential(bridge *service.Bridge, auditSvc *service.AuditService) gi
 		}
 
 		respondSuccess(c, gin.H{
-			"id":          id,
-			"status":      "rotated",
-			"message":     "credential value rotated",
+			"id":           id,
+			"status":       "rotated",
+			"message":      "credential value rotated",
 			"last_rotated": time.Now().Format(time.RFC3339),
 		})
 	}

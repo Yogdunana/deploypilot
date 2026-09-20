@@ -32,6 +32,14 @@ func (s *SSHAPI) GenerateKeyPair(c *gin.Context) {
 		return
 	}
 
+	if req.Bits == 0 {
+		req.Bits = 4096
+	}
+	if req.Bits != 2048 && req.Bits != 4096 {
+		respondErrori18n(c, http.StatusBadRequest, "error.ssh.invalid_key_bits")
+		return
+	}
+
 	keyPair, err := s.sshSvc.GenerateKeyPair(req.Name, req.Bits)
 	if err != nil {
 		respondErrori18n(c, http.StatusInternalServerError, "error.common.internal_error")

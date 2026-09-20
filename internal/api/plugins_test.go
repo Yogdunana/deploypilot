@@ -264,8 +264,8 @@ func TestGetPluginNotFound(t *testing.T) {
 	router := setupPluginTestRouter(db)
 
 	w := makePluginRequest(router, "GET", "/api/v1/plugins/nonexistent", nil)
-	if w.Code != http.StatusInternalServerError {
-		t.Fatalf("expected 500, got %d: %s", w.Code, w.Body.String())
+	if w.Code != http.StatusNotFound {
+		t.Fatalf("expected 404, got %d: %s", w.Code, w.Body.String())
 	}
 }
 

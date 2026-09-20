@@ -7,6 +7,7 @@ import (
 	"github.com/Yogdunana/deploypilot/internal/mcp"
 	"github.com/Yogdunana/deploypilot/internal/model"
 	"github.com/Yogdunana/deploypilot/internal/provider/server"
+	k8sapi "k8s.io/api/core/v1"
 )
 
 // ========== Kubernetes Deployment Operations ==========
@@ -39,6 +40,7 @@ func (b *Bridge) K8sDeploy(ctx context.Context, clusterID string, app *mcp.K8sDe
 
 	return k8sProvider.Deploy(ctx, deployCfg)
 }
+
 // K8sListDeployments lists deployments in a Kubernetes cluster.
 func (b *Bridge) K8sListDeployments(ctx context.Context, clusterID string) (interface{}, error) {
 	if b.DB == nil {
@@ -68,12 +70,12 @@ func (b *Bridge) K8sListDeployments(ctx context.Context, clusterID string) (inte
 			replicas = *d.Spec.Replicas
 		}
 		items = append(items, map[string]interface{}{
-			"name":            d.Name,
-			"namespace":       d.Namespace,
-			"replicas":        replicas,
-			"available":       d.Status.AvailableReplicas,
-			"image":           d.Spec.Template.Spec.Containers[0].Image,
-			"created_at":      d.CreationTimestamp.Format("2006-01-02T15:04:05Z"),
+			"name":       d.Name,
+			"namespace":  d.Namespace,
+			"replicas":   replicas,
+			"available":  d.Status.AvailableReplicas,
+			"image":      firstContainerImage(d.Spec.Template.Spec.Containers),
+			"created_at": d.CreationTimestamp.Format("2006-01-02T15:04:05Z"),
 		})
 	}
 
@@ -84,6 +86,7 @@ func (b *Bridge) K8sListDeployments(ctx context.Context, clusterID string) (inte
 		"items":   items,
 	}, nil
 }
+
 // K8sGetPods retrieves pods from a Kubernetes cluster.
 func (b *Bridge) K8sGetPods(ctx context.Context, clusterID, labelSelector string) (interface{}, error) {
 	if b.DB == nil {
@@ -117,14 +120,14 @@ func (b *Bridge) K8sGetPods(ctx context.Context, clusterID, labelSelector string
 		}
 
 		items = append(items, map[string]interface{}{
-			"name":              p.Name,
-			"namespace":         p.Namespace,
-			"status":            string(p.Status.Phase),
-			"pod_ip":            p.Status.PodIP,
-			"node":              p.Spec.NodeName,
-			"restart_count":     p.Status.ContainerStatuses[0].RestartCount,
-			"created_at":        p.CreationTimestamp.Format("2006-01-02T15:04:05Z"),
-			"containers":        containers,
+			"name":          p.Name,
+			"namespace":     p.Namespace,
+			"status":        string(p.Status.Phase),
+			"pod_ip":        p.Status.PodIP,
+			"node":          p.Spec.NodeName,
+			"restart_count": totalRestartCount(p.Status.ContainerStatuses),
+			"created_at":    p.CreationTimestamp.Format("2006-01-02T15:04:05Z"),
+			"containers":    containers,
 		})
 	}
 
@@ -134,4 +137,21 @@ func (b *Bridge) K8sGetPods(ctx context.Context, clusterID, labelSelector string
 		"cluster": clusterID,
 		"items":   items,
 	}, nil
+}
+
+// firstContainerImage returns the first container image, or empty if none exist.
+func firstContainerImage(containers []k8sapi.Container) string {
+	if len(containers) == 0 {
+		return ""
+	}
+	return containers[0].Image
+}
+
+// totalRestartCount sums restart counts across all container statuses.
+func totalRestartCount(statuses []k8sapi.ContainerStatus) int32 {
+	var n int32
+	for i := range statuses {
+		n += statuses[i].RestartCount
+	}
+	return n
 }

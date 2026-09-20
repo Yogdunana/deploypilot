@@ -63,6 +63,18 @@ async function handleRegister() {
     error.value = t('register.passwordTooShort')
     return
   }
+  if (!/[A-Z]/.test(password.value)) {
+    error.value = t('register.passwordNeedUpper')
+    return
+  }
+  if (!/[a-z]/.test(password.value)) {
+    error.value = t('register.passwordNeedLower')
+    return
+  }
+  if (!/[0-9]/.test(password.value)) {
+    error.value = t('register.passwordNeedDigit')
+    return
+  }
   if (password.value !== confirmPassword.value) {
     error.value = t('register.passwordMismatch')
     return

@@ -98,7 +98,11 @@ func GetRegistry() gin.HandlerFunc {
 
 		registry, err := model.GetRegistry(id)
 		if err != nil {
-			respondErrori18n(c, http.StatusInternalServerError, "error.registry.not_found")
+			if isRecordNotFound(err) {
+				respondErrori18n(c, http.StatusNotFound, "error.registry.not_found")
+				return
+			}
+			respondErrori18n(c, http.StatusInternalServerError, "error.common.internal_error")
 			return
 		}
 		respondSuccess(c, registry)
@@ -136,6 +140,10 @@ func UpdateRegistry() gin.HandlerFunc {
 
 		registry, err := model.UpdateRegistry(id, input.Name, input.Provider, input.URL, input.Username, input.Password)
 		if err != nil {
+			if isRecordNotFound(err) {
+				respondErrori18n(c, http.StatusNotFound, "error.registry.not_found")
+				return
+			}
 			respondErrori18n(c, http.StatusInternalServerError, "error.common.internal_error")
 			return
 		}
@@ -158,6 +166,10 @@ func DeleteRegistry() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		id := c.Param("id")
 		if err := model.DeleteRegistry(id); err != nil {
+			if isRecordNotFound(err) {
+				respondErrori18n(c, http.StatusNotFound, "error.registry.not_found")
+				return
+			}
 			respondErrori18n(c, http.StatusInternalServerError, "error.common.internal_error")
 			return
 		}

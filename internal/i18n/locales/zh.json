@@ -95,6 +95,11 @@
 
   "error.common.invalid_request": "无效请求",
   "error.common.internal_error": "服务器内部错误",
+  "error.common.not_found": "资源不存在",
+  "error.common.invalid_time_range": "开始或结束时间无效，需要 RFC3339 格式",
+  "error.server.invalid_port": "端口必须在 1 到 65535 之间",
+  "error.ssh.invalid_key_bits": "SSH 密钥长度必须为 2048 或 4096 位",
+  "error.batch.invalid_strategy": "策略必须是 sequential、parallel 或 rolling",
   "error.system.health_check_failed": "健康检查失败",
 
   "error.rate_limit.exceeded": "请求频率超限",

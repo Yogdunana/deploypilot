@@ -13,10 +13,10 @@ func BatchDeployHandler(b *service.Bridge) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var input struct {
 			Apps          []map[string]interface{} `json:"apps" binding:"required"`
-			Strategy      string                    `json:"strategy"`
-			MaxConcurrent int                       `json:"max_concurrent"`
-			BatchSize     int                       `json:"batch_size"`
-			ServerIDs     []string                  `json:"server_ids"`
+			Strategy      string                   `json:"strategy"`
+			MaxConcurrent int                      `json:"max_concurrent"`
+			BatchSize     int                      `json:"batch_size"`
+			ServerIDs     []string                 `json:"server_ids"`
 		}
 		if err := c.ShouldBindJSON(&input); err != nil {
 			respondErrori18n(c, http.StatusBadRequest, "invalid request body")
@@ -29,6 +29,14 @@ func BatchDeployHandler(b *service.Bridge) gin.HandlerFunc {
 		if len(input.Apps) > 100 {
 			respondErrori18n(c, http.StatusBadRequest, "batch size cannot exceed 100")
 			return
+		}
+		if input.Strategy != "" {
+			switch mcp.DeployStrategy(input.Strategy) {
+			case mcp.StrategySequential, mcp.StrategyParallel, mcp.StrategyRolling:
+			default:
+				respondErrori18n(c, http.StatusBadRequest, "error.batch.invalid_strategy")
+				return
+			}
 		}
 
 		config := mcp.BatchDeployConfig{

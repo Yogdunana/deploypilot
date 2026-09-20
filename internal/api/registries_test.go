@@ -190,8 +190,8 @@ func TestGetRegistry_NotFound(t *testing.T) {
 	r := registryTestRouter(db)
 	w := makeRequest(r, "GET", "/api/v1/registries/nonexistent-id", nil, "")
 
-	if w.Code != http.StatusInternalServerError {
-		t.Fatalf("expected 500, got %d: %s", w.Code, w.Body.String())
+	if w.Code != http.StatusNotFound {
+		t.Fatalf("expected 404, got %d: %s", w.Code, w.Body.String())
 	}
 }
 
