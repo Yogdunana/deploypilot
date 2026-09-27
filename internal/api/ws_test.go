@@ -54,17 +54,21 @@ func setupWSTestDB(t *testing.T) *gorm.DB {
 	return db
 }
 
-func getWSToken(t *testing.T) string {
+// getWSTicket mints a one-time WebSocket ticket from the same store the router
+// authenticates against. WebSocket authentication accepts tickets only — a JWT in
+// the query string is rejected on purpose, so tests must go through the ticket API.
+func getWSTicket(t *testing.T, store *auth.WSTicketStore) string {
 	t.Helper()
-	token, err := auth.GenerateToken("user-ws-test", "owner")
+	ticket, err := store.GenerateTicket("user-ws-test", "owner", time.Minute)
 	if err != nil {
 		t.Fatal(err)
 	}
-	return token
+	return ticket
 }
 
 // setupWSRouter creates a Gin engine with WebSocket routes for testing.
-func setupWSRouter(db *gorm.DB, bridge *service.Bridge, hub *WSHub) *gin.Engine {
+// It also returns the ticket store, since callers need it to mint tickets.
+func setupWSRouter(db *gorm.DB, bridge *service.Bridge, hub *WSHub) (*gin.Engine, *auth.WSTicketStore) {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
 	r.Use(func(c *gin.Context) {
@@ -77,7 +81,7 @@ func setupWSRouter(db *gorm.DB, bridge *service.Bridge, hub *WSHub) *gin.Engine 
 		wsGroup.GET("/logs/:app_id", LogStreamWS(bridge, hub, ticketStore))
 		wsGroup.GET("/terminal/:server_id", TerminalWS(bridge, hub, ticketStore))
 	}
-	return r
+	return r, ticketStore
 }
 
 func dialWS(t *testing.T, server *httptest.Server, path string) *websocket.Conn {
@@ -363,7 +367,7 @@ func TestLogStreamWS_NoToken(t *testing.T) {
 	hub := NewWSHub(nil)
 	go hub.Run()
 
-	router := setupWSRouter(db, bridge, hub)
+	router, _ := setupWSRouter(db, bridge, hub)
 	server := httptest.NewServer(router)
 	defer server.Close()
 
@@ -385,12 +389,12 @@ func TestLogStreamWS_InvalidToken(t *testing.T) {
 	hub := NewWSHub(nil)
 	go hub.Run()
 
-	router := setupWSRouter(db, bridge, hub)
+	router, _ := setupWSRouter(db, bridge, hub)
 	server := httptest.NewServer(router)
 	defer server.Close()
 
 	// Try to connect with invalid token
-	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + "/ws/logs/app-1?token=invalid-token"
+	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + "/ws/logs/app-1?ticket=invalid-ticket"
 	_, resp, err := websocket.DefaultDialer.Dial(wsURL, nil)
 	if err == nil {
 		t.Fatal("expected error for invalid token")
@@ -408,7 +412,7 @@ func TestTerminalWS_NoToken(t *testing.T) {
 	hub := NewWSHub(nil)
 	go hub.Run()
 
-	router := setupWSRouter(db, bridge, hub)
+	router, _ := setupWSRouter(db, bridge, hub)
 	server := httptest.NewServer(router)
 	defer server.Close()
 
@@ -429,11 +433,11 @@ func TestTerminalWS_InvalidToken(t *testing.T) {
 	hub := NewWSHub(nil)
 	go hub.Run()
 
-	router := setupWSRouter(db, bridge, hub)
+	router, _ := setupWSRouter(db, bridge, hub)
 	server := httptest.NewServer(router)
 	defer server.Close()
 
-	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + "/ws/terminal/server-1?token=bad-token"
+	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + "/ws/terminal/server-1?ticket=bad-ticket"
 	_, resp, err := websocket.DefaultDialer.Dial(wsURL, nil)
 	if err == nil {
 		t.Fatal("expected error for invalid token")
@@ -449,12 +453,12 @@ func TestTerminalWS_ServerNotFound(t *testing.T) {
 	hub := NewWSHub(nil)
 	go hub.Run()
 
-	router := setupWSRouter(db, bridge, hub)
+	router, ticketStore := setupWSRouter(db, bridge, hub)
 	server := httptest.NewServer(router)
 	defer server.Close()
 
-	token := getWSToken(t)
-	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + "/ws/terminal/nonexistent-server?token=" + token
+	ticket := getWSTicket(t, ticketStore)
+	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + "/ws/terminal/nonexistent-server?ticket=" + ticket
 	conn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
 	if err != nil {
 		t.Fatalf("dial failed: %v", err)
@@ -480,12 +484,12 @@ func TestLogStreamWS_AppNotFound(t *testing.T) {
 	hub := NewWSHub(nil)
 	go hub.Run()
 
-	router := setupWSRouter(db, bridge, hub)
+	router, ticketStore := setupWSRouter(db, bridge, hub)
 	server := httptest.NewServer(router)
 	defer server.Close()
 
-	token := getWSToken(t)
-	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + "/ws/logs/nonexistent-app?token=" + token
+	ticket := getWSTicket(t, ticketStore)
+	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + "/ws/logs/nonexistent-app?ticket=" + ticket
 	conn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
 	if err != nil {
 		t.Fatalf("dial failed: %v", err)
@@ -657,7 +661,7 @@ func TestAgentTunnelWS_InvalidToken(t *testing.T) {
 	server := httptest.NewServer(r)
 	defer server.Close()
 
-	resp, err := http.Get(server.URL + "/ws/agent/test-server?token=invalid")
+	resp, err := http.Get(server.URL + "/ws/agent/test-server?ticket=invalid")
 	if err != nil {
 		t.Fatalf("request failed: %v", err)
 	}
@@ -681,8 +685,8 @@ func TestAgentTunnelWS_NoTunnelManager(t *testing.T) {
 	server := httptest.NewServer(r)
 	defer server.Close()
 
-	token := getWSToken(t)
-	resp, err := http.Get(server.URL + "/ws/agent/test-server?token=" + token)
+	ticket := getWSTicket(t, ticketStore)
+	resp, err := http.Get(server.URL + "/ws/agent/test-server?ticket=" + ticket)
 	if err != nil {
 		t.Fatalf("request failed: %v", err)
 	}
@@ -702,12 +706,12 @@ func TestLogStreamWS_ValidApp(t *testing.T) {
 	hub := NewWSHub(nil)
 	go hub.Run()
 
-	router := setupWSRouter(db, bridge, hub)
+	router, ticketStore := setupWSRouter(db, bridge, hub)
 	server := httptest.NewServer(router)
 	defer server.Close()
 
-	token := getWSToken(t)
-	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + "/ws/logs/app-ws-1?token=" + token
+	ticket := getWSTicket(t, ticketStore)
+	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + "/ws/logs/app-ws-1?ticket=" + ticket
 	conn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
 	if err != nil {
 		t.Fatalf("dial failed: %v", err)
@@ -738,12 +742,12 @@ func TestLogStreamWS_AppWithFallbackName(t *testing.T) {
 	hub := NewWSHub(nil)
 	go hub.Run()
 
-	router := setupWSRouter(db, bridge, hub)
+	router, ticketStore := setupWSRouter(db, bridge, hub)
 	server := httptest.NewServer(router)
 	defer server.Close()
 
-	token := getWSToken(t)
-	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + "/ws/logs/app-ws-2?token=" + token
+	ticket := getWSTicket(t, ticketStore)
+	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + "/ws/logs/app-ws-2?ticket=" + ticket
 	conn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
 	if err != nil {
 		t.Fatalf("dial failed: %v", err)
@@ -769,12 +773,12 @@ func TestTerminalWS_ValidServer(t *testing.T) {
 	hub := NewWSHub(nil)
 	go hub.Run()
 
-	router := setupWSRouter(db, bridge, hub)
+	router, ticketStore := setupWSRouter(db, bridge, hub)
 	server := httptest.NewServer(router)
 	defer server.Close()
 
-	token := getWSToken(t)
-	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + "/ws/terminal/srv-ws-1?token=" + token
+	ticket := getWSTicket(t, ticketStore)
+	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + "/ws/terminal/srv-ws-1?ticket=" + ticket
 	conn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
 	if err != nil {
 		t.Fatalf("dial failed: %v", err)
@@ -813,12 +817,12 @@ func TestTerminalWS_InvalidCommand(t *testing.T) {
 	hub := NewWSHub(nil)
 	go hub.Run()
 
-	router := setupWSRouter(db, bridge, hub)
+	router, ticketStore := setupWSRouter(db, bridge, hub)
 	server := httptest.NewServer(router)
 	defer server.Close()
 
-	token := getWSToken(t)
-	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + "/ws/terminal/srv-ws-3?token=" + token
+	ticket := getWSTicket(t, ticketStore)
+	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + "/ws/terminal/srv-ws-3?ticket=" + ticket
 	conn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
 	if err != nil {
 		t.Fatalf("dial failed: %v", err)

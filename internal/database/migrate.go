@@ -1137,6 +1137,41 @@ func MigrateLegacy(db *gorm.DB) error {
 				return tx.Migrator().DropTable("license_signing_keys")
 			},
 		},
+		// 202605040002: Record the creator of tenant-scoped resources.
+		//
+		// CheckResourceAccess() filters apps/servers/credentials by user_id, but no
+		// such column was ever created, so the query errored out and every dev/viewer
+		// request was denied. The column is nullable: rows written before this point
+		// have no recorded owner and stay visible to the whole tenant.
+		{
+			ID: "202605040002",
+			Migrate: func(tx *gorm.DB) error {
+				for _, ddl := range []string{
+					`ALTER TABLE apps ADD COLUMN user_id TEXT`,
+					`ALTER TABLE servers ADD COLUMN user_id TEXT`,
+					`ALTER TABLE credentials ADD COLUMN user_id TEXT`,
+				} {
+					if err := ignoreDuplicateColumnError(tx, tx.Exec(ddl).Error); err != nil {
+						return err
+					}
+				}
+				for _, idx := range []string{
+					`CREATE INDEX IF NOT EXISTS idx_apps_user_id ON apps(user_id)`,
+					`CREATE INDEX IF NOT EXISTS idx_servers_user_id ON servers(user_id)`,
+					`CREATE INDEX IF NOT EXISTS idx_credentials_user_id ON credentials(user_id)`,
+				} {
+					if err := tx.Exec(idx).Error; err != nil {
+						return fmt.Errorf("create user_id index: %w", err)
+					}
+				}
+				return nil
+			},
+			Rollback: func(tx *gorm.DB) error {
+				// SQLite cannot DROP COLUMN before 3.35; leaving the column in place is
+				// harmless because it is nullable and unused by any query that predates it.
+				return nil
+			},
+		},
 	})
 
 	// Use InitSchema for initial creation (faster than Migrate)

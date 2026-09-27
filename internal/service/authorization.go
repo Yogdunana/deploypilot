@@ -10,34 +10,59 @@ import (
 	"gorm.io/gorm"
 )
 
+// resourceTables maps a resource type to the table holding it. Every table here
+// carries a tenant_id, which is the boundary access is enforced on.
+//
+// ownerScoped marks tables that record a creator. Clusters and registries are
+// shared by the whole tenant and have no user_id column at all.
+var resourceTables = map[string]struct {
+	table       string
+	ownerScoped bool
+}{
+	"app":        {"apps", true},
+	"server":     {"servers", true},
+	"credential": {"credentials", true},
+	"cluster":    {"clusters", false},
+	"registry":   {"registries", false},
+}
+
 // CheckResourceAccess checks if a user has access to a specific resource.
-// Resource types: "app", "server", "credential", "cluster"
-// owner and admin roles can access all resources.
-// viewer and dev roles can only access resources they created (user_id match),
-// except for clusters which are tenant-level resources (tenant_id match).
+// Resource types: "app", "server", "credential", "cluster", "registry".
+//
+// The tenant is a hard boundary that no role crosses, admin and owner included.
+// Inside a tenant, owner and admin reach every resource; viewer and dev are
+// additionally limited to resources they created. Rows with no recorded owner
+// (user_id empty — everything written before that column existed) stay visible
+// to the whole tenant rather than becoming unreachable.
 func CheckResourceAccess(db *gorm.DB, resourceType, resourceID, role, userID string) bool {
-	// owner and admin can access all resources
-	if role == "owner" || role == "admin" {
-		return true
+	if resourceID == "" || userID == "" {
+		return false
 	}
 
-	// viewer and dev can only access their own resources
+	resource, ok := resourceTables[resourceType]
+	if !ok {
+		slog.Warn("resource access check on unknown resource type", "type", resourceType)
+		return false
+	}
+
+	var tenantID string
+	if err := db.Table("users").Where("id = ?", userID).Pluck("tenant_id", &tenantID).Error; err != nil {
+		slog.Error("resource access check: could not resolve tenant", "user_id", userID, "error", err)
+		return false
+	}
+	if tenantID == "" {
+		slog.Warn("resource access check: user has no tenant", "user_id", userID)
+		return false
+	}
+
+	query := db.Table(resource.table).Where("id = ? AND tenant_id = ?", resourceID, tenantID)
+	if resource.ownerScoped && role != "owner" && role != "admin" {
+		query = query.Where("(user_id IS NULL OR user_id = '' OR user_id = ?)", userID)
+	}
+
 	var count int64
-	switch resourceType {
-	case "app":
-		db.Table("apps").Where("id = ? AND user_id = ?", resourceID, userID).Count(&count)
-	case "server":
-		db.Table("servers").Where("id = ? AND user_id = ?", resourceID, userID).Count(&count)
-	case "credential":
-		db.Table("credentials").Where("id = ? AND user_id = ?", resourceID, userID).Count(&count)
-	case "cluster":
-		// Clusters are tenant-level resources: check tenant_id match
-		var tenantID string
-		if err := db.Table("users").Where("id = ?", userID).Pluck("tenant_id", &tenantID).Error; err != nil {
-			return false
-		}
-		db.Table("clusters").Where("id = ? AND tenant_id = ?", resourceID, tenantID).Count(&count)
-	default:
+	if err := query.Count(&count).Error; err != nil {
+		slog.Error("resource access check failed", "type", resourceType, "id", resourceID, "error", err)
 		return false
 	}
 	return count > 0
