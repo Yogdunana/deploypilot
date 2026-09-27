@@ -15,6 +15,7 @@ import (
 	"github.com/Yogdunana/deploypilot/internal/database"
 	"github.com/Yogdunana/deploypilot/internal/engine/deployer"
 	"github.com/Yogdunana/deploypilot/internal/mcp"
+	"github.com/Yogdunana/deploypilot/internal/sandbox"
 	"github.com/Yogdunana/deploypilot/internal/service"
 	appversion "github.com/Yogdunana/deploypilot/internal/version"
 	"github.com/mark3labs/mcp-go/server"
@@ -108,8 +109,13 @@ func run(configFilePath, cliDriver, cliDSN string) error {
 		}
 	}
 
-	// Create executor (local Docker by default)
-	var executor deployer.CommandExecutor = &localExecutor{}
+	// Create executor (local Docker by default) wrapped in the command sandbox.
+	// Without this wrapper every command reaching the shell is unfiltered, including
+	// the ones an AI issues through exec_command. The sandbox runs in "deny" mode and
+	// only blocks known-dangerous patterns (rm -rf /, passwd root, chmod 777, ...).
+	// See internal/sandbox.DefaultConfig().
+	var executor deployer.CommandExecutor = deployer.NewSandboxExecutor(
+		&localExecutor{}, sandbox.New(sandbox.DefaultConfig()))
 
 	// Load or generate encryption key
 	encKey, err := crypto.LoadEncryptionKeyFromEnv()
