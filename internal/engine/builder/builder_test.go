@@ -3,6 +3,7 @@ package builder
 import (
 	"context"
 	"fmt"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -194,7 +195,14 @@ func TestBuildAndDeploy_Full(t *testing.T) {
 	if result.Image != expectedImage {
 		t.Errorf("BuildAndDeploy() Image = %q, want %q", result.Image, expectedImage)
 	}
-	if result.Duration <= 0 {
+	// A mock-backed build finishes in microseconds. Windows' monotonic clock ticks
+	// at ~0.5ms (QPC granularity), so time.Since() can legitimately report 0 there
+	// even though the field is populated. Keep the assertion strict where the clock
+	// can actually resolve it.
+	if result.Duration < 0 {
+		t.Errorf("BuildAndDeploy() Duration = %v, want >= 0", result.Duration)
+	}
+	if result.Duration == 0 && runtime.GOOS != "windows" {
 		t.Errorf("BuildAndDeploy() Duration = %v, want > 0", result.Duration)
 	}
 }

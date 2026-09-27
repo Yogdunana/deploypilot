@@ -7,6 +7,54 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+- **Command sandbox now enforced on every entry point**: `api-server` and `mcp-server`
+  built their `Bridge` with a bare executor, so all commands reached `sh -c` with no
+  sandbox filtering — including everything an AI issues through `exec_command`. Both
+  entry points now wrap the executor in `deployer.SandboxExecutor`, matching what
+  `deploypilot serve` already did. Previously the sandbox only protected the CLI path.
+- **Tenant boundary now holds for every role**: `CheckResourceAccess` returned `true`
+  for `admin`/`owner` before looking at the database at all, so an admin who knew (or
+  guessed) an ID from another tenant could read and mutate it. Access is now resolved
+  against the caller's tenant for all roles, `admin` and `owner` included.
+- **Signing private keys encrypted at rest**: Ed25519 seeds were base64-encoded straight
+  into `signing_keys.private_key`. A database dump handed out a working code-signing key.
+  New keys are sealed with AES-256-GCM using the same key as TOTP secrets and stored as
+  `enc:<ciphertext>`; unprefixed legacy rows still load, so existing keys keep working.
+  Rotate once (`POST /api/v1/security/signing/keys/rotate`) to move them to the new format.
+- **WebSocket JWT-in-query removed**: `authenticateWS` accepted a long-lived JWT as
+  `?token=`. URLs end up in access logs, proxy logs and browser history, and the token
+  outlived the request. The single-use ticket is now the only accepted credential, which
+  is what the web UI already uses. `ws_test.go` now mints tickets instead of passing JWTs.
+- **Volume mount path validation**: `validateVolumePath` used `filepath.IsAbs`, which is
+  host-OS dependent — on Windows it rejected every POSIX path, so bind mounts silently
+  failed there. It also matched allowed roots by raw prefix, so `/tmp` accepted
+  `/tmp-escape`. Paths are now validated as POSIX (they name locations on the target
+  host) and matched segment by segment.
+
+### Fixed
+- **go.sum**: add the missing `h1:` hash for `gopkg.in/natefinch/lumberjack.v2 v2.2.1`.
+  A fresh clone failed to build with `missing go.sum entry`; only the `/go.mod` hash
+  line was committed when log rotation was introduced in v1.11.0.
+- **Per-user resource ownership was never enforced**: `CheckResourceAccess` filtered
+  `apps` / `servers` / `credentials` by `user_id`, a column that no migration ever
+  created. The query errored, the error was swallowed, and every `dev`/`viewer` request
+  was denied. Adds migration `202605040002` for the nullable `user_id` column and drops
+  the silent error swallowing. Rows without an owner stay visible to their tenant.
+- **`registry` resources were unreachable**: the router guards `/api/v1/registries/:id`
+  with resource type `registry`, which `CheckResourceAccess` did not know about, so it
+  fell through to `default: return false`. Added to the resource table map.
+- **Windows/macOS can build and test the repo again**: `internal/service/upgrade.go`
+  called `syscall.Statfs`, which does not exist off Unix, so `go build ./...` and the
+  whole `internal/service` test suite failed on a Windows dev machine. The disk-space
+  check moved into `disk_linux.go` / `disk_other.go`; off Linux it logs and skips
+  instead of blocking the build.
+- **`internal/api` tests could not run at all**: `ws_test.go` imports
+  `github.com/stretchr/testify`, which was missing from `go.mod`, so every
+  `go test ./internal/api` / `go vet ./internal/api` aborted with
+  `updates to go.mod needed`. Added `testify v1.11.1` (already the version selected by
+  the module graph) and the `go-difflib` indirect entry. `go mod tidy -diff` is clean.
+
 ## [1.11.0] - 2026-05-04
 
 ### Security

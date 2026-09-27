@@ -397,32 +397,25 @@ func LogStreamWS(bridge *service.Bridge, hub *WSHub, ticketStore *auth.WSTicketS
 	}
 }
 
-// authenticateWS authenticates a WebSocket connection using a one-time ticket (preferred)
-// or falls back to JWT token query param for backward compatibility.
+// authenticateWS authenticates a WebSocket connection using a one-time ticket.
 // Returns userID, role, and an error if authentication fails.
+//
+// The browser WebSocket API cannot set request headers, so the ticket is the only
+// supported credential. A JWT in the query string is deliberately NOT accepted:
+// URLs land in access logs, proxy logs, browser history and Referer headers, and a
+// long-lived token there stays valid long after the request is gone. The ticket is
+// single-use and expires in seconds, so leaking one URL costs nothing.
 func authenticateWS(c *gin.Context, ticketStore *auth.WSTicketStore) (string, string, error) {
-	// Prefer ticket-based authentication
 	ticket := c.Query("ticket")
-	if ticket != "" {
-		userID, role, err := ticketStore.ValidateTicket(ticket)
-		if err != nil {
-			return "", "", fmt.Errorf("invalid or expired websocket ticket")
-		}
-		return userID, role, nil
-	}
-
-	// Fallback: JWT token in query param (backward compatibility)
-	token := c.Query("token")
-	if token == "" {
+	if ticket == "" {
 		return "", "", fmt.Errorf("websocket ticket is required")
 	}
 
-	claims, err := auth.ParseToken(token)
+	userID, role, err := ticketStore.ValidateTicket(ticket)
 	if err != nil {
 		return "", "", fmt.Errorf("invalid or expired websocket ticket")
 	}
-
-	return claims.UserID, claims.Role, nil
+	return userID, role, nil
 }
 
 // AgentTunnelWS handles WebSocket connections for agent reverse tunnels.

@@ -44,6 +44,7 @@ import (
 	"github.com/Yogdunana/deploypilot/internal/metrics"
 	"github.com/Yogdunana/deploypilot/internal/plugin"
 	"github.com/Yogdunana/deploypilot/internal/plugin/builtin"
+	"github.com/Yogdunana/deploypilot/internal/sandbox"
 	"github.com/Yogdunana/deploypilot/internal/server"
 	"github.com/Yogdunana/deploypilot/internal/service"
 	appversion "github.com/Yogdunana/deploypilot/internal/version"
@@ -164,8 +165,13 @@ func run(configFilePath, cliDriver, cliDSN, cliAddr string, migrateOnly, migrate
 		}
 	}
 
-	// Create executor
-	var executor deployer.CommandExecutor = &localExecutor{}
+	// Create executor wrapped in the command sandbox.
+	// Every command triggered through the REST API (deploy, file manager, terminal,
+	// toolbox, firewall) funnels through this executor. Without the sandbox those
+	// commands reach `sh -c` completely unfiltered. The sandbox runs in "deny" mode
+	// and only blocks known-dangerous patterns — see internal/sandbox.DefaultConfig().
+	var executor deployer.CommandExecutor = deployer.NewSandboxExecutor(
+		&localExecutor{}, sandbox.New(sandbox.DefaultConfig()))
 
 	// Load or generate encryption key
 	encKey, err := crypto.LoadEncryptionKeyFromEnv()

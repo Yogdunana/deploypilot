@@ -4,23 +4,34 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
-	"path/filepath"
+	"path"
 	"strings"
 )
 
+// validateVolumePath checks the host side of a bind mount.
+//
+// The path names a location on the *target* host, which is always Unix-like even
+// when DeployPilot itself runs on Windows. filepath.IsAbs/filepath.Clean are
+// OS-dependent — they call "/app" relative and rewrite it to "\app" on Windows —
+// so everything here uses the POSIX path package instead.
 func validateVolumePath(hostPath string) error {
+	if hostPath == "" {
+		return fmt.Errorf("volume path is empty")
+	}
 	if strings.Contains(hostPath, "..") {
 		return fmt.Errorf("volume path contains path traversal: %s", hostPath)
 	}
-	if !filepath.IsAbs(hostPath) {
+	if !path.IsAbs(hostPath) {
 		return fmt.Errorf("volume path must be absolute: %s", hostPath)
 	}
-	cleaned := filepath.Clean(hostPath)
+	cleaned := path.Clean(hostPath)
 	allowedRoots := getAllowedVolumeRoots()
 	if len(allowedRoots) > 0 {
 		allowed := false
 		for _, root := range allowedRoots {
-			if strings.HasPrefix(cleaned, root) {
+			root = strings.TrimSuffix(path.Clean(root), "/")
+			// Match on whole path segments: "/tmp" must not allow "/tmp-escape".
+			if cleaned == root || strings.HasPrefix(cleaned, root+"/") {
 				allowed = true
 				break
 			}

@@ -4,9 +4,12 @@ import (
 	"crypto/ed25519"
 	"encoding/base64"
 	"fmt"
+	"log/slog"
 	"net/http"
+	"strings"
 
 	"github.com/Yogdunana/deploypilot/internal/auth"
+	"github.com/Yogdunana/deploypilot/internal/crypto"
 	"github.com/Yogdunana/deploypilot/internal/model"
 	"github.com/Yogdunana/deploypilot/internal/signing"
 	"github.com/gin-gonic/gin"
@@ -144,11 +147,18 @@ func GenerateKeys(c *gin.Context) {
 	globalSigningAPI.db.Raw("SELECT COALESCE(MAX(key_version), 0) as max_version FROM signing_keys").Scan(&maxVersion)
 	nextVersion := maxVersion.MaxVersion + 1
 
+	sealedPrivateKey, err := encryptPrivateKey(base64.StdEncoding.EncodeToString(privateKey.Seed()))
+	if err != nil {
+		slog.Error("failed to encrypt signing private key", "error", err)
+		respondError(c, http.StatusInternalServerError, "failed to seal signing key")
+		return
+	}
+
 	keyRecord := model.SigningKey{
 		ID:          uuid.New().String(),
 		KeyVersion:  nextVersion,
 		PublicKey:   base64.StdEncoding.EncodeToString(publicKey),
-		PrivateKey:  base64.StdEncoding.EncodeToString(privateKey.Seed()),
+		PrivateKey:  sealedPrivateKey,
 		Fingerprint: fingerprint,
 		IsActive:    true,
 		CreatedBy:   userIDStr,
@@ -210,11 +220,18 @@ func RotateKeys(c *gin.Context) {
 	globalSigningAPI.db.Raw("SELECT COALESCE(MAX(key_version), 0) as max_version FROM signing_keys").Scan(&maxVersion)
 	nextVersion := maxVersion.MaxVersion + 1
 
+	sealedPrivateKey, err := encryptPrivateKey(base64.StdEncoding.EncodeToString(privateKey.Seed()))
+	if err != nil {
+		slog.Error("failed to encrypt signing private key", "error", err)
+		respondError(c, http.StatusInternalServerError, "failed to seal signing key")
+		return
+	}
+
 	keyRecord := model.SigningKey{
 		ID:          uuid.New().String(),
 		KeyVersion:  nextVersion,
 		PublicKey:   base64.StdEncoding.EncodeToString(publicKey),
-		PrivateKey:  base64.StdEncoding.EncodeToString(privateKey.Seed()),
+		PrivateKey:  sealedPrivateKey,
 		Fingerprint: fingerprint,
 		IsActive:    true,
 		CreatedBy:   userIDStr,
@@ -245,6 +262,45 @@ func RotateKeys(c *gin.Context) {
 	})
 }
 
+// encPrefix marks a value that is stored encrypted. Anything without the prefix is
+// a legacy plaintext row written before signing keys were encrypted at rest.
+const encPrefix = "enc:"
+
+// encryptPrivateKey encrypts an Ed25519 seed (base64) before it hits the database.
+// The private key signs every release artifact, so a leaked database dump must not
+// hand out a working signing key along with it.
+func encryptPrivateKey(plain string) (string, error) {
+	key := encryptionKey()
+	if len(key) == 0 {
+		return "", fmt.Errorf("encryption key not initialized")
+	}
+	sealed, err := crypto.Encrypt(key, plain)
+	if err != nil {
+		return "", fmt.Errorf("failed to encrypt private key: %w", err)
+	}
+	return encPrefix + sealed, nil
+}
+
+// decryptPrivateKey reverses encryptPrivateKey. Values written before encryption
+// was introduced have no prefix and are returned as-is so existing keys keep
+// working after upgrade.
+func decryptPrivateKey(stored string) (string, error) {
+	if !strings.HasPrefix(stored, encPrefix) {
+		slog.Warn("signing key stored in plaintext; rotate it to encrypt at rest",
+			"hint", "POST /api/v1/security/signing/keys/rotate")
+		return stored, nil
+	}
+	key := encryptionKey()
+	if len(key) == 0 {
+		return "", fmt.Errorf("encryption key not initialized")
+	}
+	plain, err := crypto.Decrypt(key, strings.TrimPrefix(stored, encPrefix))
+	if err != nil {
+		return "", fmt.Errorf("failed to decrypt private key: %w", err)
+	}
+	return plain, nil
+}
+
 // loadSignerFromModel reconstructs a Signer from a SigningKey database record.
 func (a *SigningAPI) loadSignerFromModel(key *model.SigningKey) (*signing.Signer, error) {
 	pubBytes, err := base64.StdEncoding.DecodeString(key.PublicKey)
@@ -252,7 +308,12 @@ func (a *SigningAPI) loadSignerFromModel(key *model.SigningKey) (*signing.Signer
 		return nil, fmt.Errorf("failed to decode public key: %w", err)
 	}
 
-	privSeedBytes, err := base64.StdEncoding.DecodeString(key.PrivateKey)
+	privSeedB64, err := decryptPrivateKey(key.PrivateKey)
+	if err != nil {
+		return nil, err
+	}
+
+	privSeedBytes, err := base64.StdEncoding.DecodeString(privSeedB64)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode private key: %w", err)
 	}
